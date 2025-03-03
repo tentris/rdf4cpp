@@ -17,8 +17,6 @@ on:
         type: boolean
       with-sanitizer:
         type: boolean
-      with-AVX:
-        type: boolean
     secrets:
       coverall-token:
         description: 'Access token for coverall. Required if inputs.with-coverage'
@@ -54,25 +52,6 @@ jobs:
       - name: use mold as default linker
         uses: rui314/setup-mold@v1
 
-      # Checks if the compiler on the CI
-      # has the instruction sets enabled we expect to be enabled for testing
-      # I.e. inputs.with-AVX <-> compiler has avx
-      - name: Check AVX
-        env:
-          CC: ${{ steps.install_cc.outputs.cc }}
-          CXX: ${{ steps.install_cc.outputs.cxx }}
-        run: |
-          echo 'int main() { return __AVX2__; }' > /tmp/rdf4cpp-avx-test.cpp
-          
-          AVX_EXISTS=$(${CXX} ${{ fromJSON('["", "-march=native"]')[inputs.with-AVX] }} -o /dev/null /tmp/rdf4cpp-avx-test.cpp > /dev/null 2>&1; test $? -eq 0; echo $?)
-          AVX_SHOULD_EXIST=${{ fromJSON('["1", "0"]')[inputs.with-AVX] }}
-          
-          # Shell: true=zero-exit, false=non-zero-exit
-          echo "AVX exists: $AVX_EXISTS"
-          echo "AVX should exist: $AVX_SHOULD_EXIST"
-          
-          test $AVX_EXISTS -eq $AVX_SHOULD_EXIST
-
       - name: Configure conan
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@main
         with:
@@ -104,7 +83,7 @@ jobs:
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
-          CXXFLAGS: -Wno-unused-command-line-argument -fuse-ld=mold ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }} ${{ fromJSON('["", "-march=native"]')[inputs.with-AVX] }}
+          CXXFLAGS: -Wno-unused-command-line-argument -fuse-ld=mold ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
         run: >
           cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}

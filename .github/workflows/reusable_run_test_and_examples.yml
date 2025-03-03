@@ -14,8 +14,6 @@ on:
         type: boolean
       with-sanitizer:
         type: boolean
-      with-AVX:
-        type: boolean
     secrets:
       coverall-token:
         description: 'Access token for coverall. Required if inputs.with-coverage'
@@ -30,7 +28,6 @@ jobs:
       cmake-version: ${{ inputs.cmake-version }}
       build-shared-libs: false
       with-sanitizer: ${{ inputs.with-sanitizer }}
-      with-AVX: ${{ inputs.with-AVX }}
 
   test-and-examples-shared:
     uses: ./.github/workflows/reusable_run_test_and_examples_by_linking_type.yml
