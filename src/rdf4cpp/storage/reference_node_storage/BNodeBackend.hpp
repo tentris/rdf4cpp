@@ -3,7 +3,8 @@
 
 #include <rdf4cpp/storage/view/BNodeBackendView.hpp>
 #include <rdf4cpp/storage/identifier/NodeBackendID.hpp>
-#include <rdf4cpp/storage/reference_node_storage/detail/ConstString.hpp>
+
+#include <dice/template-library/static_string.hpp>
 
 namespace rdf4cpp::storage::reference_node_storage {
 
@@ -12,7 +13,7 @@ struct BNodeBackend {
     using id_type = identifier::NodeID;
 
     size_t hash;
-    detail::ConstString identifier;
+    dice::template_library::static_string identifier;
 
     explicit BNodeBackend(view_type const &view) noexcept : hash{view.hash()},
                                                             identifier{view.identifier} {

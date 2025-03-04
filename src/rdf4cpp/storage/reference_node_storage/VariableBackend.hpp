@@ -2,7 +2,8 @@
 #define RDF4CPP_VARIABLEBACKEND_HPP
 
 #include <rdf4cpp/storage/view/VariableBackendView.hpp>
-#include <rdf4cpp/storage/reference_node_storage/detail/ConstString.hpp>
+
+#include <dice/template-library/static_string.hpp>
 
 namespace rdf4cpp::storage::reference_node_storage {
 
@@ -11,7 +12,7 @@ struct VariableBackend {
     using id_type = identifier::NodeID;
 
     size_t hash;
-    detail::ConstString name;
+    dice::template_library::static_string name;
     bool is_anonymous;
 
     explicit VariableBackend(view_type const &view) noexcept : hash{view.hash()},

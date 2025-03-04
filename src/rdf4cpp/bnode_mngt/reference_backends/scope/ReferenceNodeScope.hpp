@@ -6,9 +6,9 @@
 
 #include <dice/sparse-map/sparse_map.hpp>
 #include <dice/hash.hpp>
+#include <dice/template-library/static_string.hpp>
 
 #include <rdf4cpp/bnode_mngt/reference_backends/generator/RandomIdGenerator.hpp>
-#include <rdf4cpp/storage/reference_node_storage/detail/ConstString.hpp>
 #include <shared_mutex>
 
 namespace rdf4cpp::bnode_mngt {
@@ -19,7 +19,7 @@ private:
     G gen_;
 
     std::shared_mutex mutable mutex_; // protects label_to_handle_ and handle_to_label_
-    dice::sparse_map::sparse_map<storage::reference_node_storage::detail::ConstString,
+    dice::sparse_map::sparse_map<dice::template_library::static_string,
                                  storage::identifier::NodeBackendHandle,
                                  dice::hash::DiceHashwyhash<std::string_view>,
                                  std::equal_to<>>
@@ -69,7 +69,7 @@ public:
         auto const node = generate_node(node_storage);
 
         std::unique_lock lock{mutex_};
-        auto [it, inserted] = label_to_handle_.emplace(storage::reference_node_storage::detail::ConstString{label}, node.backend_handle());
+        auto [it, inserted] = label_to_handle_.emplace(label, node.backend_handle());
         if (!inserted) {
             throw std::logic_error{"Node already labeled"};
         }
