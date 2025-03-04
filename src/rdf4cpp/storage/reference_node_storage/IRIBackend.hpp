@@ -2,7 +2,8 @@
 #define RDF4CPP_IRIBACKEND_HPP
 
 #include <rdf4cpp/storage/view/IRIBackendView.hpp>
-#include <rdf4cpp/storage/reference_node_storage/detail/ConstString.hpp>
+
+#include <dice/template-library/static_string.hpp>
 
 namespace rdf4cpp::storage::reference_node_storage {
 
@@ -11,7 +12,7 @@ struct IRIBackend {
     using id_type = identifier::NodeID;
 
     size_t hash;
-    detail::ConstString identifier;
+    dice::template_library::static_string identifier;
 
     explicit IRIBackend(view_type const &view) noexcept : hash{view.hash()},
                                                           identifier{view.identifier} {
