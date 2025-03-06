@@ -110,7 +110,7 @@ public:
 };
 
 inline std::ostream &operator<<(std::ostream &os, LiteralType type) {
-    os << "LiteralType { .tag = " << type.tag() << ", .id = " << type.type_id() << " }";
+    os << "LiteralType { .tag = " << type.tag() << ", .id = " << static_cast<unsigned>(type.type_id()) << " }";
     return os;
 }
 
