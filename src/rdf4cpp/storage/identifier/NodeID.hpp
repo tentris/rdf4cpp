@@ -96,6 +96,11 @@ inline constexpr NodeID NodeID::min_iri_id{datatypes::registry::min_dynamic_data
 inline constexpr NodeID NodeID::min_variable_id{1};
 inline constexpr LiteralID NodeID::min_literal_id{1};
 
+inline std::ostream &operator<<(std::ostream &os, NodeID id) {
+    os << "{ .underlying = " << id.to_underlying() << " }";
+    return os;
+}
+
 }  // namespace rdf4cpp::storage::identifier
 
 #ifndef DOXYGEN_PARSER

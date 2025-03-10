@@ -19,21 +19,21 @@ enum struct RDFNodeType : uint8_t {
 
 constexpr std::string_view to_string_view(RDFNodeType const node_type) noexcept {
     switch (node_type) {
-        case RDFNodeType::Variable:
-            return "variable";
-        case RDFNodeType::BNode:
-            return "blank node";
-        case RDFNodeType::IRI:
-            return "iri";
-        case RDFNodeType::Literal:
-            return "literal";
-        default:
-            return "undefined";
+        case RDFNodeType::Variable: return "Variable";
+        case RDFNodeType::BNode: return "BNode";
+        case RDFNodeType::IRI: return "IRI";
+        case RDFNodeType::Literal: return "Literal";
+        default: return "Undefined";
     }
 }
 
 inline std::string to_string(RDFNodeType const node_type) noexcept {
     return std::string{to_string_view(node_type)};
+}
+
+inline std::ostream &operator<<(std::ostream &os, RDFNodeType type) {
+    os << to_string_view(type);
+    return os;
 }
 
 }  // namespace rdf4cpp::storage::identifier

@@ -196,6 +196,11 @@ public:
 
 static_assert(sizeof(NodeBackendHandle) == 3 * sizeof(void *));
 
+inline std::ostream &operator<<(std::ostream &os, NodeBackendHandle handle) {
+    os << "{ .id = " << handle.id() << ", .node_storage = { .backend = " << handle.storage().backend() << ", .vtable = " << handle.storage().vtable() << " } }";
+    return os;
+}
+
 /**
  * Constructor to create an IRI handle for the datatype of a Literal with fixed id datatype
  * @param lit_handle handle of the literal

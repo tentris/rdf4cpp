@@ -5,6 +5,7 @@
 #include <compare>
 #include <cstddef>
 #include <cstdint>
+#include <ostream>
 #include <rdf4cpp/TriBool.hpp>
 
 namespace rdf4cpp::storage::identifier {
@@ -15,6 +16,21 @@ enum struct LiteralTypeTag : uint8_t {
     Timepoint = 0b10,
     Duration  = 0b11,
 };
+
+constexpr std::string_view to_string_view(LiteralTypeTag tag) {
+    switch (tag) {
+        case LiteralTypeTag::Default: return "Default";
+        case LiteralTypeTag::Numeric: return "Numeric";
+        case LiteralTypeTag::Timepoint: return "Timepoint";
+        case LiteralTypeTag::Duration: return "Duration";
+        default: return "Undefined";
+    }
+}
+
+inline std::ostream &operator<<(std::ostream &os, LiteralTypeTag tag) {
+    os << to_string_view(tag);
+    return os;
+}
 
 /**
  * <p>A literal type specifies the type of a literal. Types, which are not available within this enum class MUST be specified as LiteralType::OTHER.</p>
@@ -50,12 +66,16 @@ public:
         return *this != LiteralType::other();
     }
 
+    [[nodiscard]] constexpr LiteralTypeTag tag() const noexcept {
+        return static_cast<LiteralTypeTag>((underlying_ >> numeric_tagging_bit_shift) & 0b11);
+    }
+
     [[nodiscard]] constexpr TriBool is_numeric() const noexcept {
         if (!is_fixed()) {
             return TriBool::Err;
         }
 
-        return static_cast<LiteralTypeTag>((underlying_ >> numeric_tagging_bit_shift) & 0b11) == LiteralTypeTag::Numeric;
+        return tag() == LiteralTypeTag::Numeric;
     }
 
     [[nodiscard]] constexpr TriBool is_timepoint() const noexcept {
@@ -63,7 +83,7 @@ public:
             return TriBool::Err;
         }
 
-        return static_cast<LiteralTypeTag>((underlying_ >> numeric_tagging_bit_shift) & 0b11)  == LiteralTypeTag::Timepoint;
+        return tag()  == LiteralTypeTag::Timepoint;
     }
 
     [[nodiscard]] constexpr TriBool is_duration() const noexcept {
@@ -71,7 +91,7 @@ public:
             return TriBool::Err;
         }
 
-        return static_cast<LiteralTypeTag>((underlying_ >> numeric_tagging_bit_shift) & 0b11)  == LiteralTypeTag::Duration;
+        return tag()  == LiteralTypeTag::Duration;
     }
 
     [[nodiscard]] constexpr uint8_t type_id() const noexcept {
@@ -88,6 +108,11 @@ public:
 
     constexpr std::strong_ordering operator<=>(LiteralType const &other) const noexcept = default;
 };
+
+inline std::ostream &operator<<(std::ostream &os, LiteralType type) {
+    os << "{ .tag = " << type.tag() << ", .id = " << static_cast<unsigned>(type.type_id()) << " }";
+    return os;
+}
 
 }  // namespace rdf4cpp::storage::identifier
 

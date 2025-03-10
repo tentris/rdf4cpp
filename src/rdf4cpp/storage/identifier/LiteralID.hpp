@@ -5,6 +5,7 @@
 #include <cassert>
 #include <compare>
 #include <cstdint>
+#include <ostream>
 
 namespace rdf4cpp::storage::identifier {
 /**
@@ -61,5 +62,11 @@ public:
 
     constexpr std::strong_ordering operator<=>(LiteralID const &) const noexcept = default;
 };
+
+inline std::ostream &operator<<(std::ostream &os, LiteralID id) {
+    os << "{ .underlying = " << id.to_underlying() << " }";
+    return os;
+}
+
 }  // namespace rdf4cpp::storage::identifier
 #endif  //RDF4CPP_LITERALID_HPP

@@ -154,6 +154,17 @@ public:
 static_assert(sizeof(NodeBackendID) == sizeof(uint64_t));
 static_assert(alignof(NodeBackendID) == alignof(uint64_t));
 
+inline std::ostream &operator<<(std::ostream &os, NodeBackendID id) {
+    if (id.is_literal()) {
+        os << "{ .node_id = { .literal_id = " << id.node_id().literal_id() << ", .literal_type = " << id.node_id().literal_type()
+           << " }, .type = " << id.type() << ", .is_inlined = " << std::boolalpha << id.is_inlined() << ", .free_tagging_bits = " << id.free_tagging_bits() << " }";
+    } else {
+        os << "{ .node_id = " << id.node_id() << ", .type = " << id.type() << ", .is_inlined = " << std::boolalpha << id.is_inlined() << ", .free_tagging_bits = " << id.free_tagging_bits() << " }";
+    }
+
+    return os;
+}
+
 /**
  * Convert a NodeId for an IRI
  * to a LiteralType.
