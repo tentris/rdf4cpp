@@ -56,6 +56,13 @@ target_link_libraries(tests_NodeStorage_helper_types
 )
 add_test(NAME tests_NodeStorage_helper_types COMMAND tests_NodeStorage_helper_types)
 
+add_executable(tests_NodeStorage_ids nodes/tests_NodeStorage_ids.cpp)
+target_link_libraries(tests_NodeStorage_ids
+        doctest::doctest
+        rdf4cpp
+)
+add_test(NAME tests_NodeStorage_ids COMMAND tests_NodeStorage_ids)
+
 
 # RDF Core Types
 add_executable(tests_String datatype/tests_String.cpp)
