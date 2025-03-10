@@ -197,7 +197,7 @@ public:
 static_assert(sizeof(NodeBackendHandle) == 3 * sizeof(void *));
 
 inline std::ostream &operator<<(std::ostream &os, NodeBackendHandle handle) {
-    os << "NodeBackendHandle { .id = " << handle.id() << ", .node_storage = DynNodeStoragePtr { .backend = " << handle.storage().backend() << ", .vtable = " << handle.storage().vtable() << " } }";
+    os << "{ .id = " << handle.id() << ", .node_storage = { .backend = " << handle.storage().backend() << ", .vtable = " << handle.storage().vtable() << " } }";
     return os;
 }
 

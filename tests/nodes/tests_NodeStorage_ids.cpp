@@ -21,7 +21,7 @@ TEST_SUITE("node storage identifier output") {
     }
 
     TEST_CASE("LiteralID") {
-        check_string_repr(LiteralID{123}, "LiteralID { .underlying = 123 }");
+        check_string_repr(LiteralID{123}, "{ .underlying = 123 }");
     }
 
     TEST_CASE("LiteralTypeTag") {
@@ -32,30 +32,29 @@ TEST_SUITE("node storage identifier output") {
     }
 
     TEST_CASE("LiteralType") {
-        check_string_repr(LiteralType::from_parts(LiteralTypeTag::Default, 1), "LiteralType { .tag = Default, .id = 1 }");
-        check_string_repr(LiteralType::from_parts(LiteralTypeTag::Duration, 1), "LiteralType { .tag = Duration, .id = 1 }");
-        check_string_repr(LiteralType::from_parts(LiteralTypeTag::Timepoint, 1), "LiteralType { .tag = Timepoint, .id = 1 }");
-        check_string_repr(LiteralType::from_parts(LiteralTypeTag::Numeric, 1), "LiteralType { .tag = Numeric, .id = 1 }");
+        check_string_repr(LiteralType::from_parts(LiteralTypeTag::Default, 1), "{ .tag = Default, .id = 1 }");
+        check_string_repr(LiteralType::from_parts(LiteralTypeTag::Duration, 1), "{ .tag = Duration, .id = 1 }");
+        check_string_repr(LiteralType::from_parts(LiteralTypeTag::Timepoint, 1), "{ .tag = Timepoint, .id = 1 }");
+        check_string_repr(LiteralType::from_parts(LiteralTypeTag::Numeric, 1), "{ .tag = Numeric, .id = 1 }");
     }
 
     TEST_CASE("NodeID") {
-        check_string_repr(NodeID{LiteralID{1}, LiteralType::from_parts(LiteralTypeTag::Default, 1)}, "NodeID { .underlying = 4398046511105 }");
-        check_string_repr(NodeID{123}, "NodeID { .underlying = 123 }");
+        check_string_repr(NodeID{LiteralID{1}, LiteralType::from_parts(LiteralTypeTag::Default, 1)}, "{ .underlying = 4398046511105 }");
+        check_string_repr(NodeID{123}, "{ .underlying = 123 }");
     }
 
     TEST_CASE("NodeBackendID") {
         check_string_repr(NodeBackendID{NodeID{LiteralID{1}, LiteralType::from_parts(LiteralTypeTag::Default, 1)}, RDFNodeType::Literal},
-                          "NodeBackendID { .node_id = NodeID { .literal_id = LiteralID { .underlying = 1 }, .literal_type = LiteralType { .tag = Default, .id = 1 } }, .type = Literal, .is_inlined = false, .free_tagging_bits = 0 }");
+                          "{ .node_id = { .literal_id = { .underlying = 1 }, .literal_type = { .tag = Default, .id = 1 } }, .type = Literal, .is_inlined = false, .free_tagging_bits = 0 }");
         check_string_repr(NodeBackendID{NodeID{123}, RDFNodeType::IRI},
-                          "NodeBackendID { .node_id = NodeID { .underlying = 123 }, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }");
+                          "{ .node_id = { .underlying = 123 }, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }");
     }
 
     TEST_CASE("NodeBackendHandle") {
         check_string_repr(NodeBackendHandle{NodeBackendID{NodeID{123}, RDFNodeType::IRI}, nullptr},
-                          "NodeBackendHandle { .id = NodeBackendID { .node_id = NodeID { .underlying = 123 }, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }, .node_storage = DynNodeStoragePtr { .backend = 0, .vtable = 0 } }");
+                          "{ .id = { .node_id = { .underlying = 123 }, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }, .node_storage = { .backend = 0, .vtable = 0 } }");
         check_string_repr(NodeBackendHandle{NodeBackendID{NodeID{123}, RDFNodeType::IRI}, rdf4cpp::storage::default_node_storage},
-                          std::format("NodeBackendHandle {{ .id = NodeBackendID {{ .node_id = NodeID {{ .underlying = 123 }}, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }}, .node_storage = DynNodeStoragePtr {{ .backend = {}, .vtable = {} }} }}",
+                          std::format("{{ .id = {{ .node_id = {{ .underlying = 123 }}, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }}, .node_storage = {{ .backend = {}, .vtable = {} }} }}",
                               rdf4cpp::storage::default_node_storage.backend(), static_cast<void const *>(rdf4cpp::storage::default_node_storage.vtable())));
     }
-
 }

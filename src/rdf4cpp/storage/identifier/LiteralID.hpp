@@ -64,7 +64,7 @@ public:
 };
 
 inline std::ostream &operator<<(std::ostream &os, LiteralID id) {
-    os << "LiteralID { .underlying = " << id.to_underlying() << " }";
+    os << "{ .underlying = " << id.to_underlying() << " }";
     return os;
 }
 

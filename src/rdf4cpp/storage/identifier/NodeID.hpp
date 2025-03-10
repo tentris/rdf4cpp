@@ -97,7 +97,7 @@ inline constexpr NodeID NodeID::min_variable_id{1};
 inline constexpr LiteralID NodeID::min_literal_id{1};
 
 inline std::ostream &operator<<(std::ostream &os, NodeID id) {
-    os << "NodeID { .underlying = " << id.to_underlying() << " }";
+    os << "{ .underlying = " << id.to_underlying() << " }";
     return os;
 }
 
