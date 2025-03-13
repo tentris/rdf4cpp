@@ -16,7 +16,12 @@ namespace rdf4cpp::storage::reference_node_storage::detail {
  * @tparam Equal equality for View and Value
  * @tparam Allocator allocator
  */
-template<typename Id, typename Value, typename View, typename Hash = std::hash<View>, typename Equal = std::equal_to<>, typename Allocator = std::allocator<Value>>
+template<typename Id, typename Value, typename View,
+         typename Hash = std::hash<View>,
+         typename Equal = std::equal_to<>,
+         typename Allocator = std::allocator<Value>,
+         template<typename, typename> typename ForwardVector = std::vector,
+         template<typename, typename, typename, typename> typename BackwardUnorderedSet = ::dice::sparse_map::sparse_set>
 struct BiDirFlatMap {
     using id_type = Id;
     using mapped_type = Value;
@@ -29,7 +34,7 @@ struct BiDirFlatMap {
 private:
     using forward_value_type = std::optional<mapped_type>;
     using forward_allocator_type = typename std::allocator_traits<Allocator>::template rebind_alloc<forward_value_type>;
-    using forward_type = std::vector<forward_value_type, forward_allocator_type>;
+    using forward_type = ForwardVector<forward_value_type, forward_allocator_type>;
 
     struct backward_key_type {
         size_t hash; //< hash of the Value being looked up
@@ -44,12 +49,24 @@ private:
         forward_const_pointer forward_ptr; //< pointer to forward_ to be able to check for equality between View and Value
         [[no_unique_address]] Equal eq; //< eq for backend and view
 
+        [[nodiscard]] forward_value_type const &access(backward_key_type const &k) const noexcept {
+            return (*forward_ptr)[to_index(k.id)];
+        }
+
+        [[nodiscard]] bool forward_value_eq(forward_value_type const &a, forward_value_type const &b) const noexcept {
+            if (a.has_value() && b.has_value()) {
+                return eq(*a, *b);
+            }
+
+            return a.has_value() == b.has_value();
+        }
+
         bool operator()(backward_key_type const &a, backward_key_type const &b) const noexcept {
-            return a.id == b.id;
+            return a.id == b.id || (a.hash == b.hash && forward_value_eq(access(a), access(b)));
         }
 
         bool operator()(backward_key_type const &a, view_type const &b) const noexcept {
-            auto const &ref = (*forward_ptr)[to_index(a.id)];
+            auto const &ref = access(a);
             if (!ref.has_value()) {
                 return false;
             }
@@ -58,7 +75,7 @@ private:
         }
 
         bool operator()(view_type const &a, backward_key_type const &b) const noexcept {
-            auto const &ref = (*forward_ptr)[to_index(b.id)];
+            auto const &ref = access(b);
             if (!ref.has_value()) {
                 return false;
             }
@@ -82,9 +99,9 @@ private:
     };
 
     using backward_allocator_type = typename std::allocator_traits<Allocator>::template rebind_alloc<backward_key_type>;
-    using backward_type = dice::sparse_map::sparse_set<backward_key_type, backward_hasher, backward_key_equal, backward_allocator_type>;
+    using backward_type = BackwardUnorderedSet<backward_key_type, backward_hasher, backward_key_equal, backward_allocator_type>;
 
-    using index_free_list_bitmap_type = size_t;
+    using index_free_list_bitmap_type = uint64_t;
     using index_free_list_allocator = typename std::allocator_traits<Allocator>::template rebind_alloc<index_free_list_bitmap_type>;
     using index_free_list_type = IndexFreeList<index_free_list_bitmap_type, index_free_list_allocator>;
 
@@ -112,6 +129,7 @@ public:
                           key_equal const &equal = key_equal{},
                           allocator_type const &alloc = allocator_type{}) noexcept : forward_{alloc},
                                                                                      backward_{0, backward_hasher{hash}, backward_key_equal{&forward_, equal}, alloc},
+                                                                                     freelist_{alloc},
                                                                                      alloc_{alloc} {
     }
 
@@ -124,11 +142,13 @@ public:
     BiDirFlatMap &operator=(BiDirFlatMap const &) = delete;
     BiDirFlatMap &operator=(BiDirFlatMap &&) = delete;
 
+    ~BiDirFlatMap() noexcept = default;
+
     /**
      * Number of elements stored in this map
      */
     [[nodiscard]] size_type size() const noexcept {
-        return forward_.size();
+        return backward_.size();
     }
 
     /**
@@ -144,19 +164,66 @@ public:
      * Look up the value corresponding to the given id
      *
      * @param id id for value to look up
-     * @return if a value was found: a view to that value, otherwise nullopt
+     * @return if a value was found: a pointer to that value, otherwise nullptr
      */
-    [[nodiscard]] std::optional<view_type> lookup_value(id_type const id) const noexcept {
+    [[nodiscard]] mapped_type const *lookup_value(id_type const id) const noexcept {
         if (id == id_type{}) [[unlikely]] {
-            return std::nullopt;
+            return nullptr;
         }
 
         auto const ix = to_index(id);
         if (ix >= forward_.size() || !forward_[ix].has_value()) {
-            return std::nullopt;
+            return nullptr;
         }
 
-        return static_cast<view_type>(*forward_[ix]);
+        return &*forward_[ix];
+    }
+
+    /**
+     * Look up the value corresponding to the given id
+     *
+     * @param id id for value to look up
+     * @return if a value was found: a pointer to that value, otherwise nullptr
+     */
+    [[nodiscard]] mapped_type *lookup_value(id_type const id) noexcept {
+        if (id == id_type{}) [[unlikely]] {
+            return nullptr;
+        }
+
+        auto const ix = to_index(id);
+        if (ix >= forward_.size() || !forward_[ix].has_value()) {
+            return nullptr;
+        }
+
+        return &*forward_[ix];
+    }
+
+    /**
+     * Look up the value corresponding to the given id
+     * Access is not checked.
+     *
+     * @param id id for value to look up
+     * @return reference to the value
+     */
+    [[nodiscard]] mapped_type const &lookup_value_unchecked(id_type const id) const noexcept {
+        auto const ix = to_index(id);
+        assert(ix < size());
+        assert(forward_[ix].has_value());
+        return *forward_[ix];
+    }
+
+    /**
+     * Look up the value corresponding to the given id
+     * Access is not checked.
+     *
+     * @param id id for value to look up
+     * @return reference to the value
+     */
+    [[nodiscard]] mapped_type &lookup_value_unchecked(id_type const id) noexcept {
+        auto const ix = to_index(id);
+        assert(ix < size());
+        assert(forward_[ix].has_value());
+        return *forward_[ix];
     }
 
     /**
@@ -175,12 +242,54 @@ public:
     }
 
     /**
+     * Look up the id (or ids, in case backwards is a multiset) corresponding the given view
+     *
+     * @param view view of value of which to find the id
+     * @return id of the value if it was found, otherwise id_type{} if no id was found
+     */
+    [[nodiscard]] std::ranges::range auto lookup_id_range(view_type const &view) const noexcept {
+        auto [beg, end] = backward_.equal_range(view);
+        return std::ranges::subrange(beg, end)
+            | std::views::transform([](backward_key_type const &k) noexcept {
+                return k.id;
+            });
+    }
+
+    /**
+     * Invoke a function on all (id, value) pairs in this map
+     * @param func function to be invoked for each (id, value) pair
+     */
+    template<typename F> requires (std::invocable<F, id_type, mapped_type const &>)
+    void for_each(F &&func) const {
+        for (size_t ix = 0; ix < forward_.size(); ++ix) {
+            auto &fw = forward_[ix];
+            if (fw.has_value()) {
+                std::invoke(func, to_id(ix), *fw);
+            }
+        }
+    }
+
+    /**
+     * Invoke a function on all (id, value) pairs in this map
+     * @param func function to be invoked for each (id, value) pair
+     */
+    template<typename F> requires (std::invocable<F, id_type, mapped_type &>)
+    void for_each(F &&func) {
+        for (size_t ix = 0; ix < forward_.size(); ++ix) {
+            auto &fw = forward_[ix];
+            if (fw.has_value()) {
+                std::invoke(func, to_id(ix), *fw);
+            }
+        }
+    }
+
+    /**
      * Reserve capacity such that min_id is the first id that
      * triggers an allocation if it is inserted.
      */
     void reserve_until(id_type const min_id) {
         auto const new_size = to_index(min_id);
-        if (new_size < forward_.size()) {
+        if (new_size <= forward_.size()) {
             return;
         }
 
@@ -195,9 +304,11 @@ public:
      * @precondition the value is not yet present in this map
      *
      * @param view view of the value to construct
+     * @param additional_args additional args to construct a value from the view
      * @return id of newly constructed value
      */
-    [[nodiscard]] id_type insert_assume_not_present(view_type const &view) {
+    template<typename ...Args>
+    [[nodiscard]] id_type insert_assume_not_present(view_type const &view, Args &&...additional_args) {
         assert(lookup_id(view) == Id{});
 
         auto const assigned_ix = freelist_.occupy_next_available();
@@ -206,7 +317,7 @@ public:
             forward_.emplace_back();
         }
 
-        forward_[assigned_ix] = std::make_obj_using_allocator<mapped_type>(alloc_, view);
+        forward_[assigned_ix] = std::make_obj_using_allocator<mapped_type>(alloc_, view, std::forward<Args>(additional_args)...);
 
         auto const assigned_id = to_id(assigned_ix);
         auto const h = backward_.hash_function().hash(view);
@@ -224,16 +335,18 @@ public:
      *
      * @param view view of the value to construct
      * @param requested_id id to place the value at
+     * @param additional_args additional arguments to construct a value from the view
      * @return id of newly constructed value
      */
-    void insert_assume_not_present_at(view_type const &view, id_type const requested_id) {
-        assert(lookup_id(view) == Id{});
+    template<typename ...Args>
+    void insert_assume_not_present_at(view_type const &view, id_type const requested_id, Args &&...additional_args) {
+        assert(lookup_id(view) == id_type{});
 
         auto const lookup_ix = to_index(requested_id);
         assert(lookup_ix < forward_.size());
         assert(!forward_[lookup_ix].has_value());
 
-        forward_[lookup_ix] = std::make_obj_using_allocator<mapped_type>(alloc_, view);
+        forward_[lookup_ix] = std::make_obj_using_allocator<mapped_type>(alloc_, view, std::forward<Args>(additional_args)...);
 
         auto const h = backward_.hash_function().hash(view);
         backward_.emplace(h, requested_id);
@@ -246,13 +359,19 @@ public:
      * @param id id of the value to be erased
      */
     void erase_assume_present(id_type const id) {
-        assert(lookup_value(id).has_value());
+        assert(lookup_value(id) != nullptr);
 
         auto const ix = to_index(id);
         auto &value = forward_[ix];
         auto const view = static_cast<view_type>(*value);
 
-        backward_.erase(view);
+        auto [beg, end] = backward_.equal_range(view);
+        auto it = std::find_if(beg, end, [id](backward_key_type const &k) noexcept {
+            return k.id == id;
+        });
+        assert(it != backward_.end());
+
+        backward_.erase(it);
         value.reset();
         freelist_.vacate(ix);
     }

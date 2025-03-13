@@ -24,6 +24,10 @@ private:
     struct DefaultBackendTypeEqual {
         using is_transparent = void;
 
+        bool operator()(backend_type const &lhs, backend_type const &rhs) const noexcept {
+            return static_cast<backend_view_type>(lhs) == static_cast<backend_view_type>(rhs);
+        }
+
         bool operator()(backend_view_type const &lhs, backend_type const &rhs) const noexcept {
             return lhs == static_cast<backend_view_type>(rhs);
         }

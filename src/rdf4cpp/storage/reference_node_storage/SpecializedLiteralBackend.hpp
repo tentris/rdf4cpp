@@ -44,6 +44,10 @@ struct SpecializedLiteralBackend {
     struct equal {
         using is_transparent = void;
 
+        bool operator()(SpecializedLiteralBackend const &lhs, SpecializedLiteralBackend const &rhs) const noexcept {
+            return lhs.value == rhs.value;
+        }
+
         bool operator()(view_type const &lhs, SpecializedLiteralBackend const &rhs) const noexcept {
             assert(lhs.datatype == SpecializedLiteralBackend::datatype);
             return lhs.eq<literal_type>(rhs.value);
