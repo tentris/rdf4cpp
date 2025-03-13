@@ -2,29 +2,32 @@
 #define RDF4CPP_RDF_REFERENCENODESTORAGE_BIDIRFLATMAP_HPP
 
 #include <dice/sparse-map/sparse_set.hpp>
+#include <dice/template-library/type_traits.hpp>
 #include <rdf4cpp/storage/reference_node_storage/detail/IndexFreeList.hpp>
 
 namespace rdf4cpp::storage::reference_node_storage::detail {
 
 /**
- * A bidirectional map from Id to Value
+ * A bidirectional map from Id to Backend
  *
- * @tparam Id id type
- * @tparam Value stored value type
- * @tparam View view of Value
- * @tparam Hash hash for View
- * @tparam Equal equality for View and Value
+ * @tparam Id id type (e.g. NodeID)
+ * @tparam Backend stored value type (e.g. IRIBackend)
+ * @tparam View view of Backend (e.g. IRIBackendView)
+ * @tparam Hash hasher for View
+ * @tparam Equal equality for View and Backend
  * @tparam Allocator allocator
+ * @tparam ForwardVector the container type for the forward mapping, this should be a vector-like type
+ * @tparam BackwardUnorderedSet the container type for the backward mapping, this should be an unordered_map-like type
  */
-template<typename Id, typename Value, typename View,
+template<typename Id, typename Backend, typename View,
          typename Hash = std::hash<View>,
          typename Equal = std::equal_to<>,
-         typename Allocator = std::allocator<Value>,
+         typename Allocator = std::allocator<Backend>,
          template<typename, typename> typename ForwardVector = std::vector,
          template<typename, typename, typename, typename> typename BackwardUnorderedSet = ::dice::sparse_map::sparse_set>
 struct BiDirFlatMap {
     using id_type = Id;
-    using mapped_type = Value;
+    using backend_type = Backend;
     using view_type = View;
     using size_type = uint64_t;
     using allocator_type = Allocator;
@@ -32,7 +35,7 @@ struct BiDirFlatMap {
     using key_equal = Equal;
 
 private:
-    using forward_value_type = std::optional<mapped_type>;
+    using forward_value_type = std::optional<backend_type>;
     using forward_allocator_type = typename std::allocator_traits<Allocator>::template rebind_alloc<forward_value_type>;
     using forward_type = ForwardVector<forward_value_type, forward_allocator_type>;
 
@@ -124,6 +127,38 @@ private:
         return static_cast<id_type>(ix + 1);
     }
 
+    template<typename Self>
+    [[nodiscard]] static dice::template_library::copy_const_t<std::remove_reference_t<Self>, backend_type> *lookup_value_impl(Self &&self, id_type const id) noexcept {
+        if (id == id_type{}) [[unlikely]] {
+            return nullptr;
+        }
+
+        auto const ix = to_index(id);
+        if (ix >= self.forward_.size() || !self.forward_[ix].has_value()) {
+            return nullptr;
+        }
+
+        return &*self.forward_[ix];
+    }
+
+    template<typename Self>
+    [[nodiscard]] static dice::template_library::copy_const_t<std::remove_reference_t<Self>, backend_type> &lookup_value_unchecked_impl(Self &&self, id_type const id) noexcept {
+        auto const ix = to_index(id);
+        assert(ix < self.size());
+        assert(self.forward_[ix].has_value());
+        return *self.forward_[ix];
+    }
+
+    template<typename Self, typename F>
+    static void for_each_impl(Self &&self, F &&func) {
+        for (size_t ix = 0; ix < self.forward_.size(); ++ix) {
+            auto &fw = self.forward_[ix];
+            if (fw.has_value()) {
+                std::invoke(func, to_id(ix), *fw);
+            }
+        }
+    }
+
 public:
     explicit BiDirFlatMap(hasher const &hash = hasher{},
                           key_equal const &equal = key_equal{},
@@ -166,36 +201,12 @@ public:
      * @param id id for value to look up
      * @return if a value was found: a pointer to that value, otherwise nullptr
      */
-    [[nodiscard]] mapped_type const *lookup_value(id_type const id) const noexcept {
-        if (id == id_type{}) [[unlikely]] {
-            return nullptr;
-        }
-
-        auto const ix = to_index(id);
-        if (ix >= forward_.size() || !forward_[ix].has_value()) {
-            return nullptr;
-        }
-
-        return &*forward_[ix];
+    [[nodiscard]] backend_type const *lookup_value(id_type const id) const noexcept {
+        return lookup_value_impl(*this, id);
     }
 
-    /**
-     * Look up the value corresponding to the given id
-     *
-     * @param id id for value to look up
-     * @return if a value was found: a pointer to that value, otherwise nullptr
-     */
-    [[nodiscard]] mapped_type *lookup_value(id_type const id) noexcept {
-        if (id == id_type{}) [[unlikely]] {
-            return nullptr;
-        }
-
-        auto const ix = to_index(id);
-        if (ix >= forward_.size() || !forward_[ix].has_value()) {
-            return nullptr;
-        }
-
-        return &*forward_[ix];
+    [[nodiscard]] backend_type *lookup_value(id_type const id) noexcept {
+        return lookup_value_impl(*this, id);
     }
 
     /**
@@ -205,25 +216,26 @@ public:
      * @param id id for value to look up
      * @return reference to the value
      */
-    [[nodiscard]] mapped_type const &lookup_value_unchecked(id_type const id) const noexcept {
-        auto const ix = to_index(id);
-        assert(ix < size());
-        assert(forward_[ix].has_value());
-        return *forward_[ix];
+    [[nodiscard]] backend_type const &lookup_value_unchecked(id_type const id) const noexcept {
+        return lookup_value_unchecked_impl(*this, id);
+    }
+
+    [[nodiscard]] backend_type &lookup_value_unchecked(id_type const id) noexcept {
+        return lookup_value_unchecked_impl(*this, id);
     }
 
     /**
-     * Look up the value corresponding to the given id
-     * Access is not checked.
-     *
-     * @param id id for value to look up
-     * @return reference to the value
+     * Invoke a function on all (id, value) pairs in this map
+     * @param func function to be invoked for each (id, value) pair
      */
-    [[nodiscard]] mapped_type &lookup_value_unchecked(id_type const id) noexcept {
-        auto const ix = to_index(id);
-        assert(ix < size());
-        assert(forward_[ix].has_value());
-        return *forward_[ix];
+    template<typename F> requires (std::invocable<F, id_type, backend_type const &>)
+    void for_each(F &&func) const {
+        return for_each_impl(*this, std::forward<F>(func));
+    }
+
+    template<typename F> requires (std::invocable<F, id_type, backend_type &>)
+    void for_each(F &&func) {
+        return for_each_impl(*this, std::forward<F>(func));
     }
 
     /**
@@ -245,7 +257,7 @@ public:
      * Look up the id (or ids, in case backwards is a multiset) corresponding the given view
      *
      * @param view view of value of which to find the id
-     * @return id of the value if it was found, otherwise id_type{} if no id was found
+     * @return range of ids of the value if there were any, otherwise empty range if no id was found
      */
     [[nodiscard]] std::ranges::range auto lookup_id_range(view_type const &view) const noexcept {
         auto [beg, end] = backward_.equal_range(view);
@@ -255,33 +267,7 @@ public:
             });
     }
 
-    /**
-     * Invoke a function on all (id, value) pairs in this map
-     * @param func function to be invoked for each (id, value) pair
-     */
-    template<typename F> requires (std::invocable<F, id_type, mapped_type const &>)
-    void for_each(F &&func) const {
-        for (size_t ix = 0; ix < forward_.size(); ++ix) {
-            auto &fw = forward_[ix];
-            if (fw.has_value()) {
-                std::invoke(func, to_id(ix), *fw);
-            }
-        }
-    }
 
-    /**
-     * Invoke a function on all (id, value) pairs in this map
-     * @param func function to be invoked for each (id, value) pair
-     */
-    template<typename F> requires (std::invocable<F, id_type, mapped_type &>)
-    void for_each(F &&func) {
-        for (size_t ix = 0; ix < forward_.size(); ++ix) {
-            auto &fw = forward_[ix];
-            if (fw.has_value()) {
-                std::invoke(func, to_id(ix), *fw);
-            }
-        }
-    }
 
     /**
      * Reserve capacity such that min_id is the first id that
@@ -317,7 +303,7 @@ public:
             forward_.emplace_back();
         }
 
-        forward_[assigned_ix] = std::make_obj_using_allocator<mapped_type>(alloc_, view, std::forward<Args>(additional_args)...);
+        forward_[assigned_ix] = std::make_obj_using_allocator<backend_type>(alloc_, view, std::forward<Args>(additional_args)...);
 
         auto const assigned_id = to_id(assigned_ix);
         auto const h = backward_.hash_function().hash(view);
@@ -333,7 +319,7 @@ public:
      * @precondition there is no value present at the requested id
      * @precondition sufficient capacity was allocated using reserve
      *
-     * @param view view of the value to construct
+     * @param view view of the backend to construct
      * @param requested_id id to place the value at
      * @param additional_args additional arguments to construct a value from the view
      * @return id of newly constructed value
@@ -346,7 +332,7 @@ public:
         assert(lookup_ix < forward_.size());
         assert(!forward_[lookup_ix].has_value());
 
-        forward_[lookup_ix] = std::make_obj_using_allocator<mapped_type>(alloc_, view, std::forward<Args>(additional_args)...);
+        forward_[lookup_ix] = std::make_obj_using_allocator<backend_type>(alloc_, view, std::forward<Args>(additional_args)...);
 
         auto const h = backward_.hash_function().hash(view);
         backward_.emplace(h, requested_id);

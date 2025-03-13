@@ -1,12 +1,8 @@
 #ifndef RDF4CPP_UNSYNCNODETYPESTORAGE_HPP
 #define RDF4CPP_UNSYNCNODETYPESTORAGE_HPP
 
-#include <dice/hash.hpp>
-#include <dice/sparse-map/sparse_map.hpp>
-#include <rdf4cpp/storage/identifier/NodeID.hpp>
+#include <rdf4cpp/storage/identifier/NodeBackendID.hpp>
 #include <rdf4cpp/storage/reference_node_storage/detail/BiDirFlatMap.hpp>
-
-#include <memory>
 
 namespace rdf4cpp::storage::reference_node_storage {
 

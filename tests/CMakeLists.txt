@@ -331,7 +331,6 @@ target_link_libraries(tests_IRIFactory
         highway::highway
         rdf4cpp
 )
-set_property(TARGET tests_IRIFactory PROPERTY CXX_STANDARD 20)
 add_test(NAME tests_IRIFactory COMMAND tests_IRIFactory)
 
 add_executable(tests_DBpediaMode nodes/tests_DBpediaMode.cpp)
@@ -339,7 +338,6 @@ target_link_libraries(tests_DBpediaMode
         doctest::doctest
         rdf4cpp
 )
-set_property(TARGET tests_DBpediaMode PROPERTY CXX_STANDARD 20)
 add_test(NAME tests_DBpediaMode COMMAND tests_DBpediaMode)
 
 add_executable(tests_Serialization serializer/tests_Serialization.cpp)
@@ -347,7 +345,6 @@ target_link_libraries(tests_Serialization
         doctest::doctest
         rdf4cpp
 )
-set_property(TARGET tests_Serialization PROPERTY CXX_STANDARD 20)
 add_test(NAME tests_Serialization COMMAND tests_Serialization)
 
 # copy files for testing to the binary folder
