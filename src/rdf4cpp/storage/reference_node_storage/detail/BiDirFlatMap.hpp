@@ -150,7 +150,7 @@ private:
     template<typename Self>
     [[nodiscard]] static dice::template_library::copy_const_t<std::remove_reference_t<Self>, backend_type> &lookup_value_unchecked_impl(Self &&self, id_type const id) noexcept {
         auto const ix = to_index(id);
-        assert(ix < self.size());
+        assert(ix < self.forward_.size());
         assert(self.forward_[ix].has_value());
         return *self.forward_[ix];
     }
