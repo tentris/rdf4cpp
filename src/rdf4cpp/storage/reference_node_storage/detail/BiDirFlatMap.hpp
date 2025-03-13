@@ -7,6 +7,12 @@
 
 namespace rdf4cpp::storage::reference_node_storage::detail {
 
+template<typename Value, typename Allocator>
+using DefaultVector = std::vector<Value, Allocator>;
+
+template<typename Key, typename Hash, typename Eq, typename Allocator>
+using DefaultUnorderedSet = ::dice::sparse_map::sparse_set<Key, Hash, Eq, Allocator>;
+
 /**
  * A bidirectional map from Id to Backend
  *
@@ -23,8 +29,8 @@ template<typename Id, typename Backend, typename View,
          typename Hash = std::hash<View>,
          typename Equal = std::equal_to<>,
          typename Allocator = std::allocator<Backend>,
-         template<typename, typename> typename ForwardVector = std::vector,
-         template<typename, typename, typename, typename> typename BackwardUnorderedSet = ::dice::sparse_map::sparse_set>
+         template<typename, typename> typename ForwardVector = DefaultVector,
+         template<typename, typename, typename, typename> typename BackwardUnorderedSet = DefaultUnorderedSet>
 struct BiDirFlatMap {
     using id_type = Id;
     using backend_type = Backend;
