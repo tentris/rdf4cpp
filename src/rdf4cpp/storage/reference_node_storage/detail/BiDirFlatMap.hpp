@@ -301,8 +301,6 @@ public:
      */
     template<typename ...Args>
     [[nodiscard]] id_type insert_assume_not_present(view_type const &view, Args &&...additional_args) {
-        assert(lookup_id(view) == Id{});
-
         auto const assigned_ix = freelist_.occupy_next_available();
         if (assigned_ix >= forward_.size()) {
             assert(assigned_ix == forward_.size());
@@ -332,8 +330,6 @@ public:
      */
     template<typename ...Args>
     void insert_assume_not_present_at(view_type const &view, id_type const requested_id, Args &&...additional_args) {
-        assert(lookup_id(view) == id_type{});
-
         auto const lookup_ix = to_index(requested_id);
         assert(lookup_ix < forward_.size());
         assert(!forward_[lookup_ix].has_value());
