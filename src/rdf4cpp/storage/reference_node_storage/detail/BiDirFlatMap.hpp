@@ -234,12 +234,12 @@ public:
      * Invoke a function on all (id, value) pairs in this map
      * @param func function to be invoked for each (id, value) pair
      */
-    template<typename F> requires (std::invocable<F, id_type, backend_type const &>)
+    template<typename F> // requires (std::invocable<F, id_type, backend_type const &>) TODO this cannot be commented in due to a compiler bug
     void for_each(F &&func) const {
         return for_each_impl(*this, std::forward<F>(func));
     }
 
-    template<typename F> requires (std::invocable<F, id_type, backend_type &>)
+    template<typename F> // requires (std::invocable<F, id_type, backend_type &>) TODO this cannot be commented in due to a compiler bug
     void for_each(F &&func) {
         return for_each_impl(*this, std::forward<F>(func));
     }
