@@ -129,8 +129,8 @@ identifier::NodeBackendID UnsyncReferenceNodeStorage::find_id(view::VariableBack
 
 template<typename Storage>
 static typename Storage::backend_view_type find_backend_view(Storage &storage, identifier::NodeBackendID const id) noexcept {
-    if (auto view = storage.mapping.lookup_value(Storage::to_storage_id(id)); view.has_value()) {
-        return *view;
+    if (auto const *value = storage.mapping.lookup_value(Storage::to_storage_id(id)); value != nullptr) {
+        return static_cast<typename Storage::backend_view_type>(*value);
     } else {
         assert(false); // assert in debug build; not critical error but should not happen
         return Storage::get_default_view();
@@ -162,7 +162,7 @@ view::VariableBackendView UnsyncReferenceNodeStorage::find_variable_backend(iden
 template<typename Storage>
 static bool erase_impl(Storage &storage, identifier::NodeBackendID const id) {
     auto const backend_id = Storage::to_storage_id(id);
-    if (!storage.mapping.lookup_value(backend_id).has_value()) {
+    if (storage.mapping.lookup_value(backend_id) == nullptr) {
         return false;
     }
 

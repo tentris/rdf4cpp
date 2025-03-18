@@ -1,12 +1,8 @@
 #ifndef RDF4CPP_UNSYNCNODETYPESTORAGE_HPP
 #define RDF4CPP_UNSYNCNODETYPESTORAGE_HPP
 
-#include <dice/hash.hpp>
-#include <dice/sparse-map/sparse_map.hpp>
-#include <rdf4cpp/storage/identifier/NodeID.hpp>
+#include <rdf4cpp/storage/identifier/NodeBackendID.hpp>
 #include <rdf4cpp/storage/reference_node_storage/detail/BiDirFlatMap.hpp>
-
-#include <memory>
 
 namespace rdf4cpp::storage::reference_node_storage {
 
@@ -23,6 +19,10 @@ struct UnsyncNodeTypeStorage {
 private:
     struct DefaultBackendTypeEqual {
         using is_transparent = void;
+
+        bool operator()(backend_type const &lhs, backend_type const &rhs) const noexcept {
+            return static_cast<backend_view_type>(lhs) == static_cast<backend_view_type>(rhs);
+        }
 
         bool operator()(backend_view_type const &lhs, backend_type const &rhs) const noexcept {
             return lhs == static_cast<backend_view_type>(rhs);
