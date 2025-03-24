@@ -1163,26 +1163,17 @@ TEST_CASE("Literal::fetch_or_serialize_lexical_form") {
     }
 }
 
-template<datatypes::LiteralDatatype L>
-void check_leading_zeros_parse() {
-    SUBCASE(L::identifier.c_str()) {
-        auto lit = Literal::make_typed<L>("09");
-        CHECK_FALSE(lit.null());
-        CHECK_EQ(lit.template value<L>(), 9);
+TEST_CASE_TEMPLATE("leading zeros parsing", L, datatypes::xsd::Integer,
+                                               datatypes::xsd::Int,
+                                               datatypes::xsd::Float,
+                                               datatypes::xsd::Double,
+                                               datatypes::xsd::Decimal) {
+    auto lit = Literal::make_typed<L>("09");
+    CHECK_FALSE(lit.null());
+    CHECK_EQ(lit.template value<L>(), 9);
 
-        lit = Literal::make_typed<L>("000");
-        CHECK_FALSE(lit.null());
-        CHECK_EQ(lit.template value<L>(), 0);
-    }
-}
-
-TEST_CASE("leading zeros parsing") {
-    using namespace datatypes;
-
-    check_leading_zeros_parse<xsd::Integer>();
-    check_leading_zeros_parse<xsd::Int>();
-    check_leading_zeros_parse<xsd::Float>();
-    check_leading_zeros_parse<xsd::Double>();
-    check_leading_zeros_parse<xsd::Decimal>();
+    lit = Literal::make_typed<L>("000");
+    CHECK_FALSE(lit.null());
+    CHECK_EQ(lit.template value<L>(), 0);
 }
 
