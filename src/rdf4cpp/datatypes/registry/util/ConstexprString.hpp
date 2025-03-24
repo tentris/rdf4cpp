@@ -35,6 +35,10 @@ struct ConstexprString {
         return std::string_view{value.data(), value.size() - 1};
     }
 
+    [[nodiscard]] constexpr char const *c_str() const noexcept {
+        return value.data();
+    }
+
     template<size_t M>
     constexpr std::strong_ordering operator<=>(ConstexprString<M> const &other) const noexcept {
         auto min = std::min(M, N);
