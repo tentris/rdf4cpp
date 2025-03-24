@@ -13,6 +13,10 @@ capabilities::Default<xsd_integer>::cpp_type capabilities::Default<xsd_integer>:
         s.remove_prefix(1);
     }
 
+    if (auto const pos = s.find_first_not_of('0'); pos != std::string::npos) {
+        s.remove_prefix(pos);
+    }
+
     try {
         return cpp_type{s};
     } catch (std::runtime_error const &e) {

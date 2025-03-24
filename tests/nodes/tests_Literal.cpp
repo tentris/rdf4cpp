@@ -1163,3 +1163,17 @@ TEST_CASE("Literal::fetch_or_serialize_lexical_form") {
     }
 }
 
+TEST_CASE_TEMPLATE("leading zeros parsing", L, datatypes::xsd::Integer,
+                                               datatypes::xsd::Int,
+                                               datatypes::xsd::Float,
+                                               datatypes::xsd::Double,
+                                               datatypes::xsd::Decimal) {
+    auto lit = Literal::make_typed<L>("09");
+    CHECK_FALSE(lit.null());
+    CHECK_EQ(lit.template value<L>(), 9);
+
+    lit = Literal::make_typed<L>("000");
+    CHECK_FALSE(lit.null());
+    CHECK_EQ(lit.template value<L>(), 0);
+}
+
