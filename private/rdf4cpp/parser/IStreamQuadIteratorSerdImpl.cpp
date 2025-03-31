@@ -163,20 +163,56 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::Impl::get_literal(Ser
     }
 }
 
+/**
+ * Calculate the required buffer size for a vsnprintf call for formatting a SerdError
+ * @param error the error to format
+ * @return buffer size
+ */
+[[nodiscard]] SerdStatus calc_required_buffer_size(SerdError const *error, size_t &out) noexcept {
+    // we need to copy the va_list because otherwise our call to vsnprintf would consume it which leads to undefined
+    // behaviour when we try to actually vsnprintf
+    va_list copy;
+    va_copy(copy, *error->args);
+    int const ret = vsnprintf(nullptr, 0, error->fmt, copy);
+    va_end(copy);
+
+    if (ret < 0) [[unlikely]] {
+        // vsnprintf failed
+        return SERD_FAILURE;
+    }
+
+    out = static_cast<size_t>(ret) + 1; // +1 for null terminator
+    return SERD_SUCCESS;
+}
+
 SerdStatus IStreamQuadIterator::Impl::on_error(void *voided_self, SerdError const *error) noexcept {
     auto *self = static_cast<Impl *>(voided_self);
 
-    auto const buf_sz = vsnprintf(nullptr, 0, error->fmt, *error->args);
-    std::string message;
+    size_t buf_size;
+    SerdStatus const st = calc_required_buffer_size(error, buf_size);
+    if (st != SERD_SUCCESS) [[unlikely]] {
+        return st;
+    }
 
-    message.resize(buf_sz + 1);  // +1 for null-terminator
-    vsnprintf(message.data(), message.size(), error->fmt, *error->args);
-    message.resize(buf_sz - 1);  // drop null-terminator from vsnprintf and newline from serd
+    std::string message;
+    message.resize(buf_size);
+
+    int const bytes_written = vsnprintf(message.data(), message.size(), error->fmt, *error->args);
+    if (bytes_written < 0) [[unlikely]] {
+        // vsnprintf failed
+        return SERD_FAILURE;
+    }
+
+    // drop null-terminator from vsnprintf and newline from serd
+    message.resize(static_cast<size_t>(bytes_written));
+    if (message.ends_with('\n')) {
+        message.pop_back();
+    }
 
     self->last_error = ParsingError{.error_type = parsing_error_type_from_serd(error->status),
                                     .line = error->line,
                                     .col = error->col,
-                                    .message = message};
+                                    .message = std::move(message)};
     self->last_error_requires_skip = true;
 
     return SERD_SUCCESS;

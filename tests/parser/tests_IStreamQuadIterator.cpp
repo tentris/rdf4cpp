@@ -739,4 +739,12 @@ TEST_SUITE("IStreamQuadIterator") {
             }
         }
     }
+
+    TEST_CASE("SEGFAULT on error") {
+        // this is a regression test for our usage of a va_list in error message generation
+        std::istringstream iss{"<http://example.com#s> <<http://example.com#p> <http://example.com#o> . "};
+        for (IStreamQuadIterator qit{iss}; qit != std::default_sentinel; ++qit) {
+            std::cout << qit->error() << std::endl;
+        }
+    }
 }
