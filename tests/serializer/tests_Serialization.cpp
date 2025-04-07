@@ -3,6 +3,8 @@
 #include <rdf4cpp.hpp>
 #include <rdf4cpp/storage/reference_node_storage/UnsyncReferenceNodeStorage.hpp>
 
+#include <cmath>
+
 enum struct OutputFormat {
     NTriples,
     Turtle,
@@ -29,6 +31,14 @@ TEST_CASE("Literal short form and prefixed") {
     writer::write_str(",", ser);
     Literal::make_typed<datatypes::xsd::Double>("4").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
     writer::write_str(",", ser);
+    Literal::make_typed<datatypes::xsd::Double>("INF").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
+    writer::write_str(",", ser);
+    Literal::make_typed<datatypes::xsd::Double>("-INF").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
+    writer::write_str(",", ser);
+    Literal::make_typed<datatypes::xsd::Double>("NaN").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
+    writer::write_str(",", ser);
+    Literal::make_typed_from_value<datatypes::xsd::Double>(HUGE_VAL).serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
+    writer::write_str(",", ser);
     Literal::make_typed<datatypes::xsd::Float>("4").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
     writer::write_str(",", ser);
     Literal::make_typed<datatypes::xsd::UnsignedByte>("4").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
@@ -36,7 +46,7 @@ TEST_CASE("Literal short form and prefixed") {
     Literal::make_typed<datatypes::xsd::Integer>("4").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
     ser.finalize();
 
-    CHECK_EQ(buf, R"("2042-05-04"^^xsd:date,true,4.0,4.0E0,"4.0E0"^^xsd:float,"4"^^xsd:unsignedByte,4)");
+    CHECK_EQ(buf, R"("2042-05-04"^^xsd:date,true,4.0,4.0E0,"INF"^^xsd:double,"-INF"^^xsd:double,"NaN"^^xsd:double,"INF"^^xsd:double,"4.0E0"^^xsd:float,"4"^^xsd:unsignedByte,4)");
 }
 
 TEST_CASE("Literal short form") {
