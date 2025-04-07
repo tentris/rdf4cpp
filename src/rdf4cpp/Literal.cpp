@@ -724,8 +724,10 @@ bool Literal::serialize(writer::BufWriterParts const writer, NodeSerializationOp
         RDF4CPP_DETAIL_TRY_WRITE_STR("@");
         RDF4CPP_DETAIL_TRY_WRITE_STR(value.language_tag);
         return true;
-    } else if (opts.use_short_form && (this->datatype_eq<datatypes::xsd::Integer>() || this->datatype_eq<datatypes::xsd::Double>()
-            || this->datatype_eq<datatypes::xsd::Decimal>() || this->datatype_eq<datatypes::xsd::Boolean>())) {
+    } else if (opts.use_short_form && (this->datatype_eq<datatypes::xsd::Integer>()
+                || this->datatype_eq<datatypes::xsd::Decimal>()
+                || this->datatype_eq<datatypes::xsd::Boolean>()
+                || (this->datatype_eq<datatypes::xsd::Double>() && std::isfinite(this->value<datatypes::xsd::Double>())))) {
 
         return this->serialize_lexical_form(writer);
     } else if (this->is_inlined()) {
