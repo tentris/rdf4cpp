@@ -536,3 +536,8 @@ TEST_CASE("bnode inlining") {
     CHECK_EQ(v5.order(v1), std::strong_ordering::less);
     check_fetch_or_serialize(v5);
 }
+
+TEST_CASE("NodeBackendID cast") {
+    (void) static_cast<uintptr_t>(identifier::NodeBackendID{});
+    (void) static_cast<uint64_t>(identifier::NodeBackendID{});
+}

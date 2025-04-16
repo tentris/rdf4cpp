@@ -138,8 +138,9 @@ public:
         return underlying_;
     }
 
-    explicit constexpr operator underlying_type() const noexcept {
-        return underlying_;
+    template<std::unsigned_integral I> requires (sizeof(I) >= sizeof(underlying_type))
+    explicit constexpr operator I() const noexcept {
+        return static_cast<I>(underlying_);
     }
 
     constexpr std::strong_ordering operator<=>(NodeBackendID const &other) const noexcept {
