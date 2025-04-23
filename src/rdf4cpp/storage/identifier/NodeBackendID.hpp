@@ -31,7 +31,7 @@ private:
     };
 
 public:
-    NodeBackendID() noexcept = default;
+    constexpr NodeBackendID() noexcept = default;
 
     explicit constexpr NodeBackendID(underlying_type const underlying_id) noexcept : underlying_{underlying_id} {
     }
@@ -138,8 +138,9 @@ public:
         return underlying_;
     }
 
-    explicit constexpr operator underlying_type() const noexcept {
-        return underlying_;
+    template<std::unsigned_integral I> requires (sizeof(I) >= sizeof(underlying_type))
+    explicit constexpr operator I() const noexcept {
+        return static_cast<I>(underlying_);
     }
 
     constexpr std::strong_ordering operator<=>(NodeBackendID const &other) const noexcept {
@@ -153,6 +154,9 @@ public:
 
 static_assert(sizeof(NodeBackendID) == sizeof(uint64_t));
 static_assert(alignof(NodeBackendID) == alignof(uint64_t));
+static_assert(std::is_same_v<decltype(static_cast<uintptr_t>(NodeBackendID{})), uintptr_t>, "NodeBackendID must be convertible to uintptr_t");
+static_assert(std::is_same_v<decltype(static_cast<uint64_t>(NodeBackendID{})), uint64_t>, "NodeBackendID must be convertible to uint64_t");
+
 
 inline std::ostream &operator<<(std::ostream &os, NodeBackendID id) {
     if (id.is_literal()) {
