@@ -31,7 +31,7 @@ private:
     };
 
 public:
-    NodeBackendID() noexcept = default;
+    constexpr NodeBackendID() noexcept = default;
 
     explicit constexpr NodeBackendID(underlying_type const underlying_id) noexcept : underlying_{underlying_id} {
     }
@@ -154,6 +154,9 @@ public:
 
 static_assert(sizeof(NodeBackendID) == sizeof(uint64_t));
 static_assert(alignof(NodeBackendID) == alignof(uint64_t));
+static_assert(std::is_same_v<decltype(static_cast<uintptr_t>(NodeBackendID{})), uintptr_t>, "NodeBackendID must be convertible to uintptr_t");
+static_assert(std::is_same_v<decltype(static_cast<uint64_t>(NodeBackendID{})), uint64_t>, "NodeBackendID must be convertible to uint64_t");
+
 
 inline std::ostream &operator<<(std::ostream &os, NodeBackendID id) {
     if (id.is_literal()) {
