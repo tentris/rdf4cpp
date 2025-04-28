@@ -19,9 +19,7 @@ bool write_node(Node const node, writer::BufWriterParts const writer) noexcept {
 template<writer::OutputFormat F>
 bool write_pred(Node const pred, writer::BufWriterParts const writer) {
     if constexpr (writer::format_has_prefix<F>) {
-        static constexpr storage::identifier::LiteralType rdf_type = datatypes::registry::reserved_datatype_ids[datatypes::registry::rdf_type];
-
-        if (pred.is_iri() && iri_node_id_to_literal_type(pred.backend_handle().id()) == rdf_type) {
+        if (pred.as_iri().is_rdf_type()) {
             return writer::write_str("a", writer);
         }
     }

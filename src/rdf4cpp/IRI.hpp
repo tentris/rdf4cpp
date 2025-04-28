@@ -125,7 +125,7 @@ public:
 
     /**
      * Get the default graph IRI.
-     * @param node_storage  optional custom node_storage where the returned IRI lives
+     * @param node_storage optional custom node_storage where the returned IRI lives
      * @return default graph IRI
      */
     [[nodiscard]] static IRI default_graph(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
@@ -134,6 +134,18 @@ public:
      * @return err if this is null, otherwise true iff this IRI is the default graph IRI
      */
     [[nodiscard]] TriBool is_default_graph() const noexcept;
+
+    /**
+     * Get the IRI for rdf:type
+     * @param node_storage optional custom node_storage where the returned IRI lives
+     * @return rdf:type IRI
+     */
+    [[nodiscard]] static IRI rdf_type(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+    /**
+     * @return err if this is null, otherwise true iff this IRI is rdf:type
+     */
+    [[nodiscard]] TriBool is_rdf_type() const noexcept;
 };
 
 inline namespace shorthands {

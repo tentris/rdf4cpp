@@ -536,3 +536,13 @@ TEST_CASE("bnode inlining") {
     CHECK_EQ(v5.order(v1), std::strong_ordering::less);
     check_fetch_or_serialize(v5);
 }
+
+TEST_CASE("rdf:type") {
+    IRI x{"http://www.w3.org/1999/02/22-rdf-syntax-ns#type"};
+    IRI y = IRI::rdf_type();
+
+    CHECK(x.is_rdf_type());
+    CHECK(y.is_rdf_type());
+    CHECK_EQ(x, y);
+    CHECK_EQ(x.backend_handle(), y.backend_handle());
+}

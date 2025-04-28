@@ -149,6 +149,22 @@ TriBool IRI::is_default_graph() const noexcept {
     return this_id == expected_id;
 }
 
+IRI IRI::rdf_type(storage::DynNodeStoragePtr node_storage) {
+    auto const id = datatypes::registry::reserved_datatype_ids[datatypes::registry::rdf_type];
+    return IRI{storage::identifier::NodeBackendHandle{storage::identifier::literal_type_to_iri_node_id(id),
+                                                      node_storage}};
+}
+
+TriBool IRI::is_rdf_type() const noexcept {
+    if (null()) {
+        return TriBool::Err;
+    }
+
+    auto const expected_id = datatypes::registry::reserved_datatype_ids[datatypes::registry::rdf_type];
+    auto const this_id = storage::identifier::iri_node_id_to_literal_type(backend_handle().id());
+    return this_id == expected_id;
+}
+
 std::ostream &operator<<(std::ostream &os, IRI const &iri) {
     writer::BufOStreamWriter w{os};
     iri.serialize(w);
