@@ -191,6 +191,8 @@ public:
      */
     bool serialize_turtle(writer::BufWriterParts writer) const noexcept;
 
+    bool serialize_json_ld(writer::SerializationState &state, writer::BufWriterParts writer) const noexcept;
+
     /**
      * Serialize this graph as <a href="https://www.w3.org/TR/n-triples/">N-Triples</a>.
      */

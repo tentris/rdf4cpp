@@ -2,6 +2,7 @@
 #include <rdf4cpp/Dataset.hpp>
 #include <rdf4cpp/writer/TryWrite.hpp>
 #include <rdf4cpp/writer/SerializationState.hpp>
+#include <rdf4cpp/writer/WriteJsonLdQuad.hpp>
 
 #include <utility>
 
@@ -77,6 +78,10 @@ bool Graph::serialize_turtle(writer::BufWriterParts const writer) const noexcept
     }
 
     return st.flush(writer);
+}
+
+bool Graph::serialize_json_ld(writer::SerializationState &state, writer::BufWriterParts writer) const noexcept {
+
 }
 
 std::ostream &operator<<(std::ostream &os, Graph const &graph) {

@@ -23,6 +23,7 @@ find_package(highway REQUIRED)
 find_package(dice-hash REQUIRED)
 find_package(dice-sparse-map REQUIRED)
 find_package(dice-template-library REQUIRED)
+find_package(RapidJSON REQUIRED)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/rdf4cpp/version.hpp)
 
@@ -176,6 +177,7 @@ target_link_libraries(rdf4cpp
         OpenSSL::Crypto
         uni-algo::uni-algo
         highway::highway
+        rapidjson
         )
 
 set_target_properties(rdf4cpp PROPERTIES
