@@ -546,3 +546,13 @@ TEST_CASE("rdf:type") {
     CHECK_EQ(x, y);
     CHECK_EQ(x.backend_handle(), y.backend_handle());
 }
+
+TEST_CASE("datatype IRIs") {
+    IRI x = IRI::datatype<datatypes::xsd::Integer>();
+    IRI y{"http://www.w3.org/2001/XMLSchema#integer"};
+
+    CHECK(x.is_datatype<datatypes::xsd::Integer>());
+    CHECK(y.is_datatype<datatypes::xsd::Integer>());
+    CHECK_EQ(x, y);
+    CHECK_EQ(x.backend_handle(), y.backend_handle());
+}

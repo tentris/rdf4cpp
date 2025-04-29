@@ -146,6 +146,39 @@ public:
      * @return err if this is null, otherwise true iff this IRI is rdf:type
      */
     [[nodiscard]] TriBool is_rdf_type() const noexcept;
+
+    /**
+     * Get the IRI for the given datatype
+     * @tparam T datatype
+     * @param node_storage optional node storage where the returned IRI is placed
+     * @return datatype IRI
+     */
+    template<datatypes::LiteralDatatype T>
+    [[nodiscard]] static IRI datatype(storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
+        return IRI{T::datatype_id, node_storage};
+    }
+
+    /**
+     * Check if this IRI is the IRI of the given datatype
+     * @tparam T datatype
+     * @return err if this is null, otherwise true iff this IRI is the datatype IRI of the given datatype
+     */
+    template<datatypes::LiteralDatatype T>
+    [[nodiscard]] TriBool is_datatype() const noexcept {
+        if (null()) {
+            return TriBool::Err;
+        }
+
+        if constexpr (datatypes::HasFixedId<T>) {
+            if (auto const type = this->handle_.node_id().literal_type(); type.is_fixed()) {
+                return type == T::fixed_id;
+            }
+
+            return TriBool::False;
+        }
+
+        return identifier() == T::identifier;
+    }
 };
 
 inline namespace shorthands {
