@@ -170,11 +170,8 @@ public:
         }
 
         if constexpr (datatypes::HasFixedId<T>) {
-            if (auto const type = this->handle_.node_id().literal_type(); type.is_fixed()) {
-                return type == T::fixed_id;
-            }
-
-            return TriBool::False;
+            auto const type = storage::identifier::iri_node_id_to_literal_type(handle_.id());
+            return type == T::fixed_id;
         }
 
         return identifier() == T::identifier;
