@@ -143,6 +143,7 @@ public:
     [[nodiscard]] static IRI rdf_type(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
+     * Check if this IRI is rdf:type
      * @return err if this is null, otherwise true iff this IRI is rdf:type
      */
     [[nodiscard]] TriBool is_rdf_type() const noexcept;

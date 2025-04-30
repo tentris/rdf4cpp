@@ -134,34 +134,46 @@ IRI::operator std::string() const noexcept {
 }
 
 IRI IRI::default_graph(storage::DynNodeStoragePtr node_storage) {
-    auto const id = datatypes::registry::reserved_datatype_ids[datatypes::registry::default_graph_iri];
-    return IRI{storage::identifier::NodeBackendHandle{storage::identifier::literal_type_to_iri_node_id(id),
+    namespace reg = datatypes::registry;
+    namespace sid = storage::identifier;
+
+    auto const id = reg::reserved_datatype_ids[reg::default_graph_iri];
+    return IRI{sid::NodeBackendHandle{sid::literal_type_to_iri_node_id(id),
                node_storage}};
 }
 
 TriBool IRI::is_default_graph() const noexcept {
+    namespace reg = datatypes::registry;
+    namespace sid = storage::identifier;
+
     if (null()) {
         return TriBool::Err;
     }
 
-    auto const expected_id = datatypes::registry::reserved_datatype_ids[datatypes::registry::default_graph_iri];
-    auto const this_id = storage::identifier::iri_node_id_to_literal_type(backend_handle().id());
+    auto const expected_id = reg::reserved_datatype_ids[reg::default_graph_iri];
+    auto const this_id = sid::iri_node_id_to_literal_type(backend_handle().id());
     return this_id == expected_id;
 }
 
 IRI IRI::rdf_type(storage::DynNodeStoragePtr node_storage) {
-    auto const id = datatypes::registry::reserved_datatype_ids[datatypes::registry::rdf_type];
-    return IRI{storage::identifier::NodeBackendHandle{storage::identifier::literal_type_to_iri_node_id(id),
-                                                      node_storage}};
+    namespace reg = datatypes::registry;
+    namespace sid = storage::identifier;
+
+    auto const id = reg::reserved_datatype_ids[reg::rdf_type];
+    return IRI{sid::NodeBackendHandle{sid::literal_type_to_iri_node_id(id),
+                                      node_storage}};
 }
 
 TriBool IRI::is_rdf_type() const noexcept {
+    namespace reg = datatypes::registry;
+    namespace sid = storage::identifier;
+
     if (null()) {
         return TriBool::Err;
     }
 
-    auto const expected_id = datatypes::registry::reserved_datatype_ids[datatypes::registry::rdf_type];
-    auto const this_id = storage::identifier::iri_node_id_to_literal_type(backend_handle().id());
+    auto const expected_id = reg::reserved_datatype_ids[reg::rdf_type];
+    auto const this_id = sid::iri_node_id_to_literal_type(backend_handle().id());
     return this_id == expected_id;
 }
 
