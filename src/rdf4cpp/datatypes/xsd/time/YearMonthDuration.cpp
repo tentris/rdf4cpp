@@ -8,6 +8,10 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_yearMonthDuration>::cpp_type capabilities::Default<xsd_yearMonthDuration>::from_string(std::string_view s) {
+    if (s.empty()) {
+        throw InvalidNode{std::format("{} parsing error: found empty string", identifier)};
+    }
+
     using namespace registry::util;
     bool negative = false;
     if (s[0] == '-') {

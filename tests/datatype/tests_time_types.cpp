@@ -581,7 +581,7 @@ TEST_CASE("datatype yearMonthDuration") {
     CHECK(Literal::make_typed<datatypes::xsd::YearMonthDuration>("P500Y30M").is_inlined());
     CHECK(storage::default_node_storage.has_specialized_storage_for(datatypes::xsd::YearMonthDuration::fixed_id));
     Literal a{};
-    CHECK_THROWS_WITH_AS(a = Literal::make_typed<datatypes::xsd::YearMonthDuration>(""), "http://www.w3.org/2001/XMLSchema#yearMonthDuration parsing error: duration missing P", InvalidNode);
+    CHECK_THROWS_WITH_AS(a = Literal::make_typed<datatypes::xsd::YearMonthDuration>(""), "http://www.w3.org/2001/XMLSchema#yearMonthDuration parsing error: found empty string", InvalidNode);
     CHECK_THROWS_WITH_AS(a = Literal::make_typed<datatypes::xsd::YearMonthDuration>("P"), "http://www.w3.org/2001/XMLSchema#yearMonthDuration parsing error: duration without any fields", InvalidNode);
     CHECK_THROWS_WITH_AS(a = Literal::make_typed<datatypes::xsd::YearMonthDuration>("PT"), "http://www.w3.org/2001/XMLSchema#yearMonthDuration parsing error: found T, expected empty", InvalidNode);
     CHECK_THROWS_WITH_AS(a = Literal::make_typed<datatypes::xsd::YearMonthDuration>("P5M24Y"), "http://www.w3.org/2001/XMLSchema#yearMonthDuration parsing error: found M, invalid for datatype", InvalidNode);

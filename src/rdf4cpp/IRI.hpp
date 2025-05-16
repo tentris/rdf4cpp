@@ -125,7 +125,7 @@ public:
 
     /**
      * Get the default graph IRI.
-     * @param node_storage  optional custom node_storage where the returned IRI lives
+     * @param node_storage optional custom node_storage where the returned IRI lives
      * @return default graph IRI
      */
     [[nodiscard]] static IRI default_graph(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
@@ -134,6 +134,49 @@ public:
      * @return err if this is null, otherwise true iff this IRI is the default graph IRI
      */
     [[nodiscard]] TriBool is_default_graph() const noexcept;
+
+    /**
+     * Get the IRI for rdf:type
+     * @param node_storage optional custom node_storage where the returned IRI lives
+     * @return rdf:type IRI
+     */
+    [[nodiscard]] static IRI rdf_type(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+    /**
+     * Check if this IRI is rdf:type
+     * @return err if this is null, otherwise true iff this IRI is rdf:type
+     */
+    [[nodiscard]] TriBool is_rdf_type() const noexcept;
+
+    /**
+     * Get the IRI for the given datatype
+     * @tparam T datatype
+     * @param node_storage optional node storage where the returned IRI is placed
+     * @return datatype IRI
+     */
+    template<datatypes::LiteralDatatype T>
+    [[nodiscard]] static IRI datatype(storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
+        return IRI{T::datatype_id, node_storage};
+    }
+
+    /**
+     * Check if this IRI is the IRI of the given datatype
+     * @tparam T datatype
+     * @return err if this is null, otherwise true iff this IRI is the datatype IRI of the given datatype
+     */
+    template<datatypes::LiteralDatatype T>
+    [[nodiscard]] TriBool is_datatype() const noexcept {
+        if (null()) {
+            return TriBool::Err;
+        }
+
+        if constexpr (datatypes::HasFixedId<T>) {
+            auto const type = storage::identifier::iri_node_id_to_literal_type(handle_.id());
+            return type == T::fixed_id;
+        }
+
+        return identifier() == T::identifier;
+    }
 };
 
 inline namespace shorthands {
