@@ -39,8 +39,8 @@ int main() {
 
     /// 1) basic dataset, graph and RDF node usage
     // using namespaces
-    auto foaf = FOAF();                         // common, predefined namespace
-    Namespace const ex("http://example.com/");  // self-declared namespace
+    FOAF foaf{};                               // common, predefined namespace
+    Namespace const ex{"http://example.com/"}; // self-declared namespace
 
     Dataset dataset;
     // populate a named graph in the dataset
@@ -56,12 +56,12 @@ int main() {
     // 2) Using datatypes and arithmetics
     // typed Literal instantiation
     auto const d = Literal::make_typed_from_value<xsd::Double>(2.3); // factory function
-    auto const ui = 42_xsd_uint; // Literal datatype shorthand
+    auto const ui = 42_xsd_uint;         // Literal datatype shorthand
     auto const dec = "42.1"_xsd_decimal; // infinite precision decimals
 
     // basic arithmetics with automatic result type deduction
     auto const r1 = d * dec;            // double * decimal → double
-    auto const r2 = (ui + dec).round();  // ceil(integer + decimal) → decimal
+    auto const r2 = (ui + dec).round(); // round(integer + decimal) → decimal
 
     std::cout << "Using XSD datatypes, functions and operators: \n"
               << std::format("{} * {} = {}\n", d, dec, r1)
