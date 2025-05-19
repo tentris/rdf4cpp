@@ -6,7 +6,7 @@
 
 # rdf4cpp
 
-_rdf4cpp_ is a modern C++23 library providing basic RDF support.
+_rdf4cpp_ is a modern C++20 library providing basic RDF support.
 
 The focus is **correctness**, **performance** and **ease-of-use** for **basic building blocks** like:
 
