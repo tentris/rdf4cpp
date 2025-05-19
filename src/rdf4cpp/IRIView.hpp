@@ -195,7 +195,7 @@ public:
      * (may miss invalid IRIs)
      * @return
      */
-    [[nodiscard]] IRIFactoryError quick_validate() const noexcept;
+    [[nodiscard]] IRIFactoryError quick_validate(bool allow_relative = false) const noexcept;
 };
 }
 

@@ -108,6 +108,13 @@ target_link_libraries(tests_Base64Binary
         )
 add_test(NAME tests_Base64Binary COMMAND tests_Base64Binary)
 
+add_executable(tests_AnyURI datatype/tests_AnyURI.cpp)
+target_link_libraries(tests_AnyURI
+        doctest::doctest
+        rdf4cpp
+)
+add_test(NAME tests_AnyURI COMMAND tests_AnyURI)
+
 add_executable(tests_Double datatype/tests_Double.cpp)
 target_link_libraries(tests_Double
         doctest::doctest
