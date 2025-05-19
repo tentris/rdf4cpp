@@ -22,6 +22,8 @@ TEST_CASE("Datatype AnyURI") {
     CHECK(datatypes::xsd::AnyURI::identifier == correct_type_iri_cstr);
 
     CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("https://example.com").lexical_form() == "https://example.com");
+    CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("https://example.com").ebv() == TriBool::True);
+    CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("").ebv() == TriBool::False);
     CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("/relative/iri?to?somewhere").lexical_form() == "/relative/iri?to?somewhere");
     CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("//relative/iri?to?somewhere").lexical_form() == "//relative/iri?to?somewhere");
     Literal e{};

@@ -1,7 +1,6 @@
 #include "AnyURI.hpp"
 
 #include <cmath>
-#include <sstream>
 #include <stdexcept>
 #include <rdf4cpp/IRIView.hpp>
 
