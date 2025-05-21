@@ -21,6 +21,7 @@ inline constexpr util::ConstexprString xsd_boolean{"http://www.w3.org/2001/XMLSc
 
 inline constexpr util::ConstexprString xsd_base64_binary{"http://www.w3.org/2001/XMLSchema#base64Binary"};
 inline constexpr util::ConstexprString xsd_hex_binary{"http://www.w3.org/2001/XMLSchema#hexBinary"};
+inline constexpr util::ConstexprString xsd_any_uri{"http://www.w3.org/2001/XMLSchema#anyURI"};
 
 inline constexpr util::ConstexprString xsd_decimal{"http://www.w3.org/2001/XMLSchema#decimal"};
 inline constexpr util::ConstexprString xsd_float{"http://www.w3.org/2001/XMLSchema#float"};
@@ -76,6 +77,7 @@ inline constexpr util::StaticFlatMap reserved_datatype_ids{
         ReservedDatatypeIdEntry{xsd_gDay,          LiteralType::from_parts(LiteralTypeTag::Default, 10)},
         ReservedDatatypeIdEntry{xsd_gYearMonth,    LiteralType::from_parts(LiteralTypeTag::Default, 11)},
         ReservedDatatypeIdEntry{xsd_gMonthDay,     LiteralType::from_parts(LiteralTypeTag::Default, 12)},
+        ReservedDatatypeIdEntry{xsd_any_uri,     LiteralType::from_parts(LiteralTypeTag::Default, 13)},
 
         ReservedDatatypeIdEntry{xsd_date,          LiteralType::from_parts(LiteralTypeTag::Timepoint, 0)},
         ReservedDatatypeIdEntry{xsd_time,          LiteralType::from_parts(LiteralTypeTag::Timepoint, 1)},

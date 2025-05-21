@@ -101,6 +101,7 @@ add_library(rdf4cpp
         src/rdf4cpp/datatypes/xsd/Float.cpp
         src/rdf4cpp/datatypes/xsd/HexBinary.cpp
         src/rdf4cpp/datatypes/xsd/String.cpp
+        src/rdf4cpp/datatypes/xsd/AnyURI.cpp
         src/rdf4cpp/datatypes/xsd/integers/non_negative/NonNegativeInteger.cpp
         src/rdf4cpp/datatypes/xsd/integers/non_negative/PositiveInteger.cpp
         src/rdf4cpp/datatypes/xsd/integers/non_negative/UnsignedByte.cpp

@@ -8,6 +8,7 @@
 #include <rdf4cpp/datatypes/xsd/Float.hpp>
 #include <rdf4cpp/datatypes/xsd/HexBinary.hpp>
 #include <rdf4cpp/datatypes/xsd/String.hpp>
+#include <rdf4cpp/datatypes/xsd/AnyURI.hpp>
 
 #include <rdf4cpp/datatypes/xsd/integers/non_negative/NonNegativeInteger.hpp>
 #include <rdf4cpp/datatypes/xsd/integers/non_negative/PositiveInteger.hpp>
