@@ -9,7 +9,7 @@ TEST_CASE("anyURI capabilities") {
     static_assert(datatypes::LiteralDatatype<datatypes::xsd::AnyURI>);
     static_assert(datatypes::LogicalLiteralDatatype<datatypes::xsd::AnyURI>);
     static_assert(!datatypes::NumericLiteralDatatype<datatypes::xsd::AnyURI>);
-    static_assert(!datatypes::PromotableLiteralDatatype<datatypes::xsd::AnyURI>);
+    static_assert(datatypes::PromotableLiteralDatatype<datatypes::xsd::AnyURI>);
     static_assert(!datatypes::SubtypedLiteralDatatype<datatypes::xsd::AnyURI>);
     static_assert(datatypes::ComparableLiteralDatatype<datatypes::xsd::AnyURI>);
     static_assert(datatypes::FixedIdLiteralDatatype<datatypes::xsd::AnyURI>);
@@ -26,6 +26,7 @@ TEST_CASE("Datatype AnyURI") {
     CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("").ebv() == TriBool::False);
     CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("/relative/iri?to?somewhere").lexical_form() == "/relative/iri?to?somewhere");
     CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("//relative/iri?to?somewhere").lexical_form() == "//relative/iri?to?somewhere");
+    CHECK(Literal::make_typed<datatypes::xsd::AnyURI>("https://example.com").cast<datatypes::xsd::String>() == Literal::make_typed<datatypes::xsd::String>("https://example.com"));
     Literal e{};
     CHECK_THROWS_AS(e = Literal::make_typed<datatypes::xsd::AnyURI>("invalid uri"), rdf4cpp::InvalidNode);
 

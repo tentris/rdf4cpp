@@ -4,6 +4,7 @@
 #include <rdf4cpp/datatypes/registry/DatatypeMapping.hpp>
 #include <rdf4cpp/datatypes/registry/FixedIdMappings.hpp>
 #include <rdf4cpp/datatypes/registry/LiteralDatatypeImpl.hpp>
+#include <rdf4cpp/datatypes/xsd/String.hpp>
 
 #include <dice/hash.hpp>
 
@@ -13,6 +14,11 @@ namespace rdf4cpp::datatypes::registry {
     template<>
     struct DatatypeMapping<xsd_any_uri> {
         using cpp_datatype = std::string;
+    };
+
+    template<>
+    struct DatatypePromotionMapping<xsd_any_uri> {
+        using promoted = xsd::String;
     };
 
     template<>
@@ -42,6 +48,7 @@ namespace rdf4cpp::datatypes::xsd {
     struct AnyURI : registry::LiteralDatatypeImpl<registry::xsd_any_uri,
                                                    registry::capabilities::Logical,
                                                    registry::capabilities::Comparable,
+                                                   registry::capabilities::Promotable,
                                                    registry::capabilities::FixedId> {};
 
 }  // namespace rdf4cpp::datatypes::xsd
