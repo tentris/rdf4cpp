@@ -32,9 +32,11 @@ jobs:
 
     steps:
       - name: Add Repos for for gcc-13 and clang-17
+        if: ${{ inputs.os != 'macos-15' }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
 
       - name: Ensure stdlib version
+        if: ${{ inputs.os != 'macos-15' }}
         run: |
           sudo apt install libstdc++-13-dev -y
 
