@@ -86,7 +86,7 @@ jobs:
 
       - name: Get dependency provider (macos)
         if: ${{ inputs.os == 'macos-15' }}
-        run: curl https://github.com/conan-io/cmake-conan/raw/develop2/conan_provider.cmake -o conan_provider.cmake
+        run: curl -L https://github.com/conan-io/cmake-conan/raw/develop2/conan_provider.cmake -o conan_provider.cmake
 
       - name: Configure CMake
         if: ${{ inputs.os != 'macos-15' }}
