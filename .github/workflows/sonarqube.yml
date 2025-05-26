@@ -1,0 +1,80 @@
+name: SonarSource Static Analyzer Build
+on:
+  push:
+    branches:
+      - feature/testing-sonarqube
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  build:
+    name: SonarSource Static Analyzer Build
+    runs-on: ubuntu-24.04
+    env:
+      BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
+    steps:
+      - name: Install Build Wrapper
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v5
+
+      - name: Add Repos for for gcc-13 and clang-17
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
+
+      - name: Ensure stdlib version
+        run: |
+          sudo apt install libstdc++-13-dev -y
+
+      - name: Get minimum cmake version
+        uses: lukka/get-cmake@v3.29.3
+        with:
+          cmakeVersion: 3.24.0
+
+      - name: Install compiler
+        id: install_cc
+        uses: rlalik/setup-cpp-compiler@v1.2
+        with:
+          compiler: clang-19
+
+      - name: use mold as default linker
+        uses: rui314/setup-mold@v1
+
+      - name: Configure conan
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@main
+        with:
+          conan-version: 2.8.1
+
+      - name: add conan user
+        run: |
+          conan remote add -f dice-group https://conan.dice-research.org/artifactory/api/conan/tentris
+
+      - name: Cache conan data
+        id: cache-conan
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2/p
+          key: ubuntu-24.04-clang-19-conan2
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Get dependency provider
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@main
+
+      - name: Configure CMake
+        env:
+          CC: ${{ steps.install_cc.outputs.cc }}
+          CXX: ${{ steps.install_cc.outputs.cxx }}
+          CXXFLAGS: -Wno-unused-command-line-argument -fuse-ld=mold 
+        run: >
+          cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        
+      - name: Run Build Wrapper
+        run: |
+          build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build_dir/ --config Release
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            --define sonar.cfamily.compile-commands="${{ env.BUILD_WRAPPER_OUT_DIR }}/compile_commands.json"
