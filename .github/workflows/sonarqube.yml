@@ -2,7 +2,7 @@ name: SonarSource Static Analyzer Build
 on:
   push:
     branches:
-      - feature/testing-sonarqube
+      - develop
   pull_request:
     types: [opened, synchronize, reopened]
 jobs:
