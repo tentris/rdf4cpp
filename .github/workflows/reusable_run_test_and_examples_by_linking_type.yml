@@ -102,8 +102,8 @@ jobs:
         if: ${{ inputs.os == 'macos-15' }}
         run: |
           GCC_PREFIX="$(brew --prefix "gcc@14")"
-          export CC="${GCC_PREFIX}/bin/gcc-14"
-          export CXX="${GCC_PREFIX}/bin/g++-14"
+          echo CC="${GCC_PREFIX}/bin/gcc-14" >> $GITHUB_ENV
+          echo CXX="${GCC_PREFIX}/bin/g++-14" >> $GITHUB_ENV
 
       - name: Configure CMake (macos)
         if: ${{ inputs.os == 'macos-15' }}
