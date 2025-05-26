@@ -28,8 +28,8 @@ enum struct DecimalError {
 template<typename T>
 concept BigDecimalBaseType = std::numeric_limits<T>::is_specialized && !std::floating_point<T>;
 
-template<BigDecimalBaseType UnscaledValue_t = boost::multiprecision::cpp_int, BigDecimalBaseType Exponent_t = uint32_t>
-    requires(!std::signed_integral<Exponent_t> && !std::unsigned_integral<UnscaledValue_t>)
+template<BigDecimalBaseType UnscaledValue_t = boost::multiprecision::checked_int128_t, BigDecimalBaseType Exponent_t = uint32_t>
+requires(!std::signed_integral<Exponent_t> && !std::unsigned_integral<UnscaledValue_t>)
 struct BigDecimal {
     // the entire class is loosely based on OpenJDKs BigDecimal: https://github.com/AdoptOpenJDK/openjdk-jdk11/blob/master/src/java.base/share/classes/java/math/BigDecimal.java
 
@@ -48,6 +48,15 @@ private:
     static constexpr bool add_checked(const T &a, const T &b, T &result) noexcept {
         if constexpr (std::is_integral_v<T> && m == OverflowMode::Checked) {
             return __builtin_add_overflow(a, b, &result);
+        } else if (m == OverflowMode::Checked) {
+            try {
+                result = a + b;
+            } catch (std::overflow_error const &) {
+                return true;
+            } catch (std::range_error const &) {
+                return true;
+            }
+            return false;
         } else {
             result = a + b;
             return false;
@@ -58,6 +67,15 @@ private:
     static constexpr bool sub_checked(const T &a, const T &b, T &result) noexcept {
         if constexpr (std::is_integral_v<T> && m == OverflowMode::Checked) {
             return __builtin_sub_overflow(a, b, &result);
+        } else if (m == OverflowMode::Checked) {
+            try {
+                result = a - b;
+            } catch (std::overflow_error const &) {
+                return true;
+            } catch (std::range_error const &) {
+                return true;
+            }
+            return false;
         } else {
             result = a - b;
             return false;
@@ -68,6 +86,15 @@ private:
     static constexpr bool mul_checked(const T &a, const T &b, T &result) noexcept {
         if constexpr (std::is_integral_v<T> && m == OverflowMode::Checked) {
             return __builtin_mul_overflow(a, b, &result);
+        } else if (m == OverflowMode::Checked) {
+            try {
+                result = a * b;
+            } catch (std::overflow_error const &) {
+                return true;
+            } catch (std::range_error const &) {
+                return true;
+            }
+            return false;
         } else {
             result = a * b;
             return false;
@@ -83,6 +110,15 @@ private:
                 over |= mul_checked<m, T>(r, a, r);
             result = r;
             return over;
+        } else if (m == OverflowMode::Checked) {
+            try {
+                result = boost::multiprecision::pow(a, b);
+            } catch (std::overflow_error const &) {
+                return true;
+            } catch (std::range_error const &) {
+                return true;
+            }
+            return false;
         } else {
             result = boost::multiprecision::pow(a, b);
             return false;
@@ -94,6 +130,15 @@ private:
         if constexpr (std::is_integral_v<To> && std::is_integral_v<From> && m == OverflowMode::Checked) {
             if (!std::in_range<To>(f))
                 return true;
+        } else if (m == OverflowMode::Checked) {
+            try {
+                result = static_cast<To>(f);
+            } catch (std::overflow_error const &) {
+                return true;
+            } catch (std::range_error const &) {
+                return true;
+            }
+            return false;
         }
         result = static_cast<To>(f);
         return false;
@@ -910,6 +955,12 @@ template<typename Policy>
 struct dice::hash::dice_hash_overload<Policy, ::boost::multiprecision::cpp_int> {
     static size_t dice_hash(::boost::multiprecision::cpp_int const &x) noexcept {
         return dice::hash::dice_hash_templates<Policy>::dice_hash(std::hash<::boost::multiprecision::cpp_int>{}(x));
+    }
+};
+template<typename Policy>
+struct dice::hash::dice_hash_overload<Policy, ::boost::multiprecision::checked_int128_t> {
+    static size_t dice_hash(::boost::multiprecision::checked_int128_t const &x) noexcept {
+        return dice::hash::dice_hash_templates<Policy>::dice_hash(std::hash<::boost::multiprecision::checked_int128_t>{}(x));
     }
 };
 

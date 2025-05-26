@@ -30,7 +30,7 @@ bool capabilities::Default<xsd_decimal>::serialize_simplified_string(cpp_type co
     cpp_type v = value;
     v.normalize();
     if (v.get_exponent() == 0) {
-        auto const s = static_cast<boost::multiprecision::cpp_int>(v).str();
+        auto const s = static_cast<boost::multiprecision::checked_int128_t>(v).str();
         return writer::write_str(s, writer);
     } else {
         auto const s = static_cast<std::string>(v);

@@ -185,7 +185,7 @@ TEST_CASE("decimal inlining sanity check") {
 
     SUBCASE("limits") {
         SUBCASE("unscaled value") {
-            boost::multiprecision::cpp_int const very_big_value{"99999999999999999999999999999999999999999999999"};
+            boost::multiprecision::checked_int128_t const very_big_value = std::numeric_limits<boost::multiprecision::checked_int128_t>::max();
             CHECK_GT(very_big_value, std::numeric_limits<int64_t>::max());
 
             // way over the limit
@@ -217,7 +217,7 @@ TEST_CASE("decimal inlining sanity check") {
         }
 
         SUBCASE("exponent") {
-            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{boost::multiprecision::cpp_int{5}, 1U << 10});
+            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{boost::multiprecision::checked_int128_t{5}, 1U << 10});
             CHECK(!l.is_inlined());
             CHECK(l.value<Decimal>() == Decimal::cpp_type(5, 1U << 10));
         }

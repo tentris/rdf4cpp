@@ -481,12 +481,6 @@ struct dice::hash::dice_hash_overload<Policy, rdf4cpp::OptionalTimezone> {
     }
 };
 template<typename Policy>
-struct dice::hash::dice_hash_overload<Policy, ::boost::multiprecision::checked_int128_t> {
-    static size_t dice_hash(::boost::multiprecision::cpp_int const &x) noexcept {
-        return dice::hash::dice_hash_templates<Policy>::dice_hash(::boost::multiprecision::hash_value(x));
-    }
-};
-template<typename Policy>
 struct dice::hash::dice_hash_overload<Policy, rdf4cpp::Year> {
     static size_t dice_hash(rdf4cpp::Year const &x) noexcept {
         return dice::hash::dice_hash_templates<Policy>::dice_hash(static_cast<int64_t>(x));

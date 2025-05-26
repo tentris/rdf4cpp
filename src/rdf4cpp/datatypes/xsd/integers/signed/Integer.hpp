@@ -13,7 +13,7 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 struct DatatypeMapping<xsd_integer> {
-    using cpp_datatype = boost::multiprecision::cpp_int;
+    using cpp_datatype = boost::multiprecision::checked_int128_t;
 };
 
 template<>
