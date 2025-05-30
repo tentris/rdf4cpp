@@ -359,6 +359,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.nt")
         execute_process(COMMAND unzip "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip" -d "${CMAKE_CURRENT_BINARY_DIR}/test_swdf")
         file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
 endif ()
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/graph/tests_loading_simple.trig" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 add_executable(tests_Loading graph/tests_loading.cpp)
 target_link_libraries(tests_Loading
         doctest::doctest
