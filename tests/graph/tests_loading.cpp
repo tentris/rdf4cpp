@@ -22,7 +22,7 @@ TEST_CASE("load dataset") {
     });
     CHECK(set.size() == 4);
     int i = 0;
-    for (const auto& _ : set) {
+    for ([[maybe_unused]] const auto& _ : set) {
         ++i;
     }
     CHECK(i == 4);
