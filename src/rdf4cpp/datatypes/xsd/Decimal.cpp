@@ -30,8 +30,7 @@ bool capabilities::Default<xsd_decimal>::serialize_simplified_string(cpp_type co
     cpp_type v = value;
     v.normalize();
     if (v.get_exponent() == 0) {
-        auto const s = static_cast<boost::multiprecision::checked_int128_t>(v).str();
-        return writer::write_str(s, writer);
+        return rdf4cpp::util::to_chars_canonical(v.get_unscaled_value(), writer);
     } else {
         auto const s = static_cast<std::string>(v);
         return writer::write_str(s, writer);
@@ -70,7 +69,7 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::div_result_cpp_type, Dynami
         return nonstd::make_unexpected(DynamicError::DivideByZero);
     }
 
-    auto r = lhs.div_checked(rhs, 1000);
+    auto r = lhs.div_checked(rhs, 20);
     if (r.has_value())
         return r.value();
     else

@@ -7,6 +7,119 @@ using Dec = rdf4cpp::BigDecimal<>;
 using DecI = rdf4cpp::BigDecimal<int32_t, uint32_t>;
 using RoundingMode = rdf4cpp::RoundingMode;
 
+TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, boost::multiprecision::checked_int256_t, boost::multiprecision::int256_t) {
+    using namespace rdf4cpp::util::detail;
+
+    SUBCASE("add") {
+        auto eq = [](auto a, auto b, auto r) {
+            T re;
+            CHECK(add_checked<OverflowMode::Checked>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+            CHECK(add_checked<OverflowMode::UndefinedBehavior>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+        };
+        eq(5, 5, 10);
+        eq(5, -5, 0);
+        [[maybe_unused]] T re = 0;
+        CHECK(add_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), T{1}, re) == true);
+    }
+    SUBCASE("sub") {
+        auto eq = [](auto a, auto b, auto r) {
+            T re;
+            CHECK(sub_checked<OverflowMode::Checked>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+            CHECK(sub_checked<OverflowMode::UndefinedBehavior>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+        };
+        eq(5, -5, 10);
+        eq(5, 5, 0);
+        [[maybe_unused]] T re = 0;
+        CHECK(sub_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), T{-1}, re) == true);
+    }
+    SUBCASE("mul") {
+        auto eq = [](auto a, auto b, auto r) {
+            T re;
+            CHECK(mul_checked<OverflowMode::Checked>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+            CHECK(mul_checked<OverflowMode::UndefinedBehavior>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+        };
+        eq(5, 5, 25);
+        eq(5, -5, -25);
+        [[maybe_unused]] T re = 0;
+        CHECK(mul_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), T{2}, re) == true);
+    }
+    SUBCASE("pow") {
+        auto eq = [](auto a, unsigned int b, auto r) {
+            T re;
+            CHECK(pow_checked<OverflowMode::Checked>(T{a}, b, re) == false);
+            CHECK(re == T{r});
+            CHECK(pow_checked<OverflowMode::UndefinedBehavior>(T{a}, b, re) == false);
+            CHECK(re == T{r});
+        };
+        eq(5, 3, 25*5);
+        eq(5, 2, 25);
+        [[maybe_unused]] T re = 0;
+        CHECK(pow_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), 2, re) == true);
+    }
+}
+TEST_CASE_TEMPLATE("checked arithmetic unsigned", T, uint32_t, uint64_t, unsigned __int128, boost::multiprecision::checked_uint256_t, boost::multiprecision::uint256_t) {
+    using namespace rdf4cpp::util::detail;
+
+    SUBCASE("add") {
+        auto eq = [](auto a, auto b, auto r) {
+            T re;
+            CHECK(add_checked<OverflowMode::Checked>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+            CHECK(add_checked<OverflowMode::UndefinedBehavior>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+        };
+        eq(5u, 5u, 10u);
+        eq(5u, 10u, 15u);
+        [[maybe_unused]] T re = 0;
+        CHECK(add_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), T{1}, re) == true);
+    }
+    SUBCASE("sub") {
+        auto eq = [](auto a, auto b, auto r) {
+            T re;
+            CHECK(sub_checked<OverflowMode::Checked>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+            CHECK(sub_checked<OverflowMode::UndefinedBehavior>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+        };
+        eq(5u, 3u, 2u);
+        eq(5u, 5u, 0u);
+        [[maybe_unused]] T re = 0;
+        CHECK(sub_checked<OverflowMode::Checked>(T{0}, std::numeric_limits<T>::max(), re) == true);
+    }
+    SUBCASE("mul") {
+        auto eq = [](auto a, auto b, auto r) {
+            T re;
+            CHECK(mul_checked<OverflowMode::Checked>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+            CHECK(mul_checked<OverflowMode::UndefinedBehavior>(T{a}, T{b}, re) == false);
+            CHECK(re == T{r});
+        };
+        eq(5u, 5u, 25u);
+        eq(5u, 15u, 5u*15u);
+        [[maybe_unused]] T re = 0;
+        CHECK(mul_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), T{2}, re) == true);
+    }
+    SUBCASE("pow") {
+        auto eq = [](auto a, unsigned int b, auto r) {
+            T re;
+            CHECK(pow_checked<OverflowMode::Checked>(T{a}, b, re) == false);
+            CHECK(re == T{r});
+            CHECK(pow_checked<OverflowMode::UndefinedBehavior>(T{a}, b, re) == false);
+            CHECK(re == T{r});
+        };
+        eq(5u, 3u, 25u*5u);
+        eq(5u, 2u, 25u);
+        [[maybe_unused]] T re = 0;
+        CHECK(pow_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), 2, re) == true);
+    }
+}
+
 TEST_CASE("basics") {
     SUBCASE("ctor and compare") {
         static_assert(rdf4cpp::BigDecimalBaseType<uint32_t>);
@@ -206,19 +319,19 @@ TEST_CASE("conversion") {
         CHECK_EQ(str.view(), "5.0");
         // uses string conversion, so no more tests here
     }
-    /*SUBCASE("from double") {
+    SUBCASE("from double") {
         CHECK(Dec{50.0} == Dec{50, 0});
         CHECK(Dec{-50.5} == Dec{-505, 1});
         CHECK(Dec{500000.0} == Dec{500000, 0});
         CHECK(Dec{0.0009765625} == Dec{"0.0009765625"});
         CHECK(Dec{1.0} == Dec{1, 0});
+        CHECK(Dec{1.2} == Dec{12, 1});
         CHECK_EQ(static_cast<float>(Dec{1.0}), 1.0f);
-    }*/
+        CHECK_THROWS_AS([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::max()), std::overflow_error);
+    }
     SUBCASE("to double") {
-        CHECK(boost::multiprecision::checked_int1024_t {std::numeric_limits<double>::max()} != boost::multiprecision::checked_int1024_t {});
         CHECK_EQ(static_cast<double>(Dec{50, 0}), 50.0);
         CHECK_EQ(static_cast<double>(Dec{500, 1}), 50.0);
-        CHECK_EQ(static_cast<double>(Dec{static_cast<boost::multiprecision::checked_int128_t>(std::numeric_limits<double>::max()) * 100, 2}), std::numeric_limits<double>::max());
     }
     SUBCASE("to float") {
         CHECK_EQ(static_cast<float>(Dec{50, 0}), 50.0f);
@@ -246,10 +359,10 @@ TEST_CASE("conversion") {
         // no e notation allowed by rdf (xml) standard
     }
     SUBCASE("from cpp_int") {
-        CHECK(Dec{boost::multiprecision::checked_int128_t{5}} == Dec{5, 0});
+        CHECK(Dec{rdf4cpp::util::Int128{5}} == Dec{5, 0});
     }
     SUBCASE("to cpp_int") {
-        CHECK(static_cast<boost::multiprecision::checked_int128_t>(Dec{5, 0}) == boost::multiprecision::cpp_int{5});
-        CHECK(static_cast<boost::multiprecision::checked_int128_t>(Dec{59, 1}) == boost::multiprecision::cpp_int{5});
+        CHECK(static_cast<rdf4cpp::util::Int128>(Dec{5, 0}) == rdf4cpp::util::Int128{5});
+        CHECK(static_cast<rdf4cpp::util::Int128>(Dec{59, 1}) == rdf4cpp::util::Int128{5});
     }
 }

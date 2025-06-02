@@ -10,6 +10,7 @@
 #include <format>
 
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/util/Int128.hpp>
 
 namespace rdf4cpp::datatypes::registry::util {
 /**
@@ -86,6 +87,40 @@ F from_chars(std::string_view s) {
 
     return value;
 }
+#ifdef __SIZEOF_INT128__
+template<typename F, ConstexprString datatype>
+requires std::same_as<F, __int128>
+F from_chars(std::string_view s) {
+    bool neg = false;
+    if (s.starts_with('+')) {
+        s.remove_prefix(1);
+    }
+    else if(s.starts_with('-')) {
+        neg = true;
+        s.remove_prefix(1);
+    }
+
+    __int128 r = 0;
+
+    for (char c : s) {
+        if (c > '9' || c < '0') {
+            throw rdf4cpp::InvalidNode{std::format("{} parsing error: found {}, invalid for datatype", datatype, c)};
+        }
+        __int128 n = c - '0';
+        if (neg) {
+            n = -n;
+        }
+        if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(r, __int128{10}, r)) {
+            throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
+        }
+        if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(r, n, r)) {
+            throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
+        }
+    }
+
+    return r;
+}
+#endif
 
 namespace detail  {
 /**

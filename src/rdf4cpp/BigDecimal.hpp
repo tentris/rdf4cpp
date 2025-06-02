@@ -11,6 +11,7 @@
 
 #include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/util/Int128.hpp>
 
 namespace rdf4cpp {
 enum struct RoundingMode {
@@ -28,7 +29,7 @@ enum struct DecimalError {
 template<typename T>
 concept BigDecimalBaseType = std::numeric_limits<T>::is_specialized && !std::floating_point<T>;
 
-template<BigDecimalBaseType UnscaledValue_t = boost::multiprecision::checked_int128_t, BigDecimalBaseType Exponent_t = uint32_t>
+template<BigDecimalBaseType UnscaledValue_t = util::Int128, BigDecimalBaseType Exponent_t = uint32_t>
 requires(!std::signed_integral<Exponent_t> && !std::unsigned_integral<UnscaledValue_t>)
 struct BigDecimal {
     // the entire class is loosely based on OpenJDKs BigDecimal: https://github.com/AdoptOpenJDK/openjdk-jdk11/blob/master/src/java.base/share/classes/java/math/BigDecimal.java
@@ -37,93 +38,9 @@ private:
     UnscaledValue_t unscaled_value;
     Exponent_t exponent;
 
+    using OverflowMode = util::detail::OverflowMode;
+
     static constexpr uint32_t base = 10;
-
-    enum struct OverflowMode {
-        Checked,
-        UndefinedBehavior,
-    };
-
-    template<OverflowMode m, typename T>
-    static constexpr bool add_checked(const T &a, const T &b, T &result) noexcept {
-        if constexpr (std::is_integral_v<T> && m == OverflowMode::Checked) {
-            return __builtin_add_overflow(a, b, &result);
-        } else if (m == OverflowMode::Checked) {
-            try {
-                result = a + b;
-            } catch (std::overflow_error const &) {
-                return true;
-            } catch (std::range_error const &) {
-                return true;
-            }
-            return false;
-        } else {
-            result = a + b;
-            return false;
-        }
-    }
-
-    template<OverflowMode m, typename T>
-    static constexpr bool sub_checked(const T &a, const T &b, T &result) noexcept {
-        if constexpr (std::is_integral_v<T> && m == OverflowMode::Checked) {
-            return __builtin_sub_overflow(a, b, &result);
-        } else if (m == OverflowMode::Checked) {
-            try {
-                result = a - b;
-            } catch (std::overflow_error const &) {
-                return true;
-            } catch (std::range_error const &) {
-                return true;
-            }
-            return false;
-        } else {
-            result = a - b;
-            return false;
-        }
-    }
-
-    template<OverflowMode m, typename T>
-    static constexpr bool mul_checked(const T &a, const T &b, T &result) noexcept {
-        if constexpr (std::is_integral_v<T> && m == OverflowMode::Checked) {
-            return __builtin_mul_overflow(a, b, &result);
-        } else if (m == OverflowMode::Checked) {
-            try {
-                result = a * b;
-            } catch (std::overflow_error const &) {
-                return true;
-            } catch (std::range_error const &) {
-                return true;
-            }
-            return false;
-        } else {
-            result = a * b;
-            return false;
-        }
-    }
-
-    template<OverflowMode m, typename T>
-    static constexpr bool pow_checked(const T &a, unsigned int b, T &result) noexcept {
-        if constexpr (std::is_integral_v<T>) {
-            T r = 1;
-            bool over = false;
-            for (unsigned int i = 0; i < b; ++i)
-                over |= mul_checked<m, T>(r, a, r);
-            result = r;
-            return over;
-        } else if (m == OverflowMode::Checked) {
-            try {
-                result = boost::multiprecision::pow(a, b);
-            } catch (std::overflow_error const &) {
-                return true;
-            } catch (std::range_error const &) {
-                return true;
-            }
-            return false;
-        } else {
-            result = boost::multiprecision::pow(a, b);
-            return false;
-        }
-    }
 
     template<OverflowMode m, typename To, typename From>
     static constexpr bool cast_checked(const From &f, To &result) noexcept {
@@ -196,14 +113,14 @@ public:
                 throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found"};
             }
             auto n = c - '0';
-            if (mul_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{base}, unscaled_value)) {
+            if (util::detail::mul_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{base}, unscaled_value)) {
                 throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
             }
-            if (add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{n}, unscaled_value)) {
+            if (util::detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{n}, unscaled_value)) {
                 throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
             }
             if (decimal) {
-                if (add_checked<OverflowMode::Checked>(exponent, Exponent_t{1}, exponent)) {
+                if (util::detail::add_checked<OverflowMode::Checked>(exponent, Exponent_t{1}, exponent)) {
                     throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: exponent overflow"};
                 }
             }
@@ -257,14 +174,10 @@ public:
      */
     constexpr explicit BigDecimal(float value) : BigDecimal(static_cast<double>(value)) {}
 
-    /**
-     * converts a double to a BigDecimal.
-     * this conversion might not be exact, due to the built in limitations of doubles.
-     * if you have the possibility, use one of the other constructors.
-     * @param value
-     * @throw std::overflow_error on exceeding the types numeric limits
-     */
-    explicit BigDecimal(double value) : unscaled_value(0), exponent(0) {
+private:
+    void from_double_direct(double value)
+    requires(std::numeric_limits<UnscaledValue_t>::digits >= std::numeric_limits<boost::multiprecision::int1024_t>::digits)
+    {
         // most of the algorithm is from OpenJDK: https://github.com/AdoptOpenJDK/openjdk-jdk11/blob/19fb8f93c59dfd791f62d41f332db9e306bc1422/src/java.base/share/classes/java/math/BigDecimal.java#L915
         if (std::isinf(value) || std::isnan(value))
             throw std::invalid_argument{"value is NaN or infinity"};
@@ -276,7 +189,7 @@ public:
         // 63   | 62 ... 52 | 51 ... 0
         // see https://en.wikipedia.org/wiki/Double-precision_floating-point_format for more info (and a better graphic)
         auto v = std::bit_cast<uint64_t>(value);
-        bool neg = (v >> 63) != 0;
+        bool const neg = (v >> 63) != 0;
         auto ex = static_cast<int>((v >> 52) & 0x7ffL);
         uint64_t significand = ex == 0
                                        ? (v & ((1L << 52) - 1)) << 1
@@ -295,20 +208,40 @@ public:
         } else if (ex < 0) {
             exponent = static_cast<Exponent_t>(-ex);
             UnscaledValue_t e{0};
-            if (pow_checked<OverflowMode::Checked>(UnscaledValue_t{5}, -ex, e))
+            if (util::detail::pow_checked<OverflowMode::Checked>(UnscaledValue_t{5}, -ex, e))
                 throw std::overflow_error{exc};
-            if (mul_checked<OverflowMode::Checked>(UnscaledValue_t{significand}, e, unscaled_value))
+            if (util::detail::mul_checked<OverflowMode::Checked>(UnscaledValue_t{significand}, e, unscaled_value))
                 throw std::overflow_error{exc};
         } else {
             UnscaledValue_t e{0};
-            if (pow_checked<OverflowMode::Checked>(UnscaledValue_t{2}, ex, e))
+            if (util::detail::pow_checked<OverflowMode::Checked>(UnscaledValue_t{2}, ex, e))
                 throw std::overflow_error{exc};
-            if (mul_checked<OverflowMode::Checked>(UnscaledValue_t{significand}, e, unscaled_value))
+            if (util::detail::mul_checked<OverflowMode::Checked>(UnscaledValue_t{significand}, e, unscaled_value))
                 throw std::overflow_error{exc};
         }
         if (neg)
             unscaled_value = -unscaled_value;
         normalize();
+    }
+
+public:
+    /**
+     * converts a double to a BigDecimal.
+     * this conversion might not be exact, due to the built in limitations of doubles.
+     * if you have the possibility, use one of the other constructors.
+     * @param value
+     * @throw std::overflow_error on exceeding the types numeric limits
+     */
+    explicit BigDecimal(double value) : unscaled_value(0), exponent(0) {
+        if constexpr (std::numeric_limits<UnscaledValue_t>::digits >= std::numeric_limits<boost::multiprecision::int1024_t>::digits) {
+            from_double_direct(value);
+        } else {
+            BigDecimal<boost::multiprecision::checked_int1024_t> const v{value};
+            if (cast_checked<OverflowMode::Checked>(v.get_unscaled_value(), unscaled_value))
+                throw std::overflow_error{"double to BigDecimal overflow"};
+            if (cast_checked<OverflowMode::Checked>(v.get_exponent(), exponent))
+                throw std::overflow_error{"double to BigDecimal overflow"};
+        }
     }
 
     /**
@@ -349,15 +282,15 @@ private:
         Exponent_t new_exp = std::max(this->exponent, other.exponent);
         if (this->exponent < new_exp) {
             UnscaledValue_t ex{0};
-            if (pow_checked<m>(UnscaledValue_t{base}, new_exp - this->exponent, ex))
+            if (util::detail::pow_checked<m>(UnscaledValue_t{base}, new_exp - this->exponent, ex))
                 return true;
-            if (mul_checked<m>(t, ex, t))
+            if (util::detail::mul_checked<m>(t, ex, t))
                 return true;
         } else if (other.exponent < new_exp) {
             UnscaledValue_t ex{0};
-            if (pow_checked<m>(UnscaledValue_t{base}, new_exp - other.exponent, ex))
+            if (util::detail::pow_checked<m>(UnscaledValue_t{base}, new_exp - other.exponent, ex))
                 return true;
-            if (mul_checked<m>(o, ex, o))
+            if (util::detail::mul_checked<m>(o, ex, o))
                 return true;
         }
         UnscaledValue_t res = 0;
@@ -370,10 +303,10 @@ private:
     template<OverflowMode m>
     constexpr bool mul(const BigDecimal &other, BigDecimal &result) const noexcept {
         UnscaledValue_t v{0};
-        if (mul_checked<m>(this->unscaled_value, other.unscaled_value, v))
+        if (util::detail::mul_checked<m>(this->unscaled_value, other.unscaled_value, v))
             return true;
         Exponent_t e{0};
-        if (add_checked<m>(this->exponent, other.exponent, e))
+        if (util::detail::add_checked<m>(this->exponent, other.exponent, e))
             return true;
         result = BigDecimal{v, e};
         return false;
@@ -423,18 +356,18 @@ private:
         Exponent_t ex = this->exponent;
         UnscaledValue_t div = other.unscaled_value;
         if (ex >= other.exponent) {
-            if (sub_checked<m>(ex, other.exponent, ex))
+            if (util::detail::sub_checked<m>(ex, other.exponent, ex))
                 return true;
         } else {
             Exponent_t tmp{0};
-            if (sub_checked<m>(other.exponent, ex, tmp))
+            if (util::detail::sub_checked<m>(other.exponent, ex, tmp))
                 return true;
-            if (pow_checked<m>(Exponent_t{base}, tmp, tmp))
+            if (util::detail::pow_checked<m>(Exponent_t{base}, tmp, tmp))
                 return true;
             UnscaledValue_t tmp2{0};
             if (cast_checked<m>(tmp, tmp2))
                 return true;
-            if (mul_checked<m>(t, tmp2, t))
+            if (util::detail::mul_checked<m>(t, tmp2, t))
                 return true;
             ex = 0;
         }
@@ -442,23 +375,23 @@ private:
         UnscaledValue_t rem = t % div;
         while (rem != 0) {
             if (max_scale_increase == 0) {
-                if (mul_checked<m>(rem, UnscaledValue_t{base}, rem))
+                if (util::detail::mul_checked<m>(rem, UnscaledValue_t{base}, rem))
                     return true;
                 result = handle_rounding(res, ex, rem / div, mode);
                 return false;
             }
             if constexpr (std::is_integral_v<Exponent_t>) {
                 if (ex == std::numeric_limits<Exponent_t>::max()) {
-                    if (mul_checked<m>(rem, UnscaledValue_t{base}, rem))
+                    if (util::detail::mul_checked<m>(rem, UnscaledValue_t{base}, rem))
                         return true;
                     result = handle_rounding(res, ex, rem / div, mode);
                     return false;
                 }
             }
             ++ex;
-            if (mul_checked<m>(res, UnscaledValue_t{base}, res))
+            if (util::detail::mul_checked<m>(res, UnscaledValue_t{base}, res))
                 return true;
-            if (mul_checked<m>(rem, UnscaledValue_t{base}, rem))
+            if (util::detail::mul_checked<m>(rem, UnscaledValue_t{base}, rem))
                 return true;
             res += rem / div;
             rem = rem % div;
@@ -538,7 +471,7 @@ public:
      */
     [[nodiscard]] constexpr BigDecimal operator+(const BigDecimal &other) const noexcept {
         BigDecimal res{0};
-        add_or_sub<OverflowMode::UndefinedBehavior, add_checked<OverflowMode::UndefinedBehavior, UnscaledValue_t>>(other, res);
+        add_or_sub<OverflowMode::UndefinedBehavior, util::detail::add_checked<OverflowMode::UndefinedBehavior>>(other, res);
         return res;
     }
     /**
@@ -549,7 +482,7 @@ public:
      */
     [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> add_checked(const BigDecimal &other) const noexcept {
         BigDecimal res{0};
-        if (add_or_sub<OverflowMode::Checked, add_checked<OverflowMode::Checked, UnscaledValue_t>>(other, res))
+        if (add_or_sub<OverflowMode::Checked, util::detail::add_checked<OverflowMode::Checked>>(other, res))
             return nonstd::make_unexpected(DecimalError::Overflow);
         return res;
     }
@@ -573,7 +506,7 @@ public:
      */
     [[nodiscard]] constexpr BigDecimal operator-(const BigDecimal &other) const noexcept {
         BigDecimal res{0};
-        add_or_sub<OverflowMode::UndefinedBehavior, sub_checked<OverflowMode::UndefinedBehavior, UnscaledValue_t>>(other, res);
+        add_or_sub<OverflowMode::UndefinedBehavior, util::detail::sub_checked<OverflowMode::UndefinedBehavior>>(other, res);
         return res;
     }
 
@@ -585,7 +518,7 @@ public:
      */
     [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> sub_checked(const BigDecimal &other) const noexcept {
         BigDecimal res{0};
-        if (add_or_sub<OverflowMode::Checked, sub_checked<OverflowMode::Checked, UnscaledValue_t>>(other, res))
+        if (add_or_sub<OverflowMode::Checked, util::detail::sub_checked<OverflowMode::Checked>>(other, res))
             return nonstd::make_unexpected(DecimalError::Overflow);
         return res;
     }
@@ -730,7 +663,7 @@ public:
         if (exponent == 0)
             return *this;
         UnscaledValue_t v{base};
-        if (pow_checked<OverflowMode::Checked>(v, exponent, v))
+        if (util::detail::pow_checked<OverflowMode::Checked>(v, exponent, v))
             return BigDecimal{0, 0};  // base pow exponent overflows and this did not, we have to be close to 0
         UnscaledValue_t rem = unscaled_value % v;
         rem = rem * 10 / v;
@@ -774,15 +707,15 @@ public:
         UnscaledValue_t o = other.unscaled_value;
         if (this->exponent > other.exponent) {
             UnscaledValue_t b{base};
-            if (pow_checked<OverflowMode::Checked>(b, this->exponent - other.exponent, b))
+            if (util::detail::pow_checked<OverflowMode::Checked>(b, this->exponent - other.exponent, b))
                 return std::strong_ordering::less;  // t does fit into the same precision, while o does not
-            if (mul_checked<OverflowMode::Checked>(o, b, o))
+            if (util::detail::mul_checked<OverflowMode::Checked>(o, b, o))
                 return std::strong_ordering::less;  // t does fit into the same precision, while o does not
         } else if (this->exponent < other.exponent) {
             UnscaledValue_t b{base};
-            if (pow_checked<OverflowMode::Checked>(b, other.exponent - this->exponent, b))
+            if (util::detail::pow_checked<OverflowMode::Checked>(b, other.exponent - this->exponent, b))
                 return std::strong_ordering::greater;  // o does fit into the same precision, while t does not
-            if (mul_checked<OverflowMode::Checked>(t, b, t))
+            if (util::detail::mul_checked<OverflowMode::Checked>(t, b, t))
                 return std::strong_ordering::greater;  // o does fit into the same precision, while t does not
         }
         if (t < o)
@@ -863,8 +796,9 @@ public:
         bool hasDot = false;
         while (v != 0) {
             if (!hasDot && ex == 0) {
-                if (s.view().empty())
+                if (s.view().empty()) {
                     s << '0';
+                }
                 s << '.';
                 hasDot = true;
             } else {
@@ -872,17 +806,20 @@ public:
             }
             using namespace std;
             auto c = static_cast<uint32_t>(abs(v % base));
-            if (hasDot || c != 0 || !s.view().empty())  // skip trailing 0s
+            if (hasDot || c != 0 || !s.view().empty()) {  // skip trailing 0s
                 s << c;
+            }
             v /= base;
         }
         if (!hasDot) {
-            for (Exponent_t i = 0; i < ex; ++i)
+            for (Exponent_t i = 0; i < ex; ++i) {
                 s << '0';
+            }
             s << ".0";
         }
-        if (!positive())
+        if (!positive()) {
             s << '-';
+        }
         std::string_view sv = s.view();
         return std::string{sv.rbegin(), sv.rend()};
     }

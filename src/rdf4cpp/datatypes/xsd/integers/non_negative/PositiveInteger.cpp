@@ -1,25 +1,25 @@
 #include "PositiveInteger.hpp"
 
 #include <stdexcept>
+#include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_positive_integer>::cpp_type capabilities::Default<xsd_positive_integer>::from_string(std::string_view s) {
-    cpp_type ret;
-
-    try {
-        ret = cpp_type{s};
-    } catch (std::runtime_error const &e) {
-        throw InvalidNode{std::format("{} parsing error: {}", identifier, e.what())};
-    }
+    cpp_type ret = util::from_chars<cpp_type, identifier>(s);
 
     if (ret < 1) {
         throw InvalidNode{std::format("{} parsing error: found non-positive value", identifier)};
     }
 
     return ret;
+}
+
+template<>
+bool capabilities::Default<xsd_positive_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
+    return rdf4cpp::util::to_chars_canonical(value, writer);
 }
 
 template<>
