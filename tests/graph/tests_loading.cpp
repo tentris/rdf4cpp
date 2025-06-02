@@ -21,4 +21,10 @@ TEST_CASE("load dataset") {
         FAIL(std::format("{}", e));
     });
     CHECK(set.size() == 4);
+    int i = 0;
+    for (const auto& _ : set) {
+        ++i;
+    }
+    CHECK(i == 4);
+    CHECK(set.graph(IRI::make("http://data.semanticweb.org/workshop/admire/2012")).size() == 4);
 }
