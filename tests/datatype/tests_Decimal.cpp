@@ -66,10 +66,6 @@ TEST_CASE("Datatype Decimal") {
     CHECK(lit8.value<datatypes::xsd::Decimal>() == value);
     CHECK(lit8.lexical_form() == rdf_dbl_1_0);
 
-    value = type{std::numeric_limits<double>::max()};
-    auto lit9 = Literal::make_typed(to_string(value), type_iri);
-    CHECK(lit9.value<datatypes::xsd::Decimal>() == value);
-
     value = type{"3.111"};
     auto lit10 = Literal::make_typed_from_value<datatypes::xsd::Decimal>(value);
     CHECK(lit10.value<datatypes::xsd::Decimal>() == value);

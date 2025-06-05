@@ -1,6 +1,7 @@
 #ifndef RDF4CPP_BIGDECIMAL_H
 #define RDF4CPP_BIGDECIMAL_H
 
+#include <format>
 #include <functional>
 #include <sstream>
 #include <string>
@@ -198,7 +199,7 @@ private:
         if (significand == 0) {
             return;
         }
-        while (significand & 1) {
+        while ((significand & 1) == 0) {
             significand >>= 1;
             ++ex;
         }
@@ -233,14 +234,22 @@ public:
      * @throw std::overflow_error on exceeding the types numeric limits
      */
     explicit BigDecimal(double value) : unscaled_value(0), exponent(0) {
-        if constexpr (std::numeric_limits<UnscaledValue_t>::digits >= std::numeric_limits<boost::multiprecision::int1024_t>::digits) {
+        if constexpr (!std::numeric_limits<UnscaledValue_t>::is_bounded) {
             from_double_direct(value);
         } else {
-            BigDecimal<boost::multiprecision::checked_int1024_t> const v{value};
-            if (cast_checked<OverflowMode::Checked>(v.get_unscaled_value(), unscaled_value))
-                throw std::overflow_error{"double to BigDecimal overflow"};
-            if (cast_checked<OverflowMode::Checked>(v.get_exponent(), exponent))
-                throw std::overflow_error{"double to BigDecimal overflow"};
+            BigDecimal<boost::multiprecision::checked_cpp_int> v{value};
+            while (true) {
+                if (cast_checked<OverflowMode::Checked>(v.get_unscaled_value(), unscaled_value) || cast_checked<OverflowMode::Checked>(v.get_exponent(), exponent)) {
+                    if (v.get_exponent() > 0) {
+                        v = {v.get_unscaled_value() / base, v.get_exponent() - 1};
+                        continue;
+                    }
+                    throw std::overflow_error{"double -> decimal unscaled value overflow"};
+                    //auto f = std::format("{:f}", value);
+                    //*this = BigDecimal(f);
+                }
+                return;
+            }
         }
     }
 
@@ -705,18 +714,20 @@ public:
             return this->positive() ? std::strong_ordering::greater : std::strong_ordering::less;
         UnscaledValue_t t = this->unscaled_value;
         UnscaledValue_t o = other.unscaled_value;
-        if (this->exponent > other.exponent) {
-            UnscaledValue_t b{base};
-            if (util::detail::pow_checked<OverflowMode::Checked>(b, this->exponent - other.exponent, b))
-                return std::strong_ordering::less;  // t does fit into the same precision, while o does not
-            if (util::detail::mul_checked<OverflowMode::Checked>(o, b, o))
-                return std::strong_ordering::less;  // t does fit into the same precision, while o does not
-        } else if (this->exponent < other.exponent) {
-            UnscaledValue_t b{base};
-            if (util::detail::pow_checked<OverflowMode::Checked>(b, other.exponent - this->exponent, b))
-                return std::strong_ordering::greater;  // o does fit into the same precision, while t does not
-            if (util::detail::mul_checked<OverflowMode::Checked>(t, b, t))
-                return std::strong_ordering::greater;  // o does fit into the same precision, while t does not
+        if (t != 0 && o != 0) {  // if one of the decimals is 0, compare directly (0*base^e is 0 for all e)
+            if (this->exponent > other.exponent) {
+                UnscaledValue_t b{base};
+                if (util::detail::pow_checked<OverflowMode::Checked>(b, this->exponent - other.exponent, b))
+                    return std::strong_ordering::less;  // t does fit into the same precision, while o does not
+                if (util::detail::mul_checked<OverflowMode::Checked>(o, b, o))
+                    return std::strong_ordering::less;  // t does fit into the same precision, while o does not
+            } else if (this->exponent < other.exponent) {
+                UnscaledValue_t b{base};
+                if (util::detail::pow_checked<OverflowMode::Checked>(b, other.exponent - this->exponent, b))
+                    return std::strong_ordering::greater;  // o does fit into the same precision, while t does not
+                if (util::detail::mul_checked<OverflowMode::Checked>(t, b, t))
+                    return std::strong_ordering::greater;  // o does fit into the same precision, while t does not
+            }
         }
         if (t < o)
             return std::strong_ordering::less;

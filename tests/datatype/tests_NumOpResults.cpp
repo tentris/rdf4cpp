@@ -26,7 +26,6 @@ TEST_SUITE("numeric op results") {
 
             Decimal::cpp_type const zero{0};
             Decimal::cpp_type const one{1};
-            Decimal::cpp_type const two{2};
             Decimal::cpp_type const three{3};
             Decimal::cpp_type const min{std::numeric_limits<Decimal::cpp_type>::min()};
             Decimal::cpp_type const max{std::numeric_limits<Decimal::cpp_type>::max()};

@@ -322,12 +322,14 @@ TEST_CASE("conversion") {
     SUBCASE("from double") {
         CHECK(Dec{50.0} == Dec{50, 0});
         CHECK(Dec{-50.5} == Dec{-505, 1});
-        CHECK(Dec{500000.0} == Dec{500000, 0});
+        CHECK(Dec{5000000000000000000.0} == Dec{5000000000000000000, 0});
         CHECK(Dec{0.0009765625} == Dec{"0.0009765625"});
         CHECK(Dec{1.0} == Dec{1, 0});
-        CHECK(Dec{1.2} == Dec{12, 1});
+        CHECK(Dec{1.2} != Dec{12, 1}); // 1.2 can not be exactly represented as double but can be as decimal
         CHECK_EQ(static_cast<float>(Dec{1.0}), 1.0f);
         CHECK_THROWS_AS([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::max()), std::overflow_error);
+        CHECK(Dec(std::numeric_limits<double>::min()) > Dec(0, 0));
+        CHECK(Dec(std::numeric_limits<double>::denorm_min()) > Dec(0, 0));
     }
     SUBCASE("to double") {
         CHECK_EQ(static_cast<double>(Dec{50, 0}), 50.0);
