@@ -131,6 +131,36 @@ TEST_CASE_TEMPLATE("checked arithmetic unsigned", T, uint32_t, uint64_t, unsigne
         CHECK(pow_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), 2, re) == true);
     }
 }
+TEST_CASE_TEMPLATE("checked casting", T, uint32_t, uint64_t, unsigned __int128, boost::multiprecision::checked_uint256_t,
+                   int32_t, int64_t, __int128, boost::multiprecision::checked_int256_t ) {
+    using namespace rdf4cpp::util::detail;
+
+    static constexpr bool sign = std::numeric_limits<T>::is_signed;
+    [[maybe_unused]] uint8_t u8 = 0;
+    [[maybe_unused]] int8_t i8 = 0;
+    [[maybe_unused]] T t{};
+    CHECK(cast_checked<OverflowMode::Checked>(T{5}, i8) == false);
+    CHECK(i8 == 5);
+    CHECK(cast_checked<OverflowMode::Checked>(T{5}, u8) == false);
+    CHECK(u8 == 5);
+    if constexpr (sign) {
+        CHECK(cast_checked<OverflowMode::Checked>(T{-5}, i8) == false);
+        CHECK(i8 == -5);
+        CHECK(cast_checked<OverflowMode::Checked>(T{-5}, u8) == true);
+        CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<T>::min(), i8) == true);
+        if constexpr (IntegralExt<T>) {
+            CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<typename MakeUnsigned<T>::t>::max(), t) == true);
+        }
+        else {
+            CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<typename MakeUnsigned<T>::t>::max(), t) == false);
+            CHECK(t == std::numeric_limits<T>::max());
+        }
+    }
+    CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), u8) == true);
+    CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), i8) == true);
+    CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<uint8_t>::max(), t) == false);
+    CHECK(t == std::numeric_limits<uint8_t>::max());
+}
 
 TEST_CASE("basics") {
     SUBCASE("ctor and compare") {

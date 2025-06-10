@@ -268,6 +268,18 @@ namespace rdf4cpp::util {
         }
 
 
+        template<typename T>
+        struct MakeUnsigned {
+            using t = std::make_unsigned_t<T>;
+        };
+        template<>
+        struct MakeUnsigned<__int128> {
+            using t = unsigned __int128;
+        };
+        template<std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_int_check_type Checked, typename Alloc>
+        struct MakeUnsigned<boost::multiprecision::number<boost::multiprecision::cpp_int_backend<MinBits, MaxBits, boost::multiprecision::signed_magnitude, Checked, Alloc>>> {
+            using t = boost::multiprecision::number<boost::multiprecision::cpp_int_backend<MinBits, MaxBits, boost::multiprecision::unsigned_magnitude, Checked, Alloc>>;
+        };
         template<OverflowMode m, typename To, typename From>
         requires IntegralExt<To> && IntegralExt<From>
         static constexpr bool cast_checked(const From &f, To &result) noexcept {
@@ -277,8 +289,8 @@ namespace rdf4cpp::util {
                         return true;
                     }
                 }
-                else if constexpr (std::numeric_limits<To>::is_signed) {
-                    if (f < 0 || std::make_unsigned_t<From>(f) > std::numeric_limits<To>::max()) {
+                else if constexpr (std::numeric_limits<From>::is_signed) {
+                    if (f < 0 || static_cast<typename MakeUnsigned<From>::t>(f) > std::numeric_limits<To>::max()) {
                         return true;
                     }
                 }
