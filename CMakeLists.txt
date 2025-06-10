@@ -178,6 +178,17 @@ target_link_libraries(rdf4cpp
         highway::highway
         )
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # fix __mulodi4 not being available on arm
+    # https://bugs.llvm.org/show_bug.cgi?id=16404
+    # link with both gcc and clangs runtime lib
+    target_link_libraries(rdf4cpp
+            PUBLIC
+            "-rtlib=compiler-rt"
+            "-lgcc_s"
+    )
+endif()
+
 set_target_properties(rdf4cpp PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
