@@ -214,7 +214,7 @@ TEST_CASE("decimal inlining sanity check") {
         }
 
         SUBCASE("exponent") {
-            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{rdf4cpp::util::Int128{5}, 1U << 10});
+            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{rdf4cpp::util::BigInt{5}, 1U << 10});
             CHECK(!l.is_inlined());
             CHECK(l.value<Decimal>() == Decimal::cpp_type(5, 1U << 10));
         }

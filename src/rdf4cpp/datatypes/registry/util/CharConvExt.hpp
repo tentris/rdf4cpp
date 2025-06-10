@@ -88,8 +88,7 @@ F from_chars(std::string_view s) {
     return value;
 }
 
-template<typename F, ConstexprString datatype>
-requires std::same_as<F, boost::multiprecision::checked_int128_t>
+template<rdf4cpp::util::detail::BoostNumber F, ConstexprString datatype>
 F from_chars(std::string_view s) {
     if (s.starts_with('+')) {
         s.remove_prefix(1);

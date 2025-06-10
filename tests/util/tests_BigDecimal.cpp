@@ -17,7 +17,10 @@ namespace doctest {
         }
     };
 }
+static_assert(!rdf4cpp::util::detail::BoostNumber<__int128>);
 #endif
+static_assert(rdf4cpp::util::detail::BoostNumber<boost::multiprecision::checked_cpp_int>);
+static_assert(!rdf4cpp::util::detail::BoostNumber<int>);
 
 TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, boost::multiprecision::checked_int256_t, boost::multiprecision::int256_t) {
     using namespace rdf4cpp::util::detail;
@@ -360,7 +363,7 @@ TEST_CASE("conversion") {
         str << Dec{50, 1};
         CHECK_EQ(str.view(), "5.0");
         // uses string conversion, so no more tests here
-        str << rdf4cpp::util::Int128{100};
+        str << rdf4cpp::util::BigInt{100};
         CHECK_EQ(str.view(), "5.0100");
     }
     SUBCASE("from double") {
@@ -371,7 +374,12 @@ TEST_CASE("conversion") {
         CHECK(Dec{1.0} == Dec{1, 0});
         CHECK(Dec{1.2} != Dec{12, 1}); // 1.2 can not be exactly represented as double but can be as decimal
         CHECK_EQ(static_cast<float>(Dec{1.0}), 1.0f);
-        CHECK_THROWS_AS([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::max()), std::overflow_error);
+        if constexpr (std::same_as<rdf4cpp::util::BigInt, rdf4cpp::util::Int128>) {
+            CHECK_THROWS_AS([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::max()), std::overflow_error);
+        }
+        else {
+            CHECK_NOTHROW([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::max()));
+        }
         CHECK(Dec(std::numeric_limits<double>::min()) > Dec(0, 0));
         CHECK(Dec(std::numeric_limits<double>::denorm_min()) > Dec(0, 0));
     }
@@ -405,14 +413,14 @@ TEST_CASE("conversion") {
         // no e notation allowed by rdf (xml) standard
     }
     SUBCASE("from Int128") {
-        CHECK(Dec{rdf4cpp::util::Int128{5}} == Dec{5, 0});
+        CHECK(Dec{rdf4cpp::util::BigInt{5}} == Dec{5, 0});
     }
     SUBCASE("to Int128") {
-        CHECK(static_cast<rdf4cpp::util::Int128>(Dec{5, 0}) == rdf4cpp::util::Int128{5});
-        CHECK(static_cast<rdf4cpp::util::Int128>(Dec{59, 1}) == rdf4cpp::util::Int128{5});
-        if constexpr (std::numeric_limits<rdf4cpp::util::Int128>::is_bounded) {
-            CHECK(static_cast<rdf4cpp::util::Int128>(Dec{std::numeric_limits<rdf4cpp::util::Int128>::max(), std::numeric_limits<rdf4cpp::util::Int128>::digits10}) ==
-                  (std::same_as<rdf4cpp::util::Int128, boost::multiprecision::checked_int128_t> ? rdf4cpp::util::Int128{3} : rdf4cpp::util::Int128{1})
+        CHECK(static_cast<rdf4cpp::util::BigInt>(Dec{5, 0}) == rdf4cpp::util::BigInt{5});
+        CHECK(static_cast<rdf4cpp::util::BigInt>(Dec{59, 1}) == rdf4cpp::util::BigInt{5});
+        if constexpr (std::numeric_limits<rdf4cpp::util::BigInt>::is_bounded) {
+            CHECK(static_cast<rdf4cpp::util::BigInt>(Dec{std::numeric_limits<rdf4cpp::util::BigInt>::max(), std::numeric_limits<rdf4cpp::util::BigInt>::digits10}) ==
+                  (std::same_as<rdf4cpp::util::BigInt, boost::multiprecision::checked_int128_t> ? rdf4cpp::util::BigInt{3} : rdf4cpp::util::BigInt{1})
             );
         }
     }

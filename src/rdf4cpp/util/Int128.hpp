@@ -12,6 +12,12 @@ namespace rdf4cpp::util {
     using Int128 = boost::multiprecision::checked_int128_t;
 #endif
 
+#ifdef RDF4CPP_USE_UNLIMITED_DATATYPES
+    using BigInt = boost::multiprecision::checked_cpp_int;
+#else
+    using BigInt = Int128;
+#endif
+
     // string -> int128 can be found in CharConvExt
 
 #ifdef __SIZEOF_INT128__
@@ -47,12 +53,6 @@ namespace rdf4cpp::util {
     }
 #endif
 
-    inline bool to_chars_canonical(boost::multiprecision::checked_int128_t const &value, writer::BufWriterParts const writer) noexcept {
-        std::stringstream s{};
-        s << value;
-        return writer::write_str(s.view(), writer);
-    }
-
     namespace detail {
         enum struct OverflowMode {
             Checked,
@@ -66,6 +66,8 @@ namespace rdf4cpp::util {
 
         template<typename T>
         concept IntegralExt = std::integral<T> || std::same_as<T, __int128> || std::same_as<T, unsigned __int128>;
+        template<typename T>
+        concept BoostNumber = std::same_as<T, boost::multiprecision::number<typename T::backend_type, T::et>>;
 
         template<OverflowMode m, typename T>
         requires IntegralExt<T>
@@ -365,6 +367,14 @@ namespace rdf4cpp::util {
         }
 
     }  // namespace detail
+
+    template<detail::BoostNumber T>
+    bool to_chars_canonical(T const &value, writer::BufWriterParts const writer) noexcept {
+        std::stringstream s{};
+        s << value;
+        return writer::write_str(s.view(), writer);
+    }
+
 }  // namespace rdf4cpp::util
 
 #ifdef __SIZEOF_INT128__
@@ -373,6 +383,12 @@ template<typename Policy>
 struct dice::hash::dice_hash_overload<Policy, __int128> {
     static size_t dice_hash(__int128 const &x) noexcept {
         return dice::hash::dice_hash_templates<Policy>::dice_hash(std::bit_cast<std::array<int64_t, 2>>(x));
+    }
+};
+template<typename Policy, typename N, boost::multiprecision::expression_template_option et>
+struct dice::hash::dice_hash_overload<Policy, boost::multiprecision::number<N, et>> {
+    static size_t dice_hash(boost::multiprecision::number<N, et> const &x) noexcept {
+        return dice::hash::dice_hash_templates<Policy>::dice_hash(::boost::multiprecision::hash_value(x));
     }
 };
 inline std::ostream &operator<<(std::ostream &str, __int128 const &bn) {
