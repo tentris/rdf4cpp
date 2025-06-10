@@ -18,6 +18,7 @@ TEST_CASE("decimal capabilities") {
 }
 
 TEST_CASE("Datatype Decimal") {
+    CHECK(storage::default_node_storage.has_specialized_storage_for(datatypes::xsd::Decimal::fixed_id));
 
     constexpr auto correct_type_iri_cstr = "http://www.w3.org/2001/XMLSchema#decimal";
 
