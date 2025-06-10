@@ -74,7 +74,7 @@ TEST_CASE("Datatype Integer") {
     // suppress warnings regarding attribute ‘nodiscard’
     Literal no_discard_dummy;
 
-    CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("a23dg", type_iri), "http://www.w3.org/2001/XMLSchema#integer parsing error: found a, invalid for datatype", InvalidNode);
+    CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("a23dg", type_iri), doctest::Contains("http://www.w3.org/2001/XMLSchema#integer parsing error: "), InvalidNode);
     CHECK_THROWS(no_discard_dummy = Literal::make_typed("2.2e-308", type_iri));
 }
 

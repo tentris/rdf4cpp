@@ -148,8 +148,8 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_decim
 
     cpp_type::normalize(big_unscaled_value, exponent);
 
-    auto const unscaled_value = static_cast<int64_t>(big_unscaled_value);
-    if (big_unscaled_value != unscaled_value) {
+    int64_t unscaled_value;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(big_unscaled_value, unscaled_value)) {
         // unscaled value > 64 bit, cannot fit
         return std::nullopt;
     }

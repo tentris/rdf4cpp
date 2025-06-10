@@ -7,6 +7,18 @@ using Dec = rdf4cpp::BigDecimal<>;
 using DecI = rdf4cpp::BigDecimal<int32_t, uint32_t>;
 using RoundingMode = rdf4cpp::RoundingMode;
 
+#ifdef __SIZEOF_INT128__
+namespace doctest {
+    template<> struct StringMaker<__int128> {
+        static String convert(const __int128& value) {
+            std::stringstream s{};
+            ::operator<<(s, value);
+            return doctest::String{s.view().data(), static_cast<unsigned int>(s.view().size())};
+        }
+    };
+}
+#endif
+
 TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, boost::multiprecision::checked_int256_t, boost::multiprecision::int256_t) {
     using namespace rdf4cpp::util::detail;
 
@@ -318,6 +330,8 @@ TEST_CASE("conversion") {
         str << Dec{50, 1};
         CHECK_EQ(str.view(), "5.0");
         // uses string conversion, so no more tests here
+        str << rdf4cpp::util::Int128{100};
+        CHECK_EQ(str.view(), "5.0100");
     }
     SUBCASE("from double") {
         CHECK(Dec{50.0} == Dec{50, 0});
@@ -360,11 +374,16 @@ TEST_CASE("conversion") {
         CHECK_THROWS_AS(Dec{"5.5+5"}, rdf4cpp::InvalidNode);
         // no e notation allowed by rdf (xml) standard
     }
-    SUBCASE("from cpp_int") {
+    SUBCASE("from Int128") {
         CHECK(Dec{rdf4cpp::util::Int128{5}} == Dec{5, 0});
     }
-    SUBCASE("to cpp_int") {
+    SUBCASE("to Int128") {
         CHECK(static_cast<rdf4cpp::util::Int128>(Dec{5, 0}) == rdf4cpp::util::Int128{5});
         CHECK(static_cast<rdf4cpp::util::Int128>(Dec{59, 1}) == rdf4cpp::util::Int128{5});
+        if constexpr (std::numeric_limits<rdf4cpp::util::Int128>::is_bounded) {
+            CHECK(static_cast<rdf4cpp::util::Int128>(Dec{std::numeric_limits<rdf4cpp::util::Int128>::max(), std::numeric_limits<rdf4cpp::util::Int128>::digits10}) ==
+                  (std::same_as<rdf4cpp::util::Int128, boost::multiprecision::checked_int128_t> ? rdf4cpp::util::Int128{3} : rdf4cpp::util::Int128{1})
+            );
+        }
     }
 }

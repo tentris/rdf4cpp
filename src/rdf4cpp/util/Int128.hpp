@@ -8,10 +8,8 @@
 namespace rdf4cpp::util {
 #ifdef __SIZEOF_INT128__
     using Int128 = __int128;
-    using UInt128 = unsigned __int128;
 #else
     using Int128 = boost::multiprecision::checked_int128_t;
-    using UInt128 = boost::multiprecision::checked_uint128_t;
 #endif
 
     // string -> int128 can be found in CharConvExt
@@ -49,6 +47,12 @@ namespace rdf4cpp::util {
     }
 #endif
 
+    inline bool to_chars_canonical(boost::multiprecision::checked_int128_t const &value, writer::BufWriterParts const writer) noexcept {
+        std::stringstream s{};
+        s << value;
+        return writer::write_str(s.view(), writer);
+    }
+
     namespace detail {
         enum struct OverflowMode {
             Checked,
@@ -60,8 +64,11 @@ namespace rdf4cpp::util {
         template<std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc>
         using cpp_int_unchecked = boost::multiprecision::number<boost::multiprecision::cpp_int_backend<MinBits, MaxBits, SignType, boost::multiprecision::unchecked, Alloc>>;
 
+        template<typename T>
+        concept IntegralExt = std::integral<T> || std::same_as<T, __int128> || std::same_as<T, unsigned __int128>;
+
         template<OverflowMode m, typename T>
-        requires std::integral<T> || std::same_as<T, __int128> || std::same_as<T, unsigned __int128>
+        requires IntegralExt<T>
         static constexpr bool add_checked(T const &a, T const &b, T &result) noexcept {
             if constexpr (m == OverflowMode::Checked) {
                 return __builtin_add_overflow(a, b, &result);
@@ -111,7 +118,7 @@ namespace rdf4cpp::util {
 
 
         template<OverflowMode m, typename T>
-        requires std::integral<T> || std::same_as<T, __int128> || std::same_as<T, unsigned __int128>
+        requires IntegralExt<T>
         static constexpr bool sub_checked(T const &a, T const &b, T &result) noexcept {
             if constexpr (m == OverflowMode::Checked) {
                 return __builtin_sub_overflow(a, b, &result);
@@ -161,7 +168,7 @@ namespace rdf4cpp::util {
 
 
         template<OverflowMode m, typename T>
-        requires std::integral<T> || std::same_as<T, __int128> || std::same_as<T, unsigned __int128>
+        requires IntegralExt<T>
         static constexpr bool mul_checked(T const &a, T const &b, T &result) noexcept {
             if constexpr (m == OverflowMode::Checked) {
                 return __builtin_mul_overflow(a, b, &result);
@@ -211,7 +218,7 @@ namespace rdf4cpp::util {
 
 
         template<OverflowMode m, typename T>
-        requires std::integral<T> || std::same_as<T, __int128> || std::same_as<T, unsigned __int128>
+        requires IntegralExt<T>
         static constexpr bool pow_checked(T const &a, unsigned int b, T &result) noexcept {
             T r = 1;
             bool over = false;
@@ -259,17 +266,109 @@ namespace rdf4cpp::util {
                 return false;
             }
         }
+
+
+        template<OverflowMode m, typename To, typename From>
+        requires IntegralExt<To> && IntegralExt<From>
+        static constexpr bool cast_checked(const From &f, To &result) noexcept {
+            if constexpr (m == OverflowMode::Checked) {
+                if constexpr (std::numeric_limits<To>::is_signed == std::numeric_limits<From>::is_signed) {
+                    if (std::numeric_limits<To>::min() > f || f > std::numeric_limits<To>::max()) {
+                        return true;
+                    }
+                }
+                else if constexpr (std::numeric_limits<To>::is_signed) {
+                    if (f < 0 || std::make_unsigned_t<From>(f) > std::numeric_limits<To>::max()) {
+                        return true;
+                    }
+                }
+                else {
+                    if (f > std::numeric_limits<To>::max()) {
+                        return true;
+                    }
+                }
+            }
+            result = static_cast<To>(f);
+            return false;
+        }
+        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, typename To>
+        static constexpr bool cast_checked(const cpp_int_checked<MinBits, MaxBits, SignType, Alloc> &f, To &result) noexcept {
+            if constexpr (m == OverflowMode::Checked) {
+                try {
+                    result = static_cast<To>(f);
+                } catch (std::overflow_error const &) {
+                    return true;
+                } catch (std::range_error const &) {
+                    return true;
+                }
+                return false;
+            }
+            result = static_cast<To>(static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(f));
+            return false;
+        }
+        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, typename To>
+        static constexpr bool cast_checked(const cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &f, To &result) noexcept {
+            if constexpr (m == OverflowMode::Checked) {
+                try {
+                    result = static_cast<To>(static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(f));
+                } catch (std::overflow_error const &) {
+                    return true;
+                } catch (std::range_error const &) {
+                    return true;
+                }
+                return false;
+            }
+            result = static_cast<To>(f);
+            return false;
+        }
+        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, IntegralExt From>
+        static constexpr bool cast_checked(From const &f, cpp_int_checked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
+            if constexpr (m == OverflowMode::Checked) {
+                try {
+                    result = static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(f);
+                } catch (std::overflow_error const &) {
+                    return true;
+                } catch (std::range_error const &) {
+                    return true;
+                }
+                return false;
+            }
+            result = static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(f));
+            return false;
+        }
+        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, IntegralExt From>
+        static constexpr bool cast_checked(From const &f, cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
+            if constexpr (m == OverflowMode::Checked) {
+                try {
+                    result = static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(f));
+                } catch (std::overflow_error const &) {
+                    return true;
+                } catch (std::range_error const &) {
+                    return true;
+                }
+                return false;
+            }
+            result = static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(f);
+            return false;
+        }
+
     }  // namespace detail
 }  // namespace rdf4cpp::util
 
 #ifdef __SIZEOF_INT128__
 
 template<typename Policy>
-struct dice::hash::dice_hash_overload<Policy, rdf4cpp::util::Int128> {
-    static size_t dice_hash(rdf4cpp::util::Int128 const &x) noexcept {
+struct dice::hash::dice_hash_overload<Policy, __int128> {
+    static size_t dice_hash(__int128 const &x) noexcept {
         return dice::hash::dice_hash_templates<Policy>::dice_hash(std::bit_cast<std::array<int64_t, 2>>(x));
     }
 };
+inline std::ostream &operator<<(std::ostream &str, __int128 const &bn) {
+    rdf4cpp::writer::BufOStreamWriter w{str};
+    rdf4cpp::util::to_chars_canonical(bn, w);
+    w.finalize();
+    return str;
+}
 #endif
 
 #endif  //RDF4CPP_INT128_HPP

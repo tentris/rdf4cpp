@@ -43,25 +43,6 @@ private:
 
     static constexpr uint32_t base = 10;
 
-    template<OverflowMode m, typename To, typename From>
-    static constexpr bool cast_checked(const From &f, To &result) noexcept {
-        if constexpr (std::is_integral_v<To> && std::is_integral_v<From> && m == OverflowMode::Checked) {
-            if (!std::in_range<To>(f))
-                return true;
-        } else if (m == OverflowMode::Checked) {
-            try {
-                result = static_cast<To>(f);
-            } catch (std::overflow_error const &) {
-                return true;
-            } catch (std::range_error const &) {
-                return true;
-            }
-            return false;
-        }
-        result = static_cast<To>(f);
-        return false;
-    }
-
     static constexpr UnscaledValue_t abs(const UnscaledValue_t &value) noexcept {
         if constexpr (std::is_integral_v<UnscaledValue_t> && !std::is_signed_v<UnscaledValue_t>) {
             return value;
@@ -239,7 +220,7 @@ public:
         } else {
             BigDecimal<boost::multiprecision::checked_cpp_int> v{value};
             while (true) {
-                if (cast_checked<OverflowMode::Checked>(v.get_unscaled_value(), unscaled_value) || cast_checked<OverflowMode::Checked>(v.get_exponent(), exponent)) {
+                if (util::detail::cast_checked<OverflowMode::Checked>(v.get_unscaled_value(), unscaled_value) || util::detail::cast_checked<OverflowMode::Checked>(v.get_exponent(), exponent)) {
                     if (v.get_exponent() > 0) {
                         v = {v.get_unscaled_value() / base, v.get_exponent() - 1};
                         continue;
@@ -374,7 +355,7 @@ private:
             if (util::detail::pow_checked<m>(Exponent_t{base}, tmp, tmp))
                 return true;
             UnscaledValue_t tmp2{0};
-            if (cast_checked<m>(tmp, tmp2))
+            if (util::detail::cast_checked<m>(tmp, tmp2))
                 return true;
             if (util::detail::mul_checked<m>(t, tmp2, t))
                 return true;
@@ -669,14 +650,22 @@ public:
      * @return
      */
     [[nodiscard]] constexpr BigDecimal round(RoundingMode mode) const noexcept {
-        if (exponent == 0)
+        if (exponent == 0) {
             return *this;
+        }
         UnscaledValue_t v{base};
-        if (util::detail::pow_checked<OverflowMode::Checked>(v, exponent, v))
-            return BigDecimal{0, 0};  // base pow exponent overflows and this did not, we have to be close to 0
-        UnscaledValue_t rem = unscaled_value % v;
-        rem = rem * 10 / v;
-        v = unscaled_value / v;
+        UnscaledValue_t uns = unscaled_value;
+        if (util::detail::pow_checked<OverflowMode::Checked>(v, exponent, v)) {
+            v = {base};
+            uns /= 100;
+            if (util::detail::pow_checked<OverflowMode::Checked>(v, exponent - 2, v)) {
+                // base pow exponent overflows and this did not, we have to be close to 0
+                return BigDecimal{0, 0};
+            }
+        }
+        UnscaledValue_t rem = uns % v;
+        rem = rem / (v / base); // in rare cases, rem * 10 / v can overflow
+        v = uns / v;
         return handle_rounding(v, 0, rem, mode);
     }
 

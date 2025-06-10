@@ -87,6 +87,25 @@ F from_chars(std::string_view s) {
 
     return value;
 }
+
+template<typename F, ConstexprString datatype>
+requires std::same_as<F, boost::multiprecision::checked_int128_t>
+F from_chars(std::string_view s) {
+    if (s.starts_with('+')) {
+        s.remove_prefix(1);
+    }
+    if (auto const pos = s.find_first_not_of('0'); pos != std::string::npos) {
+        s.remove_prefix(pos);
+    }
+
+    try {
+        return F{s};
+    }
+    catch (std::runtime_error const &e) {
+        throw InvalidNode{std::format("{} parsing error: {}", datatype, e.what())};
+    }
+}
+
 #ifdef __SIZEOF_INT128__
 template<typename F, ConstexprString datatype>
 requires std::same_as<F, __int128>
