@@ -113,11 +113,34 @@ cd build_dir
 sudo make install
 ```
 
+### Limits for Datatypes
+By default, unlimited precision datatypes are limited in accordance with https://www.w3.org/TR/xmlschema11-2/#partial-implementation .
+
+For `http://www.w3.org/2001/XMLSchema#integer`
+(and the related: `http://www.w3.org/2001/XMLSchema#nonNegativeInteger`
+`http://www.w3.org/2001/XMLSchema#positiveInteger` `http://www.w3.org/2001/XMLSchema#nonPositiveInteger`
+`http://www.w3.org/2001/XMLSchema#negativeInteger`) this limit is a signed 128-bit integer
+with the usual range of `[-2^127,2^127-1]`
+
+And `http://www.w3.org/2001/XMLSchema#decimal` is composed of the following parts: `i/10^k`,
+where `i` is a signed 128-bit integer (`[-2^127,2^127-1]`) and `k` is an unsigned 64-bit integer (`[0,2^64]`).
+
+Above limits can be lifted by defining `RDF4CPP_USE_UNLIMITED_DATATYPES`.
+
+For `http://www.w3.org/2001/XMLSchema#dateTime` (and all derived types) there are 2 limits:
+- represented as a time point with nanosecond precision with a 128-bit signed integer
+- the year part alone in a 64-bit signed integer
+Both limits are enough to cover both the current best theories of the big bang and the projected heat death of the universe.
+
+For `http://www.w3.org/2001/XMLSchema#duration` (and all derived types), both parts have a separate signed 64-bit integer
+and with it its associated limits. The seconds part of the duration supports nanosecond precision.
+
 ### Additional CMake config options:
 
 - `-DBUILD_EXAMPLES=ON/OFF [default: OFF]`: Build the examples.
 - `-DBUILD_TESTING=ON/OFF [default: OFF]`: Build the tests.
 - `-DBUILD_SHARED_LIBS=ON/OFF [default: OFF]`: Build a shared library instead of a static one.
+- `-DRDF4CPP_USE_UNLIMITED_DATATYPES=ON`: If defined, uses unlimited datatypes for integer and decimal types.
 
 
 ## Supported Platforms

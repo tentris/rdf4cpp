@@ -71,4 +71,4 @@ ________________________________
 * :code:`-DBUILD_EXAMPLES=ON/OFF [default: OFF]`: Build the examples.
 * :code:`-DBUILD_TESTING=ON/OFF [default: OFF]`: Build  the tests.
 * :code:`-DBUILD_SHARED_LIBS=ON/OFF [default: OFF]`: Build a shared library instead of a static one.
-* :code:`-DUSE_CONAN=ON/OFF [default: ON]`: If available, use Conan to retrieve dependencies.
+* :code:`-DRDF4CPP_USE_UNLIMITED_DATATYPES=ON`: If defined, uses unlimited datatypes for integer and decimal types.
