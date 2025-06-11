@@ -1,7 +1,7 @@
 import os
 import re
 
-from conan.tools.cmake import cmake_layout, CMake
+from conan.tools.cmake import cmake_layout, CMake, CMakeToolchain
 
 from conan import ConanFile
 
@@ -19,15 +19,16 @@ class Recipe(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "with_test_deps": [True, False],
+        "unlimited_datatypes": [True, False],
     }
     default_options = {
         "shared": False,
         "fPIC": True,
         "with_test_deps": False,
+        "unlimited_datatypes": False,
     }
     exports = "LICENSE",
     exports_sources = "src/*", "private/*", "CMakeLists.txt", "cmake/*"
-    generators = ("CMakeDeps", "CMakeToolchain")
 
     def requirements(self):
         self.requires("boost/1.86.0", transitive_headers=True, libs=False)
@@ -57,6 +58,12 @@ class Recipe(ConanFile):
     def config_options(self):
         if self.settings.os == "Windows":
             del self.options.fPIC
+
+    def generate(self):
+        tc = CMakeToolchain(self)
+        if self.options.unlimited_datatypes:
+            tc.preprocessor_definitions["RDF4CPP_USE_UNLIMITED_DATATYPES"] = "1"
+        tc.generate()
 
     def layout(self):
         cmake_layout(self)
