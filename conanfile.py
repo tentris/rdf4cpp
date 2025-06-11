@@ -1,7 +1,7 @@
 import os
 import re
 
-from conan.tools.cmake import cmake_layout, CMake, CMakeToolchain
+from conan.tools.cmake import cmake_layout, CMake, CMakeToolchain, CMakeDeps
 
 from conan import ConanFile
 
@@ -64,6 +64,8 @@ class Recipe(ConanFile):
         if self.options.unlimited_datatypes:
             tc.preprocessor_definitions["RDF4CPP_USE_UNLIMITED_DATATYPES"] = "1"
         tc.generate()
+        cmake = CMakeDeps(self)
+        cmake.generate()
 
     def layout(self):
         cmake_layout(self)
