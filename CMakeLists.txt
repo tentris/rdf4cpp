@@ -147,7 +147,7 @@ add_library(rdf4cpp
         src/rdf4cpp/writer/SerializationState.cpp
         src/rdf4cpp/IRIView.cpp
         src/rdf4cpp/IRIFactory.cpp
-        private/rdf4cpp/parser/IStreamQuadIteratorSerdImpl.cpp
+        src/rdf4cpp/parser/internal/IStreamQuadIteratorSerdImpl.cpp
         private/rdf4cpp/regex/RegexImpl.cpp
         private/rdf4cpp/regex/RegexReplacerImpl.cpp
         ${serd_source_files}
@@ -159,9 +159,9 @@ target_include_directories(
         rdf4cpp
         PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/serd/include>"
         PRIVATE
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/private>"
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/serd/include>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/serd/src>"
 )
 

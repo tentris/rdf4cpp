@@ -10,15 +10,46 @@
 #include <serd/serd.h>
 
 #include <rdf4cpp/Quad.hpp>
-#include <rdf4cpp/parser/IStreamQuadIterator.hpp>
+#include <rdf4cpp/parser/ParsingFlags.hpp>
+#include <rdf4cpp/parser/ParsingError.hpp>
+#include <rdf4cpp/parser/ParsingState.hpp>
 
-namespace rdf4cpp::parser {
+namespace rdf4cpp::parser::internal {
 
-struct IStreamQuadIterator::Impl {
-    using flags_type = IStreamQuadIterator::flags_type;
-    using state_type = IStreamQuadIterator::state_type;
-    using ok_type = IStreamQuadIterator::ok_type;
-    using error_type = IStreamQuadIterator::error_type;
+/**
+ * Adaptor function so that serd can read from std::istreams.
+ * Matches the interface of SerdSource/fread
+ *
+ * @param buf pointer to buffer to be written to
+ * @param elem_size sizeof each element being written, guaranteed to always be 1
+ * @param count number of elements to write
+ * @param voided_self pointer to std::istream cast to void *
+ */
+inline size_t istream_read(void *buf, [[maybe_unused]] size_t elem_size, size_t count, void *voided_self) noexcept {
+    assert(elem_size == 1);
+
+    auto *self = static_cast<std::istream *>(voided_self);
+    self->read(static_cast<char *>(buf), static_cast<std::streamsize>(count));
+    return self->gcount();
+}
+
+/**
+ * Adaptor function for serd to check if an std::istream is ok
+ * Matches the interface of SerdStreamErrorFunc
+ *
+ * @param voided_self pointer to std::istream cast to void *
+ * @return whether the given istream encountered an error (cast to int)
+ */
+inline int istream_error(void *voided_self) noexcept {
+    auto *self = static_cast<std::istream *>(voided_self);
+    return static_cast<int>(self->fail() && !self->eof());
+}
+
+struct IStreamQuadIteratorImpl {
+    using flags_type = ParsingFlags;
+    using state_type = ParsingState;
+    using ok_type = Quad;
+    using error_type = ParsingError;
 
 private:
     SerdReader *reader;
@@ -38,7 +69,7 @@ private:
     static ParsingError::Type parsing_error_type_from_serd(SerdStatus st) noexcept;
 
 private:
-    nonstd::expected<Node, SerdStatus> get_bnode(std::string &&graph_str, SerdNode const *node) noexcept;
+    nonstd::expected<Node, SerdStatus> get_bnode(Node graph, SerdNode const *node) noexcept;
     nonstd::expected<IRI, SerdStatus> get_iri(SerdNode const *node) noexcept;
     nonstd::expected<IRI, SerdStatus> get_prefixed_iri(SerdNode const *node) noexcept;
     nonstd::expected<Literal, SerdStatus> get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept;
@@ -63,13 +94,13 @@ private:
     }
 
 public:
-    Impl(void *stream,
-         ReadFunc read,
-         ErrorFunc,
-         flags_type flags,
-         state_type *state) noexcept;
+    IStreamQuadIteratorImpl(void *stream,
+                            ReadFunc read,
+                            ErrorFunc,
+                            flags_type flags,
+                            state_type *state) noexcept;
 
-    ~Impl() noexcept;
+    ~IStreamQuadIteratorImpl() noexcept;
 
     /**
      * Tries to extract the next element from the serd backend.
@@ -87,6 +118,6 @@ public:
     [[nodiscard]] uint64_t current_column() const noexcept;
 };
 
-}  // namespace rdf4cpp::parser
+}  // namespace rdf4cpp::parser::internal
 
 #endif  // RDF4CPP_PARSER_PRIVATE_IMPL_HPP

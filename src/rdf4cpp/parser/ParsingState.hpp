@@ -56,6 +56,26 @@ struct ParsingState {
     std::function<void(Node const &)> inspect_node_func = []([[maybe_unused]] Node const &n) { /* noop */ };
 };
 
+/**
+ * Identical semantics to fread.
+ * Uses stream to read at most count elements of size element_size into buffer.
+ *
+ * @param buffer pointer to buffer with at least count elements of size elem_size
+ * @param elem_size sizeof each element
+ * @param count number of elements to read
+ * @param stream pointer to any object.
+ * @return number of elements read
+ */
+using ReadFunc = size_t (*)(void *buffer, size_t elem_size, size_t count, void *stream);
+
+/**
+ * Identical semantics to ferror.
+ *
+ * @param stream pointer to any object
+ * @return nonzero value if there is an error in stream, zero value otherwise
+ */
+using ErrorFunc = int (*)(void *stream);
+
 }  //namespace rdf4cpp::parser
 
 #endif  //RDF4CPP_RDF_PARSER_PARSINGSTATE_HPP

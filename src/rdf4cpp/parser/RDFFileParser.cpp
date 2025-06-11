@@ -1,7 +1,4 @@
-#include "RDFFileParser.hpp"
-
-
-#include <rdf4cpp/parser/IStreamQuadIteratorSerdImpl.hpp>
+#include <rdf4cpp/parser/RDFFileParser.hpp>
 
 namespace rdf4cpp::parser {
 RDFFileParser::RDFFileParser(const std::string &file_path, flags_type flags, state_type *state)
@@ -45,7 +42,7 @@ RDFFileParser::iterator &RDFFileParser::iterator::operator++() {
     ++(*iter_);
     return *this;
 }
-bool RDFFileParser::iterator::operator==(const RDFFileParser::iterator &other) const noexcept {
+bool RDFFileParser::iterator::operator==(RDFFileParser::iterator const &other) const noexcept {
     return iter_ == other.iter_;
 }
 bool operator==(const RDFFileParser::iterator &iter, std::default_sentinel_t s) noexcept {

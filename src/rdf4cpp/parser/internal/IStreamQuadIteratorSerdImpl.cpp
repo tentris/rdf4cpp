@@ -3,13 +3,13 @@
 #include <cassert>
 #include <cstddef>
 
-namespace rdf4cpp::parser {
+namespace rdf4cpp::parser::internal {
 
-std::string_view IStreamQuadIterator::Impl::node_into_string_view(SerdNode const *node) noexcept {
+std::string_view IStreamQuadIteratorImpl::node_into_string_view(SerdNode const *node) noexcept {
     return std::string_view{reinterpret_cast<char const *>(node->buf), node->n_bytes};
 }
 
-ParsingError::Type IStreamQuadIterator::Impl::parsing_error_type_from_serd(SerdStatus const st) noexcept {
+ParsingError::Type IStreamQuadIteratorImpl::parsing_error_type_from_serd(SerdStatus const st) noexcept {
     switch (st) {
         case SERD_ERR_BAD_SYNTAX:
             return ParsingError::Type::BadSyntax;
@@ -24,7 +24,7 @@ ParsingError::Type IStreamQuadIterator::Impl::parsing_error_type_from_serd(SerdS
     }
 }
 
-nonstd::expected<Node, SerdStatus> IStreamQuadIterator::Impl::get_bnode(std::string &&graph_str, SerdNode const *node) noexcept {
+nonstd::expected<Node, SerdStatus> IStreamQuadIteratorImpl::get_bnode(Node graph, SerdNode const *node) noexcept {
     auto const node_str = node_into_string_view(node);
 
     if (this->flags.contains(ParsingFlag::NoParseBlankNode)) {
@@ -36,12 +36,21 @@ nonstd::expected<Node, SerdStatus> IStreamQuadIterator::Impl::get_bnode(std::str
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     }
 
+    CowString graph_label{CowString::borrowed, ""};
+    if (auto const iri_graph = graph.as_iri(); !iri_graph.null()) {
+        graph_label = CowString{CowString::borrowed, iri_graph.identifier()};
+    } else if (auto const bnode_graph = graph.as_blank_node(); bnode_graph.null()) {
+        graph_label = bnode_graph.identifier();
+    } else {
+        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+    }
+
     try {
         if (this->state->blank_node_scope_manager == nullptr || this->flags.contains(ParsingFlag::KeepBlankNodeIds)) {
             return BlankNode{node_str, this->state->node_storage};
         }
 
-        return this->state->blank_node_scope_manager.scope(graph_str).get_or_generate_node(node_str, this->state->node_storage);
+        return this->state->blank_node_scope_manager.scope(graph_label).get_or_generate_node(node_str, this->state->node_storage);
     } catch (InvalidNode const &e) {
         // NOTE: line, col not entirely accurate as this function is called after a triple was parsed
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadBlankNode,
@@ -53,7 +62,7 @@ nonstd::expected<Node, SerdStatus> IStreamQuadIterator::Impl::get_bnode(std::str
     }
 }
 
-nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_iri(SerdNode const *node) noexcept {
+nonstd::expected<IRI, SerdStatus> IStreamQuadIteratorImpl::get_iri(SerdNode const *node) noexcept {
     auto const iri = [this, node]() noexcept {
         auto const s = node_into_string_view(node);
 
@@ -77,7 +86,7 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_iri(SerdNode co
     return *iri;
 }
 
-nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_prefixed_iri(SerdNode const *node) noexcept {
+nonstd::expected<IRI, SerdStatus> IStreamQuadIteratorImpl::get_prefixed_iri(SerdNode const *node) noexcept {
     if (!flags.syntax_allows_prefixes()) [[unlikely]] {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
                                         .line = serd_reader_get_current_line(this->reader),
@@ -121,7 +130,7 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_prefixed_iri(Se
     return *iri;
 }
 
-nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::Impl::get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept {
+nonstd::expected<Literal, SerdStatus> IStreamQuadIteratorImpl::get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept {
     auto const literal_value = node_into_string_view(literal);
 
     auto const datatype_iri = [&]() -> std::optional<nonstd::expected<IRI, SerdStatus>> {
@@ -185,8 +194,8 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::Impl::get_literal(Ser
     return SERD_SUCCESS;
 }
 
-SerdStatus IStreamQuadIterator::Impl::on_error(void *voided_self, SerdError const *error) noexcept {
-    auto *self = static_cast<Impl *>(voided_self);
+SerdStatus IStreamQuadIteratorImpl::on_error(void *voided_self, SerdError const *error) noexcept {
+    auto *self = static_cast<IStreamQuadIteratorImpl *>(voided_self);
 
     size_t buf_size;
     SerdStatus const st = calc_required_buffer_size(error, buf_size);
@@ -218,8 +227,8 @@ SerdStatus IStreamQuadIterator::Impl::on_error(void *voided_self, SerdError cons
     return SERD_SUCCESS;
 }
 
-SerdStatus IStreamQuadIterator::Impl::on_base(void *voided_self, const SerdNode *uri) noexcept {
-    auto *self = static_cast<Impl *>(voided_self);
+SerdStatus IStreamQuadIteratorImpl::on_base(void *voided_self, const SerdNode *uri) noexcept {
+    auto *self = static_cast<IStreamQuadIteratorImpl *>(voided_self);
 
     if (self->flags.contains(ParsingFlag::NoParsePrefix)) {
         self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
@@ -236,8 +245,8 @@ SerdStatus IStreamQuadIterator::Impl::on_base(void *voided_self, const SerdNode 
     return SERD_SUCCESS;
 }
 
-SerdStatus IStreamQuadIterator::Impl::on_prefix(void *voided_self, SerdNode const *name, SerdNode const *uri) noexcept {
-    auto *self = static_cast<Impl *>(voided_self);
+SerdStatus IStreamQuadIteratorImpl::on_prefix(void *voided_self, SerdNode const *name, SerdNode const *uri) noexcept {
+    auto *self = static_cast<IStreamQuadIteratorImpl *>(voided_self);
 
     if (self->flags.contains(ParsingFlag::NoParsePrefix)) {
         self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
@@ -256,7 +265,7 @@ SerdStatus IStreamQuadIterator::Impl::on_prefix(void *voided_self, SerdNode cons
     return SERD_SUCCESS;
 }
 
-SerdStatus IStreamQuadIterator::Impl::inspect_node(Node const &node) noexcept {
+SerdStatus IStreamQuadIteratorImpl::inspect_node(Node const &node) noexcept {
     try {
         state->inspect_node_func(node);
         return SERD_SUCCESS;
@@ -276,16 +285,16 @@ SerdStatus IStreamQuadIterator::Impl::inspect_node(Node const &node) noexcept {
     return SERD_FAILURE;
 }
 
-SerdStatus IStreamQuadIterator::Impl::on_stmt(void *voided_self,
-                                              SerdStatementFlags,
-                                              SerdNode const *graph,
-                                              SerdNode const *subj,
-                                              SerdNode const *pred,
-                                              SerdNode const *obj,
-                                              SerdNode const *obj_datatype,
-                                              SerdNode const *obj_lang) noexcept {
+SerdStatus IStreamQuadIteratorImpl::on_stmt(void *voided_self,
+                                            SerdStatementFlags,
+                                            SerdNode const *graph,
+                                            SerdNode const *subj,
+                                            SerdNode const *pred,
+                                            SerdNode const *obj,
+                                            SerdNode const *obj_datatype,
+                                            SerdNode const *obj_lang) noexcept {
 
-    auto *self = static_cast<Impl *>(voided_self);
+    auto *self = static_cast<IStreamQuadIteratorImpl *>(voided_self);
 
     auto const graph_node = [&]() -> nonstd::expected<Node, SerdStatus> {
         if (graph != nullptr) {
@@ -295,7 +304,7 @@ SerdStatus IStreamQuadIterator::Impl::on_stmt(void *voided_self,
                 case SERD_URI:
                     return self->get_iri(graph);
                 case SERD_BLANK:
-                    return self->get_bnode("", graph); // TODO which scope?
+                    return self->get_bnode(IRI::default_graph(self->state->node_storage), graph); // TODO which scope?
                 default:
                     return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
             }
@@ -318,8 +327,9 @@ SerdStatus IStreamQuadIterator::Impl::on_stmt(void *voided_self,
                 return self->get_prefixed_iri(subj);
             case SERD_URI:
                 return self->get_iri(subj);
-            case SERD_BLANK:
-                return self->get_bnode(std::string{*graph_node}, subj);
+            case SERD_BLANK: {
+                return self->get_bnode(*graph_node, subj);
+            }
             default:
                 return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
         }
@@ -359,7 +369,7 @@ SerdStatus IStreamQuadIterator::Impl::on_stmt(void *voided_self,
             case SERD_LITERAL:
                 return self->get_literal(obj, obj_datatype, obj_lang);
             case SERD_BLANK:
-                return self->get_bnode(std::string{*graph_node}, obj);
+                return self->get_bnode(*graph_node, obj);
             case SERD_URI:
                 return self->get_iri(obj);
             default:
@@ -379,12 +389,12 @@ SerdStatus IStreamQuadIterator::Impl::on_stmt(void *voided_self,
     return SERD_SUCCESS;
 }
 
-IStreamQuadIterator::Impl::Impl(void *stream,
-                                ReadFunc read,
-                                ErrorFunc error,
-                                flags_type flags,
-                                state_type *initial_state) noexcept
-    : reader{serd_reader_new(extract_syntax_from_flags(flags), this, nullptr, &Impl::on_base, &Impl::on_prefix, &Impl::on_stmt, nullptr)},
+IStreamQuadIteratorImpl::IStreamQuadIteratorImpl(void *stream,
+                                                 ReadFunc read,
+                                                 ErrorFunc error,
+                                                 flags_type flags,
+                                                 state_type *initial_state) noexcept
+    : reader{serd_reader_new(extract_syntax_from_flags(flags), this, nullptr, &IStreamQuadIteratorImpl::on_base, &IStreamQuadIteratorImpl::on_prefix, &IStreamQuadIteratorImpl::on_stmt, nullptr)},
       state{initial_state},
       state_is_owned{false},
       flags{flags} {
@@ -395,11 +405,11 @@ IStreamQuadIterator::Impl::Impl(void *stream,
     }
 
     serd_reader_set_strict(this->reader, !flags.contains(ParsingFlag::Lax));
-    serd_reader_set_error_sink(this->reader, &Impl::on_error, this);
+    serd_reader_set_error_sink(this->reader, &IStreamQuadIteratorImpl::on_error, this);
     serd_reader_start_source_stream(this->reader, read, error, stream, nullptr, 4096);
 }
 
-IStreamQuadIterator::Impl::~Impl() noexcept {
+IStreamQuadIteratorImpl::~IStreamQuadIteratorImpl() noexcept {
     serd_reader_end_stream(this->reader);
     serd_reader_free(this->reader);
 
@@ -408,7 +418,7 @@ IStreamQuadIterator::Impl::~Impl() noexcept {
     }
 }
 
-std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type>> IStreamQuadIterator::Impl::next() {
+std::optional<nonstd::expected<IStreamQuadIteratorImpl::ok_type, IStreamQuadIteratorImpl::error_type>> IStreamQuadIteratorImpl::next() {
     while (this->quad_buffer.empty()) {
         if (this->last_error.has_value()) {
             // handle error from last time
@@ -426,7 +436,7 @@ std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator
 
         SerdStatus const st = serd_reader_read_chunk(this->reader);
 
-        if (st == SERD_SUCCESS) {
+        if (st == SERD_SUCCESS) [[likely]] {
             // was able to parse something
             // not sure if triple or something else, continue loop
             continue;
@@ -453,12 +463,12 @@ std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator
     return ret;
 }
 
-uint64_t IStreamQuadIterator::Impl::current_line() const noexcept {
+uint64_t IStreamQuadIteratorImpl::current_line() const noexcept {
     return serd_reader_get_current_line(this->reader);
 }
 
-uint64_t IStreamQuadIterator::Impl::current_column() const noexcept {
+uint64_t IStreamQuadIteratorImpl::current_column() const noexcept {
     return serd_reader_get_current_col(this->reader);
 }
 
-}  // namespace rdf4cpp::parser
+}  // namespace rdf4cpp::parser::internal

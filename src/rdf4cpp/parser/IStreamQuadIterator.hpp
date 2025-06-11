@@ -8,32 +8,12 @@
 
 #include <rdf4cpp/Quad.hpp>
 
+#include <rdf4cpp/parser/internal/IStreamQuadIteratorSerdImpl.hpp>
 #include <rdf4cpp/parser/ParsingError.hpp>
 #include <rdf4cpp/parser/ParsingFlags.hpp>
 #include <rdf4cpp/parser/ParsingState.hpp>
-#include <rdf4cpp/IRIFactory.hpp>
 
 namespace rdf4cpp::parser {
-
-/**
- * Identical semantics to fread.
- * Uses stream to read at most count elements of size element_size into buffer.
- *
- * @param buffer pointer to buffer with at least count elements of size elem_size
- * @param elem_size sizeof each element
- * @param count number of elements to read
- * @param stream pointer to any object.
- * @return number of elements read
- */
-using ReadFunc = size_t (*)(void *buffer, size_t elem_size, size_t count, void *stream);
-
-/**
- * Identical semantics to ferror.
- *
- * @param stream pointer to any object
- * @return nonzero value if there is an error in stream, zero value otherwise
- */
-using ErrorFunc = int (*)(void *stream);
 
 /**
  * Similar to std::istream_iterator<>.
@@ -56,7 +36,7 @@ using ErrorFunc = int (*)(void *stream);
  * }
  * @endcode
  */
-struct IStreamQuadIterator {
+struct IStreamQuadIterator : private internal::IStreamQuadIteratorImpl {
     using flags_type = ParsingFlags;
     using state_type = ParsingState;
     using ok_type = Quad;
@@ -70,9 +50,7 @@ struct IStreamQuadIterator {
     using istream_type = std::istream;
 
 private:
-    struct Impl;
-
-    std::unique_ptr<Impl> impl;
+    using base = internal::IStreamQuadIteratorImpl;
     std::optional<nonstd::expected<ok_type, error_type>> cur;
 
 public:
@@ -92,7 +70,10 @@ public:
                         ReadFunc read,
                         ErrorFunc error,
                         flags_type flags = ParsingFlags::none(),
-                        state_type *initial_state = nullptr);
+                        state_type *initial_state = nullptr)
+        : base{stream, read, error, flags, initial_state},
+          cur{base::next()} {
+    }
 
     /**
      * Constructs an IStreamQuadIterator to parse an input stream in turtle syntax to quads
@@ -105,25 +86,46 @@ public:
      */
     explicit IStreamQuadIterator(std::istream &istream,
                                  flags_type flags = ParsingFlags::none(),
-                                 state_type *initial_state = nullptr);
+                                 state_type *initial_state = nullptr)
+        : IStreamQuadIterator{&istream, &internal::istream_read, &internal::istream_error, flags, initial_state} {
+    }
 
     IStreamQuadIterator(IStreamQuadIterator const &) = delete;
-    IStreamQuadIterator(IStreamQuadIterator &&) noexcept;
+    IStreamQuadIterator(IStreamQuadIterator &&) noexcept = default;
 
     IStreamQuadIterator &operator=(IStreamQuadIterator const &) = delete;
-    IStreamQuadIterator &operator=(IStreamQuadIterator &&) noexcept;
+    IStreamQuadIterator &operator=(IStreamQuadIterator &&) noexcept = default;
 
-    ~IStreamQuadIterator() noexcept;
+    ~IStreamQuadIterator() noexcept = default;
 
-    reference operator*() const noexcept;
-    pointer operator->() const noexcept;
-    IStreamQuadIterator &operator++();
+    reference operator*() const noexcept {
+        return *cur;
+    }
 
-    [[nodiscard]] uint64_t current_line() const noexcept;
-    [[nodiscard]] uint64_t current_column() const noexcept;
+    pointer operator->() const noexcept {
+        return &*cur;
+    }
 
-    bool operator==(std::default_sentinel_t) const noexcept;
-    bool operator!=(std::default_sentinel_t) const noexcept;
+    IStreamQuadIterator &operator++() {
+        cur = base::next();
+        return *this;
+    }
+
+    [[nodiscard]] uint64_t current_line() const noexcept {
+        return base::current_line();
+    }
+
+    [[nodiscard]] uint64_t current_column() const noexcept {
+        return base::current_column();
+    }
+
+    bool operator==(std::default_sentinel_t) const noexcept {
+        return !cur.has_value();
+    }
+
+    bool operator!=(std::default_sentinel_t) const noexcept {
+        return cur.has_value();
+    }
 };
 
 /**
