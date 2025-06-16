@@ -21,7 +21,7 @@ jobs:
           - os: ubuntu-24.04-arm
             compiler: clang-19
 
-          - os: macos-15
+          - os: warp-macos-15-arm64-6x
             compiler: gcc-14
 
       fail-fast: false
