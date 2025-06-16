@@ -103,18 +103,6 @@ jobs:
           echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
           echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
 
-      - name: fix compiler (macos)
-        if: ${{ inputs.os == 'macos-15' }}
-        run: |
-          P="/opt/homebrew/Cellar/gcc@14/14.3.0"
-          ls "${P}
-          ls "${P}/lib
-          ls "${P}/lib/gcc
-          ls "${P}/lib/gcc/aarch64-apple-darwin24
-          ls "${P}/lib/gcc/aarch64-apple-darwin24/14
-          ls "${P}/lib/gcc/aarch64-apple-darwin24/14/install-tools
-          ${P}/lib/gcc/aarch64-apple-darwin24/14/install-tools/mkheaders
-
       - name: Configure CMake (macos)
         if: ${{ inputs.os == 'macos-15' }}
         env:
