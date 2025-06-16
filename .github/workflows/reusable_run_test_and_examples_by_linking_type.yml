@@ -55,7 +55,9 @@ jobs:
       - name: fix compiler (macos)
         if: ${{ inputs.os == 'macos-15' }}
         run: |
-          brew uninstall gcc
+          brew uninstall gcc@12
+          brew uninstall gcc@13
+          brew uninstall gcc@14
           brew autoremove
           brew install gcc@14
 
