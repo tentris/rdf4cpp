@@ -11,6 +11,7 @@ namespace rdf4cpp::util {
 #else
     using Int128 = boost::multiprecision::checked_int128_t;
 #endif
+    using BigInt = Int128;
 
     // string -> int128 can be found in CharConvExt
 
