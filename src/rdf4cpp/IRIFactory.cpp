@@ -161,11 +161,17 @@ static std::string_view merge_path_with_base(IRIView::AllParts const &base, std:
 /**
  * Converts rel to an absolute IRI by merging it with the given base
  */
+template<bool always_remove_dots>
 static std::string_view to_absolute(IRIView::AllParts const &base, std::string_view rel) noexcept {
     auto [r_scheme, r_auth, r_path, r_query, r_frag] = IRIView{rel}.all_parts();
 
     if (r_scheme.has_value()) {
-        return construct(*r_scheme, r_auth, remove_dot_segments(r_path), r_query, r_frag);
+        if constexpr(always_remove_dots) {
+            return construct(*r_scheme, r_auth, remove_dot_segments(r_path), r_query, r_frag);
+        }
+        else {
+            return rel;
+        }
     }
 
     auto const &[b_scheme, b_auth, b_path, b_query, _b_frag] = base;
@@ -198,7 +204,11 @@ IRIFactory::IRIFactory(prefix_map_type &&prefixes, std::string_view base) : pref
 }
 
 nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage) const noexcept {
-    return create_and_validate(to_absolute(base_parts_cache, rel), node_storage);
+    return create_and_validate(to_absolute<true>(base_parts_cache, rel), node_storage);
+}
+
+nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage) const noexcept {
+    return create_and_validate(to_absolute<false>(base_parts_cache, rel), node_storage);
 }
 
 nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_prefix(std::string_view prefix, std::string_view local, storage::DynNodeStoragePtr node_storage) const {

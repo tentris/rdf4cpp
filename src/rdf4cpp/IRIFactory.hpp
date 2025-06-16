@@ -49,13 +49,21 @@ public:
     [[nodiscard]] const_reverse_iterator rend() const noexcept { return prefixes.rend(); }
 
     /**
-     * Creates a IRI from a possibly relative IRI.
+     * Creates a IRI from a relative IRI.
      * Implements https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.
      * @param rel
      * @param storage
      * @return
      */
     [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const noexcept;
+    /**
+     * Creates a IRI from a possibly relative IRI.
+     * if rel is relative, returns the same as from_relative, otherwise returns rel unchanged.
+     * @param rel
+     * @param storage
+     * @return
+     */
+    [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const noexcept;
     /**
      * Creates a IRI by looking up a prefix in the prefix map and possibly resolving a relative IRI.
      * @param prefix

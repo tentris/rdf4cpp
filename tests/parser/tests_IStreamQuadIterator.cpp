@@ -747,4 +747,14 @@ TEST_SUITE("IStreamQuadIterator") {
             std::cout << qit->error() << std::endl;
         }
     }
+
+    TEST_CASE("absolute IRI with dots") {
+        // https://github.com/w3c/rdf-tests/blob/main/sparql/sparql10/i18n/normalization-02.ttl (partial)
+        std::istringstream iss{"@prefix : <http://example/vocab#>. \n:s2 :p <eXAMPLE://a/./b/../b/%63/%7bfoo%7d#xyz>."};
+        for (IStreamQuadIterator qit{iss}; qit != std::default_sentinel; ++qit) {
+            CHECK(qit->has_value());
+            CHECK(qit->value().object().is_iri());
+            CHECK(qit->value().object().as_iri().identifier() == "eXAMPLE://a/./b/../b/%63/%7bfoo%7d#xyz");
+        }
+    }
 }
