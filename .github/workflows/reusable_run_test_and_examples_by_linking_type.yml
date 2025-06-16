@@ -107,12 +107,12 @@ jobs:
         if: ${{ inputs.os == 'macos-15' }}
         run: |
           P="$(brew --cellar gcc@14)"
-          ls "${$P}
-          ls "${$P}/lib
-          ls "${$P}/lib/gcc
-          ls "${$P}/lib/gcc/aarch64-apple-darwin24
-          ls "${$P}/lib/gcc/aarch64-apple-darwin24/14
-          ls "${$P}/lib/gcc/aarch64-apple-darwin24/14/install-tools
+          ls "${P}
+          ls "${P}/lib
+          ls "${P}/lib/gcc
+          ls "${P}/lib/gcc/aarch64-apple-darwin24
+          ls "${P}/lib/gcc/aarch64-apple-darwin24/14
+          ls "${P}/lib/gcc/aarch64-apple-darwin24/14/install-tools
           ${$P}/lib/gcc/aarch64-apple-darwin24/14/install-tools/mkheaders
 
       - name: Configure CMake (macos)
