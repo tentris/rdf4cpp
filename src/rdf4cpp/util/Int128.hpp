@@ -12,12 +12,6 @@ namespace rdf4cpp::util {
     using Int128 = boost::multiprecision::checked_int128_t;
 #endif
 
-#ifdef RDF4CPP_USE_UNLIMITED_DATATYPES
-    using BigInt = boost::multiprecision::checked_cpp_int;
-#else
-    using BigInt = Int128;
-#endif
-
     // string -> int128 can be found in CharConvExt
 
 #ifdef __SIZEOF_INT128__
