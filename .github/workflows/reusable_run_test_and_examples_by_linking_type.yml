@@ -59,6 +59,7 @@ jobs:
           brew uninstall gcc@13
           brew uninstall gcc@14
           brew autoremove
+          brew cleanup
           brew install gcc@14
 
       - name: use mold as default linker
