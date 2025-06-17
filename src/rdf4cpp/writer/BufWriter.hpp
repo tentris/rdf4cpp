@@ -120,6 +120,12 @@ struct BufWriterParts {
  * @note for maintainers, this function is defined in the header because that makes serialization measurably faster
  */
 inline bool write_str(std::string_view str, BufWriterParts const writer) noexcept {
+    if (str.empty()) [[unlikely]] {
+        // An empty std::string_view may have str.data() == nullptr
+        // Calling memcpy() with a nullptr is undefined behavior **even if size == 0**
+        return true;
+    }
+
     while (true) {
         auto const max_write = std::min(str.size(), *writer.write_area_size);
         memcpy(*writer.write_area, str.data(), max_write);
