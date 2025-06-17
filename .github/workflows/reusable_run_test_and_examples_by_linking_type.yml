@@ -113,11 +113,11 @@ jobs:
 
       - name: Build Tests & Examples
         working-directory: build_dir
-        run: cmake --build . --parallel 2
+        run: cmake --build . --parallel $(nproc)
 
       - name: Run tests
         working-directory: build_dir
-        run: ctest --parallel 2 --verbose
+        run: ctest --parallel $(nproc) --verbose
 
       - name: Report coverage
         env:
