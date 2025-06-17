@@ -113,11 +113,11 @@ jobs:
 
       - name: Build Tests & Examples
         working-directory: build_dir
-        run: cmake --build . --parallel $(nproc)
+        run: cmake --build . --parallel $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
       - name: Run tests
         working-directory: build_dir
-        run: ctest --parallel $(nproc) --verbose
+        run: ctest --parallel $(nproc 2>/dev/null || sysctl -n hw.logicalcpu) --verbose
 
       - name: Report coverage
         env:
