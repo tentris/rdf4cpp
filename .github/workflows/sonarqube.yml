@@ -7,31 +7,34 @@ on:
     types: [opened, synchronize, reopened]
 jobs:
   build:
+    strategy:
+      matrix:
+        config:
+          - os: ubuntu-24.04
+            compiler: clang-20
+            cmake-version: 3.24.0
+            conan-version: 2.17.0
     name: SonarSource Static Analyzer Build
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.config.os }}
     env:
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
     steps:
       - name: Install Build Wrapper
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v5
 
-      - name: Add Repos for for gcc-13 and clang-17
+      - name: Add compiler repos
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
-
-      - name: Ensure stdlib version
-        run: |
-          sudo apt install libstdc++-13-dev -y
 
       - name: Get minimum cmake version
         uses: lukka/get-cmake@v3.29.3
         with:
-          cmakeVersion: 3.24.0
+          cmakeVersion: ${{ matrix.config.cmake-version }}
 
       - name: Install compiler
         id: install_cc
         uses: rlalik/setup-cpp-compiler@v1.2
         with:
-          compiler: clang-19
+          compiler: ${{ matrix.config.compiler }}
 
       - name: use mold as default linker
         uses: rui314/setup-mold@v1
@@ -39,7 +42,7 @@ jobs:
       - name: Configure conan
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@main
         with:
-          conan-version: 2.8.1
+          conan-version: ${{ matrix.config.conan-version }}
 
       - name: add conan user
         run: |
@@ -50,7 +53,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.conan2/p
-          key: ubuntu-24.04-clang-19-conan2
+          key: ${{ matrix.config.os }}-${{ matrix.config.compiler }}-conan2
 
       - uses: actions/checkout@v4
         with:

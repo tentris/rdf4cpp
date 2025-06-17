@@ -121,12 +121,11 @@ sudo make install
 
 
 ## Supported Platforms
-
-- **Linux distributions (x86_64, AArch64)** (e.g. Ubuntu 22.04+, Fedora 42+, etc.) with:
-    - GCC 13+ (libstdc++ 13+; used with both GCC and Clang)
-    - Clang 17+ (except Clang 18 does not work on AArch64)
+- **Linux distributions (x86-64, AArch64)** (e.g. Ubuntu>=24.04, Fedora>=41, etc.) with:
+    - GCC>=14 (libstdc++>=14; used with both GCC and Clang)
+    - Clang>=19
     - glibc 2.35+ or musl 1.2.4+
-- **macOS (ARM64)**: macOS Sonoma (14)+ with GCC 13 (via Homebrew)
+- **macOS (ARM64)**: macOS Sonoma (14)+ with GCC>=14 (via Homebrew)
 
 ## Stability
 

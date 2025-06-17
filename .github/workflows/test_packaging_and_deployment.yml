@@ -2,17 +2,19 @@ name: Packaging and deployment tests
 on: [ 'pull_request' ]
 jobs:
   packaging-and-deployment-tests-clang:
-    name: Packaging and deployment tests clang-17
+    name: Packaging and deployment tests clang-20
     uses: ./.github/workflows/reusable_packaging_and_deployment.yml
     with:
-      os: ubuntu-22.04
-      compiler: clang-17
+      os: ubuntu-24.04
+      compiler: clang-20
       cmake-version: 3.24.0
+      conan-version: 2.17.0
 
   packaging-and-deployment-tests-gcc:
-    name: Packaging and deployment tests gcc-13
+    name: Packaging and deployment tests gcc-14
     uses: ./.github/workflows/reusable_packaging_and_deployment.yml
     with:
-      os: ubuntu-22.04
-      compiler: gcc-13
+      os: ubuntu-24.04
+      compiler: gcc-14
       cmake-version: 3.24.0
+      conan-version: 2.17.0

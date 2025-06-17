@@ -10,6 +10,9 @@ on:
       cmake-version:
         required: true
         type: string
+      conan-version:
+        required: true
+        type: string
       with-coverage:
         type: boolean
       with-sanitizer:
@@ -26,6 +29,7 @@ jobs:
       os: ${{ inputs.os }}
       compiler: ${{ inputs.compiler }}
       cmake-version: ${{ inputs.cmake-version }}
+      conan-version: ${{ inputs.conan-version }}
       build-shared-libs: false
       with-sanitizer: ${{ inputs.with-sanitizer }}
 
@@ -35,6 +39,7 @@ jobs:
       os: ${{ inputs.os }}
       compiler: ${{ inputs.compiler }}
       cmake-version: ${{ inputs.cmake-version }}
+      conan-version: ${{ inputs.conan-version }}
       build-shared-libs: true
       with-coverage: ${{ inputs.with-coverage }}
     secrets:

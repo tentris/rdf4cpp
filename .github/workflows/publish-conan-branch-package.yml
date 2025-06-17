@@ -10,10 +10,10 @@ jobs:
     uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-conan-branch-package.yml@main
     with:
       public_artifactory: true
-      os: ubuntu-22.04
-      compiler: clang-17
+      os: ubuntu-24.04
+      compiler: clang-20
       cmake-version: 3.24.0
-      conan-version: 2.3.0
+      conan-version: 2.17.0
       conan-options: -o boost/*:header_only=True
     secrets:
       CONAN_USER: ${{ secrets.CONAN_USER }}
