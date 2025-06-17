@@ -10,6 +10,9 @@ on:
       cmake-version:
         required: true
         type: string
+      conan-version:
+        required: true
+        type: string
       build-shared-libs:
         required: true
         type: boolean
@@ -31,14 +34,9 @@ jobs:
         shell: bash
 
     steps:
-      - name: Add Repos for for gcc-13 and clang-17
+      - name: Add compiler repos
         if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
-
-      - name: Ensure stdlib version
-        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
-        run: |
-          sudo apt install libstdc++-13-dev -y
 
       - name: Get minimum cmake version
         uses: lukka/get-cmake@v3.29.3
@@ -59,7 +57,7 @@ jobs:
       - name: Configure conan
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@main
         with:
-          conan-version: 2.8.1
+          conan-version: ${{ inputs.conan-version }}
 
       - name: add conan user
         run: |

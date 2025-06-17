@@ -6,16 +6,17 @@ jobs:
   tests_and_example_matrix:
     strategy:
       matrix:
-        cppenv:
-          - os: ubuntu-22.04
-            compiler: gcc-13
+        config:
+          - os: ubuntu-24.04
+            compiler: gcc-14
       fail-fast: false
-    name: ${{ matrix.cppenv.compiler }}, ${{ matrix.cppenv.os }}
+    name: ${{ matrix.config.compiler }}, ${{ matrix.config.os }}
     uses: ./.github/workflows/reusable_run_test_and_examples_by_linking_type.yml
     with:
-      os: ${{ matrix.cppenv.os }}
-      compiler: ${{ matrix.cppenv.compiler }}
+      os: ${{ matrix.config.os }}
+      compiler: ${{ matrix.config.compiler }}
       cmake-version: 3.24.0
+      conan-version: 2.17.0
       with-coverage: true
       with-sanitizer: false
       build-shared-libs: true

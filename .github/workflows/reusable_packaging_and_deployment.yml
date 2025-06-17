@@ -4,11 +4,13 @@ on:
       os:
         required: true
         type: string
+      compiler:
+        required: true
+        type: string
       cmake-version:
         required: true
-        type:
-          string
-      compiler:
+        type: string
+      conan-version:
         required: true
         type: string
 
@@ -21,12 +23,8 @@ jobs:
         shell: bash
 
     steps:
-      - name: Add Repos for for gcc-13 and clang-16,17
+      - name: Add compiler repos
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
-
-      - name: Ensure stdlib version
-        run: |
-          sudo apt install libstdc++-13-dev jq -y
 
       - name: Get minimum cmake version
         uses: lukka/get-cmake@v3.29.3
@@ -37,7 +35,7 @@ jobs:
         id: install_cc
         uses: rlalik/setup-cpp-compiler@v1.2
         with:
-          compiler: ${{  inputs.compiler }}
+          compiler: ${{ inputs.compiler }}
 
       - name: use mold as default linker
         uses: rui314/setup-mold@v1
@@ -45,7 +43,7 @@ jobs:
       - name: Configure conan
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@main
         with:
-          conan-version: 2.3.1
+          conan-version: ${{ inputs.conan-version }}
 
       - name: add conan user
         run: |
