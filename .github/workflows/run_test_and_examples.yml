@@ -21,6 +21,9 @@ jobs:
           - os: ubuntu-24.04-arm
             compiler: clang-19
 
+          - os: warp-macos-15-arm64-6x
+            compiler: gcc-14
+
       fail-fast: false
     name: ${{ matrix.cppenv.compiler }}, ${{ matrix.cppenv.os }}
     uses: ./.github/workflows/reusable_run_test_and_examples.yml

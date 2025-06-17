@@ -32,9 +32,11 @@ jobs:
 
     steps:
       - name: Add Repos for for gcc-13 and clang-17
+        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
 
       - name: Ensure stdlib version
+        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
         run: |
           sudo apt install libstdc++-13-dev -y
 
@@ -45,11 +47,13 @@ jobs:
 
       - name: Install compiler
         id: install_cc
+        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
         uses: rlalik/setup-cpp-compiler@v1.2
         with:
           compiler: ${{ inputs.compiler }}
 
       - name: use mold as default linker
+        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
         uses: rui314/setup-mold@v1
 
       - name: Configure conan
@@ -80,6 +84,7 @@ jobs:
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@main
 
       - name: Configure CMake
+        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
@@ -88,13 +93,31 @@ jobs:
           cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
 
+      - name: Setup env for macos
+        if: ${{ inputs.os == 'warp-macos-15-arm64-6x' }}
+        run: |
+          CC_VER="${{ inputs.compiler }}"
+          if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
+          GCC_VERSION=${CC_VER:4:6}
+          GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
+          echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
+          echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
+
+      - name: Configure CMake (macos)
+        if: ${{ inputs.os == 'warp-macos-15-arm64-6x' }}
+        env:
+          CXXFLAGS: -march=armv8-a+aes+sha2 -Wno-unused-command-line-argument ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
+        run: >
+          cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
+
       - name: Build Tests & Examples
         working-directory: build_dir
-        run: cmake --build . --parallel 2
+        run: cmake --build . --parallel $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
       - name: Run tests
         working-directory: build_dir
-        run: ctest --parallel 2 --verbose
+        run: ctest --parallel $(nproc 2>/dev/null || sysctl -n hw.logicalcpu) --verbose
 
       - name: Report coverage
         env:
