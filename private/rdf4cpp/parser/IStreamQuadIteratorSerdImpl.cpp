@@ -58,7 +58,7 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_iri(SerdNode co
         auto const s = node_into_string_view(node);
 
         if (flags.syntax_allows_prefixes()) {
-            return this->state->iri_factory.from_relative(s, this->state->node_storage);
+            return this->state->iri_factory.from_maybe_relative(s, this->state->node_storage);
         } else {
             return this->state->iri_factory.create_and_validate(s, this->state->node_storage);
         }

@@ -108,6 +108,13 @@ target_link_libraries(tests_Base64Binary
         )
 add_test(NAME tests_Base64Binary COMMAND tests_Base64Binary)
 
+add_executable(tests_AnyURI datatype/tests_AnyURI.cpp)
+target_link_libraries(tests_AnyURI
+        doctest::doctest
+        rdf4cpp
+)
+add_test(NAME tests_AnyURI COMMAND tests_AnyURI)
+
 add_executable(tests_Double datatype/tests_Double.cpp)
 target_link_libraries(tests_Double
         doctest::doctest
@@ -352,6 +359,19 @@ target_link_libraries(tests_Serialization
         rdf4cpp
 )
 add_test(NAME tests_Serialization COMMAND tests_Serialization)
+
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.nt")
+        file(DOWNLOAD "https://files.dice-research.org/datasets/ISWC2020_Tentris/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
+        execute_process(COMMAND unzip "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip" -d "${CMAKE_CURRENT_BINARY_DIR}/test_swdf")
+        file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
+endif ()
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/graph/tests_loading_simple.trig" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+add_executable(tests_Loading graph/tests_loading.cpp)
+target_link_libraries(tests_Loading
+        doctest::doctest
+        rdf4cpp
+)
+add_test(NAME tests_Loading COMMAND tests_Loading)
 
 # copy files for testing to the binary folder
 # file(COPY foldername DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

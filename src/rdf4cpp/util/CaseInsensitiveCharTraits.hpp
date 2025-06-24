@@ -17,19 +17,19 @@ struct CiCharTraits : std::char_traits<char> {
     using state_type = std::char_traits<char>::state_type;
     using comparison_category = std::char_traits<char>::comparison_category;
 
-    static constexpr bool eq(char_type const c1, char_type const c2) noexcept {
+    static bool eq(char_type const c1, char_type const c2) noexcept {
         return std::tolower(c1) == std::tolower(c2);
     }
 
-    static constexpr bool ne(char_type const c1, char_type const c2) noexcept {
+    static bool ne(char_type const c1, char_type const c2) noexcept {
         return std::tolower(c1) != std::tolower(c2);
     }
 
-    static constexpr bool lt(char_type const c1, char_type const c2) noexcept {
+    static bool lt(char_type const c1, char_type const c2) noexcept {
         return std::tolower(c1) < std::tolower(c2);
     }
 
-    static constexpr int compare(char_type const *s1, char_type const *s2, size_t const len) noexcept {
+    static int compare(char_type const *s1, char_type const *s2, size_t const len) noexcept {
         for (size_t ix = 0; ix < len; ++ix) {
             auto const c1 = std::tolower(s1[ix]);
             auto const c2 = std::tolower(s2[ix]);
@@ -46,7 +46,7 @@ struct CiCharTraits : std::char_traits<char> {
         return 0;
     }
 
-    static constexpr char_type const *find(char_type const *s, size_t const len, char const needle) noexcept {
+    static char_type const *find(char_type const *s, size_t const len, char const needle) noexcept {
         auto const ineedle = std::tolower(needle);
 
         for (size_t ix = 0; ix < len; ++ix) {
