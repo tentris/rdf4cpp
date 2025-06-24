@@ -141,11 +141,11 @@ and with it its associated limits. The seconds part of the duration supports nan
 
 
 ## Supported Platforms
-- **Linux distributions (x86-64, AArch64)** (e.g. Ubuntu>=24.04, Fedora>=41, etc.) with:
-    - GCC>=14 (libstdc++>=14; used with both GCC and Clang)
-    - Clang>=19
-    - glibc 2.35+ or musl 1.2.4+
-- **macOS (ARM64)**: macOS Sonoma (14)+ with GCC>=14 (via Homebrew)
+- **Linux distributions (x86-64, aarch64)** (e.g. Ubuntu>=24.04, Fedora>=41, etc.) with:
+    - gcc>=14 (libstdc++>=14; used with both GCC and Clang)
+    - clang>=19* (on aarch64 clang>=20 is required)
+    - glibc>=2.35 or musl>=1.2.4
+- **macOS (aarch64)**: macOS Sonoma (>=14) with GCC>=14 (via Homebrew)
 
 ## Stability
 
