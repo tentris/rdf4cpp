@@ -413,7 +413,7 @@ TEST_CASE("datatype dateTime") {
     basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08.006", "2042-05-05T13:40:08.005", std::partial_ordering::greater);
     basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08Z", "2042-05-05T14:40:08+01:00", std::partial_ordering::equivalent);
     basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08Z", "2042-05-05T12:30:08-01:10", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08Z", "2042-05-05T13:40:08", std::partial_ordering::unordered);
+    basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08Z", "2042-05-05T13:40:08", std::partial_ordering::equivalent);
     basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08Z", "2043-05-05T13:40:08", std::partial_ordering::less);
     basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08Z", "2041-05-05T13:40:08", std::partial_ordering::greater);
     basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08", "2043-05-05T13:40:08Z", std::partial_ordering::less);
@@ -604,7 +604,7 @@ TEST_CASE("cross compare") {
     CHECK(Literal::make_typed<datatypes::xsd::GYear>("2043") > Literal::make_typed<datatypes::xsd::DateTime>("2042-5-5T10:0:0"));
     CHECK(Literal::make_typed<datatypes::xsd::GYearMonth>("2043-5") > Literal::make_typed<datatypes::xsd::DateTime>("2042-5-5T10:0:0"));
     CHECK(Literal::make_typed<datatypes::xsd::GMonthDay>("--5-5") < Literal::make_typed<datatypes::xsd::DateTime>("2042-5-5T10:0:0"));
-    CHECK(Literal::make_typed<datatypes::xsd::Time>("12:0:0") > Literal::make_typed<datatypes::xsd::DateTime>("1972-12-31T10:0:0"));
+    CHECK(Literal::make_typed<datatypes::xsd::Time>("12:0:0") > Literal::make_typed<datatypes::xsd::DateTime>("1972-1-1T10:0:0"));
     CHECK(Literal::make_typed<datatypes::xsd::DateTimeStamp>("1972-12-31T12:0:0Z") > Literal::make_typed<datatypes::xsd::DateTime>("1972-12-31T10:0:0Z"));
 
     CHECK(Literal::make_typed<datatypes::xsd::YearMonthDuration>("P1Y") < Literal::make_typed<datatypes::xsd::Duration>("P1YT1H"));
@@ -749,4 +749,33 @@ TEST_CASE("arithmetic") {
     CHECK((Literal::make_typed<datatypes::xsd::YearMonthDuration>("P2Y") / Literal::make_typed_from_value<datatypes::xsd::Double>(0.0)).null());
     CHECK((Literal::make_typed<datatypes::xsd::DayTimeDuration>("P4D") / Literal::make_typed<datatypes::xsd::DayTimeDuration>("P2D")) == Literal::make_typed<datatypes::xsd::Decimal>("2"));
     CHECK((Literal::make_typed<datatypes::xsd::YearMonthDuration>("P4Y") / Literal::make_typed<datatypes::xsd::YearMonthDuration>("P2Y")) == Literal::make_typed<datatypes::xsd::Decimal>("2"));
+}
+
+TEST_CASE("misc") {
+    using namespace rdf4cpp;
+
+    // https://github.com/w3c/rdf-tests/blob/main/sparql/sparql10/open-world/open-cmp-01.rq
+    // https://github.com/w3c/rdf-tests/blob/main/sparql/sparql10/open-world/data-4.ttl
+    // https://github.com/w3c/rdf-tests/blob/main/sparql/sparql10/open-world/open-cmp-01-result.srx
+    {
+        auto lit_date = Literal::make_typed<datatypes::xsd::Date>("2006-08-22");
+        auto lit_dt = Literal::make_typed<datatypes::xsd::DateTime>("2006-08-23T09:00:00+01:00");
+        CHECK(((lit_date < lit_dt) || (lit_date > lit_dt)));
+        CHECK(!lit_date.as_ne(lit_dt).null());
+    }
+
+
+    // https://github.com/w3c/rdf-tests/blob/main/sparql/sparql10/open-world/date-3.rq
+    // https://github.com/w3c/rdf-tests/blob/main/sparql/sparql10/open-world/data-3.ttl
+    // https://github.com/w3c/rdf-tests/blob/main/sparql/sparql10/open-world/date-3-result.srx
+    {
+        auto query = Literal::make_typed<datatypes::xsd::Date>("2006-08-22");
+        // not in the results, because of FILTER
+        CHECK(Literal::make_typed<datatypes::xsd::DateTime>("2006-08-23T09:00:00+01:00") > query);
+        CHECK(Literal::make_typed<datatypes::xsd::Date>("2006-08-23") > query);
+        CHECK(Literal::make_typed<datatypes::xsd::Date>("2006-08-23Z") > query);
+        CHECK(Literal::make_typed<datatypes::xsd::Date>("2006-08-23+00:00") > query);
+        CHECK(Literal::make_typed<datatypes::xsd::Date>("2001-01-01") <= query);
+        CHECK(Literal::make_typed<datatypes::xsd::Date>("2001-01-01Z") <= query);
+    }
 }

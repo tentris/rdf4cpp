@@ -437,8 +437,11 @@ using ZonedTime = std::chrono::zoned_time<DurationNano, Timezone>;
 
 namespace util {
 
-inline constexpr YearMonthDay time_point_replacement_date{Year(1972), std::chrono::December, std::chrono::last};
+// see https://www.w3.org/TR/xpath-functions/#comp.datetime
+inline constexpr YearMonthDay time_point_replacement_date{Year(1972), std::chrono::January, std::chrono::day{1}};
 inline constexpr DurationNano time_point_replacement_time_of_day{0};
+// implementation defined, not from standard
+inline constexpr Timezone time_point_replacement_timezone{std::chrono::minutes{0}};
 
 constexpr TimePoint construct_timepoint(YearMonthDay const &date, const DurationNano& time_of_day) {
     auto sd = date.to_time_point_local();
