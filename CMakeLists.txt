@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(rdf4cpp VERSION 0.1.0)
+project(rdf4cpp VERSION 0.1.1)
 set(POBR_VERSION 3)  # Persisted Object Binary Representation
 
 include(cmake/boilerplate_init.cmake)
@@ -101,6 +101,7 @@ add_library(rdf4cpp
         src/rdf4cpp/datatypes/xsd/Float.cpp
         src/rdf4cpp/datatypes/xsd/HexBinary.cpp
         src/rdf4cpp/datatypes/xsd/String.cpp
+        src/rdf4cpp/datatypes/xsd/AnyURI.cpp
         src/rdf4cpp/datatypes/xsd/integers/non_negative/NonNegativeInteger.cpp
         src/rdf4cpp/datatypes/xsd/integers/non_negative/PositiveInteger.cpp
         src/rdf4cpp/datatypes/xsd/integers/non_negative/UnsignedByte.cpp

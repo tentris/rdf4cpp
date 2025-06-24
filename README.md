@@ -87,7 +87,7 @@ To use _rdf4cpp_, add it to your `conanfile.txt`:
 
 ```
 [requires]
-rdf4cpp/0.1.0
+rdf4cpp/0.1.1
 ```
 
 For getting started how to use rdf4cpp, check out the [examples](./examples) directory and refer to our documentation.
@@ -141,12 +141,11 @@ and with it its associated limits. The seconds part of the duration supports nan
 
 
 ## Supported Platforms
-
-- **Linux distributions (x86_64, AArch64)** (e.g. Ubuntu 22.04+, Fedora 42+, etc.) with:
-    - GCC 13+ (libstdc++ 13+; used with both GCC and Clang)
-    - Clang 17+ (except Clang 18 does not work on AArch64)
+- **Linux distributions (x86-64, AArch64)** (e.g. Ubuntu>=24.04, Fedora>=41, etc.) with:
+    - GCC>=14 (libstdc++>=14; used with both GCC and Clang)
+    - Clang>=19
     - glibc 2.35+ or musl 1.2.4+
-- **macOS (ARM64)**: macOS Sonoma (14)+ with GCC 13 (via Homebrew)
+- **macOS (ARM64)**: macOS Sonoma (14)+ with GCC>=14 (via Homebrew)
 
 ## Stability
 

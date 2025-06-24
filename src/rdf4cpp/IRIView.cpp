@@ -165,13 +165,13 @@ IRIView::AuthorityParts IRIView::all_authority_parts() const noexcept {
     return {apply_opt(ui), apply_opt(ho), apply_opt(po)};
 }
 
-IRIFactoryError IRIView::quick_validate() const noexcept {
+IRIFactoryError IRIView::quick_validate(bool allow_relative) const noexcept {
     using namespace util::char_matcher_detail;
     auto [scheme, auth, path, query, frag] = all_parts();
-    if (!scheme.has_value())
+    if (!scheme.has_value() && !allow_relative)
         return IRIFactoryError::Relative;
     static constexpr auto scheme_pattern = ascii_alphanum_matcher | ASCIIPatternMatcher{"+-."};
-    if (!match<scheme_pattern, una::views::utf8>(*scheme))
+    if (scheme.has_value() && !match<scheme_pattern, una::views::utf8>(*scheme))
         return IRIFactoryError::InvalidScheme;
     auto [userinfo, host, port] = all_authority_parts();
     static constexpr auto userinfo_pattern = i_unreserved_matcher | sub_delims_matcher | ASCIIPatternMatcher{"%:"};

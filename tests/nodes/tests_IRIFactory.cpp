@@ -155,6 +155,10 @@ TEST_CASE("base") {
     CHECK(fact.from_relative("g?y/../x").value().identifier() == "http://a/b/c/g?y/../x");
     CHECK(fact.from_relative("g#y/./x").value().identifier() == "http://a/b/c/g#y/./x");
     CHECK(fact.from_relative("g#y/../x").value().identifier() == "http://a/b/c/g#y/../x");
+
+    CHECK(fact.from_relative("http://ex.com/a/./b/../c").value().identifier() == "http://ex.com/a/c");
+    CHECK(fact.from_maybe_relative("http://ex.com/a/./b/../c").value().identifier() == "http://ex.com/a/./b/../c");
+    CHECK(fact.from_maybe_relative("/x/./b/../c").value().identifier() == "http://a/x/c");
 }
 
 TEST_CASE("base reassign") {
@@ -190,9 +194,13 @@ TEST_CASE("prefix") {
     CHECK(fact.from_prefix("pre", "bar").value().identifier() == "http://ex.org/bar");
     CHECK(fact.from_prefix("foo", "bar").value().identifier() == "http://foo.org/bar");
     CHECK(fact.from_prefix("bar", "bar").error() == IRIFactoryError::UnknownPrefix);
+    CHECK(fact.from_prefix("pre", "a/./b/../c").value().identifier() == "http://ex.org/a/./b/../c");
 
     CHECK(fact.assign_prefix("pre", "http://ex.org/pre2/") == IRIFactoryError::Ok);
     CHECK(fact.from_prefix("pre", "bar").value().identifier() == "http://ex.org/pre2/bar");
+
+    CHECK(fact.assign_prefix("dot", "http://ex.org/a/./b/../c#") == IRIFactoryError::Ok);
+    CHECK(fact.from_prefix("dot", "bar").value().identifier() == "http://ex.org/a/./b/../c#bar");
 
     fact.clear_prefix("pre");
     CHECK(fact.from_prefix("pre", "bar").error() == IRIFactoryError::UnknownPrefix);
@@ -212,6 +220,10 @@ TEST_CASE("relative prefix") {
 
     fact.assign_prefix_unchecked("pre", "pre2/");
     CHECK(fact.from_prefix("pre", "bar").value().identifier() == "http://ex.org/pre2/bar");
+
+    CHECK(fact.from_prefix("pre", "a/./b/../c").value().identifier() == "http://ex.org/pre2/a/c");
+    CHECK(fact.assign_prefix("dot", "a/./b/../c#") == IRIFactoryError::Ok);
+    CHECK(fact.from_prefix("dot", "bar").value().identifier() == "http://ex.org/a/c#bar");
 
     fact.clear_prefix("pre");
     CHECK(fact.from_prefix("pre", "bar").error() == IRIFactoryError::UnknownPrefix);
