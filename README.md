@@ -87,7 +87,7 @@ To use _rdf4cpp_, add it to your `conanfile.txt`:
 
 ```
 [requires]
-rdf4cpp/0.1.1
+rdf4cpp/0.1.2
 ```
 
 For getting started how to use rdf4cpp, check out the [examples](./examples) directory and refer to our documentation.
