@@ -104,7 +104,6 @@ jobs:
 
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
-        shell: nix shell nixpkgs#gcc14
         env:
           CXXFLAGS: -march=armv8-a+aes+sha2 -Wno-unused-command-line-argument ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
         run: >
