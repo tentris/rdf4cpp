@@ -95,8 +95,8 @@ jobs:
         if: ${{ contains(inputs.os, 'macos') }}
         run: |
           brew uninstall gcc@14
-          curl https://raw.githubusercontent.com/Homebrew/homebrew-core/7e879a6de0e1181c8345d85a4f035412ffab282e/Formula/g/gcc%4014.rb > gcc.rb
-          brew install ./gcc.rb
+          curl https://raw.githubusercontent.com/Homebrew/homebrew-core/7e879a6de0e1181c8345d85a4f035412ffab282e/Formula/g/gcc%4014.rb > gcc@14.rb
+          brew install ./gcc@14.rb
           
           CC_VER="${{ inputs.compiler }}"
           if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
