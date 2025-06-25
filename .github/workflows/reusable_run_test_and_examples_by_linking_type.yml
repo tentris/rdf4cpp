@@ -96,7 +96,7 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Install gcc
-        if: ${{ contains(input.os, 'macos') }}
+        if: ${{ contains(inputs.os, 'macos') }}
         run: |
           nix profile install nixpkgs#gcc14
 
