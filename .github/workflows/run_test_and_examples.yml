@@ -19,7 +19,7 @@ jobs:
           - os: ubuntu-24.04-arm
             compiler: clang-20
 
-          - os: macos-14
+          - os: macos-15
             compiler: gcc-14
 
       fail-fast: false
