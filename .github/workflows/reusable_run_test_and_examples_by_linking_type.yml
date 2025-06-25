@@ -98,12 +98,11 @@ jobs:
       - name: Install gcc
         if: ${{ contains(inputs.os, 'macos') }}
         run: |
-          nix profile install nixpkgs#gcc14 --profile nix-ci-profile
-          echo "CC=nix-ci-profile/bin/gcc" >> $GITHUB_ENV
-          echo "CXX=nix-ci-profile/bin/g++" >> $GITHUB_ENV
+          nix profile install nixpkgs#gcc14
 
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
+        shell: "nix shell nixpkgs#gcc14 --command '{0}'"
         env:
           CXXFLAGS: -march=armv8-a+aes+sha2 -Wno-unused-command-line-argument ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
         run: >
