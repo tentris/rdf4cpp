@@ -98,9 +98,9 @@ jobs:
       - name: Install gcc
         if: ${{ contains(inputs.os, 'macos') }}
         run: |
-          nix profile install nixpkgs#gcc14 --profile /nix/var/nix/profiles/ci-profile
-          echo "CC=/nix/var/nix/profiles/ci-profile/bin/gcc" >> $GITHUB_ENV
-          echo "CXX=/nix/var/nix/profiles/ci-profile/bin/g++" >> $GITHUB_ENV
+          nix profile install nixpkgs#gcc14 --profile nix-ci-profile
+          echo "CC=nix-ci-profile/bin/gcc" >> $GITHUB_ENV
+          echo "CXX=nix-ci-profile/bin/g++" >> $GITHUB_ENV
 
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
