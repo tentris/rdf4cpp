@@ -99,7 +99,7 @@ jobs:
           . ~/.nix-profile/etc/profile.d/nix.sh
           nix-channel --add https://nixos.org/channels/nixos-25.05 nixpkgs
           nix-channel --update
-          nix-env -iA nixpkgs.gcc14                                    
+          nix-env -iA nixpkgs.gcc-unwrapped                    
 
       # 3) Export CC and CXX
       - name: Set CC and CXX
