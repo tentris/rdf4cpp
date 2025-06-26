@@ -109,6 +109,19 @@ F from_chars(std::string_view s) {
 template<typename F, ConstexprString datatype>
 requires std::same_as<F, __int128>
 F from_chars(std::string_view s) {
+    static constexpr __int128 max_pow10 = []() {
+        auto n = std::numeric_limits<uint64_t>::digits10;
+        __int128 d = 1;
+        for (int i = 0; i < n; ++i) {
+            d = d * 10;
+        }
+        return d;
+    }();
+
+    if (s == "-170141183460469231731687303715884105728") {
+        return std::numeric_limits<__int128>::min();
+    }
+
     bool neg = false;
     if (s.starts_with('+')) {
         s.remove_prefix(1);
@@ -118,25 +131,35 @@ F from_chars(std::string_view s) {
         s.remove_prefix(1);
     }
 
-    __int128 r = 0;
-
-    for (char c : s) {
-        if (c > '9' || c < '0') {
-            throw rdf4cpp::InvalidNode{std::format("{} parsing error: found {}, invalid for datatype", datatype, c)};
+    __int128 value = 0;
+    int i = 0;
+    while (!s.empty()) {
+        std::string_view p;
+        if (s.size() <= std::numeric_limits<uint64_t>::digits10) {
+            p = s;
+            s = "";
         }
-        __int128 n = c - '0';
-        if (neg) {
-            n = -n;
+        else {
+            const size_t pos = s.size() - std::numeric_limits<uint64_t>::digits10;
+            p = s.substr(pos);
+            s = s.substr(0, pos);
         }
-        if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(r, __int128{10}, r)) {
+        __int128 value2 = from_chars<uint64_t, datatype>(p);
+        for (int j = 0; j < i; ++j) {
+            if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value2, max_pow10, value2)) {
+                throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
+            }
+        }
+        if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value, value2, value)) {
             throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
         }
-        if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(r, n, r)) {
-            throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
-        }
+        ++i;
     }
 
-    return r;
+    if (neg) {
+        value = -value;
+    }
+    return value;
 }
 #endif
 

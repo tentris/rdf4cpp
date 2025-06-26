@@ -2,6 +2,8 @@
 #include <doctest/doctest.h>
 
 #include <rdf4cpp/BigDecimal.hpp>
+#include <rdf4cpp/datatypes/registry/util/ConstexprString.hpp>
+#include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
 using Dec = rdf4cpp::BigDecimal<>;
 using DecI = rdf4cpp::BigDecimal<int32_t, uint32_t>;
@@ -175,6 +177,14 @@ TEST_CASE("int128 to_chars") {
     CHECK(tos(std::numeric_limits<__int128>::max()) == "170141183460469231731687303715884105727");
     CHECK(tos(std::numeric_limits<__int128>::min()) == "-170141183460469231731687303715884105728");
     CHECK(tos(std::numeric_limits<__int128>::min()+1) == "-170141183460469231731687303715884105727");
+}
+
+TEST_CASE("int128 from_chars") {
+    static constexpr rdf4cpp::datatypes::registry::util::ConstexprString s{"test"};
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("0") == 0);
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("170141183460469231731687303715884105727") == std::numeric_limits<__int128>::max());
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-170141183460469231731687303715884105728") == std::numeric_limits<__int128>::min());
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-170141183460469231731687303715884105727") == std::numeric_limits<__int128>::min()+1);
 }
 
 TEST_CASE("basics") {
