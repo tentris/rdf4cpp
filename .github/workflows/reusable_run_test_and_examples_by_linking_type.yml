@@ -93,13 +93,13 @@ jobs:
 
       - uses: nixbuild/nix-quick-install-action@v31
 
-      # 2) Install GCC 14 from nixpkgs
-      - name: Install GCC 14 via Nix
+      # 2) Install GCC 15 from nixpkgs
+      - name: Install GCC 15 via Nix
         run: |
           . ~/.nix-profile/etc/profile.d/nix.sh
           nix-channel --add https://nixos.org/channels/nixos-25.05 nixpkgs
           nix-channel --update
-          nix-env -iA nixpkgs.gcc-unwrapped                    
+          nix-env -iA nixpkgs.gcc15
 
       # 3) Export CC and CXX
       - name: Set CC and CXX
