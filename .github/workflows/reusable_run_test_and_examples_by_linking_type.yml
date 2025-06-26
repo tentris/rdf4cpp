@@ -100,6 +100,9 @@ jobs:
           GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
           echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
           echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
+          echo "${GCC_PREFIX}/bin/g++-${GCC_VERSION}"
+          ls "${GCC_PREFIX}/bin/g++-${GCC_VERSION}"
+          echo "${GCC_VERSION}"
 
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
