@@ -96,8 +96,9 @@ jobs:
       # 2) Install GCC 14 from nixpkgs
       - name: Install GCC 14 via Nix
         run: |
-          cat ~/.nix-profile/etc/profile.d/nix.sh
           . ~/.nix-profile/etc/profile.d/nix.sh
+          nix-channel --add https://nixos.org/channels/nixos-25.05 nixpkgs
+          nix-channel --update
           nix-env -iA nixpkgs.gcc14                                    
 
       # 3) Export CC and CXX
