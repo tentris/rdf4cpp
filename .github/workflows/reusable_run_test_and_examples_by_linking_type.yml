@@ -102,6 +102,7 @@ jobs:
           echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
           echo "${GCC_PREFIX}/bin/g++-${GCC_VERSION}"
           ls "${GCC_PREFIX}/bin/g++-${GCC_VERSION}"
+          ls "${GCC_PREFIX}/bin"
           echo "${GCC_VERSION}"
 
       - name: Configure CMake (macos)
