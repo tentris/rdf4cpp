@@ -91,10 +91,7 @@ jobs:
           cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
 
-      # 1) Install Nix (single-user install)
-      - uses: cachix/install-nix-action@v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable  
+      - uses: nixbuild/nix-quick-install-action@v31
 
       # 2) Install GCC 14 from nixpkgs
       - name: Install GCC 14 via Nix
