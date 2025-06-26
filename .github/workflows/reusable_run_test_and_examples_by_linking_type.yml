@@ -93,12 +93,10 @@ jobs:
 
       - uses: nixbuild/nix-quick-install-action@v31
 
-      - name: what is available
-        run: |
-          nix-env -qaP gcc
       # 2) Install GCC 14 from nixpkgs
       - name: Install GCC 14 via Nix
         run: |
+          cat ~/.nix-profile/etc/profile.d/nix.sh
           . ~/.nix-profile/etc/profile.d/nix.sh
           nix-env -iA nixpkgs.gcc14                                    
 
