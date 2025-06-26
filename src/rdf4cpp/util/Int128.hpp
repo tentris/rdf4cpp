@@ -11,40 +11,68 @@ namespace rdf4cpp::util {
 #else
     using Int128 = boost::multiprecision::checked_int128_t;
 #endif
-    using BigInt = Int128;
 
     // string -> int128 can be found in CharConvExt
 
 #ifdef __SIZEOF_INT128__
-    inline bool to_chars_canonical(__int128 value, writer::BufWriterParts const writer) noexcept {
-        if (value == 0) {
-            return writer::write_str("0", writer);
+    inline std::to_chars_result to_chars(char *first, char *last, unsigned __int128 val) noexcept {
+        static constexpr unsigned __int128 max_pow10 = []() {
+            auto n = std::numeric_limits<uint64_t>::digits10;
+            unsigned __int128 d = 1;
+            for (int i = 0; i < n; ++i) {
+                d = d * 10;
+            }
+            return d;
+        }();
+
+        if (val <= std::numeric_limits<uint64_t>::max()) {
+            return std::to_chars(first, last, static_cast<uint64_t>(val));
         }
+
+        std::to_chars_result upper = to_chars(first, last, val / max_pow10);
+        if (upper.ec != std::errc{}) {
+            return upper;
+        }
+
+        first = upper.ptr;
+
+        std::to_chars_result lower = std::to_chars(first, last, static_cast<uint64_t>(val % max_pow10));
+        return lower;
+    }
+    inline std::to_chars_result to_chars(char *first, char *last, __int128 val) noexcept {
+        if (val >= 0) {
+            return to_chars(first, last, static_cast<unsigned __int128>(val));
+        }
+
+        if (val == std::numeric_limits<__int128>::min()) [[unlikely]] {
+            static constexpr std::string_view data = "-170141183460469231731687303715884105728";
+            static constexpr auto write = data;
+            if ((last - first) < static_cast<int64_t>(write.size())) {
+                return std::to_chars_result{.ptr = first, .ec = std::errc::value_too_large};
+            }
+            std::memcpy(first, write.data(), write.size());
+            return std::to_chars_result{.ptr = first + write.size(), .ec = std::errc{}};
+        }
+
+        if (first == last) [[unlikely]] {
+            return std::to_chars_result{.ptr = first, .ec = std::errc::value_too_large};
+        }
+
+        *first++ = '-';
+        return to_chars(first, last, static_cast<unsigned __int128>(-val));
+    }
+    inline bool to_chars_canonical(__int128 const value, writer::BufWriterParts const writer) noexcept {
         // +1 because of definition of digits10 https://en.cppreference.com/w/cpp/types/numeric_limits/digits10
         // +1 for sign
         static constexpr size_t buf_sz = std::numeric_limits<__int128>::digits10 + 1 + 1;
 
         std::array<char, buf_sz> buf;
+        std::to_chars_result const res = to_chars(buf.data(), buf.data() + buf.size(), value);
 
-        bool const neg = value < 0;
-        char *curr = buf.data() + buf.size();
-        while (value != 0) {
-            auto c = static_cast<int>(value % 10);
-            value = value / 10;
-            if (neg) {
-                c = -c;
-            }
-            --curr;
-            assert(curr >= buf.data());
-            *curr = static_cast<char>('0' + c);
-        }
-        if (neg) {
-            --curr;
-            assert(curr >= buf.data());
-            *curr = '-';
-        }
+        assert(res.ec == std::errc{});
 
-        return writer::write_str(std::string_view(curr, buf.data() + buf.size()), writer);
+        std::string_view const s{buf.data(), static_cast<std::string::size_type>(res.ptr - buf.data())};
+        return writer::write_str(s, writer);
     }
 #endif
 

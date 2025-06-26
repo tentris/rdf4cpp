@@ -13,7 +13,7 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 struct DatatypeMapping<xsd_non_positive_integer> {
-    using cpp_datatype = rdf4cpp::util::BigInt;
+    using cpp_datatype = rdf4cpp::util::Int128;
 };
 
 template<>

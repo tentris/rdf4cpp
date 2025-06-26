@@ -30,7 +30,7 @@ enum struct DecimalError {
 template<typename T>
 concept BigDecimalBaseType = std::numeric_limits<T>::is_specialized && !std::floating_point<T>;
 
-template<BigDecimalBaseType UnscaledValue_t = util::BigInt, BigDecimalBaseType Exponent_t = uint32_t>
+template<BigDecimalBaseType UnscaledValue_t = util::Int128, BigDecimalBaseType Exponent_t = uint32_t>
 requires(!std::signed_integral<Exponent_t> && !std::unsigned_integral<UnscaledValue_t>)
 struct BigDecimal {
     // the entire class is loosely based on OpenJDKs BigDecimal: https://github.com/AdoptOpenJDK/openjdk-jdk11/blob/master/src/java.base/share/classes/java/math/BigDecimal.java
