@@ -95,7 +95,6 @@ jobs:
       - uses: cachix/install-nix-action@v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable  
-          install_options: --no-daemon
 
       # 2) Install GCC 14 from nixpkgs
       - name: Install GCC 14 via Nix
