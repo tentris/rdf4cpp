@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Add compiler repos
-        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
+        if: ${{ !contains(inputs.os, 'macos') }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
 
       - name: Get minimum cmake version
@@ -45,13 +45,13 @@ jobs:
 
       - name: Install compiler
         id: install_cc
-        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
+        if: ${{ !contains(inputs.os, 'macos') }}
         uses: rlalik/setup-cpp-compiler@v1.2
         with:
           compiler: ${{ inputs.compiler }}
 
       - name: use mold as default linker
-        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
+        if: ${{ !contains(inputs.os, 'macos') }}
         uses: rui314/setup-mold@v1
 
       - name: Configure conan
@@ -82,7 +82,7 @@ jobs:
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@main
 
       - name: Configure CMake
-        if: ${{ inputs.os != 'warp-macos-15-arm64-6x' }}
+        if: ${{ !contains(inputs.os, 'macos') }}
         env:
           CC: ${{ steps.install_cc.outputs.cc }}
           CXX: ${{ steps.install_cc.outputs.cxx }}
@@ -92,7 +92,7 @@ jobs:
           ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
 
       - name: Setup env for macos
-        if: ${{ inputs.os == 'warp-macos-15-arm64-6x' }}
+        if: ${{ contains(inputs.os, 'macos') }}
         run: |
           CC_VER="${{ inputs.compiler }}"
           if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
@@ -102,7 +102,7 @@ jobs:
           echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
 
       - name: Configure CMake (macos)
-        if: ${{ inputs.os == 'warp-macos-15-arm64-6x' }}
+        if: ${{ contains(inputs.os, 'macos') }}
         env:
           CXXFLAGS: -march=armv8-a+aes+sha2 -Wno-unused-command-line-argument ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
         run: >
