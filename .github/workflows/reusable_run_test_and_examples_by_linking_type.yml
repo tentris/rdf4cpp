@@ -105,6 +105,7 @@ jobs:
           CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}"
           $CC --version
           $CXX --version
+          ls -lah /Library/Developer/CommandLineTools/SDKs/
           
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
