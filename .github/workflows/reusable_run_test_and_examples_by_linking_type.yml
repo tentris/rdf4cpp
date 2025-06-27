@@ -37,11 +37,32 @@ jobs:
       - name: Add compiler repos
         if: ${{ !contains(inputs.os, 'macos') }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
-      - name: Download & Install MacPorts
-        if: ${{ contains(inputs.os, 'macos') }}
+      
+      # 1. Cache full MacPorts prefix (base + installed ports)
+      - name: Cache MacPorts & GCC14
+        id: cache-macports
+        uses: actions/cache@v3
+        with:
+          path: /opt/local
+          key: macports-all-${{ runner.os }}-v2.10.7-gcc14
+          restore-keys: |
+            macports-all-${{ runner.os }}-v2.10.7-
+
+      # 2. Slow install on cache-miss
+      - name: Install MacPorts & GCC 14
+        if: steps.cache-macports.outputs.cache-hit != 'true'
         run: |
-          curl -LO https://github.com/macports/macports-base/releases/download/v2.10.7/MacPorts-2.10.7-15-Sequoia.pkg
           sudo installer -pkg MacPorts-2.10.7-15-Sequoia.pkg -target /
+          sudo port -v selfupdate
+          sudo port install gcc14
+          sudo port select --set gcc mp-gcc14
+          hash -r
+
+      # 3. Fix permissions & PATH on cache-hit
+      - name: Fix MacPorts permissions
+        if: steps.cache-macports.outputs.cache-hit == 'true'
+        run: sudo chown -R root:wheel /opt/local
+        
       - name: Add MacPorts to system paths
         run: |
           # so sudo can find port
@@ -49,59 +70,30 @@ jobs:
           echo "/opt/local/sbin" | sudo tee -a /etc/paths
           # also ensure it’s in the user path
           echo "/opt/local/bin" >> $GITHUB_PATH
-
+          
+      - name: Cache MacPorts software archives
+        uses: actions/cache@v3
+        id: cache-mp-software
+        with:
+          path: /opt/local/var/macports/software
+          key: macports-software-${{ runner.os }}-gcc14
+          restore-keys: macports-software-${{ runner.os }}-
       - name: Update MacPorts
         if: ${{ contains(inputs.os, 'macos') }}
         run: sudo port -v selfupdate
-
-      - name: Add MacPorts to PATH
-        if: ${{ contains(inputs.os, 'macos') }}
-        run: echo "/opt/local/bin" >> $GITHUB_PATH
-
       - name: Install GCC 14
         if: ${{ contains(inputs.os, 'macos') }}
         run: sudo port install gcc14
-
-      # - name: Write MacPorts configuration
-      #   if: ${{ contains(inputs.os, 'macos') }}
-      #   run: |
-      #     mkdir -p .github/parameters
-      #     cat > setup-macports.yaml <<EOF
-      #     version: '2.10.7'
-      #     ports:
-      #       - name: gcc14
-      #     EOF
-      #     cat setup-macports.yaml
-      
-      # - name: Setup MacPorts
-      #   if: ${{ contains(inputs.os, 'macos') }}
-      #   uses: melusina-org/setup-macports@v1
-      #   with:
-      #     config-file: 'setup-macports.yaml'
-
       - name: Select gcc14 as default
         if: ${{ contains(inputs.os, 'macos') }}
         run: |
           sudo port select --set gcc mp-gcc14
           hash -r
-
-      - name: Verify compiler
+      - name: Set env vars
         if: ${{ contains(inputs.os, 'macos') }}
         run: |
-          gcc --version
-          g++ --version
           echo CC="$(which gcc)" >> $GITHUB_ENV
           echo CXX="$(which g++)" >> $GITHUB_ENV
-      # - name: Setup env for macos
-      #   if: ${{ contains(inputs.os, 'macos') }}
-      #   run: |
-      #     CC_VER="${{ inputs.compiler }}"
-      #     if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
-      #     GCC_VERSION=${CC_VER:4:6}
-      #     brew install gcc@${CC_VER:4:6}
-      #     GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
-      #     echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
-      #     echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
 
       - name: Get minimum cmake version
         uses: lukka/get-cmake@v3.29.3
