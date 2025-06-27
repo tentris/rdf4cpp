@@ -102,7 +102,7 @@ jobs:
           echo "q1"
           brew update
           echo "q2"
-          brew install gcc@${CC_VER:4:6} # -build-from-source --env=std
+          brew reinstall gcc@${CC_VER:4:6} # -build-from-source --env=std
           echo "q3"
           GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
           echo "q4"
