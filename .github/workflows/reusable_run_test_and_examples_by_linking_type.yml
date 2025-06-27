@@ -96,6 +96,7 @@ jobs:
         env:
           MACOSX_DEPLOYMENT_TARGET: 10.14
         run: |
+          strings $(brew --prefix gcc)/bin/gcc-14 | grep -i sdk
           SDKROOT="$(xcrun --sdk macosx${MACOSX_DEPLOYMENT_TARGET} --show-sdk-path)"
           echo "${SDKROOT}"
           CC_VER="${{ inputs.compiler }}"
