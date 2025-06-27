@@ -115,7 +115,7 @@ jobs:
           $CC --version
           $CXX --version
           echo "q6"
-          strings "${CC}" | grep -i sdk
+          # strings "${CC}" | grep -i sdk
           
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
