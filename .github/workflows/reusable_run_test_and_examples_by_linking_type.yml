@@ -37,23 +37,40 @@ jobs:
       - name: Add compiler repos
         if: ${{ !contains(inputs.os, 'macos') }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
-
-      - name: Write MacPorts configuration
+      - name: Download & Install MacPorts
         if: ${{ contains(inputs.os, 'macos') }}
         run: |
-          mkdir -p .github/parameters
-          cat > setup-macports.yaml <<EOF
-          version: '2.10.7'
-          ports:
-            - name: gcc14
-          EOF
-          cat setup-macports.yaml
-      
-      - name: Setup MacPorts
+          curl -LO https://github.com/macports/macports-base/releases/download/v2.10.7/MacPorts-2.10.7-15-Sequoia.pkg
+          sudo installer -pkg MacPorts-2.10.7-15-Sequoia.pkg -target /
+
+      - name: Update MacPorts
         if: ${{ contains(inputs.os, 'macos') }}
-        uses: melusina-org/setup-macports@v1
-        with:
-          config-file: 'setup-macports.yaml'
+        run: sudo port -v selfupdate
+
+      - name: Add MacPorts to PATH
+        if: ${{ contains(inputs.os, 'macos') }}
+        run: echo "/opt/local/bin" >> $GITHUB_PATH
+
+      - name: Install GCC 14
+        if: ${{ contains(inputs.os, 'macos') }}
+        run: sudo port install gcc14
+
+      # - name: Write MacPorts configuration
+      #   if: ${{ contains(inputs.os, 'macos') }}
+      #   run: |
+      #     mkdir -p .github/parameters
+      #     cat > setup-macports.yaml <<EOF
+      #     version: '2.10.7'
+      #     ports:
+      #       - name: gcc14
+      #     EOF
+      #     cat setup-macports.yaml
+      
+      # - name: Setup MacPorts
+      #   if: ${{ contains(inputs.os, 'macos') }}
+      #   uses: melusina-org/setup-macports@v1
+      #   with:
+      #     config-file: 'setup-macports.yaml'
 
       - name: Select gcc14 as default
         if: ${{ contains(inputs.os, 'macos') }}
