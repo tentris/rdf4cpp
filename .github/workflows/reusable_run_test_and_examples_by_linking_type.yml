@@ -37,21 +37,28 @@ jobs:
       - name: Add compiler repos
         if: ${{ !contains(inputs.os, 'macos') }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
-      
-      - name: Cache MacPorts & GCC14
-        id: cache-macports
+
+      - name: env vars for macos
+        run: |
+          CC_VER="${{ inputs.compiler }}"
+          if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
+          GCC_VERSION=${CC_VER:4:6}
+          echo GCC_VERSION="${GCC_VERSION}" >> $GITHUB_ENV
+          
+      - name: Cache MacPorts
+        if: ${{ !contains(inputs.os, 'macos') }}
         uses: actions/cache@v3
+        id: cache-macports
         with:
-          path: /opt/local
-          key: macports-all-${{ runner.os }}-v2.10.7-gcc14
-          restore-keys: |
-            macports-all-${{ runner.os }}-v2.10.7-
+          path: /opt/local/
+          key: macports-v2.10.7-${{ runner.os }}-${{ inputs.compiler }}
+
       - name: Fix MacPorts permissions
-        if: steps.cache-macports.outputs.cache-hit == 'true'
+        if: ${{ contains(inputs.os, 'macos') && steps.cache-macports.outputs.cache-hit == 'true' }}
         run: sudo chown -R root:wheel /opt/local
 
-      - name: Install MacPorts & GCC 14
-        if: steps.cache-macports.outputs.cache-hit != 'true'
+      - name: Install MacPorts 
+        if: ${{ contains(inputs.os, 'macos') && steps.cache-macports.outputs.cache-hit != 'true' }}
         run: |
           curl -LO https://github.com/macports/macports-base/releases/download/v2.10.7/MacPorts-2.10.7-15-Sequoia.pkg
           sudo installer -pkg MacPorts-2.10.7-15-Sequoia.pkg -target /
@@ -63,21 +70,13 @@ jobs:
           echo "/opt/local/sbin" | sudo tee -a /etc/paths
           # also ensure it’s in the user path
           echo "/opt/local/bin" >> $GITHUB_PATH
-       
-      - name: Cache MacPorts software archives
-        uses: actions/cache@v3
-        id: cache-mp-software
-        with:
-          path: /opt/local/var/macports/software
-          key: macports-software-${{ runner.os }}-gcc14
-          restore-keys: macports-software-${{ runner.os }}-
-          
+
       - name: Update MacPorts
-        if: ${{ contains(inputs.os, 'macos') }}
+        if: ${{ contains(inputs.os, 'macos') && steps.cache-macports.outputs.cache-hit != 'true' }}
         run: | 
           sudo port -v selfupdate
-          sudo port install gcc14
-          sudo port select --set gcc mp-gcc14
+          sudo port install "gcc${GCC_VERSION}"
+          sudo port select --set gcc "mp-gcc${GCC_VERSION}"
           hash -r
       - name: Set env vars
         if: ${{ contains(inputs.os, 'macos') }}
