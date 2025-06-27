@@ -54,10 +54,6 @@ jobs:
         run: |
           curl -LO https://github.com/macports/macports-base/releases/download/v2.10.7/MacPorts-2.10.7-15-Sequoia.pkg
           sudo installer -pkg MacPorts-2.10.7-15-Sequoia.pkg -target /
-          sudo port -v selfupdate
-          sudo port install gcc14
-          sudo port select --set gcc mp-gcc14
-          hash -r
 
       # 3. Fix permissions & PATH on cache-hit
       - name: Fix MacPorts permissions
@@ -71,6 +67,14 @@ jobs:
           echo "/opt/local/sbin" | sudo tee -a /etc/paths
           # also ensure it’s in the user path
           echo "/opt/local/bin" >> $GITHUB_PATH
+
+      - name: Update MacPorts & install GCC 14
+        if: steps.cache-macports.outputs.cache-hit != 'true'
+        run: |
+          sudo port -v selfupdate
+          sudo port install gcc14
+          sudo port select --set gcc mp-gcc14
+          hash -r
           
       - name: Cache MacPorts software archives
         uses: actions/cache@v3
