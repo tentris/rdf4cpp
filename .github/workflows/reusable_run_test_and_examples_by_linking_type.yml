@@ -99,6 +99,8 @@ jobs:
           GCC_VERSION=${CC_VER:4:6}
           echo "$(which g++)"
           echo "$(whereis g++)"
+          ls -lah /usr/bin/g++
+          g++ --version
           GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
           echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
           echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
