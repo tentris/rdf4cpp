@@ -53,7 +53,7 @@ jobs:
         if: ${{ contains(inputs.os, 'macos') }}
         uses: melusina-org/setup-macports@v1
         with:
-          config-file: setup-macports.yaml
+          config-file: 'setup-macports.yaml'
 
       - name: Select gcc14 as default
         if: ${{ contains(inputs.os, 'macos') }}
