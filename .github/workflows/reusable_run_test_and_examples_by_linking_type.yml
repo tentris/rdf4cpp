@@ -41,10 +41,7 @@ jobs:
       - name: Install MacPorts & gcc14
         uses: melusina-org/setup-macports@v1
         with:
-          parameters: |
-            version: '2.10.7'
-            ports:
-              - name: gcc14
+          parameters: '.github/parameters/setup-macports.yaml'
 
       - name: Select gcc14 as default
         run: |
