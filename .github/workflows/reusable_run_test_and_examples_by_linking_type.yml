@@ -113,7 +113,8 @@ jobs:
           
         run: >
           SYSROOT="$(xcrun --show-sdk-path)"
-          cmake -G Ninja -B build_dir -DCMAKE_C_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_CXX_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)" -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          echo "${SYSROOT}"
+          cmake -G Ninja -B build_dir -DCMAKE_C_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_CXX_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_OSX_SYSROOT="${SYSROOT}" -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
 
       - name: Build Tests & Examples
