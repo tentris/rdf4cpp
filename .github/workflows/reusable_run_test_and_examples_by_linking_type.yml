@@ -38,16 +38,35 @@ jobs:
         if: ${{ !contains(inputs.os, 'macos') }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
 
-      - name: Setup env for macos
-        if: ${{ contains(inputs.os, 'macos') }}
+      - name: Install MacPorts & gcc14
+        uses: melusina-org/setup-macports@v1
+        with:
+          parameters: |
+            version: '2.10.7'
+            ports:
+              - name: gcc14
+
+      - name: Select gcc14 as default
         run: |
-          CC_VER="${{ inputs.compiler }}"
-          if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
-          GCC_VERSION=${CC_VER:4:6}
-          brew install gcc@${CC_VER:4:6}
-          GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
-          echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
-          echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
+          sudo port select --set gcc mp-gcc14
+          hash -r
+
+      - name: Verify compiler
+        run: |
+          gcc --version
+          g++ --version
+          echo CC="$(which gcc)" >> $GITHUB_ENV
+          echo CXX="$(which g++)" >> $GITHUB_ENV
+      # - name: Setup env for macos
+      #   if: ${{ contains(inputs.os, 'macos') }}
+      #   run: |
+      #     CC_VER="${{ inputs.compiler }}"
+      #     if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
+      #     GCC_VERSION=${CC_VER:4:6}
+      #     brew install gcc@${CC_VER:4:6}
+      #     GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
+      #     echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
+      #     echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
 
       - name: Get minimum cmake version
         uses: lukka/get-cmake@v3.29.3
