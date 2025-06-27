@@ -117,6 +117,7 @@ F from_chars(std::string_view s) {
         }
         return d;
     }();
+    static_assert(max_pow10 == 10'000'000'000'000'000'000ull);
 
     if (s == "-170141183460469231731687303715884105728") {
         return std::numeric_limits<__int128>::min();
@@ -147,11 +148,11 @@ F from_chars(std::string_view s) {
         __int128 value2 = from_chars<uint64_t, datatype>(p);
         for (int j = 0; j < i; ++j) {
             if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value2, max_pow10, value2)) {
-                throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow mul", datatype)};
+                throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
             }
         }
         if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value, value2, value)) {
-            throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow add", datatype)};
+            throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
         }
         ++i;
     }
