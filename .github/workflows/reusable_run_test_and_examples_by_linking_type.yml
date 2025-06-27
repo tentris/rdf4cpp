@@ -38,17 +38,30 @@ jobs:
         if: ${{ !contains(inputs.os, 'macos') }}
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
 
-      - name: Install MacPorts & gcc14
+      - name: Write MacPorts configuration
+        if: ${{ contains(inputs.os, 'macos') }}
+        run: |
+          mkdir -p .github/parameters
+          cat > setup-macports.yaml <<EOF
+          version: '2.10.7'
+          ports:
+            - name: gcc14
+          EOF
+      
+      - name: Setup MacPorts
+        if: ${{ contains(inputs.os, 'macos') }}
         uses: melusina-org/setup-macports@v1
         with:
-          parameters: '.github/parameters/setup-macports.yaml'
+          config-file: setup-macports.yaml
 
       - name: Select gcc14 as default
+        if: ${{ contains(inputs.os, 'macos') }}
         run: |
           sudo port select --set gcc mp-gcc14
           hash -r
 
       - name: Verify compiler
+        if: ${{ contains(inputs.os, 'macos') }}
         run: |
           gcc --version
           g++ --version
