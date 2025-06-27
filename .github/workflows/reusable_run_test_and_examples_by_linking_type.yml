@@ -106,6 +106,7 @@ jobs:
           $CC --version
           $CXX --version
           ls -lah /Library/Developer/CommandLineTools/SDKs/
+          gcc-15 -v -E - </dev/null 2>&1 | grep -- -isysroot
           
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
