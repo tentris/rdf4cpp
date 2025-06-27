@@ -93,34 +93,35 @@ jobs:
 
       - name: Setup env for macos
         if: ${{ contains(inputs.os, 'macos') }}
+        env:
+          MACOSX_DEPLOYMENT_TARGET: 10.14
         run: |
+          SDKROOT="$(xcrun --sdk macosx${MACOSX_DEPLOYMENT_TARGET} --show-sdk-path)"
+          echo "${SDKROOT}"
           CC_VER="${{ inputs.compiler }}"
           if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
           GCC_VERSION=${CC_VER:4:6}
-          brew install gcc@${CC_VER:4:6}
+          brew uninstall gcc@${CC_VER:4:6} | true
+          brew install gcc@${CC_VER:4:6} -build-from-source --env=std
           GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
           echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
           echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
+          echo MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" >> $GITHUB_ENV
+          echo SDKROOT="${SDKROOT}" >> $GITHUB_ENV
           CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}"
           CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}"
           $CC --version
           $CXX --version
-          ls -lah /Library/Developer/CommandLineTools/SDKs/
-          gcc-15 -v -E - </dev/null 2>&1 | grep -- -isysroot
           
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
         env:
           CXXFLAGS: -march=armv8-a+aes+sha2 -Wno-unused-command-line-argument ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
-          SYSROOT2: $(xcrun --show-sdk-path)
         run: |
-          SYSROOT="$(xcrun --show-sdk-path)"
-          echo "-----"
           echo "${SYSROOT}"
           echo "-----"
-          echo "${SYSROOT2}"
-          echo "-----"
-          cmake -G Ninja -B build_dir -DCMAKE_C_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_CXX_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_OSX_SYSROOT="${SYSROOT}" -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          # -DCMAKE_C_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_CXX_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_OSX_SYSROOT="${SYSROOT}" 
+          cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
 
       - name: Build Tests & Examples
