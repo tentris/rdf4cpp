@@ -93,6 +93,8 @@ jobs:
 
       - name: Setup env for macos
         if: ${{ contains(inputs.os, 'macos') }}
+        # env: 
+          # MACOSX_DEPLOYMENT_TARGET: 14
         run: |
           CC_VER="${{ inputs.compiler }}"
           # SDKROOT="$(xcrun --sdk macosx${MACOSX_DEPLOYMENT_TARGET} --show-sdk-path)"
@@ -102,7 +104,7 @@ jobs:
           echo "q1"
           brew update
           echo "q2"
-          brew reinstall gcc@${CC_VER:4:6} # -build-from-source --env=std
+          brew reinstall gcc@${CC_VER:4:6} -build-from-source --env=std
           echo "q3"
           GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
           echo "q4"
@@ -115,7 +117,7 @@ jobs:
           $CC --version
           $CXX --version
           echo "q6"
-          # strings "${CC}" | grep -i sdk
+          strings "${CC}" | grep -i sdk
           
           
       - name: Configure CMake (macos)
