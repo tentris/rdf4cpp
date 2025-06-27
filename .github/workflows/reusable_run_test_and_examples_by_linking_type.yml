@@ -98,22 +98,19 @@ jobs:
           if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
           GCC_VERSION=${CC_VER:4:6}
           brew install gcc@${CC_VER:4:6}
-          echo "$(which g++)"
-          echo "$(whereis g++)"
-          ls -lah /usr/bin/g++
-          g++ --version
           GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
           echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
           echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
-          echo "${GCC_PREFIX}"
-          echo "${GCC_VERSION}"
-          ls "${GCC_PREFIX}"
-          ls "${GCC_PREFIX}/bin"
-
+          CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}"
+          CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}"
+          $CC --version
+          $CXX --version
+          
       - name: Configure CMake (macos)
         if: ${{ contains(inputs.os, 'macos') }}
         env:
           CXXFLAGS: -march=armv8-a+aes+sha2 -Wno-unused-command-line-argument ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
+          SYSROOT: "$(xcrun --show-sdk-path)"
         run: >
           cmake -G Ninja -B build_dir -DCMAKE_C_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_CXX_FLAGS="-isysroot ${SYSROOT}" -DCMAKE_OSX_SYSROOT="$(xcrun --show-sdk-path)" -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
