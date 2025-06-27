@@ -97,6 +97,7 @@ jobs:
           CC_VER="${{ inputs.compiler }}"
           if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
           GCC_VERSION=${CC_VER:4:6}
+          brew install gcc@${CC_VER:4:6}
           echo "$(which g++)"
           echo "$(whereis g++)"
           ls -lah /usr/bin/g++
