@@ -47,6 +47,7 @@ jobs:
           ports:
             - name: gcc14
           EOF
+          cat setup-macports.yaml
       
       - name: Setup MacPorts
         if: ${{ contains(inputs.os, 'macos') }}
