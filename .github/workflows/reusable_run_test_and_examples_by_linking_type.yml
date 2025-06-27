@@ -42,6 +42,13 @@ jobs:
         run: |
           curl -LO https://github.com/macports/macports-base/releases/download/v2.10.7/MacPorts-2.10.7-15-Sequoia.pkg
           sudo installer -pkg MacPorts-2.10.7-15-Sequoia.pkg -target /
+      - name: Add MacPorts to system paths
+        run: |
+          # so sudo can find port
+          echo "/opt/local/bin" | sudo tee -a /etc/paths
+          echo "/opt/local/sbin" | sudo tee -a /etc/paths
+          # also ensure it’s in the user path
+          echo "/opt/local/bin" >> $GITHUB_PATH
 
       - name: Update MacPorts
         if: ${{ contains(inputs.os, 'macos') }}
