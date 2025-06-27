@@ -147,11 +147,11 @@ F from_chars(std::string_view s) {
         __int128 value2 = from_chars<uint64_t, datatype>(p);
         for (int j = 0; j < i; ++j) {
             if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value2, max_pow10, value2)) {
-                throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
+                throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow mul", datatype)};
             }
         }
         if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value, value2, value)) {
-            throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
+            throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow add", datatype)};
         }
         ++i;
     }
