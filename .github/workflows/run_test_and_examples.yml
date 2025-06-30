@@ -5,19 +5,19 @@ jobs:
     strategy:
       matrix:
         config:
-          # - os: ubuntu-24.04
-          #   compiler: gcc-14
-          # - os: ubuntu-24.04
-          #   compiler: clang-19
-          # - os: ubuntu-24.04
-          #   compiler: clang-20
+          - os: ubuntu-24.04
+            compiler: gcc-14
+          - os: ubuntu-24.04
+            compiler: clang-19
+          - os: ubuntu-24.04
+            compiler: clang-20
 
-          # - os: ubuntu-24.04-arm
-          #   compiler: gcc-14
-          # - os: ubuntu-24.04-arm
-          #   compiler: clang-19
-          # - os: ubuntu-24.04-arm
-          #   compiler: clang-20
+          - os: ubuntu-24.04-arm
+            compiler: gcc-14
+          - os: ubuntu-24.04-arm
+            compiler: clang-19
+          - os: ubuntu-24.04-arm
+            compiler: clang-20
 
           - os: macos-15
             compiler: gcc-14
