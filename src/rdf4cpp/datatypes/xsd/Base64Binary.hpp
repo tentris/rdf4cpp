@@ -85,7 +85,8 @@ extern template struct LiteralDatatypeImpl<xsd_base64_binary,
 namespace rdf4cpp::datatypes::xsd {
 
 struct Base64Binary : registry::LiteralDatatypeImpl<registry::xsd_base64_binary,
-                                                    registry::capabilities::FixedId> {};
+                                                    registry::capabilities::FixedId,
+                                                    registry::capabilities::Comparable> {};
 
 } // namespace rdf4cpp::datatypes::xsd
 

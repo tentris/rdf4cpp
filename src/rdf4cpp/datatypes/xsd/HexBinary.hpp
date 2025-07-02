@@ -112,7 +112,8 @@ extern template struct LiteralDatatypeImpl<xsd_hex_binary,
 namespace rdf4cpp::datatypes::xsd {
 
 struct HexBinary : registry::LiteralDatatypeImpl<registry::xsd_hex_binary,
-                                                 registry::capabilities::FixedId> {};
+                                                 registry::capabilities::FixedId,
+                                                 registry::capabilities::Comparable> {};
 
 } // namespace rdf4cpp::datatypes::xsd
 

@@ -1133,7 +1133,16 @@ std::partial_ordering Literal::compare_impl(Literal const &other, std::strong_or
         return std::partial_ordering::unordered;
     }
 
-    if (this->handle_ == other.handle_) {
+    if (this->handle_.id().node_id().literal_type().is_fixed() && this->handle_ == other.handle_) {
+        // Without the check for is_fixed() we would allow all datatypes (even unknown/uncomparable) ones to be compared using equality.
+        // This check however is somewhat of a workaround; it just happens to work correctly because all known (fixed) types happen to be comparable.
+        // If one of our datatypes was not comparable, it would fail in the following scenario:
+        //     "abc"^^custom =  "abc"^^custom => true
+        //     "abc"^^custom != "abc"^^custom => false
+        //     "abc"^^custom =  "cde"^^custom => null
+        //     "abc"^^custom != "cde"^^custom => null
+        // As you can see the behaviour would be inconsistent.
+        // TODO we should probably fix this properly if we ever add a non-comparable type
         return std::partial_ordering::equivalent;
     }
 

@@ -235,8 +235,12 @@ TEST_CASE("Literal - numeric ops") {
         auto const tp = Literal::make_typed_from_value<datatypes::xsd::Date>(std::make_pair(YearMonthDay{Year{2000}, std::chrono::January, 1d}, std::nullopt));
         auto const dur = Literal::make_typed_from_value<datatypes::xsd::DayTimeDuration>(100ns);
 
-        auto check_null = [](auto x) {
+        auto check_null = [](Literal x) {
             CHECK(x.null());
+        };
+
+        auto check_err = [](TriBool b) {
+            CHECK_EQ(b, TriBool::Err);
         };
 
         // simulate code paths
@@ -259,6 +263,18 @@ TEST_CASE("Literal - numeric ops") {
         check_null(+unknown);
         check_null(-unknown);
         check_null(!unknown);
+        check_err(unknown.eq(unknown));
+        check_err(unknown.ne(unknown));
+        check_err(unknown.lt(unknown));
+        check_err(unknown.le(unknown));
+        check_err(unknown.gt(unknown));
+        check_err(unknown.ge(unknown));
+        CHECK(unknown.order_eq(unknown));
+        CHECK_FALSE(unknown.order_ne(unknown));
+        CHECK_FALSE(unknown.order_lt(unknown));
+        CHECK(unknown.order_le(unknown));
+        CHECK_FALSE(unknown.order_gt(unknown));
+        CHECK(unknown.order_ge(unknown));
     }
 }
 
