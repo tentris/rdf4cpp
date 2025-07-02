@@ -1021,10 +1021,8 @@ Literal Literal::numeric_binop_impl(OpSelect op_select, Literal const &other, st
         return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
     } else {
         auto const *other_entry = DatatypeRegistry::get_entry(other_datatype);
-        assert(other_entry != nullptr);
-
-        if (!other_entry->numeric_ops.has_value()) {
-            return Literal{};  // not numeric
+        if (other_entry == nullptr || !other_entry->numeric_ops.has_value()) {
+            return Literal{}; // not registered, or not numeric
         }
 
         auto const equalizer = DatatypeRegistry::get_common_numeric_op_type_conversion(*this_entry,
