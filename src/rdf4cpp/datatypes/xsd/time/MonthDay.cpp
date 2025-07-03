@@ -61,7 +61,7 @@ capabilities::Inlineable<xsd_gMonthDay>::cpp_type capabilities::Inlineable<xsd_g
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_gMonthDay>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto md_to_tp = [](std::chrono::month_day md) noexcept -> rdf4cpp::TimePoint {
+    auto md_to_tp = [](std::chrono::month_day md) noexcept -> std::optional<TimePoint> {
         return rdf4cpp::util::construct_timepoint(YearMonthDay{rdf4cpp::util::time_point_replacement_date.year(), md.month(), md.day()}, rdf4cpp::util::time_point_replacement_time_of_day);
     };
     return registry::util::compare_time_points(md_to_tp(lhs.first), lhs.second, md_to_tp(rhs.first), rhs.second);

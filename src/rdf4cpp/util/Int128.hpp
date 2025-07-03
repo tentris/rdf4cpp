@@ -305,8 +305,9 @@ namespace rdf4cpp::util {
         struct MakeUnsigned<boost::multiprecision::number<boost::multiprecision::cpp_int_backend<MinBits, MaxBits, boost::multiprecision::signed_magnitude, Checked, Alloc>>> {
             using t = boost::multiprecision::number<boost::multiprecision::cpp_int_backend<MinBits, MaxBits, boost::multiprecision::unsigned_magnitude, Checked, Alloc>>;
         };
+        // TODO check double->int64 conversion
         template<OverflowMode m, typename To, typename From>
-        requires IntegralExt<To> && IntegralExt<From>
+        requires (IntegralExt<To> || std::floating_point<To>) && (IntegralExt<From> || std::floating_point<From>)
         static constexpr bool cast_checked(const From &f, To &result) noexcept {
             if constexpr (m == OverflowMode::Checked) {
                 if constexpr (std::numeric_limits<To>::is_signed == std::numeric_limits<From>::is_signed) {
@@ -420,6 +421,15 @@ inline std::ostream &operator<<(std::ostream &str, __int128 const &bn) {
     w.finalize();
     return str;
 }
+template<>
+struct std::formatter<__int128> : std::formatter<std::string_view> {
+    inline auto format(__int128 const &p, format_context &ctx) const {
+        rdf4cpp::writer::BufOutputIteratorWriter w{ctx.out()};
+        rdf4cpp::util::to_chars_canonical(p, w);
+        w.finalize();
+        return w.buffer().iter;
+    }
+};
 #endif
 
 #endif  //RDF4CPP_INT128_HPP

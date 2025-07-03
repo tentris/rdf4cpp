@@ -2412,7 +2412,7 @@ std::optional<Year> Literal::year() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
     if (!casted.has_value())
         return std::nullopt;
-    auto [date, _] = util::deconstruct_timepoint(casted->first);
+    auto [date, _] = *util::deconstruct_timepoint(casted->first);
     return date.year();
 }
 
@@ -2430,7 +2430,7 @@ std::optional<std::chrono::month> Literal::month() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
     if (!casted.has_value())
         return std::nullopt;
-    auto [date, _] = util::deconstruct_timepoint(casted->first);
+    auto [date, _] = *util::deconstruct_timepoint(casted->first);
     return date.month();
 }
 
@@ -2448,7 +2448,7 @@ std::optional<std::chrono::day> Literal::day() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
     if (!casted.has_value())
         return std::nullopt;
-    auto [date, _] = util::deconstruct_timepoint(casted->first);
+    auto [date, _] = *util::deconstruct_timepoint(casted->first);
     return date.day();
 }
 
@@ -2465,7 +2465,7 @@ std::optional<std::chrono::hours> Literal::hours() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
     if (!casted.has_value())
         return std::nullopt;
-    auto [_, time] = util::deconstruct_timepoint(casted->first);
+    auto [_, time] = *util::deconstruct_timepoint(casted->first);
     return std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)}.hours();
 }
 
@@ -2482,7 +2482,7 @@ std::optional<std::chrono::minutes> Literal::minutes() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
     if (!casted.has_value())
         return std::nullopt;
-    auto [_, time] = util::deconstruct_timepoint(casted->first);
+    auto [_, time] = *util::deconstruct_timepoint(casted->first);
     return std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)}.minutes();
 }
 
@@ -2499,7 +2499,7 @@ std::optional<std::chrono::nanoseconds> Literal::seconds() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
     if (!casted.has_value())
         return std::nullopt;
-    auto [_, t] = util::deconstruct_timepoint(casted->first);
+    auto [_, t] = *util::deconstruct_timepoint(casted->first);
     std::chrono::hh_mm_ss const time{std::chrono::duration_cast<std::chrono::nanoseconds>(t)};
     return time.seconds() + time.subseconds();
 }

@@ -24,7 +24,11 @@ capabilities::Default<xsd_dateTimeStamp>::cpp_type capabilities::Default<xsd_dat
     std::chrono::nanoseconds ms = parse_nanoseconds<identifier>(s.substr(0, p));
     auto date = YearMonthDay{year, month, day};
     if (registry::relaxed_parsing_mode && !date.ok()) {
-        date = normalize(date);
+        auto const norm = normalize(date);
+        if (!norm.has_value()) {
+            throw InvalidNode(std::format("{} parsing error: failed to normalize", identifier, date));
+        }
+        date = *norm;
     }
     if (!date.ok()) {
         throw InvalidNode(std::format("{} parsing error: {} is invalid", identifier, date));
@@ -43,7 +47,11 @@ capabilities::Default<xsd_dateTimeStamp>::cpp_type capabilities::Default<xsd_dat
     auto time = hours + minutes + ms;
     if (!registry::relaxed_parsing_mode) {
         if (time == std::chrono::hours{24}) {
-            date = YearMonthDay{date.to_time_point_local() + std::chrono::days{1}};
+            auto const tp = date.to_time_point_local();
+            if (!tp.has_value()) {
+                throw InvalidNode(std::format("{} parsing error: timepoint is out of range", identifier, date));
+            }
+            date = YearMonthDay{*tp + std::chrono::days{1}};
             if (!date.ok()) {
                 throw InvalidNode(std::format("{} parsing error: {} is invalid", identifier, date));
             }
@@ -52,8 +60,11 @@ capabilities::Default<xsd_dateTimeStamp>::cpp_type capabilities::Default<xsd_dat
             throw InvalidNode(std::format("{} parsing error: invalid time of day", identifier));
         }
     }
-
-    return rdf4cpp::ZonedTime{tz, rdf4cpp::util::construct_timepoint(date, time)};
+    auto const tp = rdf4cpp::util::construct_timepoint(date, time);
+    if (!tp.has_value()) {
+        throw InvalidNode(std::format("{} parsing error: timepoint is out of range", identifier, date));
+    }
+    return rdf4cpp::ZonedTime{tz, *tp};
 }
 
 template<>
@@ -66,7 +77,7 @@ bool capabilities::Default<xsd_dateTimeStamp>::serialize_canonical_string(cpp_ty
                              registry::util::chrono_max_canonical_string_chars::minutes + 1 +
                              registry::util::chrono_max_canonical_string_chars::seconds + Timezone::max_canonical_string_chars>
             buff;
-    auto [date, time] = rdf4cpp::util::deconstruct_timepoint(value.get_local_time());
+    auto [date, time] = *rdf4cpp::util::deconstruct_timepoint(value.get_local_time());
     char *it = std::format_to(buff.data(), "{}T{:%H:%M:%S}", date, std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)});
     it = util::canonical_seconds_remove_empty_millis(it);
     it = value.get_time_zone().to_canonical_string(it);
@@ -82,10 +93,11 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_dateT
     auto tp_sec = std::chrono::floor<std::chrono::seconds>(value.get_sys_time());
     if ((value.get_sys_time() - tp_sec).count() != 0)
         return std::nullopt;
-    if (!util::fits_into<int64_t>(tp_sec.time_since_epoch().count()))
+    int64_t i64;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(tp_sec.time_since_epoch().count(), i64)) {
         return std::nullopt;
-    auto s = static_cast<int64_t>(tp_sec.time_since_epoch().count());
-    return util::try_pack_integral<storage::identifier::LiteralID>(s);
+    }
+    return util::try_pack_integral<storage::identifier::LiteralID>(i64);
 }
 
 template<>
@@ -133,23 +145,21 @@ capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_sub(cpp_type const &lhs, c
 template<>
 nonstd::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_duration_add(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
-    try {
-        auto ret_tp = util::add_duration_to_date_time(tp.get_local_time(), dur);
-        return ZonedTime{tp.get_time_zone(), ret_tp};
-    } catch (std::overflow_error const &) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    auto ret_tp = util::add_duration_to_date_time(tp.get_local_time(), dur);
+    if (!ret_tp.has_value()) {
+        return nonstd::make_unexpected(ret_tp.error());
     }
+    return ZonedTime{tp.get_time_zone(), *ret_tp};
 }
 
 template<>
 nonstd::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_duration_sub(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
-    try {
-        auto ret_tp = util::add_duration_to_date_time(tp.get_local_time(), std::make_pair(-dur.first, -dur.second));
-        return ZonedTime{tp.get_time_zone(), ret_tp};
-    } catch (std::overflow_error const &) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    auto ret_tp = util::add_duration_to_date_time(tp.get_local_time(), std::make_pair(-dur.first, -dur.second));
+    if (!ret_tp.has_value()) {
+        return nonstd::make_unexpected(ret_tp.error());
     }
+    return ZonedTime{tp.get_time_zone(), *ret_tp};
 }
 
 #endif

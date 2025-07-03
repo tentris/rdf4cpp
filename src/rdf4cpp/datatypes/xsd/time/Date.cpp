@@ -14,7 +14,11 @@ capabilities::Default<xsd_date>::cpp_type capabilities::Default<xsd_date>::from_
     auto day = parse_date_time_fragment<std::chrono::day, unsigned int, '\0', identifier>(s);
     auto date = YearMonthDay{year, month, day};
     if (registry::relaxed_parsing_mode && !date.ok()) {
-        date = normalize(date);
+        auto const norm = normalize(date);
+        if (!norm.has_value()) {
+            throw InvalidNode(std::format("{} parsing error: failed to normalize", identifier, date));
+        }
+        date = *norm;
     }
     if (!date.ok()) {
         throw InvalidNode(std::format("{} parsing error: {} is invalid", identifier, date));
@@ -50,11 +54,12 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_date>
     if (value.second.has_value()) {
         return std::nullopt;
     }
-    auto i = value.first.to_time_point().time_since_epoch().count();
-    if (!util::fits_into<int64_t>(i)) [[unlikely]] {
+    auto i = value.first.to_time_point()->time_since_epoch().count();
+    int64_t i64;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(i, i64)) [[unlikely]] {
         return std::nullopt;
     }
-    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<int64_t>(i));
+    return util::try_pack_integral<storage::identifier::LiteralID>(i64);
 }
 
 template<>
@@ -64,7 +69,7 @@ capabilities::Inlineable<xsd_date>::cpp_type capabilities::Inlineable<xsd_date>:
 }
 
 rdf4cpp::TimePoint date_to_tp(YearMonthDay const &d) noexcept {
-    return rdf4cpp::util::construct_timepoint(d, rdf4cpp::util::time_point_replacement_time_of_day);
+    return *rdf4cpp::util::construct_timepoint(d, rdf4cpp::util::time_point_replacement_time_of_day);
 }
 
 template<>
@@ -97,8 +102,15 @@ nonstd::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_date>::timepoint_duration_add(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
     auto const super_tp = Promotable<xsd_date>::promote(tp);
     auto res_tp = util::add_duration_to_date_time(super_tp.first, dur);
+    if (!res_tp.has_value()) {
+        return nonstd::make_unexpected(res_tp.error());
+    }
 
-    auto [date, _] = rdf4cpp::util::deconstruct_timepoint(res_tp);
+    auto deconstructed = rdf4cpp::util::deconstruct_timepoint(*res_tp);
+    if (!deconstructed.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    auto [date, _] = *deconstructed;
     return std::make_pair(date, super_tp.second);
 }
 
@@ -106,9 +118,26 @@ template<>
 nonstd::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_date>::timepoint_duration_sub(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
     auto const super_tp = Promotable<xsd_date>::promote(tp);
-    auto res_tp = util::add_duration_to_date_time(super_tp.first, std::make_pair(-dur.first, -dur.second));
 
-    auto [date, _] = rdf4cpp::util::deconstruct_timepoint(res_tp);
+    auto const sdur_month = rdf4cpp::util::from_checked(-rdf4cpp::util::to_checked(dur.first));
+    auto const sdur_nanos = rdf4cpp::util::from_checked(-rdf4cpp::util::to_checked((dur.second)));
+    if (!sdur_month.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    if (!sdur_nanos.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+
+    auto res_tp = util::add_duration_to_date_time(super_tp.first, std::make_pair(*sdur_month, *sdur_nanos));
+    if (!res_tp.has_value()) {
+        return nonstd::make_unexpected(res_tp.error());
+    }
+
+    auto deconstructed = rdf4cpp::util::deconstruct_timepoint(*res_tp);
+    if (!deconstructed.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    auto [date, _] = *deconstructed;
     return std::make_pair(date, super_tp.second);
 }
 

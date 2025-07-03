@@ -176,12 +176,17 @@ TEST_CASE("precision") {
     CHECK(ys > std::chrono::years{10000});
     CHECK(ys > std::chrono::years{static_cast<int>(std::chrono::year::max())});
 
-    rdf4cpp::DurationNano::rep end_of_universe{"100000000000000"};
+    using I = rdf4cpp::util::Int128;
+    using CI = rdf4cpp::util::CheckedIntegral<I>;
+    CI end_of_universe = rdf4cpp::datatypes::registry::util::from_chars<I, "p">("100000000000000");
     CHECK(end_of_universe < std::numeric_limits<int64_t>::max());
-    using checked_years = std::chrono::duration<rdf4cpp::DurationNano::rep, std::chrono::years::period>;
-    using checked_nanos = std::chrono::duration<rdf4cpp::DurationNano::rep, std::chrono::nanoseconds::period>;
-    auto nanos = static_cast<checked_nanos>(checked_years{end_of_universe});  // throws, if out of range
+    using checked_years = std::chrono::duration<CI, std::chrono::years::period>;
+    using checked_nanos = std::chrono::duration<CI, std::chrono::nanoseconds::period>;
+    auto nanos = static_cast<checked_nanos>(checked_years{end_of_universe});
+    CHECK(!nanos.count().is_invalid());
     CHECK(nanos.count() > end_of_universe);
+    auto r = CI(std::numeric_limits<I>::max()) / nanos.count();
+    CHECK(r > 0);
 }
 
 TEST_CASE("datatype gYear") {
@@ -389,13 +394,13 @@ TEST_CASE("datatype dateTime") {
     CHECK(std::string(datatypes::xsd::DateTime::identifier) == "http://www.w3.org/2001/XMLSchema#dateTime");
 
     rdf4cpp::OptionalTimezone const tz = std::nullopt;
-    basic_test<datatypes::xsd::DateTime>(std::make_pair(rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50}), tz), "2042-05-01T00:50:00", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTime>(std::make_pair(rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::hours{12} + std::chrono::minutes{34} + std::chrono::seconds{56} + std::chrono::milliseconds{789}), tz), "2042-05-01T12:34:56.789", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTime>(std::make_pair(rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50} + std::chrono::milliseconds{100}), tz), "2042-05-01T00:50:00.1", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTime>(std::make_pair(rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50} + std::chrono::nanoseconds{123456789}), tz), "2042-05-01T00:50:00.12345678910", std::partial_ordering::equivalent, true);
-    basic_test<datatypes::xsd::DateTime>(std::make_pair(rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{42}), tz), "2042-05-01T00:50:00", std::partial_ordering::less);
-    basic_test<datatypes::xsd::DateTime>(std::make_pair(rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50}), Timezone{std::chrono::hours{1}}), "2042-05-01T00:50:00+01:00", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTime>(std::make_pair(rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50}), Timezone{std::chrono::minutes{-65}}), "2042-05-01T00:50:00-01:05", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTime>(std::make_pair(*rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50}), tz), "2042-05-01T00:50:00", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTime>(std::make_pair(*rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::hours{12} + std::chrono::minutes{34} + std::chrono::seconds{56} + std::chrono::milliseconds{789}), tz), "2042-05-01T12:34:56.789", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTime>(std::make_pair(*rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50} + std::chrono::milliseconds{100}), tz), "2042-05-01T00:50:00.1", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTime>(std::make_pair(*rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50} + std::chrono::nanoseconds{123456789}), tz), "2042-05-01T00:50:00.12345678910", std::partial_ordering::equivalent, true);
+    basic_test<datatypes::xsd::DateTime>(std::make_pair(*rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{42}), tz), "2042-05-01T00:50:00", std::partial_ordering::less);
+    basic_test<datatypes::xsd::DateTime>(std::make_pair(*rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50}), Timezone{std::chrono::hours{1}}), "2042-05-01T00:50:00+01:00", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTime>(std::make_pair(*rdf4cpp::util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50}), Timezone{std::chrono::minutes{-65}}), "2042-05-01T00:50:00-01:05", std::partial_ordering::equivalent);
     basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08", "2042-05-05T13:40:08", std::partial_ordering::equivalent);
     basic_test<datatypes::xsd::DateTime>("2041-05-05T13:40:08", "2042-05-05T13:40:08", std::partial_ordering::less);
     basic_test<datatypes::xsd::DateTime>("2042-05-05T13:40:08", "2041-05-05T13:40:08", std::partial_ordering::greater);
@@ -453,13 +458,13 @@ TEST_CASE("datatype dateTimeStamp") {
     CHECK(std::string(datatypes::xsd::DateTimeStamp::identifier) == "http://www.w3.org/2001/XMLSchema#dateTimeStamp");
 
     Timezone const tz{std::chrono::hours{0}};
-    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50})), "2042-05-01T00:50:00Z", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::hours{12} + std::chrono::minutes{34} + std::chrono::seconds{56} + std::chrono::milliseconds{789})), "2042-05-01T12:34:56.789Z", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50} + std::chrono::milliseconds{100})), "2042-05-01T00:50:00.1Z", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50} + std::chrono::nanoseconds{123456789})), "2042-05-01T00:50:00.12345678910Z", std::partial_ordering::equivalent, true);
-    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{42})), "2042-05-01T00:50:00Z", std::partial_ordering::less);
-    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(Timezone{std::chrono::hours{1}}, util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50})), "2042-05-01T00:50:00+01:00", std::partial_ordering::equivalent);
-    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(Timezone{std::chrono::minutes{-65}}, util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50})), "2042-05-01T00:50:00-01:05", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, *util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50})), "2042-05-01T00:50:00Z", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, *util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::hours{12} + std::chrono::minutes{34} + std::chrono::seconds{56} + std::chrono::milliseconds{789})), "2042-05-01T12:34:56.789Z", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, *util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50} + std::chrono::milliseconds{100})), "2042-05-01T00:50:00.1Z", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, *util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50} + std::chrono::nanoseconds{123456789})), "2042-05-01T00:50:00.12345678910Z", std::partial_ordering::equivalent, true);
+    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(tz, *util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{42})), "2042-05-01T00:50:00Z", std::partial_ordering::less);
+    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(Timezone{std::chrono::hours{1}}, *util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50})), "2042-05-01T00:50:00+01:00", std::partial_ordering::equivalent);
+    basic_test<datatypes::xsd::DateTimeStamp>(ZonedTime(Timezone{std::chrono::minutes{-65}}, *util::construct_timepoint(YearMonthDay{Year{2042}, std::chrono::month{5}, std::chrono::day{1}}, std::chrono::minutes{50})), "2042-05-01T00:50:00-01:05", std::partial_ordering::equivalent);
     basic_test<datatypes::xsd::DateTimeStamp>("2042-05-05T13:40:08Z", "2042-05-05T13:40:08Z", std::partial_ordering::equivalent);
     basic_test<datatypes::xsd::DateTimeStamp>("2041-05-05T13:40:08Z", "2042-05-05T13:40:08Z", std::partial_ordering::less);
     basic_test<datatypes::xsd::DateTimeStamp>("2042-05-05T13:40:08Z", "2041-05-05T13:40:08Z", std::partial_ordering::greater);

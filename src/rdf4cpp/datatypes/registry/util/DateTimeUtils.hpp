@@ -18,94 +18,6 @@
  */
 
 namespace rdf4cpp::datatypes::registry::util {
-using CheckedMilliseconds = std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, std::milli>;
-using CheckedMonths = std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, std::ratio<2629746>>;
-static_assert(std::same_as<std::chrono::months::period, CheckedMonths::period>);
-using CheckedTimePoint = std::chrono::time_point<std::chrono::local_t, CheckedMilliseconds>;
-using CheckedZonedTime = std::chrono::zoned_time<CheckedMilliseconds, rdf4cpp::Timezone>;
-using CheckedTimePointSys = std::chrono::time_point<std::chrono::system_clock, CheckedMilliseconds>;
-
-/**
- * turns any duration to its CheckedIntegral counterpart.
- * @tparam R
- * @param v
- * @return
- */
-template<typename R>
-std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, R> to_checked(std::chrono::duration<int64_t, R> v) noexcept {
-    return std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, R>{v.count()};
-}
-/**
- * turns any CheckedIntegral duration back to its integer based duration.
- * @note undefined behavior, if v is invalid
- * @tparam R
- * @param v
- * @return
- */
-template<typename R>
-std::chrono::duration<int64_t, R> from_checked(std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, R> v) noexcept {
-    assert(!v.count().is_invalid());
-    return std::chrono::duration<int64_t, R>{v.count().get_value()};
-}
-/**
- * turns any time_point to its CheckedIntegral counterpart.
- * @tparam C
- * @tparam R
- * @param v
- * @return
- */
-template<typename C, typename R>
-std::chrono::time_point<C, std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, R>> to_checked(std::chrono::time_point<C, std::chrono::duration<int64_t, R>> v) noexcept {
-    return std::chrono::time_point<C, std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, R>>{to_checked(v.time_since_epoch())};
-}
-/**
- * turns any CheckedIntegral time_point back to its integer based time_point.
- * @note undefined behavior, if v is invalid
- * @tparam C
- * @tparam R
- * @param v
- * @return
- */
-template<typename C, typename R>
-std::chrono::time_point<C, std::chrono::duration<int64_t, R>> from_checked(std::chrono::time_point<C, std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, R>> v) noexcept {
-    return std::chrono::time_point<C, std::chrono::duration<int64_t, R>>{from_checked(v.time_since_epoch())};
-}
-
-/**
- * checks if a double fits into a specified integer type.
- * @tparam I
- * @param d
- * @return
- */
-template<std::integral I, typename J>
-bool fits_into(J d) {
-    if constexpr (std::is_floating_point_v<J>) {
-        if (std::isnan(d) || std::isinf(d)) {
-            return false;
-        }
-    }
-    if (d >= static_cast<J>(std::numeric_limits<I>::max())) {
-        return false;
-    }
-    if (d <= static_cast<J>(std::numeric_limits<I>::min())) {
-        return false;
-    }
-    return true;
-}
-
-/**
- * checks if a boost::multiprecision::number fits into a specified integer type.
- * @tparam I
- * @tparam B
- * @tparam e
- * @param n
- * @return
- */
-template<std::integral I, typename B, boost::multiprecision::expression_template_option e>
-constexpr bool fits_into(boost::multiprecision::number<B, e> const &n) {
-    return n <= std::numeric_limits<I>::max() && n >= std::numeric_limits<I>::min();
-}
-
 template<typename ResultType, typename ParsingType, char Separator, ConstexprString datatype>
 ResultType parse_date_time_fragment(std::string_view &s) {
     std::string_view res_s = s;
@@ -174,84 +86,109 @@ inline char *canonical_seconds_remove_empty_millis(char *it) {
     return it;
 }
 
-inline TimePoint add_duration_to_date_time(TimePoint const &tp, std::pair<std::chrono::months, std::chrono::nanoseconds> d) {
-    // only gets smaller, no overflow possible
-    auto [ymd, time] = rdf4cpp::util::deconstruct_timepoint(tp);
+template<typename T>
+inline nonstd::expected<T, datatypes::DynamicError> optional_to_overflow(std::optional<T> const &o) {
+    if (o.has_value()) {
+        return *o;
+    } else {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+}
 
-    boost::multiprecision::checked_int128_t checked_m = static_cast<unsigned int>(ymd.month());
-    checked_m += boost::multiprecision::checked_int128_t{static_cast<int64_t>(ymd.year())} * 12;
+/**
+ * returns nullopt on overflow
+ * @param tp
+ * @param d
+ * @return
+ */
+inline nonstd::expected<TimePoint, datatypes::DynamicError> add_duration_to_date_time(TimePoint const &tp, std::pair<std::chrono::months, std::chrono::nanoseconds> d) noexcept {
+    auto dec_tp = rdf4cpp::util::deconstruct_timepoint(tp);
+    if (!dec_tp.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    auto [ymd, time] = *dec_tp;
+
+    using Checked = rdf4cpp::util::CheckedIntegral<rdf4cpp::util::Int128>;
+
+    Checked checked_m = static_cast<unsigned int>(ymd.month());
+    checked_m += Checked{static_cast<int64_t>(ymd.year())} * 12;
     checked_m += d.first.count();
 
     auto const checked_y = (checked_m -1 ) / 12;
 
     checked_m = abs(checked_m - 1);
 
-    auto const y = Year{static_cast<int64_t>(checked_y)};
-    auto const m = std::chrono::month{static_cast<unsigned>(static_cast<int64_t>(checked_m % 12 + 1))};
+    auto const y_casted = checked_y.checked_cast<int64_t>();
+    if (y_casted.is_invalid()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+
+    auto const y = Year{y_casted.get_value()};
+
+    auto const m_casted = (checked_m % 12 + 1).checked_cast<unsigned int>();
+    if (m_casted.is_invalid()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    auto const m = std::chrono::month{m_casted.get_value()};
 
     ymd = YearMonthDay{y, m, ymd.day()};
     if (!ymd.ok()) {
         ymd = YearMonthDay{ymd.year(), ymd.month(), std::chrono::last};
     }
 
-    TimePoint date = ymd.to_time_point_local();
+    auto date_opt = ymd.to_time_point_local();
+    if (!date_opt.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    rdf4cpp::util::TimePoint_Checked date = *date_opt;
     date += time;
     date += d.second;
 
-    rdf4cpp::util::deconstruct_timepoint(date); // check if it still fits into year, throws if not
+    auto date_uc = rdf4cpp::util::from_checked(date);
+    if (!date_uc.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
 
-    return date;
+    auto const deconstructed = rdf4cpp::util::deconstruct_timepoint(*date_uc);
+    if (!deconstructed.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+
+    return *date_uc;
+}
+
+inline rdf4cpp::util::ZonedTime_Checked apply_tz_checked(TimePoint tp, OptionalTimezone tz) {
+    return {tz.has_value() ? *tz : rdf4cpp::util::time_point_replacement_timezone, rdf4cpp::util::to_checked(tp)};
+}
+inline rdf4cpp::util::ZonedTime_Checked apply_tz_checked(std::pair<TimePoint, OptionalTimezone> const &tp) {
+    return apply_tz_checked(tp.first, tp.second);
 }
 
 inline nonstd::expected<std::chrono::nanoseconds, DynamicError> timepoint_sub(std::pair<TimePoint, OptionalTimezone> const &lhs, std::pair<TimePoint, OptionalTimezone> const &rhs) noexcept {
-    try {
-        ZonedTime const this_tp{lhs.second.has_value() ? *lhs.second : Timezone{},
-                                lhs.first};
+    rdf4cpp::util::ZonedTime_Checked const this_tp = apply_tz_checked(lhs);
+    rdf4cpp::util::ZonedTime_Checked const other_tp = apply_tz_checked(rhs);
 
-        ZonedTime const other_tp{rhs.second.has_value() ? *rhs.second : Timezone{},
-                                 rhs.first};
-
-        auto d = this_tp.get_sys_time() - other_tp.get_sys_time();
-        return std::chrono::duration_cast<std::chrono::nanoseconds>(d);
-    } catch (std::overflow_error const &) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
-    }
+    auto d = this_tp.get_sys_time() - other_tp.get_sys_time();
+    return util::optional_to_overflow(rdf4cpp::util::from_checked(std::chrono::duration_cast<std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, std::chrono::nanoseconds::period>>(d)));
 }
 
 static inline std::partial_ordering compare_time_points(const rdf4cpp::TimePoint& a, std::optional<rdf4cpp::Timezone> atz,
                                                         const rdf4cpp::TimePoint& b, std::optional<rdf4cpp::Timezone> btz) noexcept {
-    auto apply_timezone = [](const rdf4cpp::TimePoint& t, rdf4cpp::Timezone tz) noexcept -> std::optional<rdf4cpp::TimePointSys> {
-        try {
-            return rdf4cpp::ZonedTime{tz, t}.get_sys_time();
-        } catch (const std::overflow_error&) {
-            return std::nullopt;
-        }
-    };
-
-    auto const cmp = [](const auto& a, const auto& b) noexcept -> std::partial_ordering {
-        if (a == b)
-            return std::partial_ordering::equivalent;
-        else if (a < b)
-            return std::partial_ordering::less;
-        else if (a > b)
-            return std::partial_ordering::greater;
+    auto const a_sys = apply_tz_checked(a, atz).get_sys_time();
+    auto const b_sys = apply_tz_checked(b, btz).get_sys_time();
+    if (a_sys.time_since_epoch().count().is_invalid() || b_sys.time_since_epoch().count().is_invalid()) {
         return std::partial_ordering::unordered;
-    };
-    auto const cmp_opt = [cmp](const std::optional<rdf4cpp::TimePointSys>& a, const std::optional<rdf4cpp::TimePointSys>& b) noexcept -> std::partial_ordering {
-        if (!a.has_value() || !b.has_value())
-            return std::partial_ordering::unordered;
-        return cmp(*a, *b);
-    };
-
-    if (!atz.has_value()) {
-        atz = rdf4cpp::util::time_point_replacement_timezone;
     }
-    if (!btz.has_value()) {
-        btz = rdf4cpp::util::time_point_replacement_timezone;
+    return a_sys <=> b_sys;
+}
+template<typename T>
+requires std::same_as<T, nonstd::expected<TimePoint, datatypes::DynamicError>> || std::same_as<T, std::optional<TimePoint>>
+inline static std::partial_ordering compare_time_points(T const &a, std::optional<rdf4cpp::Timezone> atz,
+                                                        T const &b, std::optional<rdf4cpp::Timezone> btz) noexcept {
+    if (!a.has_value() || !b.has_value()) {
+        return std::partial_ordering::unordered;
     }
-
-    auto a_sys = apply_timezone(a, *atz);
-    return cmp_opt(a_sys, apply_timezone(b, *btz));
+    return compare_time_points(*a, atz, *b, btz);
 }
 template<std::unsigned_integral T>
 constexpr T number_of_bits(T x) noexcept {
@@ -315,10 +252,14 @@ public:
     }
 };
 
-inline YearMonthDay normalize(YearMonthDay const &i) {
+inline nonstd::expected<YearMonthDay, datatypes::DynamicError> normalize(YearMonthDay const &i) {
     // normalize
     // see https://en.cppreference.com/w/cpp/chrono/year_month_day/operator_days
-    return YearMonthDay{(i + std::chrono::months{0}).to_time_point()};
+    auto t = (i + std::chrono::months{0}).to_time_point();
+    if (!t.has_value()) {
+        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
+    return util::optional_to_overflow(YearMonthDay::from_time_point_checked(*t));
 }
 
 template<std::integral I, I base = 10>

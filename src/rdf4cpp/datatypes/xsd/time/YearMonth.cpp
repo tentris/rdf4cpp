@@ -46,11 +46,12 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_gYear
         return std::nullopt;
     }
     auto const yearint = static_cast<int64_t>(value.first.year());
-    if (!util::fits_into<int16_t>(yearint)) [[unlikely]] {
+    int16_t yint16;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(yearint, yint16)) [[unlikely]] {
         return std::nullopt;
     }
-    return util::pack<storage::identifier::LiteralID>(InliningHelperYearMonth{static_cast<int16_t>(yearint),
-                                                                                static_cast<uint8_t>(static_cast<unsigned int>(value.first.month()))});
+    return util::pack<storage::identifier::LiteralID>(InliningHelperYearMonth{yint16,
+                                                                              static_cast<uint8_t>(static_cast<unsigned int>(value.first.month()))});
 }
 
 template<>
@@ -61,7 +62,7 @@ capabilities::Inlineable<xsd_gYearMonth>::cpp_type capabilities::Inlineable<xsd_
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_gYearMonth>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto ym_to_tp = [](YearMonth const & t) -> rdf4cpp::TimePoint {
+    auto ym_to_tp = [](YearMonth const &t) -> std::optional<TimePoint> {
         return rdf4cpp::util::construct_timepoint(YearMonthDay{t.year(), t.month(), std::chrono::last}, rdf4cpp::util::time_point_replacement_time_of_day);
     };
     return registry::util::compare_time_points(ym_to_tp(lhs.first), lhs.second, ym_to_tp(rhs.first), rhs.second);

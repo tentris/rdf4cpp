@@ -77,7 +77,8 @@ std::partial_ordering capabilities::Comparable<xsd_time>::compare(cpp_type const
 template<>
 template<>
 capabilities::Promotable<xsd_time>::promoted_cpp_type<0> capabilities::Promotable<xsd_time>::promote<0>(cpp_type const &value) noexcept {
-    return std::make_pair(rdf4cpp::util::construct_timepoint(rdf4cpp::util::time_point_replacement_date, value.first), value.second);
+    // time_point_replacement_date can not cause an overflow
+    return std::make_pair(*rdf4cpp::util::construct_timepoint(rdf4cpp::util::time_point_replacement_date, value.first), value.second);
 }
 
 template<>
@@ -101,8 +102,15 @@ capabilities::Timepoint<xsd_time>::timepoint_duration_add(cpp_type const &tp, ti
     auto const super_dur = Subtype<timepoint_duration_operand_type::identifier>::into_supertype(dur);
 
     auto ret_tp = util::add_duration_to_date_time(super_tp.first, super_dur);
+    if (!ret_tp.has_value()) {
+        return nonstd::make_unexpected(ret_tp.error());
+    }
 
-    auto [_, time] = rdf4cpp::util::deconstruct_timepoint(ret_tp);
+    auto deconstructed = rdf4cpp::util::deconstruct_timepoint(*ret_tp);
+    if (!deconstructed.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    auto [_, time] = *deconstructed;
     return std::make_pair(std::chrono::duration_cast<std::chrono::nanoseconds>(time), super_tp.second);
 }
 
@@ -112,9 +120,25 @@ capabilities::Timepoint<xsd_time>::timepoint_duration_sub(cpp_type const &tp, ti
     auto const super_tp = Promotable<xsd_time>::promote(tp);
     auto const super_dur = Subtype<timepoint_duration_operand_type::identifier>::into_supertype(dur);
 
-    auto ret_tp = util::add_duration_to_date_time(super_tp.first, std::make_pair(-super_dur.first, -super_dur.second));
+    auto const sdur_month = rdf4cpp::util::from_checked(-rdf4cpp::util::to_checked(super_dur.first));
+    auto const sdur_nanos = rdf4cpp::util::from_checked(-rdf4cpp::util::to_checked((super_dur.second)));
+    if (!sdur_month.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    if (!sdur_nanos.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
 
-    auto [_, time] = rdf4cpp::util::deconstruct_timepoint(ret_tp);
+    auto ret_tp = util::add_duration_to_date_time(super_tp.first, std::make_pair(*sdur_month, *sdur_nanos));
+    if (!ret_tp.has_value()) {
+        return nonstd::make_unexpected(ret_tp.error());
+    }
+
+    auto deconstructed = rdf4cpp::util::deconstruct_timepoint(*ret_tp);
+    if (!deconstructed.has_value()) {
+        return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
+    }
+    auto [_, time] = *deconstructed;
     return std::make_pair(std::chrono::duration_cast<std::chrono::nanoseconds>(time), super_tp.second);
 }
 
