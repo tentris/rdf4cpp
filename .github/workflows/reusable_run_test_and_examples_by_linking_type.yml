@@ -94,14 +94,13 @@ jobs:
       - name: Setup env for macos
         if: ${{ contains(inputs.os, 'macos') }}
         run: |
-          brew uninstall gcc@14
-          brew install gcc@14
-          brew config || true
-          brew doctor || true
+          
           
           CC_VER="${{ inputs.compiler }}"
           if [[ ${CC_VER:0:4} != gcc- ]] ; then exit 1; fi
           GCC_VERSION=${CC_VER:4:6}
+          sudo xcode-select --switch /Library/Developer/CommandLineTools
+          brew install "gcc@${GCC_VERSION}"
           GCC_PREFIX="$(brew --prefix "gcc@${GCC_VERSION}")"
           echo CC="${GCC_PREFIX}/bin/gcc-${GCC_VERSION}" >> $GITHUB_ENV
           echo CXX="${GCC_PREFIX}/bin/g++-${GCC_VERSION}" >> $GITHUB_ENV
