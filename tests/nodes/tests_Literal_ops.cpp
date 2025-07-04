@@ -224,6 +224,58 @@ TEST_CASE("Literal - numeric ops") {
             CHECK((-lit).null());
         }
     }
+
+    SUBCASE("op with unknown") {
+        using namespace shorthands;
+        using namespace std::chrono_literals;
+
+        auto const unknown = Literal::make_typed("123", IRI{"http://mydatatype.com#int"});
+
+        auto const num = 5_xsd_int;
+        auto const tp = Literal::make_typed_from_value<datatypes::xsd::Date>(std::make_pair(YearMonthDay{Year{2000}, std::chrono::January, 1d}, std::nullopt));
+        auto const dur = Literal::make_typed_from_value<datatypes::xsd::DayTimeDuration>(100ns);
+
+        auto check_null = [](Literal x) {
+            CHECK(x.null());
+        };
+
+        auto check_err = [](TriBool b) {
+            CHECK_EQ(b, TriBool::Err);
+        };
+
+        // simulate code paths
+        check_null(num + unknown);
+        check_null(unknown + num);
+        check_null(tp + unknown); // tp + dur
+        check_null(tp - unknown); // tp - dur / tp - tp
+        check_null(dur + unknown); // dur + dur
+        check_null(dur - unknown); // dur - dur
+        check_null(dur / unknown); // dur / dur and dur / num
+        check_null(dur * unknown); // dur * num
+
+        // unknown with unknown
+        check_null(unknown + unknown);
+        check_null(unknown - unknown);
+        check_null(unknown / unknown);
+        check_null(unknown * unknown);
+        check_null(unknown && unknown);
+        check_null(unknown || unknown);
+        check_null(+unknown);
+        check_null(-unknown);
+        check_null(!unknown);
+        check_err(unknown.eq(unknown));
+        check_err(unknown.ne(unknown));
+        check_err(unknown.lt(unknown));
+        check_err(unknown.le(unknown));
+        check_err(unknown.gt(unknown));
+        check_err(unknown.ge(unknown));
+        CHECK(unknown.order_eq(unknown));
+        CHECK_FALSE(unknown.order_ne(unknown));
+        CHECK_FALSE(unknown.order_lt(unknown));
+        CHECK(unknown.order_le(unknown));
+        CHECK_FALSE(unknown.order_gt(unknown));
+        CHECK(unknown.order_ge(unknown));
+    }
 }
 
 // create fake hierarchy

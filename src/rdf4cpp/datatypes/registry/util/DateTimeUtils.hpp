@@ -243,29 +243,15 @@ static inline std::partial_ordering compare_time_points(const rdf4cpp::TimePoint
         return cmp(*a, *b);
     };
 
-    if (atz.has_value()) {
-        auto a_sys = apply_timezone(a, *atz);
-        if (btz.has_value()) {
-            return cmp_opt(a_sys, apply_timezone(b, *btz));
-        } else {
-            auto p14 = cmp_opt(a_sys, apply_timezone(b, rdf4cpp::Timezone::max_value()));
-            auto m14 = cmp_opt(a_sys, apply_timezone(b, rdf4cpp::Timezone::min_value()));
-            if (p14 != m14)
-                return std::partial_ordering::unordered;
-            return p14;
-        }
-    } else {
-        if (btz.has_value()) {
-            auto b_sys = apply_timezone(b, *btz);
-            auto p14 = cmp_opt(apply_timezone(a, rdf4cpp::Timezone::max_value()), b_sys);
-            auto m14 = cmp_opt(apply_timezone(a, rdf4cpp::Timezone::min_value()), b_sys);
-            if (p14 != m14)
-                return std::partial_ordering::unordered;
-            return p14;
-        } else {
-            return cmp(a, b);
-        }
+    if (!atz.has_value()) {
+        atz = rdf4cpp::util::time_point_replacement_timezone;
     }
+    if (!btz.has_value()) {
+        btz = rdf4cpp::util::time_point_replacement_timezone;
+    }
+
+    auto a_sys = apply_timezone(a, *atz);
+    return cmp_opt(a_sys, apply_timezone(b, *btz));
 }
 template<std::unsigned_integral T>
 constexpr T number_of_bits(T x) noexcept {

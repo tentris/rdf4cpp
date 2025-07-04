@@ -993,10 +993,8 @@ Literal Literal::numeric_binop_impl(OpSelect op_select, Literal const &other, st
 
     auto const this_datatype = this->datatype_id();
     auto const *this_entry = DatatypeRegistry::get_entry(this_datatype);
-    assert(this_entry != nullptr);
-
-    if (!this_entry->numeric_ops.has_value()) {
-        return Literal{};  // not numeric
+    if (this_entry == nullptr || !this_entry->numeric_ops.has_value()) {
+        return Literal{};  // not registered or not numeric
     }
 
     auto const other_datatype = other.datatype_id();
@@ -1021,10 +1019,8 @@ Literal Literal::numeric_binop_impl(OpSelect op_select, Literal const &other, st
         return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
     } else {
         auto const *other_entry = DatatypeRegistry::get_entry(other_datatype);
-        assert(other_entry != nullptr);
-
-        if (!other_entry->numeric_ops.has_value()) {
-            return Literal{};  // not numeric
+        if (other_entry == nullptr || !other_entry->numeric_ops.has_value()) {
+            return Literal{}; // not registered, or not numeric
         }
 
         auto const equalizer = DatatypeRegistry::get_common_numeric_op_type_conversion(*this_entry,
@@ -1081,9 +1077,7 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
 
     auto const this_datatype = this->datatype_id();
     auto const this_entry = DatatypeRegistry::get_entry(this_datatype);
-    assert(this_entry != nullptr);
-
-    if (!this_entry->numeric_ops.has_value()) {
+    if (this_entry == nullptr || !this_entry->numeric_ops.has_value()) {
         return Literal{};  // this_datatype not numeric
     }
 
@@ -1139,7 +1133,16 @@ std::partial_ordering Literal::compare_impl(Literal const &other, std::strong_or
         return std::partial_ordering::unordered;
     }
 
-    if (this->handle_ == other.handle_) {
+    if (this->handle_.id().node_id().literal_type().is_fixed() && this->handle_ == other.handle_) {
+        // Without the check for is_fixed() we would allow all datatypes (even unknown/uncomparable) ones to be compared using equality.
+        // This check however is somewhat of a workaround; it just happens to work correctly because all known (fixed) types happen to be comparable.
+        // If one of our datatypes was not comparable, it would fail in the following scenario:
+        //     "abc"^^custom =  "abc"^^custom => true
+        //     "abc"^^custom != "abc"^^custom => false
+        //     "abc"^^custom =  "cde"^^custom => null
+        //     "abc"^^custom != "cde"^^custom => null
+        // As you can see the behaviour would be inconsistent.
+        // TODO we should probably fix this properly if we ever add a non-comparable type
         return std::partial_ordering::equivalent;
     }
 
@@ -1476,10 +1479,14 @@ std::optional<Literal> Literal::chrono_add_impl(Literal const &other, storage::D
     auto const other_datatype = other.datatype_id();
 
     auto const *this_entry = DatatypeRegistry::get_entry(this_datatype);
-    assert(this_entry != nullptr);
+    if (this_entry == nullptr) {
+        return std::nullopt; // not registered
+    }
 
     auto const *other_entry = DatatypeRegistry::get_entry(other_datatype);
-    assert(other_entry != nullptr);
+    if (other_entry == nullptr) {
+        return std::nullopt; // not registered
+    }
 
     if (!other_entry->duration_ops.has_value()) {
         // other is not duration
@@ -1553,9 +1560,14 @@ std::optional<Literal> Literal::chrono_sub_impl(Literal const &other, storage::D
     auto const other_datatype = other.datatype_id();
 
     auto const *this_entry = DatatypeRegistry::get_entry(this_datatype);
-    assert(this_entry != nullptr);
+    if (this_entry == nullptr) {
+        return std::nullopt; // not registered
+    }
 
     auto const *other_entry = DatatypeRegistry::get_entry(other_datatype);
+    if (other_entry == nullptr) {
+        return std::nullopt; // not registered
+    }
 
     if (this_entry->timepoint_ops.has_value()) {
         if (other_entry->timepoint_ops.has_value()) {
@@ -1633,17 +1645,15 @@ std::optional<Literal> Literal::chrono_mul_impl(Literal const &other, storage::D
 
     auto const this_datatype = this->datatype_id();
     auto const *this_entry = DatatypeRegistry::get_entry(this_datatype);
-    assert(this_entry != nullptr);
-    if (!this_entry->duration_ops.has_value()) {
-        // lhs is not duration
+    if (this_entry == nullptr || !this_entry->duration_ops.has_value()) {
+        // lhs is not registered or not a duration
         return std::nullopt;
     }
 
     auto const other_datatype = other.datatype_id();
     auto const *other_entry = DatatypeRegistry::get_entry(other_datatype);
-    assert(other_entry != nullptr);
-    if (!other_entry->numeric_ops.has_value()) {
-        // rhs is not numeric
+    if (other_entry == nullptr || !other_entry->numeric_ops.has_value()) {
+        // rhs is not registered or not numeric
         return std::nullopt;
     }
 
@@ -1701,16 +1711,16 @@ std::optional<Literal> Literal::chrono_div_impl(Literal const &other, storage::D
     auto const this_datatype = this->datatype_id();
 
     auto const *this_entry = DatatypeRegistry::get_entry(this_datatype);
-    assert(this_entry != nullptr);
-
-    if (!this_entry->duration_ops.has_value()) {
-        // lhs is not duration
+    if (this_entry == nullptr || !this_entry->duration_ops.has_value()) {
+        // lhs is not registered or not duration
         return std::nullopt;
     }
 
     auto const other_datatype = other.datatype_id();
     auto const *other_entry = DatatypeRegistry::get_entry(other_datatype);
-    assert(other_entry != nullptr);
+    if (other_entry == nullptr) {
+        return std::nullopt; // other is not registered
+    }
 
     if (other_entry->duration_ops.has_value()) {
         // this & other are durations
