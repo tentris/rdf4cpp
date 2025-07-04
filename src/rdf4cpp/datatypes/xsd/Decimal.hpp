@@ -18,7 +18,7 @@ template<>
 struct DatatypeMapping<xsd_decimal> {
     // needs at least 18 decimal digits of precision
     // see: https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/#dt-decimal
-    using cpp_datatype = rdf4cpp::BigDecimal<>;
+    using cpp_datatype = rdf4cpp::Decimal128;
 };
 
 template<>

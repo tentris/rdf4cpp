@@ -2518,7 +2518,7 @@ Literal Literal::as_seconds(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->seconds();
     if (!r.has_value())
         return Literal{};
-    return Literal::make_typed_from_value<datatypes::xsd::Decimal>(rdf4cpp::BigDecimal<>{r->count(), 9}, select_node_storage(node_storage));
+    return Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{r->count(), 9}, select_node_storage(node_storage));
 }
 
 std::optional<Timezone> Literal::timezone() const noexcept {

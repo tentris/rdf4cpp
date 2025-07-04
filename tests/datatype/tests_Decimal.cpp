@@ -182,7 +182,7 @@ TEST_CASE("decimal inlining sanity check") {
 
     SUBCASE("limits") {
         SUBCASE("unscaled value") {
-            auto const very_big_value = std::numeric_limits<rdf4cpp::util::Int128>::max();
+            auto const very_big_value = std::numeric_limits<rdf4cpp::Int128>::max();
             CHECK_GT(very_big_value, std::numeric_limits<int64_t>::max());
 
             // way over the limit
@@ -214,7 +214,7 @@ TEST_CASE("decimal inlining sanity check") {
         }
 
         SUBCASE("exponent") {
-            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{rdf4cpp::util::Int128{5}, 1U << 10});
+            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{rdf4cpp::Int128{5}, 1U << 10});
             CHECK(!l.is_inlined());
             CHECK(l.value<Decimal>() == Decimal::cpp_type(5, 1U << 10));
         }
