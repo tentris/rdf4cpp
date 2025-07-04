@@ -226,8 +226,6 @@ public:
                         continue;
                     }
                     throw std::overflow_error{"double -> decimal unscaled value overflow"};
-                    //auto f = std::format("{:f}", value);
-                    //*this = BigDecimal(f);
                 }
                 return;
             }
@@ -561,15 +559,21 @@ public:
     }
 
     /**
+     * default value for scale increase when using operators.
+     * when this many decimal places have been added, stop dividing and floor.
+     */
+    static constexpr Exponent_t default_max_scale_increase = 20;
+
+    /**
      * division of two BigDecimals.
      * may overflow.
-     * after 1000 decimal places have been added, stops dividing and floor.
+     * after default_max_scale_increase decimal places have been added, stops dividing and floor.
      * dividing by 0 is undefined behavior.
      * @param other
      * @return
      */
     [[nodiscard]] constexpr BigDecimal operator/(const BigDecimal &other) const noexcept {
-        return div(other, 1000);
+        return div(other, default_max_scale_increase);
     }
 
     /**
@@ -703,7 +707,9 @@ public:
             return this->positive() ? std::strong_ordering::greater : std::strong_ordering::less;
         UnscaledValue_t t = this->unscaled_value;
         UnscaledValue_t o = other.unscaled_value;
-        if (t != 0 && o != 0) {  // if one of the decimals is 0, compare directly (0*base^e is 0 for all e)
+        // scale both values to have the same exponent
+        // if one of the decimals is 0, skip and compare directly (0*base^e is 0 for all e)
+        if (t != 0 && o != 0) {
             if (this->exponent > other.exponent) {
                 UnscaledValue_t b{base};
                 if (util::detail::pow_checked<OverflowMode::Checked>(b, this->exponent - other.exponent, b))

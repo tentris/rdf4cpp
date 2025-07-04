@@ -49,6 +49,12 @@ TEST_SUITE("numeric op results") {
             }
 
             // "On underflow, 0.0 must be returned."
+            /*
+             * XPath (and by extension SPARQL) do not define underflow themselves.
+             * But from how they use it, (see https://www.w3.org/TR/xpath-functions/#op.numeric ) it seems, they understand it the same as it is used in IEEE floats.
+             * And for these ( https://ieeemilestones.ethw.org/w/images/5/54/Handbook_Floating_Point_Chapter_3.pdf page 31)
+             * underflow occurs if the absolute of the result is not 0 but smaller than the smallest representable value.
+             */
             if (min != 0) {  // if min == 0 -> unlimited
                 CHECK(Decimal::div(one, max) == zero);
             }

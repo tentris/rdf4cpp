@@ -1,6 +1,10 @@
 #ifndef RDF4CPP_INT128_HPP
 #define RDF4CPP_INT128_HPP
 
+// checked arithmetic functions returning a boolean to indicate failure
+// follow the example of https://gcc.gnu.org/onlinedocs/gcc/Integer-Overflow-Builtins.html
+// and return true, iff the operation failed.
+
 #include <boost/multiprecision/cpp_int.hpp>
 #include <rdf4cpp/writer/BufWriter.hpp>
 #include <dice/hash.hpp>
@@ -121,26 +125,6 @@ namespace rdf4cpp::util {
                 return false;
             }
         }
-        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc>
-        static constexpr bool add_checked(cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> const &a,
-                                          cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> const &b,
-                                          cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
-            if (m == OverflowMode::Checked) {
-                using C = cpp_int_checked<MinBits, MaxBits, SignType, Alloc>;
-                try {
-                    result = cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>{C{a} + C{b}};
-                } catch (std::overflow_error const &) {
-                    return true;
-                } catch (std::range_error const &) {
-                    return true;
-                }
-                return false;
-            } else {
-                result = a + b;
-                return false;
-            }
-        }
-
 
         template<OverflowMode m, typename T>
         requires IntegralExt<T>
@@ -171,26 +155,6 @@ namespace rdf4cpp::util {
                 return false;
             }
         }
-        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc>
-        static constexpr bool sub_checked(cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> const &a,
-                                          cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> const &b,
-                                          cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
-            if (m == OverflowMode::Checked) {
-                using C = cpp_int_checked<MinBits, MaxBits, SignType, Alloc>;
-                try {
-                    result = cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>{C{a} - C{b}};
-                } catch (std::overflow_error const &) {
-                    return true;
-                } catch (std::range_error const &) {
-                    return true;
-                }
-                return false;
-            } else {
-                result = a - b;
-                return false;
-            }
-        }
-
 
         template<OverflowMode m, typename T>
         requires IntegralExt<T>
@@ -221,26 +185,6 @@ namespace rdf4cpp::util {
                 return false;
             }
         }
-        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc>
-        static constexpr bool mul_checked(cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> const &a,
-                                          cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> const &b,
-                                          cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
-            if (m == OverflowMode::Checked) {
-                using C = cpp_int_checked<MinBits, MaxBits, SignType, Alloc>;
-                try {
-                    result = cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>{C{a} * C{b}};
-                } catch (std::overflow_error const &) {
-                    return true;
-                } catch (std::range_error const &) {
-                    return true;
-                }
-                return false;
-            } else {
-                result = a * b;
-                return false;
-            }
-        }
-
 
         template<OverflowMode m, typename T>
         requires IntegralExt<T>
@@ -272,26 +216,6 @@ namespace rdf4cpp::util {
                 return false;
             }
         }
-        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc>
-        static constexpr bool pow_checked(cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> const &a,
-                                          unsigned int b,
-                                          cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
-            if (m == OverflowMode::Checked) {
-                using C = cpp_int_checked<MinBits, MaxBits, SignType, Alloc>;
-                try {
-                    result = cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>{boost::multiprecision::pow(C{a}, b)};
-                } catch (std::overflow_error const &) {
-                    return true;
-                } catch (std::range_error const &) {
-                    return true;
-                }
-                return false;
-            } else {
-                result = boost::multiprecision::pow(a, b);
-                return false;
-            }
-        }
-
 
         template<typename T>
         struct MakeUnsigned {
@@ -343,21 +267,6 @@ namespace rdf4cpp::util {
             result = static_cast<To>(static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(f));
             return false;
         }
-        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, typename To>
-        static constexpr bool cast_checked(const cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &f, To &result) noexcept {
-            if constexpr (m == OverflowMode::Checked) {
-                try {
-                    result = static_cast<To>(static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(f));
-                } catch (std::overflow_error const &) {
-                    return true;
-                } catch (std::range_error const &) {
-                    return true;
-                }
-                return false;
-            }
-            result = static_cast<To>(f);
-            return false;
-        }
         template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, IntegralExt From>
         static constexpr bool cast_checked(From const &f, cpp_int_checked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
             if constexpr (m == OverflowMode::Checked) {
@@ -373,22 +282,6 @@ namespace rdf4cpp::util {
             result = static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(f));
             return false;
         }
-        template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, IntegralExt From>
-        static constexpr bool cast_checked(From const &f, cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
-            if constexpr (m == OverflowMode::Checked) {
-                try {
-                    result = static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(f));
-                } catch (std::overflow_error const &) {
-                    return true;
-                } catch (std::range_error const &) {
-                    return true;
-                }
-                return false;
-            }
-            result = static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(f);
-            return false;
-        }
-
     }  // namespace detail
 
     template<detail::BoostNumber T>

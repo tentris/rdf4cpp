@@ -24,7 +24,7 @@ static_assert(!rdf4cpp::util::detail::BoostNumber<__int128>);
 static_assert(rdf4cpp::util::detail::BoostNumber<boost::multiprecision::checked_cpp_int>);
 static_assert(!rdf4cpp::util::detail::BoostNumber<int>);
 
-TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, boost::multiprecision::checked_int256_t, boost::multiprecision::int256_t) {
+TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, boost::multiprecision::checked_int256_t) {
     using namespace rdf4cpp::util::detail;
 
     SUBCASE("add") {
@@ -80,7 +80,7 @@ TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, b
         CHECK(pow_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), 2, re) == true);
     }
 }
-TEST_CASE_TEMPLATE("checked arithmetic unsigned", T, uint32_t, uint64_t, unsigned __int128, boost::multiprecision::checked_uint256_t, boost::multiprecision::uint256_t) {
+TEST_CASE_TEMPLATE("checked arithmetic unsigned", T, uint32_t, uint64_t, unsigned __int128, boost::multiprecision::checked_uint256_t) {
     using namespace rdf4cpp::util::detail;
 
     SUBCASE("add") {
