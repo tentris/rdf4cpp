@@ -122,7 +122,7 @@ capabilities::Duration<xsd_yearMonthDuration>::duration_sub(cpp_type const &lhs,
 template<>
 nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::duration_div_result_cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto r = BigDecimal<>{lhs.count(), 0}.div_checked(BigDecimal<>{rhs.count(), 0}, 1000);
+    auto r = Decimal128{lhs.count(), 0}.div_checked(Decimal128{rhs.count(), 0}, 1000);
     if (!r.has_value()) {
         return nonstd::make_unexpected(DynamicError::DivideByZero);
     }

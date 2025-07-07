@@ -5,9 +5,9 @@
 #include <rdf4cpp/datatypes/registry/util/ConstexprString.hpp>
 #include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
-using Dec = rdf4cpp::BigDecimal<>;
-using DecI = rdf4cpp::BigDecimal<int32_t, uint32_t>;
-using RoundingMode = rdf4cpp::RoundingMode;
+using Dec = rdf4cpp::Decimal128;
+using DecI = rdf4cpp::util::BigDecimal<int32_t, uint32_t>;
+using RoundingMode = rdf4cpp::util::RoundingMode;
 
 #ifdef __SIZEOF_INT128__
 namespace doctest {
@@ -24,7 +24,7 @@ static_assert(!rdf4cpp::util::detail::BoostNumber<__int128>);
 static_assert(rdf4cpp::util::detail::BoostNumber<boost::multiprecision::checked_cpp_int>);
 static_assert(!rdf4cpp::util::detail::BoostNumber<int>);
 
-TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, boost::multiprecision::checked_int256_t, boost::multiprecision::int256_t) {
+TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, boost::multiprecision::checked_int256_t) {
     using namespace rdf4cpp::util::detail;
 
     SUBCASE("add") {
@@ -80,7 +80,7 @@ TEST_CASE_TEMPLATE("checked arithmetic signed", T, int32_t, int64_t, __int128, b
         CHECK(pow_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), 2, re) == true);
     }
 }
-TEST_CASE_TEMPLATE("checked arithmetic unsigned", T, uint32_t, uint64_t, unsigned __int128, boost::multiprecision::checked_uint256_t, boost::multiprecision::uint256_t) {
+TEST_CASE_TEMPLATE("checked arithmetic unsigned", T, uint32_t, uint64_t, unsigned __int128, boost::multiprecision::checked_uint256_t) {
     using namespace rdf4cpp::util::detail;
 
     SUBCASE("add") {
@@ -201,9 +201,9 @@ TEST_CASE("int128 from_chars") {
 
 TEST_CASE("basics") {
     SUBCASE("ctor and compare") {
-        static_assert(rdf4cpp::BigDecimalBaseType<uint32_t>);
-        static_assert(rdf4cpp::BigDecimalBaseType<int32_t>);
-        static_assert(rdf4cpp::BigDecimalBaseType<boost::multiprecision::cpp_int>);
+        static_assert(rdf4cpp::util::BigDecimalBaseType<uint32_t>);
+        static_assert(rdf4cpp::util::BigDecimalBaseType<int32_t>);
+        static_assert(rdf4cpp::util::BigDecimalBaseType<boost::multiprecision::cpp_int>);
         Dec d{500, 1};
         CHECK_GT(d, Dec{-500, 1});
         CHECK(Dec{-500, 1} < d);
@@ -397,7 +397,7 @@ TEST_CASE("conversion") {
         str << Dec{50, 1};
         CHECK_EQ(str.view(), "5.0");
         // uses string conversion, so no more tests here
-        str << rdf4cpp::util::Int128{100};
+        str << rdf4cpp::Int128{100};
         CHECK_EQ(str.view(), "5.0100");
     }
     SUBCASE("from double") {
@@ -442,14 +442,14 @@ TEST_CASE("conversion") {
         // no e notation allowed by rdf (xml) standard
     }
     SUBCASE("from Int128") {
-        CHECK(Dec{rdf4cpp::util::Int128{5}} == Dec{5, 0});
+        CHECK(Dec{rdf4cpp::Int128{5}} == Dec{5, 0});
     }
     SUBCASE("to Int128") {
-        CHECK(static_cast<rdf4cpp::util::Int128>(Dec{5, 0}) == rdf4cpp::util::Int128{5});
-        CHECK(static_cast<rdf4cpp::util::Int128>(Dec{59, 1}) == rdf4cpp::util::Int128{5});
-        if constexpr (std::numeric_limits<rdf4cpp::util::Int128>::is_bounded) {
-            CHECK(static_cast<rdf4cpp::util::Int128>(Dec{std::numeric_limits<rdf4cpp::util::Int128>::max(), std::numeric_limits<rdf4cpp::util::Int128>::digits10}) ==
-                  (std::same_as<rdf4cpp::util::Int128, boost::multiprecision::checked_int128_t> ? rdf4cpp::util::Int128{3} : rdf4cpp::util::Int128{1})
+        CHECK(static_cast<rdf4cpp::Int128>(Dec{5, 0}) == rdf4cpp::Int128{5});
+        CHECK(static_cast<rdf4cpp::Int128>(Dec{59, 1}) == rdf4cpp::Int128{5});
+        if constexpr (std::numeric_limits<rdf4cpp::Int128>::is_bounded) {
+            CHECK(static_cast<rdf4cpp::Int128>(Dec{std::numeric_limits<rdf4cpp::Int128>::max(), std::numeric_limits<rdf4cpp::Int128>::digits10}) ==
+                  (std::same_as<rdf4cpp::Int128, boost::multiprecision::checked_int128_t> ? rdf4cpp::Int128{3} : rdf4cpp::Int128{1})
             );
         }
     }

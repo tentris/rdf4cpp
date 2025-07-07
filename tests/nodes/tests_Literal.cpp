@@ -213,7 +213,7 @@ TEST_CASE("Literal - casting") {
             }
 
             SUBCASE("non-integral") {
-                auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::BigDecimal(1.5));
+                auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.5));
                 auto const lit2 = lit1.template cast<String>();
 
                 CHECK_EQ(lit2.template value<String>(), "1.5");
@@ -326,7 +326,7 @@ TEST_CASE("Literal - casting") {
     }
 
     SUBCASE("dec -> flt") {
-        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::BigDecimal(1.0));
+        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.0));
         auto const lit2 = lit1.template cast<Float>();
 
         CHECK_EQ(lit2.datatype(), IRI{Float::identifier});
@@ -334,7 +334,7 @@ TEST_CASE("Literal - casting") {
     }
 
     SUBCASE("dec -> dbl") {
-        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::BigDecimal(1.0));
+        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.0));
         auto const lit2 = lit1.template cast<Double>();
 
         CHECK_EQ(lit2.datatype(), IRI{Double::identifier});
@@ -342,7 +342,7 @@ TEST_CASE("Literal - casting") {
     }
 
     SUBCASE("dec -> int") {
-        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::BigDecimal(1.2));
+        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.2));
         auto const lit2 = lit1.template cast<Int>();
 
         CHECK_EQ(lit2.datatype(), IRI{Int::identifier});
@@ -1058,6 +1058,14 @@ struct get_find_values<FakeDatatype> { // no fixed id
 
 
 TEST_CASE_TEMPLATE("Literal::find", T, datatypes::xsd::String, datatypes::rdf::LangString, datatypes::xsd::Int, datatypes::xsd::Date, FakeDatatype) {
+    auto eq_check = [](Literal lhs, Literal rhs) {
+        if constexpr (std::is_same_v<T, FakeDatatype>) {
+            CHECK(lhs <=> rhs == std::partial_ordering::unordered);
+        } else {
+            CHECK(lhs == rhs);
+        }
+    };
+
     if constexpr (requires { get_find_values<T>::av; }) {
         static constexpr auto av = get_find_values<T>::av;
         static constexpr auto bv = get_find_values<T>::bv;
@@ -1065,7 +1073,7 @@ TEST_CASE_TEMPLATE("Literal::find", T, datatypes::xsd::String, datatypes::rdf::L
 
         CHECK(Literal::find_typed_from_value<T>(av, nst).null());
         Literal l = Literal::make_typed_from_value<T>(av, nst);
-        CHECK(Literal::find_typed_from_value<T>(av, nst) == l);
+        eq_check(Literal::find_typed_from_value<T>(av, nst), l);
         CHECK(Literal::find_typed_from_value<T>(av, nst).backend_handle() == l.backend_handle());
         CHECK(Literal::find_typed_from_value<T>(bv, nst).null());
     }
@@ -1081,14 +1089,14 @@ TEST_CASE_TEMPLATE("Literal::find", T, datatypes::xsd::String, datatypes::rdf::L
 
         CHECK(Literal::find_typed<T>(as, nst).null());
         Literal l = Literal::make_typed<T>(as, nst);
-        CHECK(Literal::find_typed<T>(as, nst) == l);
+        eq_check(Literal::find_typed<T>(as, nst), l);
         CHECK(Literal::find_typed<T>(as, nst).backend_handle() == l.backend_handle());
         CHECK(Literal::find_typed<T>(bs, nst).null());
     }
     if constexpr (requires { get_find_values<T>::inls; }) {
         auto nst = storage::reference_node_storage::SyncReferenceNodeStorage{};
         auto l = Literal::find_typed<T>(get_find_values<T>::inls, nst);
-        CHECK(l == Literal::make_typed<T>(get_find_values<T>::inls));
+        eq_check(Literal::make_typed<T>(get_find_values<T>::inls), l);
     }
 }
 

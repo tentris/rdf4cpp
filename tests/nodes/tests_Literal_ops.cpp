@@ -160,8 +160,8 @@ TEST_CASE("Literal - logical ops") {
 
 TEST_CASE("Literal - numeric ops") {
     // simple promotion test cases
-    GENERATE_BINOP_TESTCASE(Float, 42.f, +, Decimal, rdf4cpp::BigDecimal{120.0}, Float, 162.f);
-    GENERATE_BINOP_TESTCASE(Decimal, rdf4cpp::BigDecimal{2.f}, *, Float, 120.0, Float, 240.f);
+    GENERATE_BINOP_TESTCASE(Float, 42.f, +, Decimal, rdf4cpp::Decimal128{120.0}, Float, 162.f);
+    GENERATE_BINOP_TESTCASE(Decimal, rdf4cpp::Decimal128{2.f}, *, Float, 120.0, Float, 240.f);
     GENERATE_BINOP_TESTCASE(Integer, 100, -, Float, 1.f, Float, 99.f);
     GENERATE_BINOP_TESTCASE(Float, 100.f, /, Integer, 2, Float, 50.f);
 
@@ -173,9 +173,9 @@ TEST_CASE("Literal - numeric ops") {
     GENERATE_BINOP_TESTCASE(Integer, 1, +, Integer , 2, Integer, 3);
     GENERATE_BINOP_TESTCASE(Integer, 12, -, Integer, 1, Integer, 11);
     GENERATE_BINOP_TESTCASE(Integer, 3, *, Integer, 6, Integer, 18);
-    GENERATE_BINOP_TESTCASE(Integer, 12, /, Integer, 4, Decimal, rdf4cpp::BigDecimal{3.0});
+    GENERATE_BINOP_TESTCASE(Integer, 12, /, Integer, 4, Decimal, rdf4cpp::Decimal128{3.0});
     GENERATE_BINOP_TESTCASE(Int, 1, +, Integer, 3, Integer, 4);
-    GENERATE_BINOP_TESTCASE(Int, 1, +, Decimal, rdf4cpp::BigDecimal{2}, Decimal, rdf4cpp::BigDecimal{3});
+    GENERATE_BINOP_TESTCASE(Int, 1, +, Decimal, rdf4cpp::Decimal128{2}, Decimal, rdf4cpp::Decimal128{3});
     GENERATE_UNOP_TESTCASE(Integer, 1, +, Integer, 1);
     GENERATE_UNOP_TESTCASE(Integer, 1, -, Integer, -1);
 
@@ -223,6 +223,58 @@ TEST_CASE("Literal - numeric ops") {
             auto const lit = Literal{};
             CHECK((-lit).null());
         }
+    }
+
+    SUBCASE("op with unknown") {
+        using namespace shorthands;
+        using namespace std::chrono_literals;
+
+        auto const unknown = Literal::make_typed("123", IRI{"http://mydatatype.com#int"});
+
+        auto const num = 5_xsd_int;
+        auto const tp = Literal::make_typed_from_value<datatypes::xsd::Date>(std::make_pair(YearMonthDay{Year{2000}, std::chrono::January, 1d}, std::nullopt));
+        auto const dur = Literal::make_typed_from_value<datatypes::xsd::DayTimeDuration>(100ns);
+
+        auto check_null = [](Literal x) {
+            CHECK(x.null());
+        };
+
+        auto check_err = [](TriBool b) {
+            CHECK_EQ(b, TriBool::Err);
+        };
+
+        // simulate code paths
+        check_null(num + unknown);
+        check_null(unknown + num);
+        check_null(tp + unknown); // tp + dur
+        check_null(tp - unknown); // tp - dur / tp - tp
+        check_null(dur + unknown); // dur + dur
+        check_null(dur - unknown); // dur - dur
+        check_null(dur / unknown); // dur / dur and dur / num
+        check_null(dur * unknown); // dur * num
+
+        // unknown with unknown
+        check_null(unknown + unknown);
+        check_null(unknown - unknown);
+        check_null(unknown / unknown);
+        check_null(unknown * unknown);
+        check_null(unknown && unknown);
+        check_null(unknown || unknown);
+        check_null(+unknown);
+        check_null(-unknown);
+        check_null(!unknown);
+        check_err(unknown.eq(unknown));
+        check_err(unknown.ne(unknown));
+        check_err(unknown.lt(unknown));
+        check_err(unknown.le(unknown));
+        check_err(unknown.gt(unknown));
+        check_err(unknown.ge(unknown));
+        CHECK(unknown.order_eq(unknown));
+        CHECK_FALSE(unknown.order_ne(unknown));
+        CHECK_FALSE(unknown.order_lt(unknown));
+        CHECK(unknown.order_le(unknown));
+        CHECK_FALSE(unknown.order_gt(unknown));
+        CHECK(unknown.order_ge(unknown));
     }
 }
 

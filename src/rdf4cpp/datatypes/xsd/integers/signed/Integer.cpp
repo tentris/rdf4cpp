@@ -28,8 +28,9 @@ nonstd::expected<capabilities::Numeric<xsd_integer>::add_result_cpp_type, Dynami
     // https://www.w3.org/TR/xpath-functions/#op.numeric
     // needs overflow protection
     cpp_type r;
-    if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r))
+    if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
     return r;
 }
 
@@ -38,8 +39,9 @@ nonstd::expected<capabilities::Numeric<xsd_integer>::sub_result_cpp_type, Dynami
     // https://www.w3.org/TR/xpath-functions/#op.numeric
     // needs overflow protection
     cpp_type r;
-    if (rdf4cpp::util::detail::sub_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r))
+    if (rdf4cpp::util::detail::sub_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
     return r;
 }
 
@@ -59,16 +61,18 @@ nonstd::expected<capabilities::Numeric<xsd_integer>::mul_result_cpp_type, Dynami
     // https://www.w3.org/TR/xpath-functions/#op.numeric
     // decimal needs overflow protection
     cpp_type r;
-    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r))
+    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
     return r;
 }
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::neg(cpp_type const &operand) noexcept {
     cpp_type r;
-    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(operand, cpp_type{-1}, r))
+    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(operand, cpp_type{-1}, r)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
     return r;
 }
 

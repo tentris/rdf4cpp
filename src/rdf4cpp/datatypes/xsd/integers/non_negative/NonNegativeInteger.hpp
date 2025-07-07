@@ -12,7 +12,7 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 struct DatatypeMapping<xsd_non_negative_integer> {
-    using cpp_datatype = rdf4cpp::util::Int128;
+    using cpp_datatype = rdf4cpp::Int128;
 };
 
 template<>

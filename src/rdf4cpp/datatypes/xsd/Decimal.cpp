@@ -69,7 +69,7 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::div_result_cpp_type, Dynami
         return nonstd::make_unexpected(DynamicError::DivideByZero);
     }
 
-    auto r = lhs.div_checked(rhs, 20);
+    auto r = lhs.div_checked(rhs, cpp_type::default_max_scale_increase);
     if (r.has_value())
         return r.value();
     else
@@ -108,17 +108,17 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, Dynami
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::round(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::RoundingMode::Round);
+    return operand.round(rdf4cpp::util::RoundingMode::Round);
 }
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::floor_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::floor(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::RoundingMode::Floor);
+    return operand.round(rdf4cpp::util::RoundingMode::Floor);
 }
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::ceil(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::RoundingMode::Ceil);
+    return operand.round(rdf4cpp::util::RoundingMode::Ceil);
 }
 
 template<>

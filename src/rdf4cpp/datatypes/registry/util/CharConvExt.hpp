@@ -119,10 +119,6 @@ F from_chars(std::string_view s) {
     }();
     static_assert(max_pow10 == 10'000'000'000'000'000'000ull);
 
-    if (s == "-170141183460469231731687303715884105728") {
-        return std::numeric_limits<__int128>::min();
-    }
-
     bool neg = false;
     if (s.starts_with('+')) {
         s.remove_prefix(1);
@@ -146,19 +142,18 @@ F from_chars(std::string_view s) {
             s = s.substr(0, pos);
         }
         __int128 value2 = from_chars<uint64_t, datatype>(p);
+        if (neg) {
+            value2 = -value2;
+        }
         for (int j = 0; j < i; ++j) {
-            if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value2, max_pow10, value2)) {
+            if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value2, max_pow10, value2)) [[unlikely]] {
                 throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
             }
         }
-        if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value, value2, value)) {
+        if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value, value2, value)) [[unlikely]] {
             throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
         }
         ++i;
-    }
-
-    if (neg) {
-        value = -value;
     }
     return value;
 }
