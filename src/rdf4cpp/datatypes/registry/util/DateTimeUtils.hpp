@@ -96,11 +96,11 @@ namespace rdf4cpp::datatypes::registry::util {
     }
 
     /**
- * returns nullopt on overflow
- * @param tp
- * @param d
- * @return
- */
+     * returns nullopt on overflow
+     * @param tp
+     * @param d
+     * @return
+     */
     inline nonstd::expected<TimePoint, datatypes::DynamicError> add_duration_to_date_time(TimePoint const &tp, std::pair<std::chrono::months, std::chrono::nanoseconds> d) noexcept {
         auto dec_tp = rdf4cpp::util::deconstruct_timepoint(tp);
         if (!dec_tp.has_value()) {
@@ -278,6 +278,7 @@ namespace rdf4cpp::datatypes::registry::util {
     static_assert(number_of_digits(10) == 2);
     static_assert(number_of_digits(std::numeric_limits<uint64_t>::max()) == std::numeric_limits<uint64_t>::digits10 + 1);
     namespace chrono_max_canonical_string_chars {
+        // TODO check limits
         inline constexpr size_t year = std::numeric_limits<uint64_t>::digits10 + 2;  // +1 for the not fully representable digit, +1 for - sign
         //std::chrono::day is in [0, 255]
         inline constexpr size_t day = number_of_digits(255);
@@ -301,7 +302,6 @@ namespace rdf4cpp::datatypes::registry::util {
         inline constexpr size_t months = 2;
         //duration
         inline constexpr size_t days = number_of_digits(std::chrono::floor<std::chrono::days>(std::chrono::milliseconds::max()).count());
-        ;
         static_assert(sizeof(std::chrono::days::rep) <= sizeof(int64_t));
     };  // namespace chrono_max_canonical_string_chars
 
