@@ -176,7 +176,7 @@ TEST_CASE("precision") {
     CHECK(ys > std::chrono::years{10000});
     CHECK(ys > std::chrono::years{static_cast<int>(std::chrono::year::max())});
 
-    using I = rdf4cpp::util::Int128;
+    using I = rdf4cpp::Int128;
     using CI = rdf4cpp::util::CheckedIntegral<I>;
     CI end_of_universe = rdf4cpp::datatypes::registry::util::from_chars<I, "p">("100000000000000");
     CHECK(end_of_universe < std::numeric_limits<int64_t>::max());

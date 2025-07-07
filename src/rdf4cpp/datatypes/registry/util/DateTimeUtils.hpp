@@ -108,7 +108,7 @@ namespace rdf4cpp::datatypes::registry::util {
         }
         auto [ymd, time] = *dec_tp;
 
-        using Checked = rdf4cpp::util::CheckedIntegral<rdf4cpp::util::Int128>;
+        using Checked = rdf4cpp::util::CheckedIntegral<rdf4cpp::Int128>;
 
         Checked checked_m = static_cast<unsigned int>(ymd.month());
         checked_m += Checked{static_cast<int64_t>(ymd.year())} * 12;

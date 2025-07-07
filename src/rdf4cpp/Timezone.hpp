@@ -429,25 +429,25 @@ namespace rdf4cpp {
             return day_;
         }
 
-        [[nodiscard]] constexpr std::optional<time_point<util::Int128>> to_time_point() const {
+        [[nodiscard]] constexpr std::optional<time_point<Int128>> to_time_point() const {
             static_assert(std::numeric_limits<unsigned>::digits >= 18, "This algorithm has not been ported to a 16 bit unsigned integer");
             static_assert(std::numeric_limits<int64_t>::digits >= 20, "This algorithm has not been ported to a 16 bit signed integer");
             static_assert(std::numeric_limits<boost::multiprecision::checked_int128_t>::digits >= 20, "This algorithm has not been ported to a 16 bit signed integer");
-            util::CheckedIntegral<util::Int128> y = static_cast<int64_t>(year_);
+            util::CheckedIntegral<Int128> y = static_cast<int64_t>(year_);
             auto m = static_cast<unsigned int>(month_);
             auto d = static_cast<unsigned int>(day_);
             y -= m <= 2;
-            util::CheckedIntegral<util::Int128> const era = (y >= 0 ? y : y - 399) / 400;
+            util::CheckedIntegral<Int128> const era = (y >= 0 ? y : y - 399) / 400;
             auto const yoe = y - era * 400;                                    // [0, 399]
             auto const doy = (153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1;  // [0, 365]
             auto const doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;            // [0, 146096]
             // note that the epoch of system_clock is specified as 00:00:00 Coordinated Universal Time (UTC), Thursday, 1 January 1970
-            time_point<util::CheckedIntegral<util::Int128>> const r{typename time_point<util::CheckedIntegral<util::Int128>>::duration{era * 146097 + static_cast<util::CheckedIntegral<util::Int128>>(doe) - 719468}};
+            time_point<util::CheckedIntegral<Int128>> const r{typename time_point<util::CheckedIntegral<Int128>>::duration{era * 146097 + static_cast<util::CheckedIntegral<Int128>>(doe) - 719468}};
             return util::from_checked(r);
         }
-        [[nodiscard]] constexpr std::optional<time_point_local<util::Int128>> to_time_point_local() const {
+        [[nodiscard]] constexpr std::optional<time_point_local<Int128>> to_time_point_local() const {
             auto const v = to_time_point();
-            return time_point_local<util::Int128>{v.value().time_since_epoch()};
+            return time_point_local<Int128>{v.value().time_since_epoch()};
         }
 
         [[nodiscard]] constexpr bool ok() const noexcept {
@@ -497,14 +497,14 @@ namespace rdf4cpp {
         }
     };
 
-    using DurationNano = std::chrono::duration<util::Int128, std::chrono::nanoseconds::period>;
+    using DurationNano = std::chrono::duration<Int128, std::chrono::nanoseconds::period>;
     using TimePoint = std::chrono::time_point<std::chrono::local_t, DurationNano>;
     // system_clock does not use leap seconds, as required by rdf (xsd)
     using TimePointSys = std::chrono::time_point<std::chrono::system_clock, DurationNano>;
     using ZonedTime = std::chrono::zoned_time<DurationNano, Timezone>;
 
     namespace util {
-        using DurationNano_Checked = std::chrono::duration<util::CheckedIntegral<util::Int128>, std::chrono::nanoseconds::period>;
+        using DurationNano_Checked = std::chrono::duration<util::CheckedIntegral<Int128>, std::chrono::nanoseconds::period>;
         using TimePoint_Checked = std::chrono::time_point<std::chrono::local_t, DurationNano_Checked>;
         using TimePointSys_Checked = std::chrono::time_point<std::chrono::system_clock, DurationNano_Checked>;
         using ZonedTime_Checked = std::chrono::zoned_time<DurationNano_Checked, Timezone>;
