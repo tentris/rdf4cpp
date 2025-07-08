@@ -48,11 +48,13 @@ std::partial_ordering capabilities::Comparable<xsd_time>::compare(cpp_type const
 
 template<>
 template<>
-capabilities::Promotable<xsd_time>::promoted_cpp_type<0> capabilities::Promotable<xsd_time>::promote<0>(cpp_type const &value) noexcept;
+nonstd::expected<capabilities::Promotable<xsd_time>::promoted_cpp_type<0>, DynamicError>
+capabilities::Promotable<xsd_time>::promote<0>(cpp_type const &value) noexcept;
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_time>::cpp_type, DynamicError> capabilities::Promotable<xsd_time>::demote<0>(promoted_cpp_type<0> const &value) noexcept;
+nonstd::expected<capabilities::Promotable<xsd_time>::cpp_type, DynamicError>
+capabilities::Promotable<xsd_time>::demote<0>(promoted_cpp_type<0> const &value) noexcept;
 
 template<>
 nonstd::expected<capabilities::Timepoint<xsd_time>::timepoint_sub_result_cpp_type, DynamicError>

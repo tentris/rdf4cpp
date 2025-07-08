@@ -40,7 +40,8 @@ std::partial_ordering capabilities::Comparable<xsd_gYearMonth>::compare(cpp_type
 
 template<>
 template<>
-capabilities::Promotable<xsd_gYearMonth>::promoted_cpp_type<0> capabilities::Promotable<xsd_gYearMonth>::promote<0>(cpp_type const &value) noexcept;
+nonstd::expected<capabilities::Promotable<xsd_gYearMonth>::promoted_cpp_type<0>, DynamicError>
+capabilities::Promotable<xsd_gYearMonth>::promote<0>(cpp_type const &value) noexcept;
 
 template<>
 template<>

@@ -69,13 +69,15 @@ std::partial_ordering capabilities::Comparable<xsd_gYearMonth>::compare(cpp_type
 
 template<>
 template<>
-capabilities::Promotable<xsd_gYearMonth>::promoted_cpp_type<0> capabilities::Promotable<xsd_gYearMonth>::promote<0>(cpp_type const &value) noexcept {
-    return std::make_pair(YearMonthDay{value.first.year(), value.first.month(), std::chrono::last}, value.second);
+nonstd::expected<capabilities::Promotable<xsd_gYearMonth>::promoted_cpp_type<0>, DynamicError>
+capabilities::Promotable<xsd_gYearMonth>::promote<0>([[maybe_unused]] cpp_type const &value) noexcept {
+    return nonstd::make_unexpected(DynamicError::Unsupported);
 }
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_gYearMonth>::cpp_type, DynamicError> capabilities::Promotable<xsd_gYearMonth>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+nonstd::expected<capabilities::Promotable<xsd_gYearMonth>::cpp_type, DynamicError>
+capabilities::Promotable<xsd_gYearMonth>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     return std::make_pair(YearMonth{value.first.year(), value.first.month()}, value.second);
 }
 #endif

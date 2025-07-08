@@ -156,7 +156,7 @@ concept PromotableLiteralDatatype = LiteralDatatype<LiteralDatatypeImpl> && requ
                                                                                 typename LiteralDatatypeImpl::template promoted_cpp_type<0>;
                                                                                 { LiteralDatatypeImpl::promotion_rank } -> std::convertible_to<size_t>;
                                                                                 { LiteralDatatypeImpl::max_promotion_specialization_ix } -> std::convertible_to<size_t>;
-                                                                                { LiteralDatatypeImpl::template promote<0>(value) } -> std::convertible_to<typename LiteralDatatypeImpl::template promoted_cpp_type<0>>;
+                                                                                { LiteralDatatypeImpl::template promote<0>(value) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::template promoted_cpp_type<0>, DynamicError>>;
                                                                                 { LiteralDatatypeImpl::template demote<0>(promoted_value) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
                                                                             };
 
