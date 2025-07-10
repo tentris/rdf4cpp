@@ -467,6 +467,10 @@ Literal Literal::as_datatype_eq(Literal const &other, storage::DynNodeStoragePtr
 }
 
 IRI Literal::datatype() const noexcept {
+    if (null()) {
+        return IRI::make_null();
+    }
+
     if (this->is_fixed()) {
         return IRI{storage::identifier::datatype_iri_handle_for_fixed_lit_handle(handle_)};
     }
@@ -1083,7 +1087,7 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
 
     auto const [operand_entry, value] = [&]() noexcept {
         if (this_entry->numeric_ops->is_stub()) {
-            auto const impl_converter = DatatypeRegistry::get_numeric_op_impl_conversion(*this_entry);
+            auto const &impl_converter = DatatypeRegistry::get_numeric_op_impl_conversion(*this_entry);
             auto const target_num_ops = DatatypeRegistry::get_entry(impl_converter.target_type_id);
 
             return std::make_pair(target_num_ops, impl_converter.convert(this->value()));

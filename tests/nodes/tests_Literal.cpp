@@ -47,6 +47,8 @@ TEST_CASE("Literal - Check for only lexical form") {
     CHECK_EQ(lit1.datatype(), iri);
     CHECK_EQ(lit1.language_tag(), "");
     CHECK_EQ(std::string(lit1), "\"Bunny\"");
+
+    CHECK_EQ(Literal::make_null().datatype(), Literal::make_null());
 }
 
 TEST_CASE("Literal - Check for lexical form with IRI") {
