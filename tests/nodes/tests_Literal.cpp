@@ -15,6 +15,7 @@ int main(int argc, char **argv) {
         reference_node_storage::SyncReferenceNodeStorage syncns{};
         default_node_storage = syncns;
         auto ret = doctest::Context{argc, argv}.run();
+        default_node_storage = nullptr;
         if (ret != 0) {
             return ret;
         }
@@ -23,7 +24,9 @@ int main(int argc, char **argv) {
     {
         reference_node_storage::UnsyncReferenceNodeStorage unsyncns{};
         default_node_storage = unsyncns;
-        return doctest::Context{argc, argv}.run();
+        auto ret = doctest::Context{argc, argv}.run();
+        default_node_storage = nullptr;
+        return ret;
     }
 }
 
@@ -44,6 +47,8 @@ TEST_CASE("Literal - Check for only lexical form") {
     CHECK_EQ(lit1.datatype(), iri);
     CHECK_EQ(lit1.language_tag(), "");
     CHECK_EQ(std::string(lit1), "\"Bunny\"");
+
+    CHECK_EQ(Literal::make_null().datatype(), Literal::make_null());
 }
 
 TEST_CASE("Literal - Check for lexical form with IRI") {
