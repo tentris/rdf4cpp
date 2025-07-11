@@ -95,19 +95,13 @@ namespace rdf4cpp::datatypes::registry::util {
         }
     }
 
-    /**
-     * returns nullopt on overflow
-     * @param tp
-     * @param d
-     * @return
-     */
     inline nonstd::expected<TimePoint, datatypes::DynamicError> add_duration_to_date_time(TimePoint const &tp, std::pair<std::chrono::months, std::chrono::nanoseconds> d) noexcept {
         auto dec_tp = rdf4cpp::util::deconstruct_timepoint(tp);
         if (!dec_tp.has_value()) {
             return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
         }
         auto [ymd, time] = *dec_tp;
-
+        // TODO use ymd.checked_add
         using Checked = rdf4cpp::util::CheckedIntegral<rdf4cpp::Int128>;
 
         Checked checked_m = static_cast<unsigned int>(ymd.month());
@@ -136,11 +130,7 @@ namespace rdf4cpp::datatypes::registry::util {
             ymd = YearMonthDay{ymd.year(), ymd.month(), std::chrono::last};
         }
 
-        auto date_opt = ymd.to_time_point_local();
-        if (!date_opt.has_value()) {
-            return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
-        }
-        rdf4cpp::util::TimePoint_Checked date = *date_opt;
+        rdf4cpp::util::TimePoint_Checked date = ymd.to_time_point_local();
         date += time;
         date += d.second;
 
@@ -255,11 +245,11 @@ namespace rdf4cpp::datatypes::registry::util {
     inline nonstd::expected<YearMonthDay, datatypes::DynamicError> normalize(YearMonthDay const &i) {
         // normalize
         // see https://en.cppreference.com/w/cpp/chrono/year_month_day/operator_days
-        auto t = (i + std::chrono::months{0}).to_time_point();
-        if (!t.has_value()) {
-            return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        auto ym = i.add_checked(std::chrono::months{0});
+        if (!ym.has_value()) {
+            return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
         }
-        return util::optional_to_overflow(YearMonthDay::from_time_point_checked(*t));
+        return util::optional_to_overflow(YearMonthDay::from_time_point_checked(ym->to_time_point()));
     }
 
     template<std::integral I, I base = 10>

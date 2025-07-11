@@ -189,10 +189,10 @@ capabilities::Inlineable<xsd_duration>::cpp_type capabilities::Inlineable<xsd_du
 template<>
 std::partial_ordering capabilities::Comparable<xsd_duration>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     static constexpr std::array<rdf4cpp::TimePoint, 4> to_compare{
-            *rdf4cpp::util::construct_timepoint(YearMonthDay{Year{1696}, std::chrono::month{9}, std::chrono::day{1}}, std::chrono::milliseconds{0}),
-            *rdf4cpp::util::construct_timepoint(YearMonthDay{Year{1697}, std::chrono::month{2}, std::chrono::day{1}}, std::chrono::milliseconds{0}),
-            *rdf4cpp::util::construct_timepoint(YearMonthDay{Year{1903}, std::chrono::month{3}, std::chrono::day{1}}, std::chrono::milliseconds{0}),
-            *rdf4cpp::util::construct_timepoint(YearMonthDay{Year{1903}, std::chrono::month{7}, std::chrono::day{1}}, std::chrono::milliseconds{0}),
+            rdf4cpp::util::construct_timepoint(YearMonthDay{Year{1696}, std::chrono::month{9}, std::chrono::day{1}}, std::chrono::milliseconds{0}),
+            rdf4cpp::util::construct_timepoint(YearMonthDay{Year{1697}, std::chrono::month{2}, std::chrono::day{1}}, std::chrono::milliseconds{0}),
+            rdf4cpp::util::construct_timepoint(YearMonthDay{Year{1903}, std::chrono::month{3}, std::chrono::day{1}}, std::chrono::milliseconds{0}),
+            rdf4cpp::util::construct_timepoint(YearMonthDay{Year{1903}, std::chrono::month{7}, std::chrono::day{1}}, std::chrono::milliseconds{0}),
     };
     auto cmp = [lhs, rhs](const rdf4cpp::TimePoint& tp) noexcept {
         try {

@@ -77,8 +77,7 @@ std::partial_ordering capabilities::Comparable<xsd_time>::compare(cpp_type const
 template<>
 template<>
 capabilities::Promotable<xsd_time>::promoted_cpp_type<0> capabilities::Promotable<xsd_time>::promote<0>(cpp_type const &value) noexcept {
-    // time_point_replacement_date can not cause an overflow
-    return std::make_pair(*rdf4cpp::util::construct_timepoint(rdf4cpp::util::time_point_replacement_date, value.first), value.second);
+    return std::make_pair(rdf4cpp::util::construct_timepoint(rdf4cpp::util::time_point_replacement_date, value.first), value.second);
 }
 
 template<>

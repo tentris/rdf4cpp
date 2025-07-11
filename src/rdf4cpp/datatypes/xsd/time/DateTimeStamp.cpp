@@ -48,10 +48,7 @@ capabilities::Default<xsd_dateTimeStamp>::cpp_type capabilities::Default<xsd_dat
     if (!registry::relaxed_parsing_mode) {
         if (time == std::chrono::hours{24}) {
             auto const tp = date.to_time_point_local();
-            if (!tp.has_value()) {
-                throw InvalidNode(std::format("{} parsing error: timepoint is out of range", identifier, date));
-            }
-            date = YearMonthDay{*tp + std::chrono::days{1}};
+            date = YearMonthDay{tp + std::chrono::days{1}};
             if (!date.ok()) {
                 throw InvalidNode(std::format("{} parsing error: {} is invalid", identifier, date));
             }
@@ -61,10 +58,7 @@ capabilities::Default<xsd_dateTimeStamp>::cpp_type capabilities::Default<xsd_dat
         }
     }
     auto const tp = rdf4cpp::util::construct_timepoint(date, time);
-    if (!tp.has_value()) {
-        throw InvalidNode(std::format("{} parsing error: timepoint is out of range", identifier, date));
-    }
-    return rdf4cpp::ZonedTime{tz, *tp};
+    return rdf4cpp::ZonedTime{tz, tp};
 }
 
 template<>

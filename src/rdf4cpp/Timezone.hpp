@@ -218,6 +218,13 @@ namespace rdf4cpp {
         friend constexpr Year operator+(std::chrono::years d, Year const &y) noexcept {
             return Year{y.value_ + d.count()};
         }
+        [[nodiscard]] constexpr std::optional<Year> add_checked(std::chrono::years d) const noexcept {
+            int64_t r;
+            if (util::detail::add_checked<util::detail::OverflowMode::Checked>(value_, d.count(), r)) {
+                return std::nullopt;
+            }
+            return Year{r};
+        }
 
         constexpr Year operator+=(std::chrono::years d) noexcept {
             *this = *this + d;
@@ -229,6 +236,20 @@ namespace rdf4cpp {
         }
         friend constexpr std::chrono::years operator-(Year const &a, Year const &b) noexcept {
             return std::chrono::years{a.value_ - b.value_};
+        }
+        [[nodiscard]] constexpr std::optional<Year> sub_checked(std::chrono::years d) const noexcept {
+            int64_t r;
+            if (util::detail::sub_checked<util::detail::OverflowMode::Checked>(value_, d.count(), r)) {
+                return std::nullopt;
+            }
+            return Year{r};
+        }
+        [[nodiscard]] constexpr std::optional<std::chrono::years> sub_checked(Year o) const noexcept {
+            int64_t r;
+            if (util::detail::sub_checked<util::detail::OverflowMode::Checked>(this->value_, o.value_, r)) {
+                return std::nullopt;
+            }
+            return std::chrono::years{r};
         }
 
         constexpr Year operator-=(std::chrono::years d) noexcept {
@@ -269,15 +290,21 @@ namespace rdf4cpp {
         Year year_ = Year{0};
         Month month_ = Month{1};
 
-        static constexpr YearMonth create_normalized(int64_t y, int64_t mo) noexcept {
-            --mo;
+        // returns nullopt iff overflow
+        static constexpr std::optional<YearMonth> create_normalized(util::CheckedIntegral<int64_t> y, util::CheckedIntegral<int64_t> mo) noexcept {
+            mo -= 1;
             y += mo / 12;
             mo %= 12;
             if (mo < 0) {  // fix result of % being in [-11,11]
-                --y;
+                y -= 1;
                 mo += 12;
             }
-            return YearMonth{Year{y}, std::chrono::month{static_cast<unsigned int>(mo + 1)}};
+            mo += 1;
+            auto um = mo.checked_cast<unsigned int>();
+            if (y.is_invalid() || um.is_invalid()) {
+                return std::nullopt;
+            }
+            return YearMonth{Year{y.get_value()}, std::chrono::month{um.get_value()}};
         }
 
     public:
@@ -306,18 +333,27 @@ namespace rdf4cpp {
         friend constexpr YearMonth operator+(std::chrono::years d, YearMonth const &ym) noexcept {
             return YearMonth{ym.year_ + d, ym.month_};
         }
+        [[nodiscard]] constexpr std::optional<YearMonth> add_checked(std::chrono::years s) const noexcept {
+            auto y = year_.add_checked(s);
+            if (!y.has_value()) {
+                return std::nullopt;
+            }
+            return YearMonth{*y, month_};
+        }
 
         constexpr YearMonth &operator+=(std::chrono::years d) noexcept {
             *this = *this + d;
             return *this;
         }
-
-        // TODO overflow
-        friend constexpr YearMonth operator+(YearMonth const &ym, std::chrono::months d) noexcept {
-            return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) + d.count());
+        
+        friend constexpr YearMonth operator+(YearMonth const &ym, std::chrono::months d) {
+            return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) + d.count()).value();
         }
-        friend constexpr YearMonth operator+(std::chrono::months d, YearMonth const &ym) noexcept {
-            return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) + d.count());
+        friend constexpr YearMonth operator+(std::chrono::months d, YearMonth const &ym) {
+            return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) + d.count()).value();
+        }
+        [[nodiscard]] constexpr std::optional<YearMonth> add_checked(std::chrono::months d) const noexcept {
+            return create_normalized(static_cast<int64_t>(year_), util::CheckedIntegral<int64_t>(static_cast<unsigned int>(month_)) + d.count());
         }
 
         constexpr YearMonth &operator+=(std::chrono::months d) noexcept {
@@ -328,12 +364,34 @@ namespace rdf4cpp {
         friend constexpr YearMonth operator-(YearMonth const &ym, std::chrono::years d) noexcept {
             return {ym.year_ - d, ym.month_};
         }
-        friend constexpr YearMonth operator-(YearMonth const &ym, std::chrono::months d) noexcept {
-            return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) - d.count());
+        [[nodiscard]] constexpr std::optional<YearMonth> sub_checked(std::chrono::years s) const noexcept {
+            auto y = year_.sub_checked(s);
+            if (!y.has_value()) {
+                return std::nullopt;
+            }
+            return YearMonth{*y, month_};
+        }
+        friend constexpr YearMonth operator-(YearMonth const &ym, std::chrono::months d) {
+            return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) - d.count()).value();
+        }
+        [[nodiscard]] constexpr std::optional<YearMonth> sub_checked(std::chrono::months d) const noexcept {
+            return create_normalized(static_cast<int64_t>(year_), util::CheckedIntegral<int64_t>(static_cast<unsigned int>(month_)) - d.count());
         }
 
         friend constexpr std::chrono::months operator-(YearMonth const &a, YearMonth const &b) noexcept {
             return (a.year_ - b.year_) + (a.month_ - b.month_);
+        }
+        [[nodiscard]] constexpr std::optional<std::chrono::months> sub_checked(YearMonth const &o) const noexcept {
+            auto y = this->year_.sub_checked(o.year_);
+            if (!y.has_value()) {
+                return std::nullopt;
+            }
+            int64_t m;
+            if (util::detail::sub_checked<util::detail::OverflowMode::Checked, int64_t>(static_cast<unsigned int>(this->month_), static_cast<unsigned int>(o.month_), m)) {
+                return std::nullopt;
+            }
+            auto r = util::to_checked(*y) + std::chrono::months(m);
+            return util::from_checked(r);
         }
 
         constexpr YearMonth &operator-=(std::chrono::years d) noexcept {
@@ -429,25 +487,26 @@ namespace rdf4cpp {
             return day_;
         }
 
-        [[nodiscard]] constexpr std::optional<time_point<Int128>> to_time_point() const {
+        // with year as int64 and timepoint as int128, guaranteed to not overflow
+        [[nodiscard]] constexpr time_point<Int128> to_time_point() const {
             static_assert(std::numeric_limits<unsigned>::digits >= 18, "This algorithm has not been ported to a 16 bit unsigned integer");
             static_assert(std::numeric_limits<int64_t>::digits >= 20, "This algorithm has not been ported to a 16 bit signed integer");
-            static_assert(std::numeric_limits<boost::multiprecision::checked_int128_t>::digits >= 20, "This algorithm has not been ported to a 16 bit signed integer");
-            util::CheckedIntegral<Int128> y = static_cast<int64_t>(year_);
+            static_assert(std::numeric_limits<Int128>::digits >= 20, "This algorithm has not been ported to a 16 bit signed integer");
+            Int128 y = static_cast<int64_t>(year_);
             auto m = static_cast<unsigned int>(month_);
             auto d = static_cast<unsigned int>(day_);
             y -= m <= 2;
-            util::CheckedIntegral<Int128> const era = (y >= 0 ? y : y - 399) / 400;
+            Int128 const era = (y >= 0 ? y : y - 399) / 400;
             auto const yoe = y - era * 400;                                    // [0, 399]
             auto const doy = (153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1;  // [0, 365]
             auto const doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;            // [0, 146096]
             // note that the epoch of system_clock is specified as 00:00:00 Coordinated Universal Time (UTC), Thursday, 1 January 1970
-            time_point<util::CheckedIntegral<Int128>> const r{typename time_point<util::CheckedIntegral<Int128>>::duration{era * 146097 + static_cast<util::CheckedIntegral<Int128>>(doe) - 719468}};
-            return util::from_checked(r);
+            time_point<Int128> const r{typename time_point<Int128>::duration{era * 146097 + doe - 719468}};
+            return r;
         }
-        [[nodiscard]] constexpr std::optional<time_point_local<Int128>> to_time_point_local() const {
+        [[nodiscard]] constexpr time_point_local<Int128> to_time_point_local() const {
             auto const v = to_time_point();
-            return time_point_local<Int128>{v.value().time_since_epoch()};
+            return time_point_local<Int128>{v.time_since_epoch()};
         }
 
         [[nodiscard]] constexpr bool ok() const noexcept {
@@ -462,17 +521,31 @@ namespace rdf4cpp {
         friend constexpr YearMonthDay operator+(std::chrono::years d, YearMonthDay const &ym) noexcept {
             return {ym.year_ + d, ym.month_, ym.day_};
         }
+        [[nodiscard]] constexpr std::optional<YearMonthDay> add_checked(std::chrono::years d) const noexcept {
+            auto y = year_.add_checked(d);
+            if (!y.has_value()) {
+                return std::nullopt;
+            }
+            return YearMonthDay{*y, month_, day_};
+        }
 
         constexpr YearMonthDay &operator+=(std::chrono::years d) noexcept {
             *this = *this + d;
             return *this;
         }
 
-        friend constexpr YearMonthDay operator+(YearMonthDay const &d, std::chrono::months m) noexcept {
+        friend constexpr YearMonthDay operator+(YearMonthDay const &d, std::chrono::months m) {
             return YearMonthDay{YearMonth{d.year_, d.month_} + m, d.day_};
         }
-        friend constexpr YearMonthDay operator+(std::chrono::months m, YearMonthDay const &d) noexcept {
+        friend constexpr YearMonthDay operator+(std::chrono::months m, YearMonthDay const &d) {
             return YearMonthDay{YearMonth{d.year_, d.month_} + m, d.day_};
+        }
+        [[nodiscard]] constexpr std::optional<YearMonthDay> add_checked(std::chrono::months d) const noexcept {
+            auto ym = YearMonth{year_, month_}.add_checked(d);
+            if (!ym.has_value()) {
+                return std::nullopt;
+            }
+            return YearMonthDay{*ym, day_};
         }
 
         constexpr YearMonthDay &operator+=(std::chrono::months d) noexcept {
@@ -483,8 +556,22 @@ namespace rdf4cpp {
         friend constexpr YearMonthDay operator-(YearMonthDay const &ym, std::chrono::years d) noexcept {
             return {ym.year_ - d, ym.month_, ym.day_};
         }
-        friend constexpr YearMonthDay operator-(YearMonthDay const &d, std::chrono::months m) noexcept {
+        friend constexpr YearMonthDay operator-(YearMonthDay const &d, std::chrono::months m) {
             return YearMonthDay{YearMonth{d.year_, d.month_} - m, d.day_};
+        }
+        [[nodiscard]] constexpr std::optional<YearMonthDay> sub_checked(std::chrono::years d) const noexcept {
+            auto y = year_.sub_checked(d);
+            if (!y.has_value()) {
+                return std::nullopt;
+            }
+            return YearMonthDay{*y, month_, day_};
+        }
+        [[nodiscard]] constexpr std::optional<YearMonthDay> sub_checked(std::chrono::months d) const noexcept {
+            auto ym = YearMonth{year_, month_}.sub_checked(d);
+            if (!ym.has_value()) {
+                return std::nullopt;
+            }
+            return YearMonthDay{*ym, day_};
         }
 
         constexpr YearMonthDay &operator-=(std::chrono::years d) noexcept {
@@ -515,15 +602,12 @@ namespace rdf4cpp {
         // implementation defined, not from standard
         inline constexpr Timezone time_point_replacement_timezone{std::chrono::minutes{0}};
 
-        // TODO check return values
-        constexpr std::optional<TimePoint> construct_timepoint(YearMonthDay const &date, DurationNano const &time_of_day) noexcept {
+        // with year as int64 and timepoint as int128, guaranteed to not overflow
+        constexpr TimePoint construct_timepoint(YearMonthDay const &date, DurationNano const &time_of_day) noexcept {
             auto sd = date.to_time_point_local();
-            if (!sd.has_value()) {
-                return std::nullopt;
-            }
-            auto ms = static_cast<TimePoint_Checked>(to_checked(*sd));
+            auto ms = static_cast<TimePoint>(sd);
             ms += time_of_day;
-            return from_checked(ms);
+            return ms;
         }
 
         // TODO check return values

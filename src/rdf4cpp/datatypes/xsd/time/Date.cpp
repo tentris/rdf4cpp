@@ -54,7 +54,7 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_date>
     if (value.second.has_value()) {
         return std::nullopt;
     }
-    auto i = value.first.to_time_point()->time_since_epoch().count();
+    auto i = value.first.to_time_point().time_since_epoch().count();
     int64_t i64;
     if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(i, i64)) [[unlikely]] {
         return std::nullopt;
@@ -69,7 +69,7 @@ capabilities::Inlineable<xsd_date>::cpp_type capabilities::Inlineable<xsd_date>:
 }
 
 rdf4cpp::TimePoint date_to_tp(YearMonthDay const &d) noexcept {
-    return *rdf4cpp::util::construct_timepoint(d, rdf4cpp::util::time_point_replacement_time_of_day);
+    return rdf4cpp::util::construct_timepoint(d, rdf4cpp::util::time_point_replacement_time_of_day);
 }
 
 template<>
