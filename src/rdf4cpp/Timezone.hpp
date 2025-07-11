@@ -133,22 +133,22 @@ namespace rdf4cpp {
 
     namespace util {
         /**
-     * turns any duration to its CheckedIntegral counterpart.
-     * @tparam R
-     * @param v
-     * @return
-     */
+         * turns any duration to its CheckedIntegral counterpart.
+         * @tparam R
+         * @param v
+         * @return
+         */
         template<typename R, typename I>
         constexpr std::chrono::duration<rdf4cpp::util::CheckedIntegral<I>, R> to_checked(std::chrono::duration<I, R> v) noexcept {
             return std::chrono::duration<rdf4cpp::util::CheckedIntegral<I>, R>{v.count()};
         }
         /**
-     * turns any CheckedIntegral duration back to its integer based duration.
-     * @note undefined behavior, if v is invalid
-     * @tparam R
-     * @param v
-     * @return
-     */
+         * turns any CheckedIntegral duration back to its integer based duration.
+         * @note undefined behavior, if v is invalid
+         * @tparam R
+         * @param v
+         * @return
+         */
         template<typename R, typename I>
         constexpr std::optional<std::chrono::duration<I, R>> from_checked(std::chrono::duration<rdf4cpp::util::CheckedIntegral<I>, R> v) noexcept {
             if (v.count().is_invalid()) {
@@ -157,24 +157,24 @@ namespace rdf4cpp {
             return std::chrono::duration<I, R>{v.count().get_value()};
         }
         /**
-     * turns any time_point to its CheckedIntegral counterpart.
-     * @tparam C
-     * @tparam R
-     * @param v
-     * @return
-     */
+         * turns any time_point to its CheckedIntegral counterpart.
+         * @tparam C
+         * @tparam R
+         * @param v
+         * @return
+         */
         template<typename C, typename R, typename I>
         constexpr std::chrono::time_point<C, std::chrono::duration<rdf4cpp::util::CheckedIntegral<I>, R>> to_checked(std::chrono::time_point<C, std::chrono::duration<I, R>> v) noexcept {
             return std::chrono::time_point<C, std::chrono::duration<rdf4cpp::util::CheckedIntegral<I>, R>>{to_checked(v.time_since_epoch())};
         }
         /**
-     * turns any CheckedIntegral time_point back to its integer based time_point.
-     * @note undefined behavior, if v is invalid
-     * @tparam C
-     * @tparam R
-     * @param v
-     * @return
-     */
+         * turns any CheckedIntegral time_point back to its integer based time_point.
+         * @note undefined behavior, if v is invalid
+         * @tparam C
+         * @tparam R
+         * @param v
+         * @return
+         */
         template<typename C, typename R, typename I>
         constexpr std::optional<std::chrono::time_point<C, std::chrono::duration<I, R>>> from_checked(std::chrono::time_point<C, std::chrono::duration<rdf4cpp::util::CheckedIntegral<I>, R>> v) noexcept {
             if (v.time_since_epoch().count().is_invalid()) {
@@ -191,9 +191,9 @@ namespace rdf4cpp {
     using Day = std::chrono::day;
 
     /**
- * Like std::chrono::year, except it has a greater range.
- * adapted from https://howardhinnant.github.io/date_algorithms.html
- */
+     * Like std::chrono::year, except it has a greater range.
+     * adapted from https://howardhinnant.github.io/date_algorithms.html
+     */
     struct Year {
     private:
         int64_t value_;

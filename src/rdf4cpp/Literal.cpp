@@ -2416,73 +2416,84 @@ Literal Literal::now(storage::DynNodeStoragePtr node_storage) {
 }
 
 std::optional<Year> Literal::year() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Date>()
-            && !datatype_eq<datatypes::xsd::GYearMonth>() && !datatype_eq<datatypes::xsd::GYear>())
+    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Date>() && !datatype_eq<datatypes::xsd::GYearMonth>() && !datatype_eq<datatypes::xsd::GYear>()) {
         return std::nullopt;
+    }
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto [date, _] = *util::deconstruct_timepoint(casted->first);
     return date.year();
 }
 
 Literal Literal::as_year(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->year();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<int64_t>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::month> Literal::month() const noexcept {
     if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Date>()
-        && !datatype_eq<datatypes::xsd::GYearMonth>() && !datatype_eq<datatypes::xsd::GMonthDay>() && !datatype_eq<datatypes::xsd::GMonth>())
+            && !datatype_eq<datatypes::xsd::GYearMonth>() && !datatype_eq<datatypes::xsd::GMonthDay>() && !datatype_eq<datatypes::xsd::GMonth>()) {
         return std::nullopt;
+    }
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto [date, _] = *util::deconstruct_timepoint(casted->first);
     return date.month();
 }
 
 Literal Literal::as_month(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->month();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<unsigned int>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::day> Literal::day() const noexcept {
     if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Date>()
-        && !datatype_eq<datatypes::xsd::GMonthDay>() && !datatype_eq<datatypes::xsd::GDay>())
+            && !datatype_eq<datatypes::xsd::GMonthDay>() && !datatype_eq<datatypes::xsd::GDay>()) {
         return std::nullopt;
+    }
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto [date, _] = *util::deconstruct_timepoint(casted->first);
     return date.day();
 }
 
 Literal Literal::as_day(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->day();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<unsigned int>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::hours> Literal::hours() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Time>())
+    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Time>()) {
         return std::nullopt;
+    }
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto [_, time] = *util::deconstruct_timepoint(casted->first);
     return std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)}.hours();
 }
 
 Literal Literal::as_hours(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->hours();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(r->count(), select_node_storage(node_storage));
 }
 
@@ -2490,25 +2501,29 @@ std::optional<std::chrono::minutes> Literal::minutes() const noexcept {
     if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Time>())
         return std::nullopt;
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto [_, time] = *util::deconstruct_timepoint(casted->first);
     return std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)}.minutes();
 }
 
 Literal Literal::as_minutes(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->minutes();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(r->count(), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::nanoseconds> Literal::seconds() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Time>())
+    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Time>()) {
         return std::nullopt;
+    }
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto [_, t] = *util::deconstruct_timepoint(casted->first);
     std::chrono::hh_mm_ss const time{std::chrono::duration_cast<std::chrono::nanoseconds>(t)};
     return time.seconds() + time.subseconds();
@@ -2516,39 +2531,49 @@ std::optional<std::chrono::nanoseconds> Literal::seconds() const noexcept {
 
 Literal Literal::as_seconds(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->seconds();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
-    return Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{r->count(), 9}, select_node_storage(node_storage));
+    }
+    using dur = std::remove_cvref_t<decltype(*r)>;
+    static_assert(dur::period::num == 1);
+    static constexpr auto ex = rdf4cpp::datatypes::registry::util::chrono_max_canonical_string_chars::sub_seconds;
+    static_assert(Decimal128{dur{std::chrono::seconds{1}}.count(), ex} == Decimal128{1, 0});
+    return Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{r->count(), ex}, select_node_storage(node_storage));
 }
 
 std::optional<Timezone> Literal::timezone() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto tz = casted->second;
     return tz;
 }
 
 Literal Literal::as_timezone(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->timezone();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::DayTimeDuration>(r->offset, select_node_storage(node_storage));
 }
 
 std::optional<std::string> Literal::tz() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto tz = casted->second;
-    if (!tz.has_value())
+    if (!tz.has_value()) {
         return "";
+    }
     return tz->to_canonical_string();
 }
 Literal Literal::as_tz(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->tz();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_simple_unchecked(*r, false, select_node_storage(node_storage));
 }
 

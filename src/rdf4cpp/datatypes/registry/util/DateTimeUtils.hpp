@@ -247,32 +247,34 @@ namespace rdf4cpp::datatypes::registry::util {
     static_assert(number_of_digits(9) == 1);
     static_assert(number_of_digits(-1) == 2);
     static_assert(number_of_digits(10) == 2);
-    static_assert(number_of_digits(std::numeric_limits<uint64_t>::max()) == std::numeric_limits<uint64_t>::digits10 + 1);
+    static_assert(number_of_digits(std::numeric_limits<int64_t>::max()) == std::numeric_limits<int64_t>::digits10 + 1);
     namespace chrono_max_canonical_string_chars {
-        // TODO check limits
-        inline constexpr size_t year = std::numeric_limits<uint64_t>::digits10 + 2;  // +1 for the not fully representable digit, +1 for - sign
+        inline constexpr size_t year = std::numeric_limits<int64_t>::digits10 + 2;  // +1 for the not fully representable digit, +1 for - sign
         //std::chrono::day is in [0, 255]
         inline constexpr size_t day = number_of_digits(255);
         //std::chrono::month is in [0, 255]
         inline constexpr size_t month = number_of_digits(255);
+        // not including leading 0.
+        inline constexpr size_t sub_seconds = number_of_digits(std::chrono::nanoseconds::period::den) - 1;
+        static_assert(std::chrono::nanoseconds::period::num == 1);
         //[0, 59.999...] (includes nanoseconds)
-        inline constexpr size_t seconds = 2 + 1 + 9;
+        inline constexpr size_t seconds = number_of_digits(59) + 1 + sub_seconds;
         //[0,59]
-        inline constexpr size_t minutes = 2;
-        //[0,24] (used if more than 24 hours get added to days)
-        inline constexpr size_t hours = 2;
+        inline constexpr size_t minutes = number_of_digits(59);
+        //[0,24]
+        inline constexpr size_t hours = number_of_digits(24);
         //used if no days are serialized
-        inline constexpr size_t hours_unbound = number_of_digits(std::chrono::floor<std::chrono::hours>(std::chrono::milliseconds::max()).count());
+        inline constexpr size_t hours_unbound = number_of_digits(std::chrono::floor<std::chrono::hours>(std::chrono::nanoseconds::max()).count());
         static_assert(sizeof(std::chrono::hours::rep) <= sizeof(int64_t));
-        static_assert(sizeof(std::chrono::milliseconds ::rep) <= sizeof(int64_t));
+        static_assert(sizeof(std::chrono::nanoseconds::rep) <= sizeof(int64_t));
         //duration
         static constexpr size_t years = number_of_digits(std::chrono::floor<std::chrono::years>(std::chrono::months::max()).count());
         static_assert(sizeof(std::chrono::years::rep) <= sizeof(int64_t));
         static_assert(sizeof(std::chrono::months::rep) <= sizeof(int64_t));
+        //duration [1,12]
+        inline constexpr size_t months = number_of_digits(12);
         //duration
-        inline constexpr size_t months = 2;
-        //duration
-        inline constexpr size_t days = number_of_digits(std::chrono::floor<std::chrono::days>(std::chrono::milliseconds::max()).count());
+        inline constexpr size_t days = number_of_digits(std::chrono::floor<std::chrono::days>(std::chrono::nanoseconds::max()).count());
         static_assert(sizeof(std::chrono::days::rep) <= sizeof(int64_t));
     };  // namespace chrono_max_canonical_string_chars
 
