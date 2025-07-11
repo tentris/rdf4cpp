@@ -101,31 +101,12 @@ namespace rdf4cpp::datatypes::registry::util {
             return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
         }
         auto [ymd, time] = *dec_tp;
-        // TODO use ymd.checked_add
-        using Checked = rdf4cpp::util::CheckedIntegral<rdf4cpp::Int128>;
 
-        Checked checked_m = static_cast<unsigned int>(ymd.month());
-        checked_m += Checked{static_cast<int64_t>(ymd.year())} * 12;
-        checked_m += d.first.count();
-
-        auto const checked_y = (checked_m - 1) / 12;
-
-        checked_m = abs(checked_m - 1);
-
-        auto const y_casted = checked_y.checked_cast<int64_t>();
-        if (y_casted.is_invalid()) {
+        auto ymd_c = ymd.add_checked(d.first);
+        if (!ymd_c.has_value()) {
             return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
         }
-
-        auto const y = Year{y_casted.get_value()};
-
-        auto const m_casted = (checked_m % 12 + 1).checked_cast<unsigned int>();
-        if (m_casted.is_invalid()) {
-            return nonstd::make_unexpected(datatypes::DynamicError::OverOrUnderFlow);
-        }
-        auto const m = std::chrono::month{m_casted.get_value()};
-
-        ymd = YearMonthDay{y, m, ymd.day()};
+        ymd = *ymd_c;
         if (!ymd.ok()) {
             ymd = YearMonthDay{ymd.year(), ymd.month(), std::chrono::last};
         }

@@ -291,7 +291,7 @@ namespace rdf4cpp {
         Month month_ = Month{1};
 
         // returns nullopt iff overflow
-        static constexpr std::optional<YearMonth> create_normalized(util::CheckedIntegral<int64_t> y, util::CheckedIntegral<int64_t> mo) noexcept {
+        static constexpr std::optional<YearMonth> create_normalized(util::CheckedIntegral<Int128> y, util::CheckedIntegral<Int128> mo) noexcept {
             mo -= 1;
             y += mo / 12;
             mo %= 12;
@@ -301,10 +301,11 @@ namespace rdf4cpp {
             }
             mo += 1;
             auto um = mo.checked_cast<unsigned int>();
-            if (y.is_invalid() || um.is_invalid()) {
+            auto uy = y.checked_cast<int64_t>();
+            if (uy.is_invalid() || um.is_invalid()) {
                 return std::nullopt;
             }
-            return YearMonth{Year{y.get_value()}, std::chrono::month{um.get_value()}};
+            return YearMonth{Year{uy.get_value()}, std::chrono::month{um.get_value()}};
         }
 
     public:
@@ -353,7 +354,7 @@ namespace rdf4cpp {
             return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) + d.count()).value();
         }
         [[nodiscard]] constexpr std::optional<YearMonth> add_checked(std::chrono::months d) const noexcept {
-            return create_normalized(static_cast<int64_t>(year_), util::CheckedIntegral<int64_t>(static_cast<unsigned int>(month_)) + d.count());
+            return create_normalized(static_cast<int64_t>(year_), util::CheckedIntegral<Int128>(static_cast<unsigned int>(month_)) + d.count());
         }
 
         constexpr YearMonth &operator+=(std::chrono::months d) noexcept {
@@ -375,7 +376,7 @@ namespace rdf4cpp {
             return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) - d.count()).value();
         }
         [[nodiscard]] constexpr std::optional<YearMonth> sub_checked(std::chrono::months d) const noexcept {
-            return create_normalized(static_cast<int64_t>(year_), util::CheckedIntegral<int64_t>(static_cast<unsigned int>(month_)) - d.count());
+            return create_normalized(static_cast<int64_t>(year_), util::CheckedIntegral<Int128>(static_cast<unsigned int>(month_)) - d.count());
         }
 
         friend constexpr std::chrono::months operator-(YearMonth const &a, YearMonth const &b) noexcept {
