@@ -144,7 +144,6 @@ namespace rdf4cpp {
         }
         /**
          * turns any CheckedIntegral duration back to its integer based duration.
-         * @note undefined behavior, if v is invalid
          * @tparam R
          * @param v
          * @return
@@ -169,7 +168,6 @@ namespace rdf4cpp {
         }
         /**
          * turns any CheckedIntegral time_point back to its integer based time_point.
-         * @note undefined behavior, if v is invalid
          * @tparam C
          * @tparam R
          * @param v
