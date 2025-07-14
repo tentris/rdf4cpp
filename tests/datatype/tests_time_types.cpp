@@ -453,6 +453,9 @@ TEST_CASE("datatype dateTime") {
 
     CHECK(Literal::make_typed<datatypes::xsd::DateTime>("-13798000000-01-01T00:00:00Z").lexical_form() == "-13798000000-01-01T00:00:00Z"); // check that age of universe is in range
     CHECK(Literal::make_typed<datatypes::xsd::DateTime>("100000000000000-01-01T00:00:00Z").lexical_form() == "100000000000000-01-01T00:00:00Z");
+
+    auto too_big = Literal::make_typed_from_value<datatypes::xsd::DateTime>(datatypes::xsd::DateTime::cpp_type{TimePoint::max(), Timezone{}});
+    CHECK(too_big.lexical_form() == "invalid DateTime");
 }
 
 TEST_CASE("datatype dateTimeStamp") {
@@ -509,6 +512,9 @@ TEST_CASE("datatype dateTimeStamp") {
     CHECK(a.null());  // turn off unused and nodiscard ignored warnings
     CHECK(Literal::make_typed<datatypes::xsd::DateTimeStamp>("2042-05-06T00:00:00.000Z") == Literal::make_typed<datatypes::xsd::DateTimeStamp>("2042-05-05T24:00:00Z"));
     CHECK(Literal::make_typed<datatypes::xsd::DateTimeStamp>("2042-05-05T24:00:00.000Z").lexical_form() == "2042-05-06T00:00:00Z");
+
+    auto too_big = Literal::make_typed_from_value<datatypes::xsd::DateTimeStamp>(datatypes::xsd::DateTimeStamp::cpp_type{Timezone{}, TimePoint::max()});
+    CHECK(too_big.lexical_form() == "invalid DateTimeStamp");
 }
 
 TEST_CASE("datatype duration") {
@@ -679,6 +685,15 @@ TEST_CASE("Literal API") {
     CHECK(Literal::make_typed<datatypes::xsd::GDay>("---3+1:30").as_tz() == Literal::make_simple("+01:30"));
     CHECK(Literal::make_typed<datatypes::xsd::GDay>("---3").as_tz() == Literal::make_simple(""));
     CHECK(Literal::make_simple("5").as_tz().null());
+
+    auto too_big = Literal::make_typed_from_value<datatypes::xsd::DateTime>(datatypes::xsd::DateTime::cpp_type{TimePoint::max(), Timezone{}});
+    CHECK(!too_big.year().has_value());
+    CHECK(!too_big.month().has_value());
+    CHECK(!too_big.day().has_value());
+    CHECK(!too_big.hours().has_value());
+    CHECK(!too_big.minutes().has_value());
+    CHECK(!too_big.seconds().has_value());
+    CHECK(too_big.timezone().has_value());
 }
 
 TEST_CASE("arithmetic") {

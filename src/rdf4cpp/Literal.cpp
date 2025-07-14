@@ -2423,7 +2423,11 @@ std::optional<Year> Literal::year() const noexcept {
     if (!casted.has_value()) {
         return std::nullopt;
     }
-    auto [date, _] = *util::deconstruct_timepoint(casted->first);
+    auto dec = util::deconstruct_timepoint(casted->first);
+    if (!dec.has_value()) [[unlikely]] {
+        return std::nullopt;
+    }
+    auto [date, _] = *dec;
     return date.year();
 }
 
@@ -2444,7 +2448,11 @@ std::optional<std::chrono::month> Literal::month() const noexcept {
     if (!casted.has_value()) {
         return std::nullopt;
     }
-    auto [date, _] = *util::deconstruct_timepoint(casted->first);
+    auto dec = util::deconstruct_timepoint(casted->first);
+    if (!dec.has_value()) [[unlikely]] {
+        return std::nullopt;
+    }
+    auto [date, _] = *dec;
     return date.month();
 }
 
@@ -2465,7 +2473,11 @@ std::optional<std::chrono::day> Literal::day() const noexcept {
     if (!casted.has_value()) {
         return std::nullopt;
     }
-    auto [date, _] = *util::deconstruct_timepoint(casted->first);
+    auto dec = util::deconstruct_timepoint(casted->first);
+    if (!dec.has_value()) [[unlikely]] {
+        return std::nullopt;
+    }
+    auto [date, _] = *dec;
     return date.day();
 }
 
@@ -2485,7 +2497,11 @@ std::optional<std::chrono::hours> Literal::hours() const noexcept {
     if (!casted.has_value()) {
         return std::nullopt;
     }
-    auto [_, time] = *util::deconstruct_timepoint(casted->first);
+    auto dec = util::deconstruct_timepoint(casted->first);
+    if (!dec.has_value()) [[unlikely]] {
+        return std::nullopt;
+    }
+    auto [_, time] = *dec;
     return std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)}.hours();
 }
 
@@ -2504,7 +2520,11 @@ std::optional<std::chrono::minutes> Literal::minutes() const noexcept {
     if (!casted.has_value()) {
         return std::nullopt;
     }
-    auto [_, time] = *util::deconstruct_timepoint(casted->first);
+    auto dec = util::deconstruct_timepoint(casted->first);
+    if (!dec.has_value()) [[unlikely]] {
+        return std::nullopt;
+    }
+    auto [_, time] = *dec;
     return std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)}.minutes();
 }
 
@@ -2524,7 +2544,11 @@ std::optional<std::chrono::nanoseconds> Literal::seconds() const noexcept {
     if (!casted.has_value()) {
         return std::nullopt;
     }
-    auto [_, t] = *util::deconstruct_timepoint(casted->first);
+    auto dec = util::deconstruct_timepoint(casted->first);
+    if (!dec.has_value()) [[unlikely]] {
+        return std::nullopt;
+    }
+    auto [_, t] = *dec;
     std::chrono::hh_mm_ss const time{std::chrono::duration_cast<std::chrono::nanoseconds>(t)};
     return time.seconds() + time.subseconds();
 }

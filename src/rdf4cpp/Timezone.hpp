@@ -611,7 +611,6 @@ namespace rdf4cpp {
             return ms;
         }
 
-        // TODO check return values
         constexpr std::optional<std::pair<YearMonthDay, DurationNano>> deconstruct_timepoint(TimePoint const &tp) noexcept {
             auto const days = std::chrono::floor<std::chrono::duration<DurationNano_Checked::rep, std::chrono::days::period>>(to_checked(tp));
             if (days.time_since_epoch().count().is_invalid()) {

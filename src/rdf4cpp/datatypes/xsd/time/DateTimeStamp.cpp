@@ -71,7 +71,11 @@ bool capabilities::Default<xsd_dateTimeStamp>::serialize_canonical_string(cpp_ty
                              registry::util::chrono_max_canonical_string_chars::minutes + 1 +
                              registry::util::chrono_max_canonical_string_chars::seconds + Timezone::max_canonical_string_chars>
             buff;
-    auto [date, time] = *rdf4cpp::util::deconstruct_timepoint(value.get_local_time());
+    auto dec = rdf4cpp::util::deconstruct_timepoint(value.get_local_time());
+    if (!dec.has_value()) [[unlikely]] {
+        return writer::write_str("invalid DateTimeStamp", writer);
+    }
+    auto [date, time] = *dec;
     char *it = std::format_to(buff.data(), "{}T{:%H:%M:%S}", date, std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)});
     it = util::canonical_seconds_remove_empty_millis(it);
     it = value.get_time_zone().to_canonical_string(it);
