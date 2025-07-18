@@ -19,7 +19,7 @@ namespace rdf4cpp::parser {
  * @param voided_self pointer to std::istream cast to void *
  */
 static size_t istream_read(void *buf, [[maybe_unused]] size_t elem_size, size_t count, void *voided_self) noexcept {
-    assert(elem_size == 1);
+    RDF4CPP_ASSERT(elem_size == 1);
 
     auto *self = static_cast<std::istream *>(voided_self);
     self->read(static_cast<char *>(buf), static_cast<std::streamsize>(count));

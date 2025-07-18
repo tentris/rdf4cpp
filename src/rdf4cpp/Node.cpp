@@ -5,7 +5,7 @@
 #include <rdf4cpp/IRI.hpp>
 #include <rdf4cpp/Literal.hpp>
 #include <rdf4cpp/query/Variable.hpp>
-
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp {
 
@@ -30,8 +30,7 @@ Node Node::to_node_storage(storage::DynNodeStoragePtr node_storage) const {
             return Literal{handle_}.to_node_storage(node_storage);
         }
         default: {
-            assert(false);
-            __builtin_unreachable();
+            RDF4CPP_UNREACHABLE;
         }
     }
 }
@@ -51,8 +50,7 @@ Node Node::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) cons
             return Literal{handle_}.try_get_in_node_storage(node_storage);
         }
         default: {
-            assert(false);
-            __builtin_unreachable();
+            RDF4CPP_UNREACHABLE;
         }
     }
 }
@@ -76,8 +74,7 @@ bool Node::serialize(writer::BufWriterParts const writer, NodeSerializationOpts 
             return Literal{handle_}.serialize(writer, opts);
         }
         default: {
-            assert(false);
-            __builtin_unreachable();
+            RDF4CPP_UNREACHABLE;
         }
     }
 }
@@ -97,8 +94,7 @@ Node::operator std::string() const noexcept {
             return std::string{Literal{handle_}};
         }
         default: {
-            assert(false);
-            __builtin_unreachable();
+            RDF4CPP_UNREACHABLE;
         }
     }
 }
@@ -150,8 +146,7 @@ TriBool Node::eq_impl(Node const &other) const noexcept {
             return query::Variable{handle_}.eq(query::Variable{other.handle_});
         }
         default: {
-            assert(false); // unreachable
-            return TriBool::Err;
+            RDF4CPP_DEBUG_UNREACHABLE(TriBool::Err);
         }
     }
 }
@@ -208,8 +203,8 @@ std::strong_ordering Node::order(Node const &other) const noexcept {
         case storage::identifier::RDFNodeType::Variable:
             return query::Variable{this->handle_}.order(query::Variable{other.handle_});
         default:{
-            assert(false); // this will never be reached because RDFNodeType has only 4 values.
-            return std::strong_ordering::less;
+            // this will never be reached because RDFNodeType has only 4 values.
+            RDF4CPP_DEBUG_UNREACHABLE(std::strong_ordering::less);
         }
     }
 }

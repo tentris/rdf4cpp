@@ -14,6 +14,7 @@
 #include <rdf4cpp/regex/Regex.hpp>
 #include <rdf4cpp/CowString.hpp>
 #include <rdf4cpp/TriBool.hpp>
+#include <rdf4cpp/Assert.hpp>
 #include <type_traits>
 
 namespace rdf4cpp {
@@ -775,7 +776,7 @@ public:
             } else {
                 auto const &impl_converter = DatatypeRegistry::get_numeric_op_impl_conversion(*target_e);
                 auto const *target_num_impl = DatatypeRegistry::get_numerical_ops(impl_converter.target_type_id);
-                assert(target_num_impl != nullptr);
+                RDF4CPP_ASSERT(target_num_impl != nullptr);
 
                 // perform conversion as impl numeric type
                 auto const value = this->template value<Boolean>() ? target_num_impl->get_impl().one_value_fptr()
@@ -985,7 +986,7 @@ public:
                     return T::from_string(lexical.lexical_form);
                 },
                 [](storage::view::ValueLiteralBackendView const &any) noexcept {
-                    assert(any.datatype == T::datatype_id);
+                    RDF4CPP_ASSERT(any.datatype == T::datatype_id);
                     return std::any_cast<typename T::cpp_type>(any.value);
                 });
     }

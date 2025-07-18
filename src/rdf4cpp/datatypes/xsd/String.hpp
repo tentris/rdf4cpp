@@ -4,6 +4,7 @@
 #include <rdf4cpp/datatypes/registry/DatatypeMapping.hpp>
 #include <rdf4cpp/datatypes/registry/FixedIdMappings.hpp>
 #include <rdf4cpp/datatypes/registry/LiteralDatatypeImpl.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
@@ -16,15 +17,13 @@ struct DatatypeMapping<xsd_string> {
 template<>
 inline capabilities::Default<xsd_string>::cpp_type capabilities::Default<xsd_string>::from_string(std::string_view) {
     // dummy implementation, actual implementation in Literal
-    assert(false);
-    __builtin_unreachable();
+    RDF4CPP_UNREACHABLE;
 }
 
 template<>
 inline bool capabilities::Default<xsd_string>::serialize_canonical_string(cpp_type const &, writer::BufWriterParts) noexcept {
     // dummy implementation, actual implementation in Literal
-    assert(false);
-    __builtin_unreachable();
+    RDF4CPP_UNREACHABLE;
 }
 
 template<>

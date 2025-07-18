@@ -4,6 +4,8 @@
 #include <cctype>
 #include <sstream>
 
+#include <rdf4cpp/Assert.hpp>
+
 namespace rdf4cpp::regex {
 
 namespace detail {
@@ -16,7 +18,7 @@ namespace detail {
  * @throws RegexError if the substring s.substr(pos, 2) is an invalid group reference
  */
 static void replace(std::string &s, size_t pos) {
-    assert(s[pos] == '$');
+    RDF4CPP_ASSERT(s[pos] == '$');
     s[pos] = '\\';
 
     if (pos == s.size() - 1 || !std::isdigit(s[pos + 1])) {

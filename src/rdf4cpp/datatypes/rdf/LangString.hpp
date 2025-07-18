@@ -10,6 +10,7 @@
 
 #include <rdf4cpp/datatypes/registry/DatatypeMapping.hpp>
 #include <rdf4cpp/datatypes/registry/LiteralDatatypeImpl.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 struct LangStringRepr {
@@ -28,29 +29,25 @@ struct DatatypeMapping<rdf_lang_string> {
 template<>
 inline capabilities::Default<rdf_lang_string>::cpp_type capabilities::Default<rdf_lang_string>::from_string(std::string_view) {
     // dummy implementation, actual implementation in Literal
-    assert(false);
-    __builtin_unreachable();
+    RDF4CPP_UNREACHABLE;
 }
 
 template<>
 inline bool capabilities::Default<rdf_lang_string>::serialize_canonical_string(cpp_type const &, writer::BufWriterParts) noexcept {
     // dummy implementation, actual implementation in Literal
-    assert(false);
-    __builtin_unreachable();
+    RDF4CPP_UNREACHABLE;
 }
 
 template<>
 inline std::optional<storage::identifier::LiteralID> capabilities::Inlineable<rdf_lang_string>::try_into_inlined(cpp_type const &) noexcept {
     // dummy implementation, actual implementation in Literal
-    assert(false);
-    __builtin_unreachable();
+    RDF4CPP_UNREACHABLE;
 }
 
 template<>
 inline capabilities::Inlineable<rdf_lang_string>::cpp_type capabilities::Inlineable<rdf_lang_string>::from_inlined(storage::identifier::LiteralID) noexcept {
     // dummy implementation, actual implementation in Literal
-    assert(false);
-    __builtin_unreachable();
+    RDF4CPP_UNREACHABLE;
 }
 #endif
 

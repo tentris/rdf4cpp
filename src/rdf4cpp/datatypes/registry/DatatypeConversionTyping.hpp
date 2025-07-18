@@ -9,6 +9,7 @@
 #include <rdf4cpp/datatypes/LiteralDatatype.hpp>
 #include <rdf4cpp/datatypes/registry/DatatypeID.hpp>
 #include <rdf4cpp/datatypes/registry/util/TypeList.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
@@ -138,8 +139,8 @@ private:
      * for more details see: const version of conversion_at_index
      */
     inline RuntimeConversionEntry &conversion_at_index(size_t s_off, size_t p_off) noexcept {
-        assert(s_off < s_rank);
-        assert(p_off < promotion_rank_at_level(s_off));
+        RDF4CPP_ASSERT(s_off < s_rank);
+        RDF4CPP_ASSERT(p_off < promotion_rank_at_level(s_off));
 
         return table[s_off * max_p_rank + p_off];
     }
@@ -199,8 +200,8 @@ public:
      * @return the found conversion
      */
     [[nodiscard]] inline RuntimeConversionEntry const &conversion_at_index(size_t s_off, size_t p_off) const noexcept {
-        assert(s_off < s_rank);
-        assert(p_off < promotion_rank_at_level(s_off));
+        RDF4CPP_ASSERT(s_off < s_rank);
+        RDF4CPP_ASSERT(p_off < promotion_rank_at_level(s_off));
 
         return table[s_off * max_p_rank + p_off];
     }

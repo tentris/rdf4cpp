@@ -150,8 +150,8 @@ private:
     template<typename Self>
     [[nodiscard]] static dice::template_library::copy_const_t<std::remove_reference_t<Self>, backend_type> &lookup_value_unchecked_impl(Self &&self, id_type const id) noexcept {
         auto const ix = to_index(id);
-        assert(ix < self.forward_.size());
-        assert(self.forward_[ix].has_value());
+        RDF4CPP_ASSERT(ix < self.forward_.size());
+        RDF4CPP_ASSERT(self.forward_[ix].has_value());
         return *self.forward_[ix];
     }
 
@@ -303,7 +303,7 @@ public:
     [[nodiscard]] id_type insert_assume_not_present(view_type const &view, Args &&...additional_args) {
         auto const assigned_ix = freelist_.occupy_next_available();
         if (assigned_ix >= forward_.size()) {
-            assert(assigned_ix == forward_.size());
+            RDF4CPP_ASSERT(assigned_ix == forward_.size());
             forward_.emplace_back();
         }
 
@@ -331,8 +331,8 @@ public:
     template<typename ...Args>
     void insert_assume_not_present_at(view_type const &view, id_type const requested_id, Args &&...additional_args) {
         auto const lookup_ix = to_index(requested_id);
-        assert(lookup_ix < forward_.size());
-        assert(!forward_[lookup_ix].has_value());
+        RDF4CPP_ASSERT(lookup_ix < forward_.size());
+        RDF4CPP_ASSERT(!forward_[lookup_ix].has_value());
 
         forward_[lookup_ix] = std::make_obj_using_allocator<backend_type>(alloc_, view, std::forward<Args>(additional_args)...);
 
@@ -347,7 +347,7 @@ public:
      * @param id id of the value to be erased
      */
     void erase_assume_present(id_type const id) {
-        assert(lookup_value(id) != nullptr);
+        RDF4CPP_ASSERT(lookup_value(id) != nullptr);
 
         auto const ix = to_index(id);
         auto &value = forward_[ix];
@@ -357,7 +357,7 @@ public:
         auto it = std::find_if(beg, end, [id](backward_key_type const &k) noexcept {
             return k.id == id;
         });
-        assert(it != backward_.end());
+        RDF4CPP_ASSERT(it != backward_.end());
 
         backward_.erase(it);
         value.reset();

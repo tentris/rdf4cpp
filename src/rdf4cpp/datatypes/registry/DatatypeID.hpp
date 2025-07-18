@@ -14,6 +14,7 @@
 #include <variant>
 
 #include <rdf4cpp/storage/identifier/LiteralType.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
@@ -75,7 +76,7 @@ private:
 public:
     constexpr DatatypeIDView(storage::identifier::LiteralType fixed) noexcept
         : inner{fixed} {
-        assert(fixed.is_fixed());
+        RDF4CPP_ASSERT(fixed.is_fixed());
     }
 
     explicit constexpr DatatypeIDView(std::string_view const other) noexcept

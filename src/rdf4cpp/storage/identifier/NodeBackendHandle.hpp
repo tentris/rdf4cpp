@@ -43,7 +43,7 @@ public:
                       bool const inlined = false,
                       uint16_t const tagging_bits = 0) noexcept : id_{node_id, node_type, inlined, tagging_bits},
                                                                   storage_{storage} {
-        assert(tagging_bits < (1 << 13));
+        RDF4CPP_ASSERT(tagging_bits < (1 << 13));
     }
 
     /**
@@ -159,7 +159,7 @@ public:
      * @return
      */
     [[nodiscard]] view::IRIBackendView iri_backend() const noexcept {
-        assert(id_.is_iri());
+        RDF4CPP_ASSERT(id_.is_iri());
         return storage_.find_iri_backend(id_);
     }
 
@@ -169,7 +169,7 @@ public:
      * @return
      */
     [[nodiscard]] view::LiteralBackendView literal_backend() const noexcept {
-        assert(id_.is_literal());
+        RDF4CPP_ASSERT(id_.is_literal());
         return storage_.find_literal_backend(id_);
     }
 
@@ -179,7 +179,7 @@ public:
      * @return
      */
     [[nodiscard]] view::BNodeBackendView bnode_backend() const noexcept {
-        assert(id_.is_blank_node());
+        RDF4CPP_ASSERT(id_.is_blank_node());
         return storage_.find_bnode_backend(id_);
     }
 
@@ -189,7 +189,7 @@ public:
      * @return
      */
     [[nodiscard]] view::VariableBackendView variable_backend() const noexcept {
-        assert(id_.is_variable());
+        RDF4CPP_ASSERT(id_.is_variable());
         return storage_.find_variable_backend(id_);
     }
 };
@@ -207,8 +207,8 @@ inline std::ostream &operator<<(std::ostream &os, NodeBackendHandle handle) {
  * @return handle to the datatype of the literal
  */
 [[nodiscard]] inline NodeBackendHandle datatype_iri_handle_for_fixed_lit_handle(NodeBackendHandle lit_handle) noexcept {
-    assert(lit_handle.is_literal());
-    assert(lit_handle.node_id().literal_type().is_fixed());
+    RDF4CPP_ASSERT(lit_handle.is_literal());
+    RDF4CPP_ASSERT(lit_handle.node_id().literal_type().is_fixed());
     return NodeBackendHandle{literal_type_to_iri_node_id(lit_handle.node_id().literal_type()),
                              lit_handle.storage()};
 }
