@@ -146,7 +146,7 @@ TriBool Node::eq_impl(Node const &other) const noexcept {
             return query::Variable{handle_}.eq(query::Variable{other.handle_});
         }
         default: {
-            RDF4CPP_DEBUG_UNREACHABLE(TriBool::Err);
+            RDF4CPP_UNREACHABLE;
         }
     }
 }
@@ -204,7 +204,7 @@ std::strong_ordering Node::order(Node const &other) const noexcept {
             return query::Variable{this->handle_}.order(query::Variable{other.handle_});
         default:{
             // this will never be reached because RDFNodeType has only 4 values.
-            RDF4CPP_DEBUG_UNREACHABLE(std::strong_ordering::less);
+            RDF4CPP_UNREACHABLE;
         }
     }
 }

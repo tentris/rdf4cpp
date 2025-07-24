@@ -2,21 +2,19 @@
 #define RDF4CPP_ASSERT_HPP
 
 #include <iostream>
+#include <format>
 
 #ifdef NDEBUG
 
-#define RDF4CPP_TOSTRING_2(x) #x
-#define RDF4CPP_TOSTRING(x) RDF4CPP_TOSTRING_2(x)
 #define RDF4CPP_ASSERT(expr)                                                                        \
 	if (!(expr)) [[unlikely]] {                                                                     \
-		std::cerr << "Assertion failed: " #expr " (" __FILE__ ":" RDF4CPP_TOSTRING(__LINE__) ")";   \
+		std::cerr << std::format("Assertion failed: {} ({}:{})", #expr, __FILE__, __LINE__);        \
 		std::abort();                                                                               \
 	}
 
 #define RDF4CPP_UNREACHABLE                                                                         \
-	std::cerr << "Unreachable statement reached (" __FILE__ ":" RDF4CPP_TOSTRING(__LINE__) ")";     \
-    std::abort();                                                                                   \
-    __builtin_unreachable();
+	std::cerr << std::format("Unreachable statement reached ({}:{})", __FILE__, __LINE__);          \
+    std::abort();
 
 #define RDF4CPP_DEBUG_UNREACHABLE(...) return __VA_ARGS__
 
