@@ -78,11 +78,11 @@ static identifier::NodeBackendID lookup_or_insert_impl(typename Storage::backend
 identifier::NodeBackendID UnsyncReferenceNodeStorage::find_or_make_id(view::LiteralBackendView const &view) {
     return view.visit(
             [this](view::LexicalFormLiteralBackendView const &lexical) {
-                assert(!has_specialized_storage_for(identifier::iri_node_id_to_literal_type(lexical.datatype_id)));
+                RDF4CPP_ASSERT(!has_specialized_storage_for(identifier::iri_node_id_to_literal_type(lexical.datatype_id)));
                 return lookup_or_insert_impl<true>(lexical, this->fallback_literal_storage_);
             },
             [this](view::ValueLiteralBackendView const &any) {
-                assert(has_specialized_storage_for(any.datatype));
+                RDF4CPP_ASSERT(has_specialized_storage_for(any.datatype));
                 return specialization_detail::visit_specialized(this->specialized_literal_storage_, any.datatype, [&any](auto &storage) {
                     return lookup_or_insert_impl<true>(any, storage);
                 });
@@ -112,12 +112,12 @@ identifier::NodeBackendID UnsyncReferenceNodeStorage::find_id(view::IRIBackendVi
 identifier::NodeBackendID UnsyncReferenceNodeStorage::find_id(view::LiteralBackendView const &view) const noexcept {
     return view.visit(
             [this](view::LexicalFormLiteralBackendView const &lexical) noexcept {
-                assert(!has_specialized_storage_for(identifier::iri_node_id_to_literal_type(lexical.datatype_id)));
+                RDF4CPP_ASSERT(!has_specialized_storage_for(identifier::iri_node_id_to_literal_type(lexical.datatype_id)));
                 return lookup_or_insert_impl<false>(lexical, this->fallback_literal_storage_);
             },
             [this](view::ValueLiteralBackendView const &any) noexcept {
                 return specialization_detail::visit_specialized(this->specialized_literal_storage_, any.datatype, [&any](auto const &storage) noexcept {
-                    assert(has_specialized_storage_for(any.datatype));
+                    RDF4CPP_ASSERT(has_specialized_storage_for(any.datatype));
                     return lookup_or_insert_impl<false>(any, storage);
                 });
             });
@@ -132,8 +132,7 @@ static typename Storage::backend_view_type find_backend_view(Storage &storage, i
     if (auto const *value = storage.mapping.lookup_value(Storage::to_storage_id(id)); value != nullptr) {
         return static_cast<typename Storage::backend_view_type>(*value);
     } else {
-        assert(false); // assert in debug build; not critical error but should not happen
-        return Storage::get_default_view();
+        RDF4CPP_DEBUG_UNREACHABLE(Storage::get_default_view());
     }
 }
 

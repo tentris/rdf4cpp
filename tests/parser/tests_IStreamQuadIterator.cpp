@@ -622,7 +622,7 @@ TEST_SUITE("IStreamQuadIterator") {
                 s.push_back('o');
             }
             s.append("> .");
-            assert(s.size() == buffer_len);
+            CHECK(s.size() == buffer_len);
 
 
             std::istringstream iss{s};

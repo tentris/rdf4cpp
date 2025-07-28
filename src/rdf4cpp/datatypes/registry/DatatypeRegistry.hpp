@@ -6,6 +6,7 @@
 #include <rdf4cpp/datatypes/registry/DatatypeConversion.hpp>
 #include <rdf4cpp/datatypes/registry/FixedIdMappings.hpp>
 #include <rdf4cpp/writer/BufWriter.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 #include <algorithm>
 #include <any>
@@ -182,7 +183,7 @@ struct DatatypeRegistry {
         RuntimeConversionEntry::inverted_convert_fptr_t inverted_convert_rhs;
 
         inline static DatatypeConverter from_individuals(RuntimeConversionEntry const &l, RuntimeConversionEntry const &r) noexcept {
-            assert(l.target_type_id == r.target_type_id);
+            RDF4CPP_ASSERT(l.target_type_id == r.target_type_id);
 
             return DatatypeConverter{
                     .target_type_id = l.target_type_id,
@@ -539,7 +540,7 @@ std::optional<std::invoke_result_t<Map, DatatypeRegistry::DatatypeEntry const &>
     return visit(DatatypeIDVisitor{
                          [&registry, f](LiteralType const fixed_id) -> ret_type {
                              auto const id_as_index = static_cast<size_t>(fixed_id.to_underlying()) - 1;  // ids from 1 to n stored in places 0 to n-1
-                             assert(id_as_index < dynamic_datatype_offset);
+                             RDF4CPP_ASSERT(id_as_index < dynamic_datatype_offset);
 
                              return f(registry[id_as_index]);
                          },

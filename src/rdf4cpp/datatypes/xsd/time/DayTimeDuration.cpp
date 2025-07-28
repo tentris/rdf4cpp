@@ -105,7 +105,7 @@ bool capabilities::Default<xsd_dayTimeDuration>::serialize_canonical_string(cpp_
         }
     }
     size_t const len = it - buff.data();
-    assert(len <= buff.size());
+    RDF4CPP_ASSERT(len <= buff.size());
     return writer::write_str(std::string_view(buff.data(), len), writer);
 }
 

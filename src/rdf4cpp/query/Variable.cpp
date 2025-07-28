@@ -44,7 +44,7 @@ namespace detail_variable_inlining {
     }
 
     [[nodiscard]] constexpr InlinedRepr from_inlined(storage::identifier::NodeBackendID id) noexcept {
-        assert(id.is_inlined() && id.is_variable());
+        RDF4CPP_ASSERT(id.is_inlined() && id.is_variable());
         return std::bit_cast<InlinedRepr>(id.node_id());
     }
 

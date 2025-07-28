@@ -71,7 +71,7 @@ bool capabilities::Default<xsd_dateTimeStamp>::serialize_canonical_string(cpp_ty
     it = util::canonical_seconds_remove_empty_millis(it);
     it = value.get_time_zone().to_canonical_string(it);
     size_t const len = it - buff.data();
-    assert(len <= buff.size());
+    RDF4CPP_ASSERT(len <= buff.size());
     return writer::write_str(std::string_view(buff.data(), len), writer);
 }
 

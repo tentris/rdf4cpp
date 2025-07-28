@@ -315,7 +315,7 @@ struct OutputIteratorBuffer {
 
     void write_out(char const *end) {
         char const *b = buffer_.data();
-        assert(b <= end && end <= buffer_.end());
+        RDF4CPP_ASSERT(b <= end && end <= buffer_.end());
         while (b != end) {
             *iter = *b;
             ++iter;

@@ -45,7 +45,7 @@ public:
      * @param value literal ID. MUST be smaller than 2^48. Bounds are not checked.
      */
     explicit constexpr NodeID(underlying_type const underlying) noexcept : underlying_{underlying} {
-        assert(underlying < (1UL << 48));
+        RDF4CPP_ASSERT(underlying < (1UL << 48));
     }
 
     constexpr NodeID(LiteralID const literal_id, LiteralType const literal_type) noexcept
