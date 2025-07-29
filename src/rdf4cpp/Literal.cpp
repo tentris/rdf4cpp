@@ -2462,97 +2462,122 @@ Literal Literal::now(storage::DynNodeStoragePtr node_storage) {
 
 std::optional<Year> Literal::year() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::GYear>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     return casted->first;
 }
 
 Literal Literal::as_year(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->year();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<int64_t>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::month> Literal::month() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::GMonth>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     return casted->first;
 }
 
 Literal Literal::as_month(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->month();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<unsigned int>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::day> Literal::day() const noexcept {
-    if (this->datatype_eq<datatypes::xsd::GMonthDay>()) {
-        return this->value<datatypes::xsd::GMonthDay>().first;
-    }
-
     auto casted = this->cast_to_value<datatypes::xsd::GDay>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     return casted->first;
 }
 
 Literal Literal::as_day(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->day();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<unsigned int>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::hours> Literal::hours() const noexcept {
-    auto casted = this->cast_to_value<datatypes::xsd::Time>();
-    if (!casted.has_value())
+    if (!this->is_timepoint()) {
         return std::nullopt;
+    }
+
+    auto casted = this->cast_to_value<datatypes::xsd::Time>();
+    if (!casted.has_value()) {
+        return std::nullopt;
+    }
     return std::chrono::hh_mm_ss{casted->first}.hours();
 }
 
 Literal Literal::as_hours(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->hours();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(r->count(), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::minutes> Literal::minutes() const noexcept {
-    auto casted = this->cast_to_value<datatypes::xsd::Time>();
-    if (!casted.has_value())
+    if (!this->is_timepoint()) {
         return std::nullopt;
+    }
+
+    auto casted = this->cast_to_value<datatypes::xsd::Time>();
+    if (!casted.has_value()) {
+        return std::nullopt;
+    }
     return std::chrono::hh_mm_ss{casted->first}.minutes();
 }
 
 Literal Literal::as_minutes(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->minutes();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(r->count(), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::nanoseconds> Literal::seconds() const noexcept {
-    auto casted = this->cast_to_value<datatypes::xsd::Time>();
-    if (!casted.has_value())
+    if (!this->is_timepoint()) {
         return std::nullopt;
+    }
+
+    auto casted = this->cast_to_value<datatypes::xsd::Time>();
+    if (!casted.has_value()) {
+        return std::nullopt;
+    }
     std::chrono::hh_mm_ss const time{casted->first};
     return time.seconds() + time.subseconds();
 }
 
 Literal Literal::as_seconds(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->seconds();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Decimal>(rdf4cpp::BigDecimal<>{r->count(), 9}, select_node_storage(node_storage));
 }
 
 std::optional<Timezone> Literal::timezone() const noexcept {
-    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!this->is_timepoint()) {
         return std::nullopt;
+    }
+
+    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
+    if (!casted.has_value()) {
+        return std::nullopt;
+    }
     auto tz = casted->second;
     return tz;
 }
@@ -2566,11 +2591,13 @@ Literal Literal::as_timezone(storage::DynNodeStoragePtr node_storage) const {
 
 std::optional<std::string> Literal::tz() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto tz = casted->second;
-    if (!tz.has_value())
+    if (!tz.has_value()) {
         return "";
+    }
     return tz->to_canonical_string();
 }
 Literal Literal::as_tz(storage::DynNodeStoragePtr node_storage) const {
