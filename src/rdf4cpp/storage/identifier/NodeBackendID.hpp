@@ -47,7 +47,7 @@ public:
                   RDFNodeType const node_type,
                   bool const inlined = false,
                   uint16_t const tagging_bits = 0) noexcept : parts_{node_id, node_type, inlined, tagging_bits} {
-        assert(tagging_bits < (1 << tagging_bits_width));
+        RDF4CPP_ASSERT(tagging_bits < (1 << tagging_bits_width));
     }
 
     /**
@@ -126,7 +126,7 @@ public:
      * @param new_value
      */
     constexpr void set_free_tagging_bits(uint16_t new_value) noexcept {
-        assert(new_value < (1 << tagging_bits_width));
+        RDF4CPP_ASSERT(new_value < (1 << tagging_bits_width));
         parts_.free_tagging_bits_ = new_value;
     }
 
@@ -179,7 +179,7 @@ inline std::ostream &operator<<(std::ostream &os, NodeBackendID id) {
  * @return the LiteralType associated with that IRI
  */
 constexpr LiteralType iri_node_id_to_literal_type(NodeBackendID const id) noexcept {
-    assert(id.is_iri());
+    RDF4CPP_ASSERT(id.is_iri());
     auto const value = id.node_id().to_underlying();
 
     // all ids values below min_dynamic_datatype_id (except for the null id) are reserved for fixed datatype IRIs
@@ -195,7 +195,7 @@ constexpr LiteralType iri_node_id_to_literal_type(NodeBackendID const id) noexce
  * @return NodeID of the IRI associated with the given datatype
  */
 constexpr NodeBackendID literal_type_to_iri_node_id(LiteralType const datatype) {
-    assert(datatype.is_fixed());
+    RDF4CPP_ASSERT(datatype.is_fixed());
     return NodeBackendID{NodeID{datatype.to_underlying()}, RDFNodeType::IRI};
 }
 

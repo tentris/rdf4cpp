@@ -4,6 +4,7 @@
 #include <rdf4cpp/bnode_mngt/NodeScopeManager.hpp>
 #include <rdf4cpp/bnode_mngt/reference_backends/scope/ReferenceNodeScope.hpp>
 #include <dice/sparse-map/sparse_map.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 #include <dice/hash.hpp>
 
@@ -25,7 +26,7 @@ struct MergeNodeScopeManager {
         }
 
         auto [it, inserted] = scopes.emplace(name, std::make_unique<S>());
-        assert(inserted);
+        RDF4CPP_ASSERT(inserted);
         return *it->second;
     }
 };

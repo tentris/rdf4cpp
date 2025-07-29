@@ -6,6 +6,7 @@
 #include <compare>
 #include <cstdint>
 #include <ostream>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::storage::identifier {
 /**
@@ -27,7 +28,7 @@ public:
      * @param underlying literal ID. MUST be smaller than 2^42. Bounds are not checked.
      */
     explicit constexpr LiteralID(underlying_type const underlying) noexcept : underlying{underlying} {
-        assert(underlying < (1UL << 42));
+        RDF4CPP_ASSERT(underlying < (1UL << 42));
     }
 
     constexpr LiteralID &operator++() noexcept {

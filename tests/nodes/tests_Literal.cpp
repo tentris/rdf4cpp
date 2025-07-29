@@ -15,6 +15,7 @@ int main(int argc, char **argv) {
         reference_node_storage::SyncReferenceNodeStorage syncns{};
         default_node_storage = syncns;
         auto ret = doctest::Context{argc, argv}.run();
+        default_node_storage = nullptr;
         if (ret != 0) {
             return ret;
         }
@@ -23,7 +24,9 @@ int main(int argc, char **argv) {
     {
         reference_node_storage::UnsyncReferenceNodeStorage unsyncns{};
         default_node_storage = unsyncns;
-        return doctest::Context{argc, argv}.run();
+        auto ret = doctest::Context{argc, argv}.run();
+        default_node_storage = nullptr;
+        return ret;
     }
 }
 
@@ -44,6 +47,8 @@ TEST_CASE("Literal - Check for only lexical form") {
     CHECK_EQ(lit1.datatype(), iri);
     CHECK_EQ(lit1.language_tag(), "");
     CHECK_EQ(std::string(lit1), "\"Bunny\"");
+
+    CHECK_EQ(Literal::make_null().datatype(), Literal::make_null());
 }
 
 TEST_CASE("Literal - Check for lexical form with IRI") {
@@ -833,7 +838,7 @@ TEST_CASE("to_node_storage") {
 
     SUBCASE("no non-inline storage available") {
         auto lit = Literal::make_typed_from_value<datatypes::xsd::Int>(5);
-        assert(lit.is_inlined());
+        CHECK(lit.is_inlined());
 
         auto lit2 = lit.to_node_storage(ns2);
         CHECK(lit2.is_inlined());
@@ -846,7 +851,7 @@ TEST_CASE("to_node_storage") {
     SUBCASE("specialized storage") {
         SUBCASE("inlined") {
             auto lit = Literal::make_typed_from_value<datatypes::xsd::Long>(10);
-            assert(lit.is_inlined());
+            CHECK(lit.is_inlined());
 
             auto lit2 = lit.to_node_storage(ns2);
             CHECK(lit2.is_inlined());
@@ -858,7 +863,7 @@ TEST_CASE("to_node_storage") {
 
         SUBCASE("not inlined") {
             auto lit = Literal::make_typed_from_value<datatypes::xsd::Long>(std::numeric_limits<datatypes::xsd::Long::cpp_type>::max());
-            assert(!lit.is_inlined());
+            CHECK(!lit.is_inlined());
 
             auto lit2 = lit.to_node_storage(ns2);
             CHECK(!lit2.is_inlined());
@@ -872,7 +877,7 @@ TEST_CASE("to_node_storage") {
         SUBCASE("rdf:langString") {
             SUBCASE("tag inlined") {
                 auto lit = Literal::make_lang_tagged("test", "en");
-                assert(lit.is_inlined());
+                CHECK(lit.is_inlined());
 
                 auto lit2 = lit.to_node_storage(ns2);
                 CHECK(lit2.is_inlined());
@@ -883,7 +888,7 @@ TEST_CASE("to_node_storage") {
 
             SUBCASE("tag not inlined") {
                 auto lit = Literal::make_lang_tagged("test", "spherical");
-                assert(!lit.is_inlined());
+                CHECK(!lit.is_inlined());
 
                 auto lit2 = lit.to_node_storage(ns2);
                 CHECK(!lit2.is_inlined());
@@ -895,7 +900,7 @@ TEST_CASE("to_node_storage") {
 
         SUBCASE("xsd:string") {
             auto lit = Literal::make_simple("test");
-            assert(!lit.is_inlined());
+            CHECK(!lit.is_inlined());
 
             auto lit2 = lit.to_node_storage(ns2);
             CHECK(!lit2.is_inlined());
@@ -911,7 +916,7 @@ TEST_CASE("try_get_in_node_storage") {
 
     SUBCASE("no non-inline storage available") {
         auto lit = Literal::make_typed_from_value<datatypes::xsd::Int>(5);
-        assert(lit.is_inlined());
+        CHECK(lit.is_inlined());
 
         auto lit2 = lit.try_get_in_node_storage(ns2);
         CHECK(!lit2.null());
@@ -925,7 +930,7 @@ TEST_CASE("try_get_in_node_storage") {
     SUBCASE("specialized storage") {
         SUBCASE("inlined") {
             auto lit = Literal::make_typed_from_value<datatypes::xsd::Long>(10);
-            assert(lit.is_inlined());
+            CHECK(lit.is_inlined());
 
             auto lit2 = lit.try_get_in_node_storage(ns2);
             CHECK(!lit2.null());
@@ -938,7 +943,7 @@ TEST_CASE("try_get_in_node_storage") {
 
         SUBCASE("not inlined") {
             auto lit = Literal::make_typed_from_value<datatypes::xsd::Long>(std::numeric_limits<datatypes::xsd::Long::cpp_type>::max());
-            assert(!lit.is_inlined());
+            CHECK(!lit.is_inlined());
 
             auto lit2 = lit.try_get_in_node_storage(ns2);
             CHECK(lit2.null());
@@ -957,7 +962,7 @@ TEST_CASE("try_get_in_node_storage") {
         SUBCASE("rdf:langString") {
             SUBCASE("tag inlined") {
                 auto lit = Literal::make_lang_tagged("test", "en");
-                assert(lit.is_inlined());
+                CHECK(lit.is_inlined());
 
                 auto lit2 = lit.try_get_in_node_storage(ns2);
                 CHECK(lit2.null());
@@ -973,7 +978,7 @@ TEST_CASE("try_get_in_node_storage") {
 
             SUBCASE("tag not inlined") {
                 auto lit = Literal::make_lang_tagged("test", "spherical");
-                assert(!lit.is_inlined());
+                CHECK(!lit.is_inlined());
 
                 auto lit2 = lit.try_get_in_node_storage(ns2);
                 CHECK(lit2.null());
@@ -990,7 +995,7 @@ TEST_CASE("try_get_in_node_storage") {
 
         SUBCASE("xsd:string") {
             auto lit = Literal::make_simple("test");
-            assert(!lit.is_inlined());
+            CHECK(!lit.is_inlined());
 
             auto lit2 = lit.try_get_in_node_storage(ns2);
             CHECK(lit2.null());
@@ -1106,7 +1111,7 @@ TEST_CASE("Literal::fetch_or_serialize_lexical_form") {
 
     SUBCASE("no non-inline storage available") {
         auto lit = Literal::make_typed_from_value<datatypes::xsd::Int>(5);
-        assert(lit.is_inlined());
+        CHECK(lit.is_inlined());
 
         std::string_view s;
         auto r = lit.fetch_or_serialize_lexical_form(s, w);
@@ -1117,7 +1122,7 @@ TEST_CASE("Literal::fetch_or_serialize_lexical_form") {
     SUBCASE("specialized storage") {
         SUBCASE("inlined") {
             auto lit = Literal::make_typed_from_value<datatypes::xsd::Long>(10);
-            assert(lit.is_inlined());
+            CHECK(lit.is_inlined());
 
             std::string_view s;
             auto r = lit.fetch_or_serialize_lexical_form(s, w);
@@ -1127,7 +1132,7 @@ TEST_CASE("Literal::fetch_or_serialize_lexical_form") {
 
         SUBCASE("not inlined") {
             auto lit = Literal::make_typed_from_value<datatypes::xsd::Long>(std::numeric_limits<datatypes::xsd::Long::cpp_type>::max());
-            assert(!lit.is_inlined());
+            CHECK(!lit.is_inlined());
 
             std::string_view s;
             auto r = lit.fetch_or_serialize_lexical_form(s, w);
@@ -1140,7 +1145,7 @@ TEST_CASE("Literal::fetch_or_serialize_lexical_form") {
         SUBCASE("rdf:langString") {
             SUBCASE("tag inlined") {
                 auto lit = Literal::make_lang_tagged("test", "en");
-                assert(lit.is_inlined());
+                CHECK(lit.is_inlined());
 
                 std::string_view s;
                 auto r = lit.fetch_or_serialize_lexical_form(s, w);
@@ -1150,7 +1155,7 @@ TEST_CASE("Literal::fetch_or_serialize_lexical_form") {
 
             SUBCASE("tag not inlined") {
                 auto lit = Literal::make_lang_tagged("test", "spherical");
-                assert(!lit.is_inlined());
+                CHECK(!lit.is_inlined());
 
                 std::string_view s;
                 auto r = lit.fetch_or_serialize_lexical_form(s, w);
@@ -1161,7 +1166,7 @@ TEST_CASE("Literal::fetch_or_serialize_lexical_form") {
 
         SUBCASE("xsd:string") {
             auto lit = Literal::make_simple("test");
-            assert(!lit.is_inlined());
+            CHECK(!lit.is_inlined());
 
             std::string_view s;
             auto r = lit.fetch_or_serialize_lexical_form(s, w);

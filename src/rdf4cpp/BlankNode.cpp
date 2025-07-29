@@ -2,6 +2,7 @@
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/util/CharMatcher.hpp>
 #include <rdf4cpp/writer/TryWrite.hpp>
+#include <rdf4cpp/Assert.hpp>
 #include <uni_algo/all.h>
 
 #include <cstring>
@@ -39,7 +40,7 @@ namespace detail_bnode_inlining {
     }
 
     [[nodiscard]] constexpr InlinedRepr from_inlined(storage::identifier::NodeBackendID id) noexcept {
-        assert(id.is_inlined() && id.is_blank_node());
+        RDF4CPP_ASSERT(id.is_inlined() && id.is_blank_node());
         return std::bit_cast<InlinedRepr>(id.node_id());
     }
 

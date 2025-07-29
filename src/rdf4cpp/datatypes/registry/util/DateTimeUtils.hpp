@@ -10,6 +10,7 @@
 #include <rdf4cpp/util/CheckedInt.hpp>
 #include <rdf4cpp/Timezone.hpp>
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 /**
  * @file
@@ -44,7 +45,7 @@ std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, R> to_checked(std
  */
 template<typename R>
 std::chrono::duration<int64_t, R> from_checked(std::chrono::duration<rdf4cpp::util::CheckedIntegral<int64_t>, R> v) noexcept {
-    assert(!v.count().is_invalid());
+    RDF4CPP_ASSERT(!v.count().is_invalid());
     return std::chrono::duration<int64_t, R>{v.count().get_value()};
 }
 /**
@@ -169,7 +170,7 @@ inline char *canonical_seconds_remove_empty_millis(char *it) {
             return it;
         --it;
     }
-    assert(*(it - 1) == '.');
+    RDF4CPP_ASSERT(*(it - 1) == '.');
     --it;
     return it;
 }

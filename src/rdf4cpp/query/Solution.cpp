@@ -34,17 +34,17 @@ Node Solution::operator[](Variable const &variable) const noexcept {
 }
 
 Node const &Solution::operator[](size_t pos) const noexcept {
-    assert(pos < partial_mapping.size());
+    RDF4CPP_ASSERT(pos < partial_mapping.size());
     return partial_mapping[pos].second;
 }
 
 Node &Solution::operator[](size_t pos) noexcept {
-    assert(pos < partial_mapping.size());
+    RDF4CPP_ASSERT(pos < partial_mapping.size());
     return partial_mapping[pos].second;
 }
 
 Variable const &Solution::variable(size_t pos) const noexcept {
-    assert(pos < partial_mapping.size());
+    RDF4CPP_ASSERT(pos < partial_mapping.size());
     return partial_mapping[pos].first;
 }
 

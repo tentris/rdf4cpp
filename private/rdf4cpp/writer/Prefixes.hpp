@@ -3,6 +3,7 @@
 
 #include <rdf4cpp/datatypes/registry/FixedIdMappings.hpp>
 #include <rdf4cpp/writer/TryWrite.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::writer {
 
@@ -52,7 +53,7 @@ static constexpr auto type_iri_buffer = make_type_iri_buf<1 << storage::identifi
 
 // will only get called with fixed ids
 inline bool write_fixed_type_iri(datatypes::registry::LiteralType t, BufWriterParts const writer, bool use_prefixes) noexcept {
-    assert(t.is_fixed());
+    RDF4CPP_ASSERT(t.is_fixed());
 
     if (use_prefixes) {
         auto const &p = detail::type_iri_buffer[t.to_underlying()];

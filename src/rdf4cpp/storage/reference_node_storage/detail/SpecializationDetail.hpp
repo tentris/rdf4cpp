@@ -81,8 +81,7 @@ decltype(auto) visit_specialized(S &&container, identifier::LiteralType const da
         case xsd::YearMonthDuration::fixed_id.to_underlying():
             return f(std::get<17>(std::forward<S>(container)));
         default:
-            assert(false);
-            __builtin_unreachable();
+            RDF4CPP_UNREACHABLE;
     }
 }
 
