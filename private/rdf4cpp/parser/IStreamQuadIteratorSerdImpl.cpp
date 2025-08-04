@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstddef>
 
+#include <rdf4cpp/Assert.hpp>
+
 namespace rdf4cpp::parser {
 
 std::string_view IStreamQuadIterator::Impl::node_into_string_view(SerdNode const *node) noexcept {
@@ -132,8 +134,7 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::Impl::get_literal(Ser
                 case SerdType::SERD_URI:
                     return this->get_iri(datatype);
                 default:
-                    assert(false);
-                    __builtin_unreachable();
+                    RDF4CPP_UNREACHABLE;
             }
         } else {
             return std::nullopt;

@@ -20,12 +20,15 @@ int main(int argc, char **argv) {
         if (ret != 0) {
             return ret;
         }
+        default_node_storage = nullptr;
     }
 
     {
         reference_node_storage::UnsyncReferenceNodeStorage unsyncns{};
         default_node_storage = unsyncns;
-        return doctest::Context{argc, argv}.run();
+        auto ret = doctest::Context{argc, argv}.run();
+        default_node_storage = nullptr;
+        return ret;
     }
 }
 

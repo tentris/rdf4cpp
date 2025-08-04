@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <ostream>
 #include <rdf4cpp/TriBool.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::storage::identifier {
 
@@ -49,7 +50,7 @@ public:
     constexpr LiteralType() noexcept = default;
 
     explicit constexpr LiteralType(underlying_type const underlying) noexcept : underlying_{underlying} {
-        assert((underlying & 0b1100'0000) == 0);
+        RDF4CPP_ASSERT((underlying & 0b1100'0000) == 0);
     }
 
     static constexpr LiteralType other() noexcept {
@@ -57,8 +58,8 @@ public:
     }
 
     static constexpr LiteralType from_parts(LiteralTypeTag tag, underlying_type const type_id) noexcept {
-        assert(tag != LiteralTypeTag::Default || type_id != 0);
-        assert((type_id & 0b1111'0000) == 0);
+        RDF4CPP_ASSERT(tag != LiteralTypeTag::Default || type_id != 0);
+        RDF4CPP_ASSERT((type_id & 0b1111'0000) == 0);
         return LiteralType{static_cast<underlying_type>(type_id | (static_cast<underlying_type>(tag) << numeric_tagging_bit_shift))};
     }
 

@@ -18,7 +18,7 @@ struct SpecializedLiteralBackend {
 
     explicit SpecializedLiteralBackend(view_type const &view) noexcept : hash{view.hash<literal_type>()},
                                                                          value{std::any_cast<typename T::cpp_type>(view.value)} {
-        assert(view.datatype == SpecializedLiteralBackend::datatype);
+        RDF4CPP_ASSERT(view.datatype == SpecializedLiteralBackend::datatype);
     }
 
     explicit operator view_type() const noexcept {
@@ -49,12 +49,12 @@ struct SpecializedLiteralBackend {
         }
 
         bool operator()(view_type const &lhs, SpecializedLiteralBackend const &rhs) const noexcept {
-            assert(lhs.datatype == SpecializedLiteralBackend::datatype);
+            RDF4CPP_ASSERT(lhs.datatype == SpecializedLiteralBackend::datatype);
             return lhs.eq<literal_type>(rhs.value);
         }
 
         bool operator()(SpecializedLiteralBackend const &lhs, view_type const &rhs) const noexcept {
-            assert(SpecializedLiteralBackend::datatype == rhs.datatype);
+            RDF4CPP_ASSERT(SpecializedLiteralBackend::datatype == rhs.datatype);
             return rhs.eq<literal_type>(lhs.value);
         }
     };
@@ -63,7 +63,7 @@ struct SpecializedLiteralBackend {
         using is_transparent = void;
 
         [[nodiscard]] size_t operator()(view_type const &x) const noexcept {
-            assert(x.datatype == SpecializedLiteralBackend::datatype);
+            RDF4CPP_ASSERT(x.datatype == SpecializedLiteralBackend::datatype);
             return x.hash<literal_type>();
         }
     };
