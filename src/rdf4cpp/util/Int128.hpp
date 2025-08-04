@@ -74,7 +74,7 @@ namespace rdf4cpp {
             std::array<char, buf_sz> buf;
             std::to_chars_result const res = to_chars(buf.data(), buf.data() + buf.size(), value);
 
-            assert(res.ec == std::errc{});
+            RDF4CPP_ASSERT(res.ec == std::errc{});
 
             std::string_view const s{buf.data(), static_cast<std::string::size_type>(res.ptr - buf.data())};
             return writer::write_str(s, writer);

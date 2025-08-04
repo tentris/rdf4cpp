@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::writer {
 
