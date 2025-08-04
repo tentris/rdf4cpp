@@ -39,9 +39,30 @@ namespace rdf4cpp {
                 return upper;
             }
 
-            first = upper.ptr;
+            if (last - upper.ptr < std::numeric_limits<uint64_t>::digits10) {
+                return { last, std::errc::value_too_large };
+            }
 
-            std::to_chars_result lower = std::to_chars(first, last, static_cast<uint64_t>(val % max_pow10));
+            std::array<char, std::numeric_limits<uint64_t>::digits10+1> buff;
+            std::to_chars_result lower = std::to_chars(buff.data(), buff.data()+buff.size(), static_cast<uint64_t>(val % max_pow10));
+
+            if (lower.ec != std::errc{}) {
+                return lower;
+            }
+
+            const auto written = lower.ptr - buff.data();
+            const auto n_zeroes = std::numeric_limits<uint64_t>::digits10 - written;
+
+            char* curr = upper.ptr;
+            RDF4CPP_DEBUG_ASSERT(last - curr >= n_zeroes);
+            std::memset(curr, '0', n_zeroes);
+            curr += n_zeroes;
+            RDF4CPP_DEBUG_ASSERT(last - curr >= written);
+            std::memcpy(curr, buff.data(), written);
+            curr += written;
+
+            lower.ptr = curr;
+
             return lower;
         }
         inline std::to_chars_result to_chars(char *first, char *last, __int128 val) noexcept {

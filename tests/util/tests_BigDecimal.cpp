@@ -1,6 +1,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
+#include <random>
+
 #include <rdf4cpp/BigDecimal.hpp>
 #include <rdf4cpp/datatypes/registry/util/ConstexprString.hpp>
 #include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
@@ -167,6 +169,17 @@ TEST_CASE_TEMPLATE("checked casting", T, uint32_t, uint64_t, unsigned __int128, 
     CHECK(t == std::numeric_limits<uint8_t>::max());
 }
 
+constexpr __int128 Make128(int64_t h, int64_t l) {
+    constexpr __int128 p = []() {
+        __int128 r = 1;
+        for (int i = 0; i < std::numeric_limits<int64_t>::digits10; ++i) {
+            r *= 10;
+        }
+        return r;
+    }();
+    return static_cast<__int128>(h) * p + l;
+}
+
 TEST_CASE("int128 to_chars") {
     auto tos = [](__int128 x) {
         return rdf4cpp::writer::StringWriter::oneshot([x](rdf4cpp::writer::StringWriter& w) {
@@ -177,6 +190,15 @@ TEST_CASE("int128 to_chars") {
     CHECK(tos(std::numeric_limits<__int128>::max()) == "170141183460469231731687303715884105727");
     CHECK(tos(std::numeric_limits<__int128>::min()) == "-170141183460469231731687303715884105728");
     CHECK(tos(std::numeric_limits<__int128>::min()+1) == "-170141183460469231731687303715884105727");
+    CHECK(Make128(5000, 5) > std::numeric_limits<uint64_t>::max());
+    CHECK(tos(Make128(1, 5)) == "1000000000000000005");
+    CHECK(tos(Make128(5001, 5)) == "5001000000000000000005");
+    CHECK(tos(Make128(5000, 5)) == "5000000000000000000005");
+    CHECK(tos(Make128(5000, 500000)) == "5000000000000000500000");
+    CHECK(tos(Make128(-1, -5)) == "-1000000000000000005");
+    CHECK(tos(Make128(-5001, -5)) == "-5001000000000000000005");
+    CHECK(tos(Make128(-5000, -5)) == "-5000000000000000000005");
+    CHECK(tos(Make128(-5000, -500000)) == "-5000000000000000500000");
 }
 
 TEST_CASE("int128 from_chars") {
@@ -185,6 +207,28 @@ TEST_CASE("int128 from_chars") {
     CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("170141183460469231731687303715884105727") == std::numeric_limits<__int128>::max());
     CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-170141183460469231731687303715884105728") == std::numeric_limits<__int128>::min());
     CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-170141183460469231731687303715884105727") == std::numeric_limits<__int128>::min()+1);
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("1000000000000000005") == Make128(1, 5));
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("5000000000000000000005") == Make128(5000, 5));
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("5001000000000000000005") == Make128(5001, 5));
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("5000000000000000500000") == Make128(5000, 500000));
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-5001000000000000000005") == Make128(-5001, -5));
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-5000000000000000000005") == Make128(-5000, -5));
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-1000000000000000005") == Make128(-1, -5));
+    CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-5000000000000000500000") == Make128(-5000, -500000));
+
+    std::random_device rd{};
+    std::default_random_engine r{std::uniform_int_distribution<size_t>{}(rd)};
+    std::uniform_int_distribution<int64_t> d{};
+    std::array<char, std::numeric_limits<__int128>::digits10 + 2> buff;
+    for (int i = 0; i < 100000; ++i) {
+        __int128 const c = static_cast<__int128>(d(r)) << 64 | d(r);
+        auto char_res = rdf4cpp::util::to_chars(buff.data(), buff.data() + buff.size(), c);
+        CHECK(char_res.ec == std::errc{});
+        auto len = char_res.ptr - buff.data();
+        CHECK(len >= 0);
+        CHECK(len < buff.size());
+        CHECK(c == rdf4cpp::datatypes::registry::util::from_chars<__int128, s>(std::string_view{buff.data(), static_cast<size_t>(len)}));
+    }
 }
 
 TEST_CASE("basics") {
