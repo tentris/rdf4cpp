@@ -361,7 +361,7 @@ target_link_libraries(tests_Serialization
 add_test(NAME tests_Serialization COMMAND tests_Serialization)
 
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.nt")
-        file(DOWNLOAD "https://files.dice-research.org/datasets/ISWC2020_Tentris/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
+        file(DOWNLOAD "https://files.tentris.dev/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
         execute_process(COMMAND unzip "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip" -d "${CMAKE_CURRENT_BINARY_DIR}/test_swdf")
         file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
 endif ()

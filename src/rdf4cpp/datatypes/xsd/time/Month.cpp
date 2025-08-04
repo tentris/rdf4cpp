@@ -32,7 +32,7 @@ bool capabilities::Default<xsd_gMonth>::serialize_canonical_string(cpp_type cons
         it = value.second->to_canonical_string(it);
     }
     size_t const len = it - buff.data();
-    assert(len <= buff.size());
+    RDF4CPP_ASSERT(len <= buff.size());
     return writer::write_str(std::string_view(buff.data(), len), writer);
 }
 

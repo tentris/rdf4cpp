@@ -9,6 +9,8 @@
 
 #include <rdf4cpp/datatypes/rdf.hpp>
 #include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
+#include <rdf4cpp/Assert.hpp>
+
 #include <rdf4cpp/util/CheckedInt.hpp>
 
 namespace rdf4cpp {
@@ -344,7 +346,7 @@ namespace rdf4cpp {
             *this = *this + d;
             return *this;
         }
-        
+
         friend constexpr YearMonth operator+(YearMonth const &ym, std::chrono::months d) {
             return create_normalized(static_cast<int64_t>(ym.year_), static_cast<unsigned int>(ym.month_) + d.count()).value();
         }
@@ -416,7 +418,7 @@ namespace rdf4cpp {
         Day day_ = Day{1};
 
         static constexpr std::chrono::day last_day_in_month(Year year, Month month) noexcept {
-            assert(month.ok());
+            RDF4CPP_ASSERT(month.ok());
             constexpr unsigned char common[]{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
             auto m = static_cast<unsigned int>(month);
             return std::chrono::day{m != 2 || !year.is_leap() ? common[m - 1] : 29u};

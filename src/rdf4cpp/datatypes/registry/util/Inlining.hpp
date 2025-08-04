@@ -5,6 +5,7 @@
 #include <array>
 #include <cassert>
 #include <cstddef>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry::util {
 
@@ -107,7 +108,7 @@ constexpr T unpack(P packed_value) noexcept {
 template<typename P, size_t bits, std::signed_integral T>
 constexpr P pack_signed(T value) noexcept {
     // bit at position bits - 1 must have the same value as every bit to the left of it
-    assert(packing_detail::no_information_in_bits_after<bits - 1>(value));
+    RDF4CPP_ASSERT(packing_detail::no_information_in_bits_after<bits - 1>(value));
 
     if constexpr (sizeof(T) * 8 > bits) {
         using UT = std::make_unsigned_t<T>;

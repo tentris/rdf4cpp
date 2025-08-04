@@ -10,6 +10,7 @@
 #include <rdf4cpp/Timezone.hpp>
 #include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 #include <rdf4cpp/util/CheckedInt.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 /**
  * @file
@@ -81,7 +82,7 @@ namespace rdf4cpp::datatypes::registry::util {
                 return it;
             --it;
         }
-        assert(*(it - 1) == '.');
+        RDF4CPP_ASSERT(*(it - 1) == '.');
         --it;
         return it;
     }

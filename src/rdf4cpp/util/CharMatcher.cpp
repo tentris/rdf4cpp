@@ -7,6 +7,7 @@
 #include <cassert>
 #include <hwy/highway.h>
 #include <stdexcept>
+#include <rdf4cpp/Assert.hpp>
 
 
 HWY_BEFORE_NAMESPACE();  // at file scope
@@ -85,8 +86,8 @@ namespace rdf4cpp::util::char_matcher_detail::HWY_NAMESPACE {
         // set up ranges
         std::array<std::pair<single_storage, single_storage>, rn> range_vectors;
         for (size_t i = 0; i < rn; ++i) {
-            assert(ranges[i].first != '\0');
-            assert(ranges[i].first < ranges[i].last);
+            RDF4CPP_ASSERT(ranges[i].first != '\0');
+            RDF4CPP_ASSERT(ranges[i].first < ranges[i].last);
             range_vectors[i].first = LOAD_SINGLE(static_cast<int8_t>(ranges[i].first - 1));
             range_vectors[i].second = LOAD_SINGLE(static_cast<int8_t>(ranges[i].last + 1));
         }
@@ -192,7 +193,7 @@ namespace rdf4cpp::util::char_matcher_detail::HWY_NAMESPACE {
         std::array<single_storage, n-1> match_vectors;
         auto view = static_cast<std::string_view>(match);
         for (size_t i = 0; i < n-1; ++i) {
-            assert(view[i] != '\0');
+            RDF4CPP_ASSERT(view[i] != '\0');
             match_vectors[i] = LOAD_SINGLE(static_cast<int8_t>(view[i]));
         }
 

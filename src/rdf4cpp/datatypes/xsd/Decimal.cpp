@@ -6,6 +6,7 @@
 #include <regex>
 
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
@@ -165,14 +166,14 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_decim
     }
 
     InlinedDecimal const inlined{*unscaled_inlined, *exponent_inlined};
-    assert(inlined.padding == 0);
+    RDF4CPP_ASSERT(inlined.padding == 0);
     return util::pack<storage::identifier::LiteralID>(inlined);
 }
 
 template<>
 capabilities::Inlineable<xsd_decimal>::cpp_type capabilities::Inlineable<xsd_decimal>::from_inlined(storage::identifier::LiteralID inlined) noexcept {
     auto const data = util::unpack<InlinedDecimal>(inlined);
-    assert(data.padding == 0);
+    RDF4CPP_ASSERT(data.padding == 0);
 
     auto const unscaled_value = util::unpack_integral<int64_t, InlinedDecimal::unscaled_size>(data.unscaled_value);
     auto const exponent = util::unpack_integral<uint32_t, InlinedDecimal::exponent_size>(data.exponent);

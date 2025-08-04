@@ -5,6 +5,7 @@
 #include <cstddef>
 
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
@@ -116,7 +117,7 @@ Base64BinaryRepr Base64BinaryRepr::from_encoded(std::string_view const base64enc
         auto const old_pos = pos;
 
         while (ch == ' ') {
-            assert(pos < base64encoded.size());
+            RDF4CPP_ASSERT(pos < base64encoded.size());
             ch = base64encoded[pos++];
         }
 

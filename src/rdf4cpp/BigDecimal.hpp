@@ -14,6 +14,7 @@
 #include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/util/Int128.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp {
     namespace util {
@@ -338,8 +339,7 @@ namespace rdf4cpp {
                                 return BigDecimal{v, e};
                         }
                     default:
-                        assert(false);
-                        __builtin_unreachable();
+                        RDF4CPP_UNREACHABLE;
                 }
             }
 

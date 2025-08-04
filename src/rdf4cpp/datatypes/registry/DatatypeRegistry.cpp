@@ -17,10 +17,10 @@ DatatypeRegistry::registered_datatypes_t &DatatypeRegistry::get_mutable() noexce
 
 void DatatypeRegistry::add_fixed(DatatypeEntry entry_to_add, LiteralType type_id) noexcept {
     auto const id_as_index = static_cast<size_t>(type_id.to_underlying()) - 1; // ids from 1 to n stored in places 0 to n-1
-    assert(id_as_index < dynamic_datatype_offset);
+    RDF4CPP_ASSERT(id_as_index < dynamic_datatype_offset);
 
     auto &slot = DatatypeRegistry::get_mutable()[id_as_index];
-    assert(slot.datatype_iri.empty()); // is placeholder
+    RDF4CPP_ASSERT(slot.datatype_iri.empty()); // is placeholder
     slot = std::move(entry_to_add);
 }
 
@@ -170,8 +170,8 @@ DatatypeRegistry::InliningOps const *DatatypeRegistry::get_inlining_ops(Datatype
 }
 
 std::optional<DatatypeRegistry::DatatypeConverter> DatatypeRegistry::get_common_numeric_op_type_conversion(DatatypeEntry const &lhs_entry, DatatypeEntry const &rhs_entry) noexcept {
-    assert(lhs_entry.numeric_ops.has_value());
-    assert(rhs_entry.numeric_ops.has_value());
+    RDF4CPP_ASSERT(lhs_entry.numeric_ops.has_value());
+    RDF4CPP_ASSERT(rhs_entry.numeric_ops.has_value());
 
     size_t const lhs_init_soff = lhs_entry.numeric_ops->is_stub() ? lhs_entry.numeric_ops->get_stub().start_s_off : 0;
     size_t const rhs_init_soff = rhs_entry.numeric_ops->is_stub() ? rhs_entry.numeric_ops->get_stub().start_s_off : 0;
@@ -180,8 +180,8 @@ std::optional<DatatypeRegistry::DatatypeConverter> DatatypeRegistry::get_common_
 }
 
 RuntimeConversionEntry const &DatatypeRegistry::get_numeric_op_impl_conversion(DatatypeEntry const &entry) noexcept {
-    assert(entry.numeric_ops.has_value());
-    assert(entry.numeric_ops->is_stub());
+    RDF4CPP_ASSERT(entry.numeric_ops.has_value());
+    RDF4CPP_ASSERT(entry.numeric_ops->is_stub());
 
     return entry.conversion_table.conversion_at_index(entry.numeric_ops->get_stub().start_s_off, 0);
 }
@@ -213,7 +213,7 @@ std::optional<DatatypeRegistry::DatatypeConverter> DatatypeRegistry::get_common_
         auto const greater_s_rank = greater.subtype_rank() - greater_init_soff;
 
         // lesser should be the conversion table of the type with lower subtype rank
-        assert(lesser_s_rank <= greater_s_rank);
+        RDF4CPP_ASSERT(lesser_s_rank <= greater_s_rank);
 
         // calculate initial subtype offsets to equalize subtype rank
         size_t lesser_s_off = lesser_init_soff;

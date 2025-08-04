@@ -11,6 +11,7 @@
 
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/util/Int128.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry::util {
 /**
@@ -31,7 +32,7 @@ bool to_chars_canonical(I const value, writer::BufWriterParts const writer) noex
     std::array<char, buf_sz> buf;
     std::to_chars_result const res = std::to_chars(buf.data(), buf.data() + buf.size(), value);
 
-    assert(res.ec == std::errc{});
+    RDF4CPP_ASSERT(res.ec == std::errc{});
 
     std::string_view const s{buf.data(), static_cast<std::string::size_type>(res.ptr - buf.data())};
     return writer::write_str(s, writer);
@@ -206,10 +207,10 @@ bool to_chars_canonical(F const value, writer::BufWriterParts const writer) noex
     std::array<char, buf_sz> buf;
 
     std::to_chars_result res = std::to_chars(buf.data(), buf.data() + buf.size(), value, std::chars_format::scientific);
-    assert(res.ec == std::errc{});
+    RDF4CPP_ASSERT(res.ec == std::errc{});
 
     auto *e_ptr = std::find(buf.data(), res.ptr, 'e');
-    assert(e_ptr != res.ptr); // serializing in scientific notation, there must be an 'e'
+    RDF4CPP_ASSERT(e_ptr != res.ptr); // serializing in scientific notation, there must be an 'e'
     *e_ptr = 'E'; // convert 'e' to 'E' as required by the SPARQL standard
 
     if (auto *dot_ptr = buf.data() + 1; dot_ptr == e_ptr) {
@@ -268,7 +269,7 @@ bool to_chars_simplified(F const value, writer::BufWriterParts const writer) noe
         std::array<char, buf_sz> buf;
 
         auto const res = std::to_chars(buf.data(), buf.data() + buf.size(), value, std::chars_format::fixed);
-        assert(res.ec == std::errc{});
+        RDF4CPP_ASSERT(res.ec == std::errc{});
 
         std::string_view const s{buf.data(), static_cast<std::string::size_type>(res.ptr - buf.data())};
         return writer::write_str(s, writer);

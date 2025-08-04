@@ -3,6 +3,7 @@
 #include <ranges>
 
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
@@ -46,7 +47,7 @@ static uint8_t hex_decode(char const ch) {
 
 template<Mode mode>
 static char hex_encode(uint8_t const half_octet) noexcept {
-    assert(half_octet <= 15);
+    RDF4CPP_ASSERT(half_octet <= 15);
 
     if constexpr (mode == Mode::Number) {
         return encode_lut[half_octet];
