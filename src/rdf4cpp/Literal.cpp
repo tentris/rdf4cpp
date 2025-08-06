@@ -2588,6 +2588,111 @@ Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage
     auto const res = lang_matches(lang_tag.lexical_form(), lang_range.lexical_form());
     return Literal::make_boolean(res, lang_tag.select_node_storage(node_storage));
 }
+Literal Literal::math_pi(storage::DynNodeStoragePtr node_storage) {
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::numbers::pi, node_storage);
+}
+Literal Literal::math_exp(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::exp(th), select_node_storage(node_storage));
+}
+Literal Literal::math_exp10(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::pow(10.0, th), select_node_storage(node_storage));
+}
+Literal Literal::math_log(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::log(th), select_node_storage(node_storage));
+}
+Literal Literal::math_log10(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::log10(th), select_node_storage(node_storage));
+}
+Literal Literal::math_pow(Literal exp, storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    if (exp.null()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    auto ex = exp.cast_to_value<datatypes::xsd::Double>();
+    if (!ex.has_value()) {
+        return {};
+    }
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::pow(th, *ex), select_node_storage(node_storage));
+}
+Literal Literal::math_sqrt(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::sqrt(th), select_node_storage(node_storage));
+}
+Literal Literal::math_sin(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::sin(th), select_node_storage(node_storage));
+}
+Literal Literal::math_cos(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::cos(th), select_node_storage(node_storage));
+}
+Literal Literal::math_tan(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::tan(th), select_node_storage(node_storage));
+}
+Literal Literal::math_asin(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::asin(th), select_node_storage(node_storage));
+}
+Literal Literal::math_acos(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::acos(th), select_node_storage(node_storage));
+}
+Literal Literal::math_atan(storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::atan(th), select_node_storage(node_storage));
+}
+Literal Literal::math_atan2(Literal y, storage::DynNodeStoragePtr node_storage) const {
+    if (null() || !datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    if (y.null() || !y.datatype_eq<datatypes::xsd::Double>()) {
+        return {};
+    }
+    auto th = value<datatypes::xsd::Double>();
+    auto yd = y.value<datatypes::xsd::Double>();
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::atan2(th, yd), select_node_storage(node_storage));
+}
 
 inline namespace shorthands {
 

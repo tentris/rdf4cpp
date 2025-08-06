@@ -1190,3 +1190,216 @@ TEST_CASE_TEMPLATE("leading zeros parsing", L, datatypes::xsd::Integer,
     CHECK_EQ(lit.template value<L>(), 0);
 }
 
+TEST_CASE("trigonometry/exponential funcs") {
+    using Literal = rdf4cpp::Literal;
+    using namespace rdf4cpp::datatypes;
+
+    auto make = [](double d) {
+        return Literal::make_typed_from_value<xsd::Double>(d);
+    };
+    auto check = [](Literal l, double d) {
+        auto v = l.value<xsd::Double>();
+        if (std::isnan(d)) {
+            CHECK(std::isnan(v));
+        }
+        else if (std::isinf(d)) {
+            CHECK(std::isinf(v));
+            CHECK((v > 0) == (d > 0));
+            CHECK((v < 0) == (d < 0));
+        }
+        else {
+            CHECK(v == doctest::Approx(d));
+        }
+    };
+    static constexpr auto nan = std::numeric_limits<double>::quiet_NaN();
+    static constexpr auto p_inf = std::numeric_limits<double>::infinity();
+    static constexpr auto n_inf = -p_inf;
+
+    const auto str = Literal::make_simple("something");
+    const auto i = Literal::make_typed_from_value<xsd::Int>(42);
+
+    // adapted from https://www.w3.org/TR/xpath-functions/#trigonometry
+    SUBCASE("pi") {
+        CHECK(Literal::math_pi().value<xsd::Double>() == std::numbers::pi);
+    }
+    SUBCASE("exp") {
+        check(make(0.0).math_exp(), 1.0);
+        check(make(1.0).math_exp(), 2.7182818284590455);
+        check(make(2.0).math_exp(), 7.38905609893065);
+        check(make(-1.0).math_exp(), 0.36787944117144233);
+        check(make(nan).math_exp(), nan);
+        check(make(p_inf).math_exp(), p_inf);
+        check(make(n_inf).math_exp(), 0.0);
+        CHECK(str.math_exp().null());
+        CHECK(i.math_exp().null());
+    }
+    SUBCASE("exp10") {
+        check(make(0.0).math_exp10(), 1.0);
+        check(make(1.0).math_exp10(), 10);
+        check(make(2.0).math_exp10(), 100);
+        check(make(0.5).math_exp10(), 3.1622776601683795);
+        check(make(-1.0).math_exp10(), 0.1);
+        check(make(nan).math_exp10(), nan);
+        check(make(p_inf).math_exp10(), p_inf);
+        check(make(n_inf).math_exp10(), 0.0);
+        CHECK(str.math_exp10().null());
+        CHECK(i.math_exp10().null());
+    }
+    SUBCASE("log") {
+        check(make(0.0).math_log(), n_inf);
+        check(make(1.0).math_exp().math_log(), 1.0);
+        check(make(1.0e-3).math_log(), -6.907755278982137);
+        check(make(2).math_log(), 0.6931471805599453);
+        check(make(-1.0).math_log(), nan);
+        check(make(nan).math_log(), nan);
+        check(make(p_inf).math_log(), p_inf);
+        check(make(n_inf).math_log(), nan);
+        CHECK(str.math_log().null());
+        CHECK(i.math_log().null());
+    }
+    SUBCASE("log10") {
+        check(make(0.0).math_log10(), n_inf);
+        check(make(1.0e3).math_log10(), 3.0);
+        check(make(1.0e-3).math_log10(), -3.0);
+        check(make(2).math_log10(), 0.3010299956639812);
+        check(make(-1.0).math_log10(), nan);
+        check(make(nan).math_log10(), nan);
+        check(make(p_inf).math_log10(), p_inf);
+        check(make(n_inf).math_log10(), nan);
+        CHECK(str.math_log10().null());
+        CHECK(i.math_log10().null());
+    }
+    SUBCASE("pow") {
+        check(make(2.0).math_pow(make(3.0)), 8.0);
+        check(make(-2.0).math_pow(make(3.0)), -8.0);
+        check(make(2.0).math_pow(make(0.0)), 1.0);
+        check(make(0.0).math_pow(make(0.0)), 1.0);
+        check(make(p_inf).math_pow(make(0.0)), 1.0);
+        check(make(nan).math_pow(make(0.0)), 1.0);
+        check(make(0.0).math_pow(make(1.0)), 0.0);
+        check(make(0.0).math_pow(make(4.2)), 0.0);
+        check(make(0.0).math_pow(make(-4.2)), p_inf);
+        check(make(-0.0).math_pow(make(-4.2)), p_inf);
+        check(make(16.0).math_pow(make(0.5)), 4.0);
+        check(make(0.0).math_pow(make(4.2)), 0.0);
+        check(make(0.0).math_pow(make(-3.0)), p_inf);
+        check(make(-0.0).math_pow(make(-3.0)), n_inf);
+        check(make(-0.0).math_pow(make(-3.1)), p_inf);
+        check(make(0.0).math_pow(make(-3.1)), p_inf);
+        check(make(0.0).math_pow(make(3.0)), 0.0);
+        check(make(-0.0).math_pow(make(3.0)), -0.0);
+        check(make(-0.0).math_pow(make(3.1)), 0.0);
+        check(make(0.0).math_pow(make(3.1)), 0.0);
+        check(make(0.0).math_pow(make(3.1)), 0.0);
+        check(make(1.0).math_pow(make(p_inf)), 1.0);
+        check(make(1.0).math_pow(make(n_inf)), 1.0);
+        check(make(1.0).math_pow(make(nan)), 1.0);
+        check(make(-1.0).math_pow(make(p_inf)), 1.0);
+        check(make(-1.0).math_pow(make(n_inf)), 1.0);
+        CHECK(str.math_pow(make(3.1)).null());
+        CHECK(i.math_pow(make(3.1)).null());
+        CHECK(make(3.1).math_pow(str).null());
+    }
+    SUBCASE("sqrt") {
+        check(make(0.0).math_sqrt(), 0.0);
+        check(make(-0.0).math_sqrt(), -0.0);
+        check(make(1.0).math_sqrt(), 1.0);
+        check(make(2.0).math_sqrt(), 1.4142135623730951);
+        check(make(-2.0).math_sqrt(), nan);
+        check(make(nan).math_sqrt(), nan);
+        check(make(p_inf).math_sqrt(), p_inf);
+        check(make(n_inf).math_sqrt(), nan);
+        CHECK(str.math_sqrt().null());
+        CHECK(i.math_sqrt().null());
+    }
+
+    SUBCASE("sin") {
+        check(make(0.0).math_sin(), 0.0);
+        check(make(-0.0).math_sin(), -0.0);
+        check(make(std::numbers::pi / 2).math_sin(), 1.0);
+        check(make(-std::numbers::pi / 2).math_sin(), -1.0);
+        check(make(std::numbers::pi).math_sin(), 0.0);
+        check(make(nan).math_sin(), nan);
+        check(make(p_inf).math_sin(), nan);
+        check(make(n_inf).math_sin(), nan);
+        CHECK(str.math_sin().null());
+        CHECK(i.math_sin().null());
+    }
+    SUBCASE("cos") {
+        check(make(0.0).math_cos(), 1.0);
+        check(make(-0.0).math_cos(), 1.0);
+        check(make(std::numbers::pi / 2).math_cos(), 0.0);
+        check(make(-std::numbers::pi / 2).math_cos(), 0.0);
+        check(make(std::numbers::pi).math_cos(), -1.0);
+        check(make(nan).math_cos(), nan);
+        check(make(p_inf).math_cos(), nan);
+        check(make(n_inf).math_cos(), nan);
+        CHECK(str.math_cos().null());
+        CHECK(i.math_cos().null());
+    }
+    SUBCASE("tan") {
+        check(make(0.0).math_tan(), 0.0);
+        check(make(-0.0).math_tan(), -0.0);
+        check(make(std::numbers::pi / 4).math_tan(), 1.0);
+        check(make(-std::numbers::pi / 4).math_tan(), -1.0);
+        check(make(1) / make(std::numbers::pi / 2).math_tan(), 0.0);
+        check(make(1) / make(-std::numbers::pi / 2).math_tan(), 0.0);
+        check(make(std::numbers::pi).math_tan(), 0.0);
+        check(make(nan).math_tan(), nan);
+        check(make(p_inf).math_tan(), nan);
+        check(make(n_inf).math_tan(), nan);
+        CHECK(str.math_tan().null());
+        CHECK(i.math_tan().null());
+    }
+    SUBCASE("asin") {
+        check(make(0.0).math_asin(), 0.0);
+        check(make(-0.0).math_asin(), -0.0);
+        check(make(1.0).math_asin(), std::numbers::pi/2);
+        check(make(-1.0).math_asin(), -std::numbers::pi/2);
+        check(make(2.0).math_asin(), nan);
+        check(make(nan).math_asin(), nan);
+        check(make(p_inf).math_asin(), nan);
+        check(make(n_inf).math_asin(), nan);
+        CHECK(str.math_asin().null());
+        CHECK(i.math_asin().null());
+    }
+    SUBCASE("acos") {
+        check(make(0.0).math_acos(), std::numbers::pi/2);
+        check(make(-0.0).math_acos(), std::numbers::pi/2);
+        check(make(1.0).math_acos(), 0.0);
+        check(make(-1.0).math_acos(), std::numbers::pi);
+        check(make(2.0).math_acos(), nan);
+        check(make(nan).math_acos(), nan);
+        check(make(p_inf).math_acos(), nan);
+        check(make(n_inf).math_acos(), nan);
+        CHECK(str.math_acos().null());
+        CHECK(i.math_acos().null());
+    }
+    SUBCASE("atan") {
+        check(make(0.0).math_atan(), 0.0);
+        check(make(-0.0).math_atan(), -0.0);
+        check(make(1.0).math_atan(), std::numbers::pi / 4);
+        check(make(-1.0).math_atan(), -std::numbers::pi / 4);
+        check(make(nan).math_atan(), nan);
+        check(make(p_inf).math_atan(), std::numbers::pi / 2);
+        check(make(n_inf).math_atan(), -std::numbers::pi / 2);
+        CHECK(str.math_atan().null());
+        CHECK(i.math_atan().null());
+    }
+    SUBCASE("atan2") {
+        check(make(0.0).math_atan2(make(0.0)), 0.0);
+        check(make(-0.0).math_atan2(make(0.0)), -0.0);
+        check(make(0.0).math_atan2(make(-0.0)), std::numbers::pi);
+        check(make(-0.0).math_atan2(make(-0.0)), -std::numbers::pi);
+        check(make(-1.0).math_atan2(make(0.0)), -std::numbers::pi / 2);
+        check(make(1.0).math_atan2(make(0.0)), std::numbers::pi / 2);
+        check(make(-0.0).math_atan2(make(-1.0)), -std::numbers::pi);
+        check(make(0.0).math_atan2(make(-1.0)), std::numbers::pi);
+        check(make(-0.0).math_atan2(make(1.0)), -0.0);
+        check(make(0.0).math_atan2(make(1.0)), 0.0);
+        CHECK(str.math_atan2(make(1.0)).null());
+        CHECK(i.math_atan2(make(1.0)).null());
+        CHECK(make(1.0).math_atan2(str).null());
+        CHECK(make(1.0).math_atan2(i).null());
+    }
+}
