@@ -751,7 +751,7 @@ public:
 
         if constexpr (std::same_as<T, Boolean>) {
             // any -> bool
-            TriBool t = this->ebv();
+            TriBool const t = this->ebv();
             if (t == TriBool::Err)
                 return std::nullopt;
             else if (t == TriBool::True)
