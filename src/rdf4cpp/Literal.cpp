@@ -2608,21 +2608,7 @@ if (!var_name##_opt.has_value()) {                                              
 auto const var_name = *var_name##_opt;
 
 Literal Literal::math_exp(storage::DynNodeStoragePtr node_storage) const {
-
-    auto const th_opt = [&source_obj = (*this)]() -> std::optional<double> {
-        if (source_obj.null()) {
-            return std::nullopt;
-        }
-        if (!source_obj.datatype_eq<datatypes::xsd::Double>()) {
-            return source_obj.cast_to_value<datatypes::xsd::Double>();
-        }
-        return source_obj.value<datatypes::xsd::Double>();
-    }();
-    if (!th_opt.has_value()) {
-        return {};
-    }
-    auto const th = *th_opt;
-
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
     return Literal::make_typed_from_value<datatypes::xsd::Double>(std::exp(th), select_node_storage(node_storage));
 }
 Literal Literal::math_exp10(storage::DynNodeStoragePtr node_storage) const {
