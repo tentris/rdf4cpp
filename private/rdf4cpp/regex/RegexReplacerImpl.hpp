@@ -7,10 +7,10 @@
 namespace rdf4cpp::regex {
 
 struct RegexReplacer::Impl {
-    Regex::Impl const *regex;
+    std::shared_ptr<Regex::Impl> regex;
     std::string rewrite;
 
-    Impl(Regex::Impl const &regex, std::string_view rewrite);
+    Impl(std::shared_ptr<Regex::Impl> regex, std::string_view rewrite);
     void regex_replace(std::string &str) const noexcept;
 };
 

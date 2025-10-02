@@ -12,9 +12,9 @@ private:
     friend struct Regex;
 
     struct Impl;
-    std::unique_ptr<Impl> impl;
+    std::shared_ptr<Impl> impl;
 
-    explicit RegexReplacer(std::unique_ptr<Impl> &&impl) noexcept;
+    explicit RegexReplacer(std::shared_ptr<Impl> &&impl) noexcept;
 public:
     RegexReplacer() noexcept;
     RegexReplacer(RegexReplacer &&other) noexcept;

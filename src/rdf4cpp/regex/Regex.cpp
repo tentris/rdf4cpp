@@ -4,7 +4,7 @@
 
 namespace rdf4cpp::regex {
 
-Regex::Regex(std::string_view regex, flag_type const flags) : impl{std::make_unique<Impl>(regex, flags)} {
+Regex::Regex(std::string_view regex, flag_type const flags) : impl(std::make_shared<Impl>(regex, flags)) {
 }
 
 Regex::Regex(Regex &&other) noexcept = default;
@@ -20,7 +20,7 @@ bool Regex::regex_search(std::string_view const str) const noexcept {
 }
 
 RegexReplacer Regex::make_replacer(std::string_view const rewrite) const {
-    return RegexReplacer{std::make_unique<RegexReplacer::Impl>(*this->impl, rewrite)};
+    return RegexReplacer{std::make_shared<RegexReplacer::Impl>(this->impl, rewrite)};
 }
 
 }  //namespace rdf4cpp::regex

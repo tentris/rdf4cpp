@@ -19,7 +19,7 @@ private:
     friend struct RegexReplacer;
 
     struct Impl;
-    std::unique_ptr<Impl> impl;
+    std::shared_ptr<Impl> impl;
 
 public:
     /**
