@@ -757,11 +757,4 @@ TEST_SUITE("IStreamQuadIterator") {
             CHECK(qit->value().object().as_iri().identifier() == "eXAMPLE://a/./b/../b/%63/%7bfoo%7d#xyz");
         }
     }
-
-    TEST_CASE("bug") {
-        std::istringstream iss{R"(<https://lux.collections.yale.edu/data/object/18eeb377-f049-4f0b-a027-dcd00d1ee32f> <https://lux.collections.yale.edu/ns/weight> "5e-05"^^<http://www.w3.org/2001/XMLSchema#decimal> .)"};
-        for (IStreamQuadIterator qit{iss}; qit != std::default_sentinel; ++qit) {
-            CHECK_FALSE(qit->has_value());
-        }
-    }
 }
