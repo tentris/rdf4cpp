@@ -3,7 +3,7 @@
 
 namespace rdf4cpp::regex {
 
-RegexReplacer::RegexReplacer(std::shared_ptr<Impl> &&impl) noexcept : impl{std::move(impl)} {
+RegexReplacer::RegexReplacer(std::unique_ptr<Impl> &&impl) noexcept : impl{std::move(impl)} {
 }
 
 RegexReplacer::RegexReplacer() noexcept = default;
