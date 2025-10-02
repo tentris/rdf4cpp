@@ -1972,22 +1972,13 @@ Literal Literal::as_regex_matches(regex::Regex const &pattern, storage::DynNodeS
 }
 
 Literal Literal::as_regex_matches(Literal const &pattern, Literal const &flags, storage::DynNodeStoragePtr node_storage) const noexcept {
-    if (this->null()) {
-        return Literal{};
-    }
-
-    if (!this->is_string_like() || !pattern.is_string_like() || !flags.is_string_like()) {
-        return Literal{};
-    }
-
-    if (pattern.datatype_eq<datatypes::rdf::LangString>() && this->language_tag() != pattern.language_tag()) {
+    if (this->null() || !this->is_string_like()) {
         return Literal{};
     }
 
     auto const re = [&]() noexcept -> std::optional<regex::Regex> {
         try {
-            auto const regex_flags = translate_regex_flags(flags.lexical_form());
-            return regex::Regex{pattern.lexical_form(), regex_flags};
+            return pattern.make_regex(flags);
         } catch (std::runtime_error const &) {
             return std::nullopt;
         }
@@ -1999,6 +1990,17 @@ Literal Literal::as_regex_matches(Literal const &pattern, Literal const &flags, 
 
     auto const res = this->regex_matches(*re);
     return Literal::make_boolean(res, select_node_storage(node_storage));
+}
+
+regex::Regex Literal::make_regex(Literal const &flags) const {
+    if (this->null() || !this->datatype_eq<datatypes::xsd::String>()) {
+        throw std::runtime_error{"Literal cannot be converted for creating regex (null or not simple literal)"};
+    }
+    if (flags.null() || !flags.datatype_eq<datatypes::xsd::String>()) {
+        throw std::runtime_error{"Flags cannot be used for creating regex (null or not string-like)"};
+    }
+    auto const regex_flags = translate_regex_flags(flags.lexical_form());
+    return regex::Regex{this->lexical_form(), regex_flags};
 }
 
 Literal Literal::regex_replace(regex::RegexReplacer const &replacer, storage::DynNodeStoragePtr node_storage) const {
@@ -2013,18 +2015,13 @@ Literal Literal::regex_replace(regex::RegexReplacer const &replacer, storage::Dy
 }
 
 Literal Literal::regex_replace(Literal const &pattern, Literal const &replacement, Literal const &flags, storage::DynNodeStoragePtr node_storage) const {
-    if (!this->is_string_like() || !pattern.is_string_like() || !replacement.is_string_like() || !flags.is_string_like()) {
-        return Literal{};
-    }
-
-    if (pattern.datatype_eq<datatypes::rdf::LangString>() && this->language_tag() != pattern.language_tag()) {
+    if (this->null() || !this->is_string_like()) {
         return Literal{};
     }
 
     auto const re = [&]() noexcept -> std::optional<regex::Regex> {
         try {
-            auto const regex_flags = translate_regex_flags(flags.lexical_form());
-            return regex::Regex{pattern.lexical_form(), regex_flags};
+            return pattern.make_regex(flags);
         } catch (std::runtime_error const &) {
             return std::nullopt;
         }

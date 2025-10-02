@@ -1175,6 +1175,13 @@ public:
     [[nodiscard]] Literal as_regex_matches(Literal const &pattern, Literal const &flags = Literal::make_simple(""), storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
 
     /**
+     * @brief Creates a regex, whose pattern is the lexical form of the caller (this->lexical_form())
+     * @param flags regex flags to use for matching (https://www.w3.org/TR/xpath-functions/#flags)
+     * @return A regex object (rdf4cpp::regex::Regex)
+     */
+    [[nodiscard]] regex::Regex make_regex(Literal const &flags = Literal::make_simple("")) const;
+
+    /**
      * @see https://www.w3.org/TR/xpath-functions/#func-replace
      *
      * @param replacer replacement regex

@@ -729,7 +729,8 @@ TEST_CASE("Literal - misc functions") {
 
         // check lang tag behaviour
         CHECK(Literal::make_lang_tagged("abcd", "en").as_regex_matches("b"_xsd_string).ebv());
-        CHECK(Literal::make_lang_tagged("abcd", "en").as_regex_matches(Literal::make_lang_tagged("b", "en")).ebv());
+        // pattern and flags should be simple literals (xsd:string)
+        CHECK(Literal::make_lang_tagged("abcd", "en").as_regex_matches(Literal::make_lang_tagged("b", "en")).null());
         CHECK(Literal::make_lang_tagged("abcd", "en").as_regex_matches(Literal::make_lang_tagged("b", "fr")).null());
 
         CHECK(!Literal::make_simple("abc\ndef\ngh").as_regex_matches("^def$"_xsd_string).ebv());
@@ -767,7 +768,8 @@ TEST_CASE("Literal - misc functions") {
 
         // check lang tag behaviour
         CHECK_EQ(Literal::make_lang_tagged("abcd", "en").regex_replace("b"_xsd_string, "Z"_xsd_string), Literal::make_lang_tagged("aZcd", "en"));
-        CHECK_EQ(Literal::make_lang_tagged("abcd", "en").regex_replace(Literal::make_lang_tagged("b", "en"), "Z"_xsd_string), Literal::make_lang_tagged("aZcd", "en"));
+        // pattern and flag should be simple literals (xsd:string)
+        CHECK(Literal::make_lang_tagged("abcd", "en").regex_replace(Literal::make_lang_tagged("b", "en"), "Z"_xsd_string).null());
         CHECK(Literal::make_lang_tagged("abcd", "en").regex_replace(Literal::make_lang_tagged("b", "fr"), "Z"_xsd_string).null());
 
         CHECK(("Hello 1 World"_xsd_string).regex_replace("[0-9]"_xsd_string, "Hello \\\\hgfhf World"_xsd_string) == "Hello Hello \\hgfhf World World"_xsd_string);
