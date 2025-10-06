@@ -19,7 +19,7 @@ private:
     friend struct RegexReplacer;
 
     struct Impl;
-    std::shared_ptr<Impl const> impl;
+    std::shared_ptr<Impl const> impl_;
 
 public:
     /**
@@ -31,13 +31,6 @@ public:
      * @throws RegexError if the regex compilation was not successful
      */
     explicit Regex(std::string_view regex, flag_type flags = flag_type::none());
-
-    Regex(Regex const &other) noexcept;
-    Regex &operator=(Regex const &other) noexcept;
-    Regex(Regex &&other) noexcept;
-    Regex &operator=(Regex &&other) noexcept;
-
-    ~Regex() noexcept;
 
     /**
      * Similar to std::regex_match. Tries to match this regex against the

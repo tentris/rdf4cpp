@@ -8,10 +8,9 @@ using namespace rdf4cpp::regex;
 TEST_SUITE("regex") {
     TEST_CASE("replacement translation") {
         Regex const r{"[0-9]"};
-        RegexReplacer repl_dummy;
 
         SUBCASE("no escape") {
-            CHECK_THROWS(repl_dummy = r.make_replacer("$"));
+            CHECK_THROWS((void) r.make_replacer("$"));
 
             {
                 std::string s = "Hello 99 World";
@@ -35,7 +34,7 @@ TEST_SUITE("regex") {
         }
 
         SUBCASE("2 escape") {
-            CHECK_THROWS(repl_dummy = r.make_replacer(R"(\\$)"));
+            CHECK_THROWS((void) r.make_replacer(R"(\\$)"));
 
             {
                 std::string s = "Hello 99 World";
@@ -59,7 +58,7 @@ TEST_SUITE("regex") {
         }
 
         SUBCASE("4 escape") {
-            CHECK_THROWS(repl_dummy = r.make_replacer(R"(\\\\$)"));
+            CHECK_THROWS((void) r.make_replacer(R"(\\\\$)"));
 
             {
                 std::string s = "Hello 99 World";

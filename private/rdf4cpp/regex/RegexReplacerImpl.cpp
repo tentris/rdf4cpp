@@ -87,7 +87,7 @@ RegexReplacer::Impl::Impl(std::shared_ptr<Regex::Impl const> regex, std::string_
     }
 }
 
-void RegexReplacer::Impl::regex_replace(std::string &str) const noexcept {
+void RegexReplacer::Impl::regex_replace(std::string &str) const {
     RE2::GlobalReplace(&str, this->regex->regex, this->rewrite);
 }
 
