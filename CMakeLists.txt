@@ -23,6 +23,7 @@ find_package(highway REQUIRED)
 find_package(dice-hash REQUIRED)
 find_package(dice-sparse-map REQUIRED)
 find_package(dice-template-library REQUIRED)
+find_package(libxml2 REQUIRED)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/rdf4cpp/version.hpp)
 
@@ -130,6 +131,7 @@ add_library(rdf4cpp
         src/rdf4cpp/namespaces/RDF.cpp
         src/rdf4cpp/parser/IStreamQuadIterator.cpp
         src/rdf4cpp/parser/RDFFileParser.cpp
+        src/rdf4cpp/parser/XMLParser.cpp
         src/rdf4cpp/query/QuadPattern.cpp
         src/rdf4cpp/query/Solution.cpp
         src/rdf4cpp/query/TriplePattern.cpp
@@ -177,6 +179,7 @@ target_link_libraries(rdf4cpp
         OpenSSL::Crypto
         uni-algo::uni-algo
         highway::highway
+        LibXml2::LibXml2
         )
 
 set_target_properties(rdf4cpp PROPERTIES
