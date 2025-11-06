@@ -8,7 +8,10 @@ namespace rdf4cpp::parser {
     private:
         xmlSAXHandler handler_;
         std::unique_ptr<xmlParserCtxt, decltype([](xmlParserCtxt *c) { xmlFreeParserCtxt(c); })> context_;
-        std::istream &stream_;  // NOLINT(*-avoid-const-or-ref-data-members)
+        void* reader_obj_;
+        ReadFunc read_func_;
+        ErrorFunc error_func_;
+        EOFFunc eof_func_;
         std::deque<value_type> result_queue_;
         size_t next_bn_index_ = 0;
 
@@ -114,9 +117,8 @@ namespace rdf4cpp::parser {
          * @param subject
          * @param predicate
          * @param object
-         * @param graph
          */
-        void add_statement(Node subject, IRI predicate, Node object, std::optional<Node> graph = std::nullopt);
+        void add_statement(Node subject, IRI predicate, Node object);
         void update_current_state();
         void pop_state(Node object);
         static std::string_view trim(std::string_view v);
@@ -128,7 +130,7 @@ namespace rdf4cpp::parser {
         static void on_error(void *th, char const *msg, ...);
 
     public:
-        explicit Impl(std::istream &stream);
+        explicit Impl(void* obj, ReadFunc read, ErrorFunc err, EOFFunc eof);
 
         std::optional<value_type> next();
     };
@@ -165,18 +167,11 @@ namespace rdf4cpp::parser {
         uint64_t const col = xmlSAX2GetColumnNumber(context_.get());
         result_queue_.emplace_back(nonstd::unexpect, ty, lin, col, std::move(msg));
     }
-    void XMLQuadIterator::Impl::add_statement(Node subject, IRI predicate, Node object, std::optional<Node> graph) {
+    void XMLQuadIterator::Impl::add_statement(Node subject, IRI predicate, Node object) {
         if (subject.null() || predicate.null() || object.null()) {
             return;
         }
-        if (graph.has_value()) {
-            if (graph->null()) {
-                return;
-            }
-            result_queue_.emplace_back(Quad(*graph, subject, predicate, object));
-        } else {
-            result_queue_.emplace_back(Quad(subject, predicate, object));
-        }
+        result_queue_.emplace_back(Quad(subject, predicate, object));
     }
     void XMLQuadIterator::Impl::update_current_state() {
         if (state_stack_.empty()) {
@@ -387,19 +382,19 @@ namespace rdf4cpp::parser {
         impl->pop_state(Node::make_null());
     }
 
-    XMLQuadIterator::Impl::Impl(std::istream &stream)
+    XMLQuadIterator::Impl::Impl(void* obj, ReadFunc read, ErrorFunc err, EOFFunc eof)
         : handler_(make_sax_handler()),
           context_(xmlCreatePushParserCtxt(&handler_, this, nullptr, 0, "mem")),
-          stream_(stream) {
+          reader_obj_(obj), read_func_(read), error_func_(err), eof_func_(eof) {
         state_stack_.emplace_back(std::in_place_type_t<EmptyState>{});
         update_current_state();
     }
 
     std::optional<XMLQuadIterator::value_type> XMLQuadIterator::Impl::next() {
-        char buffer[1024];
-        while (result_queue_.empty() && stream_.good() && !stream_.eof()) {
-            stream_.read(static_cast<char *>(buffer), sizeof(buffer));
-            xmlParseChunk(context_.get(), static_cast<char const *>(buffer), static_cast<int>(stream_.gcount()), stream_.eof());
+        std::array<char, 1024> buffer;
+        while (result_queue_.empty() && error_func_(reader_obj_) == 0 && eof_func_(reader_obj_) == 0) {
+            auto const read = read_func_(buffer.data(), sizeof(char), buffer.size(), reader_obj_);
+            xmlParseChunk(context_.get(), buffer.data(), read, eof_func_(reader_obj_) != 0);
         }
         if (result_queue_.empty()) {
             return std::nullopt;
@@ -410,8 +405,27 @@ namespace rdf4cpp::parser {
     }
 
 
+    XMLQuadIterator::XMLQuadIterator(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof)
+        : impl_(std::make_unique<Impl>(stream, read, error, eof)), cur_(impl_->next()) {
+    }
     XMLQuadIterator::XMLQuadIterator(std::istream &stream)
-        : impl_(std::make_unique<Impl>(stream)), cur_(impl_->next()) {
+        : XMLQuadIterator(&stream,
+    [](void *buf, [[maybe_unused]] size_t elem_size, size_t count, void *voided_self) noexcept -> size_t {
+        RDF4CPP_ASSERT(elem_size == 1);
+
+        auto *self = static_cast<std::istream *>(voided_self);
+        self->read(static_cast<char *>(buf), static_cast<std::streamsize>(count));
+        return self->gcount();
+    },
+    [](void *voided_self) noexcept {
+        auto *self = static_cast<std::istream *>(voided_self);
+        return static_cast<int>(self->fail() && !self->eof());
+    },
+    [](void *voided_self) noexcept {
+        auto *self = static_cast<std::istream *>(voided_self);
+        return static_cast<int>(self->eof());
+    })
+    {
     }
     XMLQuadIterator::~XMLQuadIterator() noexcept = default;
 

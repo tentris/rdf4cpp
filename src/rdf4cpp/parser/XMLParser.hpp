@@ -27,6 +27,35 @@ namespace rdf4cpp::parser {
         using iterator_category = std::input_iterator_tag;
         using istream_type = std::istream;
 
+        /**
+         * Identical semantics to fread.
+         * Uses stream to read at most count elements of size element_size into buffer.
+         *
+         * @param buffer pointer to buffer with at least count elements of size elem_size
+         * @param elem_size sizeof each element
+         * @param count number of elements to read
+         * @param stream pointer to any object.
+         * @return number of elements read
+         */
+        using ReadFunc = size_t (*)(void *buffer, size_t elem_size, size_t count, void *stream);
+
+        /**
+         * Identical semantics to ferror.
+         *
+         * @param stream pointer to any object
+         * @return nonzero value if there is an error in stream, zero value otherwise
+         */
+        using ErrorFunc = int (*)(void *stream);
+
+        /**
+         * Identical semantics to feof.
+         *
+         *
+         * @param stream pointer to any object
+         * @return nonzero value if there is an error in stream, zero value otherwise
+         */
+        using EOFFunc = int (*)(void *stream);
+
     private:
         struct Impl;
 
@@ -34,6 +63,7 @@ namespace rdf4cpp::parser {
         std::optional<nonstd::expected<ok_type, error_type>> cur_;
 
     public:
+        XMLQuadIterator(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof);
         explicit XMLQuadIterator(std::istream& stream);
 
         XMLQuadIterator(XMLQuadIterator&&) noexcept = delete;
