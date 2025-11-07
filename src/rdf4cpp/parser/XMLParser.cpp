@@ -65,7 +65,8 @@ namespace rdf4cpp::parser {
                 : subject(sub) {
             }
 
-            static Node try_enter(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes);
+            template<class F>
+            static bool try_enter(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, F f);
 
             static constexpr std::string_view start_element = "http://www.w3.org/1999/02/22-rdf-syntax-ns#Description";
             static constexpr std::string_view about_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#about";
@@ -257,7 +258,7 @@ namespace rdf4cpp::parser {
         }
     }
     void XMLQuadIterator::Impl::RDFState::on_start_element(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes) {
-        if (!DescriptionState::try_enter(impl, local_name, uri, attributes).null()) {
+        if (DescriptionState::try_enter(impl, local_name, uri, attributes, [](auto) {})) {
             return;
         }
         impl->add_error(ParsingError::Type::BadSyntax, "expected Description, found ???");
@@ -297,22 +298,25 @@ namespace rdf4cpp::parser {
     void XMLQuadIterator::Impl::DescriptionState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
         impl->pop_state(subject);
     }
-    Node XMLQuadIterator::Impl::DescriptionState::try_enter(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes) {
+    template<class F>
+    bool XMLQuadIterator::Impl::DescriptionState::try_enter(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes, F f) {
         if (iri_equal_pieces(start_element, uri, local_name)) {
             for (auto const &att : attributes) {
                 if (iri_equal_pieces(about_attrib, att.uri(), att.local_name())) {
                     IRI iri = impl->try_make_iri(att.value());
+                    f(iri);
                     impl->state_stack_.emplace_back(std::in_place_type_t<DescriptionState>{}, iri);
                     impl->update_current_state();
-                    return iri;
+                    return true;
                 }
             }
             auto bn = impl->make_bn();
+            f(bn);
             impl->state_stack_.emplace_back(std::in_place_type_t<DescriptionState>{}, bn);
             impl->update_current_state();
-            return bn;
+            return true;
         }
-        return Node::make_null();
+        return false;
     }
 
     void XMLQuadIterator::Impl::PredicateState::on_characters([[maybe_unused]] Impl *impl, std::string_view const chars) {
@@ -333,10 +337,10 @@ namespace rdf4cpp::parser {
             impl->add_error(ParsingError::Type::BadSyntax, "expected end of element, found element");
             return;
         }
-        auto const obj = DescriptionState::try_enter(impl, local_name, uri, attributes);
-        if (!obj.null()) {
-            std::get<PredicateState>(impl->state_stack_[impl->state_stack_.size()-2]).done = true;
+        if (DescriptionState::try_enter(impl, local_name, uri, attributes, [&](Node obj) {
+            done = true;
             impl->add_statement(subject, predicate, obj);
+        })) {
             return;
         }
         impl->add_error(ParsingError::Type::BadSyntax, "expected Description or literal, found element");
