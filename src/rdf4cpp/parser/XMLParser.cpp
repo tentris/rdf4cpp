@@ -395,10 +395,10 @@ namespace rdf4cpp::parser {
     }
 
     std::optional<XMLQuadIterator::value_type> XMLQuadIterator::Impl::next() {
-        std::array<char, 1024> buffer;
+        std::array<char, 1024> buffer; // NOLINT(*-pro-type-member-init)
         while (result_queue_.empty() && error_func_(reader_obj_) == 0 && eof_func_(reader_obj_) == 0) {
             auto const read = read_func_(buffer.data(), sizeof(char), buffer.size(), reader_obj_);
-            xmlParseChunk(context_.get(), buffer.data(), read, eof_func_(reader_obj_) != 0);
+            xmlParseChunk(context_.get(), buffer.data(), static_cast<int>(read), eof_func_(reader_obj_) != 0);
         }
         if (result_queue_.empty()) {
             return std::nullopt;
