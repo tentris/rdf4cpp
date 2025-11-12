@@ -159,7 +159,8 @@ TEST_CASE("rdf") {
 </rdf:RDF>)";
         nt = R"(<http://example.org/dir/relfile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
     }
-    SUBCASE("syntax 4 (base scoping)") {
+    // case 4 needs reification
+    SUBCASE("syntax 6 (base scoping)") {
         xml = R"(<?xml version="1.0"?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns:eg="http://example.org/"
@@ -171,6 +172,98 @@ TEST_CASE("rdf") {
 </rdf:RDF>)";
         nt = R"(<http://example.org/file2#frag> <http://example.org/value> "v" .
 <http://example.org/dir/relFile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
+    }
+    SUBCASE("syntax 7 (relative resolution)") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <eg:type rdf:about="../relfile" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/relfile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
+    }
+    SUBCASE("syntax 8 (empty local)") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <eg:type rdf:about="" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/dir/file> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
+    }
+    SUBCASE("syntax 9 (absolute path)") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <eg:type rdf:about="/absfile" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/absfile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
+    }
+    SUBCASE("syntax 10 (absolute host)") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <eg:type rdf:about="//another.example.org/absfile" />
+
+</rdf:RDF>)";
+        nt = R"(<http://another.example.org/absfile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
+    }
+    SUBCASE("syntax 11 (base without path)") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org">
+
+ <eg:type rdf:about="relfile" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/relfile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
+    }
+    SUBCASE("syntax 13 (base with fragment)") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file#frag">
+
+ <eg:type rdf:about="" />
+ <rdf:Description rdf:ID="foo" >
+   <eg:value rdf:resource="relpath" />
+ </rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/dir/file> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .
+<http://example.org/dir/file#foo> <http://example.org/value> <http://example.org/dir/relpath> .)";
+    }
+    SUBCASE("syntax 14 (same ids)") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/xmlbase/test014.rdf"
+         >
+
+ <rdf:Description xml:base="http://example.org/dir/file"
+                rdf:ID="frag" eg:value="v" />
+ <rdf:Description rdf:ID="frag" eg:value="v" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/dir/file#frag> <http://example.org/value> "v" .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/xmlbase/test014.rdf#frag> <http://example.org/value> "v" .)";
     }
     SUBCASE("amp") {
         xml = R"(<?xml version="1.0"?>
