@@ -122,6 +122,43 @@ TEST_CASE("rdf") {
 
     std::string xml = "";
     std::string nt = "";
+
+
+    SUBCASE("syntax 1 (base applies to id)") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <rdf:Description rdf:ID="frag" eg:value="v" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/dir/file#frag> <http://example.org/value> "v" .)";
+    }
+    SUBCASE("syntax 2 (base applies to resource)") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <rdf:Description rdf:about="http://example.org/foo">
+   <eg:value rdf:resource="relFile" />
+ </rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/foo> <http://example.org/value> <http://example.org/dir/relFile> .)";
+    }
+    SUBCASE("syntax 3 (base applies to about)") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <eg:type rdf:about="relfile" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/dir/relfile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
+    }
     SUBCASE("amp") {
         xml = R"(<?xml version="1.0"?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
@@ -136,6 +173,20 @@ TEST_CASE("rdf") {
 </rdf:RDF>)";
         nt = R"(<http://example/q?abc=1&def=2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "xxx" .
 <http://example2/q?abc=1&def=2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "xxx" .)";
+    }
+    SUBCASE("datatypes") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/">
+
+ <rdf:Description rdf:about="http://example.org/foo">
+   <eg:bar rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">10</eg:bar>
+   <eg:baz rdf:datatype="http://www.w3.org/2001/XMLSchema#integer" xml:lang="fr">10</eg:baz>
+ </rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/foo> <http://example.org/bar> "10"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.org/foo> <http://example.org/baz> "10"^^<http://www.w3.org/2001/XMLSchema#integer> .)";
     }
 
     if (xml.empty()) {
