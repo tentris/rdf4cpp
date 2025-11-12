@@ -159,6 +159,19 @@ TEST_CASE("rdf") {
 </rdf:RDF>)";
         nt = R"(<http://example.org/dir/relfile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
     }
+    SUBCASE("syntax 4 (base scoping)") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <rdf:Description rdf:ID="frag" eg:value="v" xml:base="http://example.org/file2"/>
+ <eg:type rdf:about="relFile" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/file2#frag> <http://example.org/value> "v" .
+<http://example.org/dir/relFile> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/type> .)";
+    }
     SUBCASE("amp") {
         xml = R"(<?xml version="1.0"?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">

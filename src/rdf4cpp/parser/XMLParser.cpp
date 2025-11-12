@@ -2,6 +2,7 @@
 
 #include <deque>
 #include <libxml/parser.h>
+#include <ranges>
 
 namespace rdf4cpp::parser {
     struct XMLQuadIterator::Impl {
@@ -41,14 +42,17 @@ namespace rdf4cpp::parser {
             virtual void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) = 0; // TODO remove params?
             virtual void re_enter([[maybe_unused]] Impl *impl, [[maybe_unused]] Node obj) { // TODO remove if not needed for something
             }
+
+            std::string base;
+
+            static constexpr std::string_view base_attribute = "http://www.w3.org/XML/1998/namespacebase";
+            static std::string_view try_handle_base_attrib(Impl* impl, std::span<Attribute> attributes);
         };
 
         struct EmptyState final : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
             void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
-
-            static constexpr std::string_view base_attribute = "http://www.w3.org/XML/1998/namespacebase";
         };
         struct RDFState final : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
@@ -130,8 +134,8 @@ namespace rdf4cpp::parser {
         void pop_state(Node object);
         static std::string_view trim(std::string_view v);
         static bool iri_equal_pieces(std::string_view full_iri, std::string_view uri, std::string_view local_name);
-        IRI try_make_iri(std::string_view iri);
-        IRI try_make_iri(std::string_view uri, std::string_view local_name);
+        IRI try_make_iri(std::string_view iri, std::string_view base);
+        IRI try_make_iri(std::string_view uri, std::string_view local_name, std::string_view base);
         BlankNode make_bn();
 
         static void on_error(void *th, char const *msg, ...);
@@ -186,6 +190,7 @@ namespace rdf4cpp::parser {
     void XMLQuadIterator::Impl::update_current_state() {
         if (state_stack_.empty()) {
             current_state_ = nullptr;
+            return;
         }
         current_state_ = std::visit([](auto &s) -> BaseState * { return &s; }, state_stack_.back());
     }
@@ -210,7 +215,19 @@ namespace rdf4cpp::parser {
         }
         return full_iri.starts_with(uri) && full_iri.ends_with(local_name);
     }
-    IRI XMLQuadIterator::Impl::try_make_iri(std::string_view const iri) {
+    IRI XMLQuadIterator::Impl::try_make_iri(std::string_view const iri, std::string_view base) {
+        if (base.empty()) {
+            for (const auto &s : state_stack_ | std::ranges::views::reverse) {
+                auto const v = std::visit([](const auto& s) -> std::string_view { return s.base; }, s);
+                if (!v.empty()) {
+                    factory_.set_base_unchecked(v);
+                    break;
+                }
+            }
+        }
+        else {
+            factory_.set_base_unchecked(base);
+        }
         auto exp = factory_.from_maybe_relative(iri);
         if (exp.has_value()) {
             return *exp;
@@ -219,10 +236,10 @@ namespace rdf4cpp::parser {
             return IRI::make_null();
         }
     }
-    IRI XMLQuadIterator::Impl::try_make_iri(std::string_view const uri, std::string_view const local_name) {
+    IRI XMLQuadIterator::Impl::try_make_iri(std::string_view const uri, std::string_view const local_name, std::string_view base) {
         std::string iri{uri};
         iri.append(local_name);
-        return try_make_iri(iri);
+        return try_make_iri(iri, base);
     }
     BlankNode XMLQuadIterator::Impl::make_bn() {
         return BlankNode::make_unchecked(std::format("bn_{}", next_bn_index_++));
@@ -244,6 +261,18 @@ namespace rdf4cpp::parser {
         va_end(args);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
     }
 
+    std::string_view XMLQuadIterator::Impl::BaseState::try_handle_base_attrib(Impl* impl, std::span<Attribute> attributes) {
+        for (const auto& a : attributes) {
+            if (iri_equal_pieces(base_attribute, a.uri(), a.local_name()))
+            {
+                if (auto r = IRIView(a.value()).quick_validate(); r != IRIFactoryError::Ok) {
+                    impl->add_error(ParsingError::Type::BadIri, std::format("invalid base IRI ({}): {}", r, a.value()));
+                }
+                return a.value();
+            }
+        }
+        return "";
+    }
     void XMLQuadIterator::Impl::EmptyState::on_characters(Impl *impl, std::string_view const chars) {
         if (!trim(chars).empty()) {
             impl->add_error(ParsingError::Type::BadSyntax, "expected RDF, found characters");
@@ -251,16 +280,12 @@ namespace rdf4cpp::parser {
     }
     void XMLQuadIterator::Impl::EmptyState::on_start_element(Impl *impl, std::string_view const local_name, std::string_view const uri, [[maybe_unused]] std::span<Attribute> attributes) {
         if (iri_equal_pieces(RDFState::start_element, uri, local_name)) {
-            for (const auto& a : attributes) {
-                if (iri_equal_pieces(base_attribute, a.uri(), a.local_name()))
-                {
-                    if (auto r = impl->factory_.set_base(a.value()); r != IRIFactoryError::Ok) {
-                        impl->add_error(ParsingError::Type::BadIri, std::format("invalid IRI ({}): {}", r, a.value()));
-                    }
-                }
-            }
+            auto const base = try_handle_base_attrib(impl, attributes);
             impl->state_stack_.emplace_back(std::in_place_type_t<RDFState>{});
             impl->update_current_state();
+            if (!base.empty()) {
+                impl->current_state_->base = base;
+            }
             return;
         }
         impl->add_error(ParsingError::Type::BadSyntax, "expected RDF, found ???");
@@ -290,16 +315,17 @@ namespace rdf4cpp::parser {
         }
     }
     void XMLQuadIterator::Impl::DescriptionState::on_start_element(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> attributes) {
+        auto base = try_handle_base_attrib(impl, attributes);
         std::string s{uri};
         s.append(local_name);
-        auto predicate = impl->try_make_iri(s);
+        auto predicate = impl->try_make_iri(s, base);
         std::optional<IRI> datatype = std::nullopt;
         std::optional<IRI> ref = std::nullopt;
         for (auto const &att : attributes) {
             if (iri_equal_pieces(TypedLiteralPredicateState::datatype_attrib, att.uri(), att.local_name())) {
-                datatype = impl->try_make_iri(att.value());
+                datatype = impl->try_make_iri(att.value(), base);
             } else if (iri_equal_pieces(PredicateState::resource_attrib, att.uri(), att.local_name())) {
-                ref = impl->try_make_iri(att.value());
+                ref = impl->try_make_iri(att.value(), base);
             }
         }
         if (datatype.has_value()) {
@@ -311,13 +337,16 @@ namespace rdf4cpp::parser {
             impl->state_stack_.emplace_back(std::in_place_type_t<PredicateState>{}, subject, predicate);
         }
         impl->update_current_state();
+        if (!base.empty()) {
+            impl->current_state_->base = base;
+        }
     }
     void XMLQuadIterator::Impl::DescriptionState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
         impl->pop_state(subject);
     }
     template<class F>
     bool XMLQuadIterator::Impl::DescriptionState::try_enter(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes, F f) {
-
+        auto base = try_handle_base_attrib(impl, attributes);
         Node sub = Node::make_null();
         auto check_only_one = [&sub, impl]() {
             if (!sub.null()) {
@@ -332,7 +361,7 @@ namespace rdf4cpp::parser {
                     continue;
                     ;
                 }
-                sub = impl->try_make_iri(att.value());
+                sub = impl->try_make_iri(att.value(), base);
             } else if (iri_equal_pieces(id_attrib, att.uri(), att.local_name())) {
                 if (check_only_one()) {
                     continue;
@@ -340,7 +369,7 @@ namespace rdf4cpp::parser {
                 }
                 std::string i = "#";
                 i.append(att.value());
-                sub = impl->try_make_iri(i);
+                sub = impl->try_make_iri(i, base);
             } else if (iri_equal_pieces(node_id_attrib, att.uri(), att.local_name())) {  // TODO test case
                 if (check_only_one()) {
                     continue;
@@ -354,7 +383,7 @@ namespace rdf4cpp::parser {
             sub = impl->make_bn();
         }
         if (!iri_equal_pieces(start_element, uri, local_name)) {
-            IRI const obj = impl->try_make_iri(uri, local_name);
+            IRI const obj = impl->try_make_iri(uri, local_name, base);
             if (!obj.null())
             {
                 impl->add_statement(sub, IRI::rdf_type(), obj);
@@ -362,16 +391,16 @@ namespace rdf4cpp::parser {
         }
         for (auto const &att : attributes) {
             if (iri_equal_pieces(type_attrib, att.uri(), att.local_name())) {  // TODO needs test
-                IRI const obj = impl->try_make_iri(att.value());
+                IRI const obj = impl->try_make_iri(att.value(), base);
                 if (obj.null())
                 {
                     continue;
                 }
                 impl->add_statement(sub, IRI::rdf_type(), obj);
-            } else if (iri_equal_pieces(about_attrib, att.uri(), att.local_name()) || iri_equal_pieces(node_id_attrib, att.uri(), att.local_name()) || iri_equal_pieces(id_attrib, att.uri(), att.local_name())) {
+            } else if (iri_equal_pieces(about_attrib, att.uri(), att.local_name()) || iri_equal_pieces(node_id_attrib, att.uri(), att.local_name()) || iri_equal_pieces(id_attrib, att.uri(), att.local_name()) || iri_equal_pieces(base_attribute, att.uri(), att.local_name())) {
                 continue;
             } else {  // TODO tests say this is correct, spec does not???
-                IRI const pred = impl->try_make_iri(att.uri(), att.local_name());
+                IRI const pred = impl->try_make_iri(att.uri(), att.local_name(), base);
                 Literal const obj = Literal::make_simple(att.value());
                 if (pred.null() || obj.null())
                 {
@@ -383,6 +412,9 @@ namespace rdf4cpp::parser {
         f(sub);
         impl->state_stack_.emplace_back(std::in_place_type_t<DescriptionState>{}, sub);
         impl->update_current_state();
+        if (!base.empty()) {
+            impl->current_state_->base = base;
+        }
         return true;
     }
 
@@ -460,6 +492,7 @@ namespace rdf4cpp::parser {
         xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.emplace_back(std::in_place_type_t<EmptyState>{});
         update_current_state();
+        current_state_->base = IRIFactory::default_base;
     }
 
     std::optional<XMLQuadIterator::value_type> XMLQuadIterator::Impl::next() {
