@@ -116,3 +116,51 @@ TEST_CASE("sanity test") {
     ++it;
     CHECK(it == std::default_sentinel);
 }
+
+TEST_CASE("rdf") {
+    // adapted from https://github.com/w3c/rdf-tests/tree/main/rdf/rdf11/rdf-xml
+
+    std::string xml = "";
+    std::string nt = "";
+    SUBCASE("amp") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+
+  <rdf:Description rdf:about="http://example/q?abc=1&#38;def=2">
+    <rdf:value>xxx</rdf:value>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://example2/q?abc=1&amp;def=2">
+    <rdf:value>xxx</rdf:value>
+  </rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://example/q?abc=1&def=2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "xxx" .
+<http://example2/q?abc=1&def=2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "xxx" .)";
+    }
+
+    if (xml.empty()) {
+        return;
+    }
+
+    std::stringstream xml_str{xml};
+    XMLQuadIterator xml_iter{xml_str};
+
+    std::stringstream nt_str{nt};
+    IStreamQuadIterator nt_iter{nt_str, ParsingFlag::NTriples};
+
+    while (nt_iter != std::default_sentinel) {
+        REQUIRE(xml_iter != std::default_sentinel);
+        if (!xml_iter->has_value()) {
+            FAIL(xml_iter->error().message);
+        }
+        REQUIRE(nt_iter->has_value());
+        CHECK(xml_iter->value().subject() == nt_iter->value().subject());
+        CHECK(xml_iter->value().predicate() == nt_iter->value().predicate());
+        CHECK(xml_iter->value().object() == nt_iter->value().object());
+
+        ++xml_iter;
+        ++nt_iter;
+    }
+
+    REQUIRE(xml_iter == std::default_sentinel);
+}

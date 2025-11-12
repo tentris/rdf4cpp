@@ -140,6 +140,9 @@ namespace rdf4cpp::parser {
         xmlSAXHandler r{};
         std::memset(&r, 0, sizeof(xmlSAXHandler));
         r.initialized = XML_SAX2_MAGIC;
+        r.getParameterEntity = [](void *, xmlChar const *e) {
+            return xmlGetPredefinedEntity(e);
+        };
         r.getEntity = [](void *, xmlChar const *e) {
             return xmlGetPredefinedEntity(e);
         };
@@ -390,6 +393,7 @@ namespace rdf4cpp::parser {
         : handler_(make_sax_handler()),
           context_(xmlCreatePushParserCtxt(&handler_, this, nullptr, 0, "mem")),
           reader_obj_(obj), read_func_(read), error_func_(err), eof_func_(eof) {
+        xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.emplace_back(std::in_place_type_t<EmptyState>{});
         update_current_state();
     }
