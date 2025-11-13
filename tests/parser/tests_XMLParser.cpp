@@ -117,7 +117,7 @@ TEST_CASE("sanity test") {
     CHECK(it == std::default_sentinel);
 }
 
-TEST_CASE("rdf") {
+TEST_CASE("rdf xml positive tests") {
     // adapted from https://github.com/w3c/rdf-tests/tree/main/rdf/rdf11/rdf-xml
 
     std::string xml = "";
@@ -311,6 +311,111 @@ TEST_CASE("rdf") {
         nt = R"(_:a <http://example.org/named> "D\u00FCrst" .
 <http://www.w3.org/TR/2002/WD-charmod-20020220> <http://example.org/Creator> _:a .)";
     }
+    SUBCASE("unicode iri 1") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/#">
+
+  <!-- The é below is a single Unicode character #xE9 in
+       Unicode Normal Form C, NFC (here encoded as
+       two UTF-8 octets #C3,#A9) -->
+
+   <rdf:Description rdf:about="http://example.org/#André">
+      <eg:owes>2000</eg:owes>
+   </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/#Andr\u00E9> <http://example.org/#owes> "2000" .)";
+    }
+    SUBCASE("unicode iri 2") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/#">
+
+  <!-- The %C3%A9 below corresponds to é under the standard
+        %-escaping algorithm for URIs. -->
+
+   <rdf:Description rdf:about="http://example.org/#Andr%C3%A9">
+      <eg:owes>2000</eg:owes>
+   </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/#Andr%C3%A9> <http://example.org/#owes> "2000" .)";
+    }
+    SUBCASE("type instead of description") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:ex="http://example.org/terms#">
+
+  <ex:Book rdf:about="http://example.org/Book">
+    <ex:title>Dogs in Hats</ex:title>
+  </ex:Book>
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/Book> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/terms#Book> .
+<http://example.org/Book> <http://example.org/terms#title> "Dogs in Hats" .)";
+    }
+    SUBCASE("id 1") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:ID="foo">
+  <rdf:value>abc</rdf:value>
+</rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/#foo> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "abc" .)";
+    }
+    SUBCASE("id 2") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:ID="D&#xFC;rst">
+  <rdf:value>abc</rdf:value>
+</rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/#D\u00FCrst> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "abc" .)";
+    }
+    SUBCASE("id 3") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:about="#D&#xFC;rst">
+  <rdf:value>abc</rdf:value>
+</rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/#D\u00FCrst> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "abc" .)";
+    }
+    SUBCASE("duplicate bag entries") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Bag rdf:about="http://example.org/foo">
+     <rdf:_1 rdf:resource="http://example.org/a" />
+     <rdf:_1 rdf:resource="http://example.org/b" />
+  </rdf:Bag>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/foo> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Bag> .
+<http://example.org/foo> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> <http://example.org/a> .
+<http://example.org/foo> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> <http://example.org/b> .)";
+    }
+    SUBCASE("empty property 1") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:random="http://random.ioctl.org/#">
+
+<rdf:Description rdf:about="http://random.ioctl.org/#bar">
+  <random:someProperty rdf:resource="http://random.ioctl.org/#foo" />
+</rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://random.ioctl.org/#bar> <http://random.ioctl.org/#someProperty> <http://random.ioctl.org/#foo> .)";
+    }
+    SUBCASE("empty property 2") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:random="http://random.ioctl.org/#">
+
+<rdf:Description rdf:about="http://random.ioctl.org/#bar">
+  <random:someProperty />
+</rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://random.ioctl.org/#bar> <http://random.ioctl.org/#someProperty> "" .)";
+    }
 
     if (xml.empty()) {
         return;
@@ -354,4 +459,59 @@ TEST_CASE("rdf") {
     }
 
     REQUIRE(xml_iter == std::default_sentinel);
+}
+
+TEST_CASE("rdf xml negative tests") {
+    // adapted from https://github.com/w3c/rdf-tests/tree/main/rdf/rdf11/rdf-xml
+    std::string xml = "";
+    std::vector<std::pair<ParsingError::Type, std::string_view>> expected_msg{};
+    bool ignore_some_triples = false;
+
+    SUBCASE("resource + parse type") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:random="http://random.ioctl.org/#">
+
+<rdf:Description rdf:about="http://random.ioctl.org/#bar">
+  <random:someProperty rdf:parseType="Literal"
+    rdf:resource="http://random.ioctl.org/#foo" />
+</rdf:Description>
+</rdf:RDF>)";
+        expected_msg.emplace_back(ParsingError::Type::BadSyntax, "expected only one of rdf:parseType, rdf:nodeID and rdf:resource");
+        ignore_some_triples = true;
+    }
+    SUBCASE("implicit bn + parse type") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:random="http://random.ioctl.org/#">
+
+<rdf:Description rdf:about="http://random.ioctl.org/#bar">
+  <random:someProperty random:prop2="baz" rdf:parseType="Literal" />
+</rdf:Description>
+</rdf:RDF>)";
+        expected_msg.emplace_back(ParsingError::Type::BadSyntax, "expected only one of rdf:parseType, rdf:nodeID and rdf:resource");
+        ignore_some_triples = true;
+    }
+
+    if (xml.empty()) {
+        return;
+    }
+
+    std::stringstream xml_str{xml};
+    XMLQuadIterator xml_iter{xml_str};
+
+    while (xml_iter != std::default_sentinel) {
+        if (!ignore_some_triples) {
+            REQUIRE(!xml_iter->has_value());
+        } else if (xml_iter->has_value()) {
+            ++xml_iter;
+            continue;
+        }
+        REQUIRE(!expected_msg.empty());
+        CHECK(xml_iter->error().error_type == expected_msg.back().first);
+        CHECK(xml_iter->error().message == expected_msg.back().second);
+        expected_msg.pop_back();
+        ++xml_iter;
+    }
+    REQUIRE(expected_msg.empty());
 }

@@ -387,6 +387,8 @@ namespace rdf4cpp::parser {
         std::optional<IRI> datatype = std::nullopt;
         std::optional<Node> sub = std::nullopt;
         bool parse_resource = false;
+        bool parse_literal = false;
+        bool parse_collection = false;
         for (auto const &att : attributes) {
             if (iri_equal_pieces(TypedLiteralPredicateState::datatype_attrib, att.uri(), att.local_name())) {
                 datatype = impl->try_make_iri(att.value(), base);
@@ -397,6 +399,10 @@ namespace rdf4cpp::parser {
             } else if (iri_equal_pieces(PredicateState::parse_type_attrib, att.uri(), att.local_name())) {
                 if (att.value() == PredicateState::parse_type_resource) {
                     parse_resource = true;
+                } else if (att.value() == PredicateState::parse_type_collection) {
+                    parse_collection = true;
+                } else {
+                    parse_literal = true;
                 }
             }
         }
@@ -419,6 +425,9 @@ namespace rdf4cpp::parser {
                 Literal const obj = impl->make_literal(att.value(), std::nullopt, std::nullopt);
                 impl->add_statement(*sub, pred, obj);
             }
+        }
+        if (sub.has_value() && (parse_collection || parse_literal || parse_resource)) {
+            impl->add_error(ParsingError::Type::BadSyntax, "expected only one of rdf:parseType, rdf:nodeID and rdf:resource");
         }
         if (datatype.has_value()) {
             impl->state_stack_.emplace_back(std::in_place_type_t<TypedLiteralPredicateState>{}, subject, predicate, *datatype);
@@ -479,26 +488,18 @@ namespace rdf4cpp::parser {
             IRI const obj = impl->try_make_iri(uri, local_name, base);
             if (!obj.null())
             {
-                impl->add_statement(sub, IRI::rdf_type(), obj);
+                impl->add_statement(sub, IRI::rdf_type(impl->state_->node_storage), obj);
             }
         }
         for (auto const &att : attributes) {
-            if (iri_equal_pieces(type_attrib, att.uri(), att.local_name())) {  // TODO needs test
+            if (iri_equal_pieces(type_attrib, att.uri(), att.local_name())) { // TODO tests
                 IRI const obj = impl->try_make_iri(att.value(), base);
-                if (obj.null())
-                {
-                    continue;
-                }
-                impl->add_statement(sub, IRI::rdf_type(), obj);
+                impl->add_statement(sub, IRI::rdf_type(impl->state_->node_storage), obj);
             } else if (iri_equal_pieces(about_attrib, att.uri(), att.local_name()) || iri_equal_pieces(node_id_attrib, att.uri(), att.local_name()) || iri_equal_pieces(id_attrib, att.uri(), att.local_name()) || iri_equal_pieces(base_attribute, att.uri(), att.local_name())) {
                 continue;
             } else {
                 IRI const pred = impl->try_make_iri(att.uri(), att.local_name(), base);
                 Literal const obj = impl->make_literal(att.value(), std::nullopt, std::nullopt);
-                if (pred.null() || obj.null())
-                {
-                    continue;
-                }
                 impl->add_statement(sub, pred, obj);
             }
         }
