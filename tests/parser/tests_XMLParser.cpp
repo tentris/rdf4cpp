@@ -294,6 +294,23 @@ TEST_CASE("rdf") {
         nt = R"(<http://example.org/foo> <http://example.org/bar> "10"^^<http://www.w3.org/2001/XMLSchema#integer> .
 <http://example.org/foo> <http://example.org/baz> "10"^^<http://www.w3.org/2001/XMLSchema#integer> .)";
     }
+    SUBCASE("unicode literal") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/">
+   <!-- Dürst registers himself as a creator of the Charmod WD. -->
+
+   <rdf:Description rdf:about="http://www.w3.org/TR/2002/WD-charmod-20020220">
+
+   <!-- The ü below is a single character #xFC in NFC
+        (encoded as two UTF-8 octets #xC3 #xBC)  -->
+      <eg:Creator eg:named="Dürst"/>
+
+   </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(_:a <http://example.org/named> "D\u00FCrst" .
+<http://www.w3.org/TR/2002/WD-charmod-20020220> <http://example.org/Creator> _:a .)";
+    }
 
     if (xml.empty()) {
         return;
@@ -305,15 +322,32 @@ TEST_CASE("rdf") {
     std::stringstream nt_str{nt};
     IStreamQuadIterator nt_iter{nt_str, ParsingFlag::NTriples};
 
+    std::map<BlankNode, BlankNode> bn_map{};
+    auto check = [&bn_map](Node xml, Node nt) {
+        CHECK(xml.is_blank_node() == nt.is_blank_node());
+        if (nt.is_blank_node()) {
+            auto i = bn_map.find(nt.as_blank_node());
+            if (i != bn_map.end()) {
+                CHECK(xml.as_blank_node() == i->second.as_blank_node());
+            }
+            else {
+                bn_map[nt.as_blank_node()] = xml.as_blank_node();
+            }
+        }
+        else {
+            CHECK(xml == nt);
+        }
+    };
+
     while (nt_iter != std::default_sentinel) {
         REQUIRE(xml_iter != std::default_sentinel);
         if (!xml_iter->has_value()) {
             FAIL(xml_iter->error().message);
         }
         REQUIRE(nt_iter->has_value());
-        CHECK(xml_iter->value().subject() == nt_iter->value().subject());
-        CHECK(xml_iter->value().predicate() == nt_iter->value().predicate());
-        CHECK(xml_iter->value().object() == nt_iter->value().object());
+        check(xml_iter->value().subject() , nt_iter->value().subject());
+        check(xml_iter->value().predicate(), nt_iter->value().predicate());
+        check(xml_iter->value().object(), nt_iter->value().object());
 
         ++xml_iter;
         ++nt_iter;
