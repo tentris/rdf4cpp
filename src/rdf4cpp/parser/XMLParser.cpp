@@ -15,7 +15,8 @@ namespace rdf4cpp::parser {
         EOFFunc eof_func_;
         std::deque<value_type> result_queue_;
         size_t next_bn_index_ = 0;
-        IRIFactory factory_;
+        std::unique_ptr<state_type> owned_state_;
+        state_type *state_;
 
         struct Attribute {
             xmlChar const *local_name_raw;
@@ -134,14 +135,17 @@ namespace rdf4cpp::parser {
         void pop_state(Node object);
         static std::string_view trim(std::string_view v);
         static bool iri_equal_pieces(std::string_view full_iri, std::string_view uri, std::string_view local_name);
+        template<typename NT>
+        NT inspect_node(NT node);
         IRI try_make_iri(std::string_view iri, std::string_view base);
         IRI try_make_iri(std::string_view uri, std::string_view local_name, std::string_view base);
-        BlankNode make_bn();
+        Node make_bn(std::optional<std::string_view> name);
+        Literal make_literal(std::string_view value, std::optional<IRI> datatype, std::optional<std::string_view> lang_tag);
 
         static void on_error(void *th, char const *msg, ...);
 
     public:
-        explicit Impl(void* obj, ReadFunc read, ErrorFunc err, EOFFunc eof);
+        explicit Impl(void* obj, ReadFunc read, ErrorFunc err, EOFFunc eof, state_type* state);
 
         std::optional<value_type> next();
     };
@@ -215,22 +219,36 @@ namespace rdf4cpp::parser {
         }
         return full_iri.starts_with(uri) && full_iri.ends_with(local_name);
     }
+    template<typename NT>
+    NT XMLQuadIterator::Impl::inspect_node(NT node) {
+        try {
+            state_->inspect_node_func(node);
+            return node;
+        }
+        catch (std::exception &e) {
+            add_error(ParsingError::Type::BadSyntax, std::format("Triple explicitly skipped by inspect function: {}", e.what()));
+        }
+        catch (...) {
+            add_error(ParsingError::Type::BadSyntax, "Triple explicitly skipped by inspect function");
+        }
+        return NT::make_null();
+    }
     IRI XMLQuadIterator::Impl::try_make_iri(std::string_view const iri, std::string_view base) {
         if (base.empty()) {
             for (const auto &s : state_stack_ | std::ranges::views::reverse) {
                 auto const v = std::visit([](const auto& s) -> std::string_view { return s.base; }, s);
                 if (!v.empty()) {
-                    factory_.set_base_unchecked(v);
+                    state_->iri_factory.set_base_unchecked(v);
                     break;
                 }
             }
         }
         else {
-            factory_.set_base_unchecked(base);
+            state_->iri_factory.set_base_unchecked(base);
         }
-        auto exp = factory_.from_maybe_relative(iri);
+        auto exp = state_->iri_factory.from_maybe_relative(iri, state_->node_storage);
         if (exp.has_value()) {
-            return *exp;
+            return inspect_node(*exp);
         } else {
             add_error(ParsingError::Type::BadIri, std::format("{}: {}", iri, exp.error()));
             return IRI::make_null();
@@ -241,8 +259,50 @@ namespace rdf4cpp::parser {
         iri.append(local_name);
         return try_make_iri(iri, base);
     }
-    BlankNode XMLQuadIterator::Impl::make_bn() {
-        return BlankNode::make_unchecked(std::format("bn_{}", next_bn_index_++));
+    Node XMLQuadIterator::Impl::make_bn(std::optional<std::string_view> name) {
+        std::string n = "";
+        if (!name.has_value()) {
+            n = std::format("bn_{}", next_bn_index_++);
+            name = n;
+        }
+        try {
+            if (state_->blank_node_scope_manager == nullptr)
+            {
+                return inspect_node(BlankNode::make(*name));
+            }
+            else {
+                return inspect_node(state_->blank_node_scope_manager.scope("").get_or_generate_node(*name, state_->node_storage));
+            }
+        }
+        catch (InvalidNode const &e) {
+            add_error(ParsingError::Type::BadBlankNode, e.what());
+            return BlankNode::make_null();
+        }
+        catch (...) {
+            add_error(ParsingError::Type::BadBlankNode, "unknown error");
+            return BlankNode::make_null();
+        }
+    }
+    Literal XMLQuadIterator::Impl::make_literal(std::string_view value, std::optional<IRI> datatype, std::optional<std::string_view> lang_tag) {
+        Literal l = Literal::make_null();
+        try {
+            if (datatype.has_value()) {
+                l = Literal::make_typed(value, *datatype, state_->node_storage);
+            }
+            else if (lang_tag.has_value()) {
+                l = Literal::make_lang_tagged(value, *lang_tag, state_->node_storage);
+            }
+            else {
+                l = Literal::make_simple(value);
+            }
+        }
+        catch (InvalidNode const &e) {
+            add_error(ParsingError::Type::BadLiteral, e.what());
+        }
+        catch (...) {
+            add_error(ParsingError::Type::BadLiteral, "unknown error");
+        }
+        return inspect_node(l);
     }
     void XMLQuadIterator::Impl::on_error(void *th, char const *msg, ...) {  // NOLINT(*-dcl50-cpp)
         va_list args;
@@ -359,13 +419,11 @@ namespace rdf4cpp::parser {
             if (iri_equal_pieces(about_attrib, att.uri(), att.local_name())) {
                 if (check_only_one()) {
                     continue;
-                    ;
                 }
                 sub = impl->try_make_iri(att.value(), base);
             } else if (iri_equal_pieces(id_attrib, att.uri(), att.local_name())) {
                 if (check_only_one()) {
                     continue;
-                    ;
                 }
                 std::string i = "#";
                 i.append(att.value());
@@ -373,14 +431,13 @@ namespace rdf4cpp::parser {
             } else if (iri_equal_pieces(node_id_attrib, att.uri(), att.local_name())) {  // TODO test case
                 if (check_only_one()) {
                     continue;
-                    ;
                 }
-                sub = BlankNode::make(att.value());
+                sub = impl->make_bn(att.value());
             }
         }
         if (sub.null())
         {
-            sub = impl->make_bn();
+            sub = impl->make_bn(std::nullopt);
         }
         if (!iri_equal_pieces(start_element, uri, local_name)) {
             IRI const obj = impl->try_make_iri(uri, local_name, base);
@@ -401,7 +458,7 @@ namespace rdf4cpp::parser {
                 continue;
             } else {  // TODO tests say this is correct, spec does not???
                 IRI const pred = impl->try_make_iri(att.uri(), att.local_name(), base);
-                Literal const obj = Literal::make_simple(att.value());
+                Literal const obj = impl->make_literal(att.value(), std::nullopt, std::nullopt);
                 if (pred.null() || obj.null())
                 {
                     continue;
@@ -446,12 +503,7 @@ namespace rdf4cpp::parser {
     }
     void XMLQuadIterator::Impl::PredicateState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
         if (!done) {
-            Literal lit = Literal::make_null();
-            try {
-                lit = Literal::make_simple(literal);
-            } catch (std::runtime_error const &e) {  // InvalidNode is subclass
-                impl->add_error(ParsingError::Type::BadLiteral, e.what());
-            }
+            Literal const lit = impl->make_literal(literal, std::nullopt, std::nullopt);
             impl->add_statement(subject, predicate, lit);
         }
         impl->pop_state(Node::make_null());
@@ -462,12 +514,7 @@ namespace rdf4cpp::parser {
     }
     void XMLQuadIterator::Impl::TypedLiteralPredicateState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
         if (!datatype.null()) {
-            Literal lit = Literal::make_null();
-            try {
-                lit = Literal::make_typed(literal, datatype);
-            } catch (std::runtime_error const &e) {  // InvalidNode is subclass
-                impl->add_error(ParsingError::Type::BadLiteral, e.what());
-            }
+            Literal const lit = impl->make_literal(literal, datatype, std::nullopt);
             impl->add_statement(subject, predicate, lit);
         }
         impl->pop_state(Node::make_null());
@@ -485,10 +532,11 @@ namespace rdf4cpp::parser {
         impl->pop_state(Node::make_null());
     }
 
-    XMLQuadIterator::Impl::Impl(void* obj, ReadFunc read, ErrorFunc err, EOFFunc eof)
+    XMLQuadIterator::Impl::Impl(void* obj, ReadFunc read, ErrorFunc err, EOFFunc eof, state_type* state)
         : handler_(make_sax_handler()),
           context_(xmlCreatePushParserCtxt(&handler_, this, nullptr, 0, "mem")),
-          reader_obj_(obj), read_func_(read), error_func_(err), eof_func_(eof) {
+          reader_obj_(obj), read_func_(read), error_func_(err), eof_func_(eof),
+          owned_state_(state == nullptr ? std::make_unique<state_type>() : nullptr), state_(state == nullptr ? owned_state_.get() : state){
         xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.emplace_back(std::in_place_type_t<EmptyState>{});
         update_current_state();
@@ -510,10 +558,10 @@ namespace rdf4cpp::parser {
     }
 
 
-    XMLQuadIterator::XMLQuadIterator(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof)
-        : impl_(std::make_unique<Impl>(stream, read, error, eof)), cur_(impl_->next()) {
+    XMLQuadIterator::XMLQuadIterator(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof, state_type* state)
+        : impl_(std::make_unique<Impl>(stream, read, error, eof, state)), cur_(impl_->next()) {
     }
-    XMLQuadIterator::XMLQuadIterator(std::istream &stream)
+    XMLQuadIterator::XMLQuadIterator(std::istream &stream, state_type* state)
         : XMLQuadIterator(&stream,
     [](void *buf, [[maybe_unused]] size_t elem_size, size_t count, void *voided_self) noexcept -> size_t {
         RDF4CPP_ASSERT(elem_size == 1);
@@ -529,7 +577,7 @@ namespace rdf4cpp::parser {
     [](void *voided_self) noexcept {
         auto *self = static_cast<std::istream *>(voided_self);
         return static_cast<int>(self->eof());
-    })
+    }, state)
     {
     }
     XMLQuadIterator::~XMLQuadIterator() noexcept = default;

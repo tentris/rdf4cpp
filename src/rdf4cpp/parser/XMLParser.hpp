@@ -63,8 +63,8 @@ namespace rdf4cpp::parser {
         std::optional<nonstd::expected<ok_type, error_type>> cur_;
 
     public:
-        XMLQuadIterator(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof);
-        explicit XMLQuadIterator(std::istream& stream);
+        XMLQuadIterator(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof, state_type* state = nullptr);
+        explicit XMLQuadIterator(std::istream& stream, state_type* state = nullptr);
 
         XMLQuadIterator(XMLQuadIterator&&) noexcept = delete;
         XMLQuadIterator& operator=(XMLQuadIterator&&) noexcept = delete;
