@@ -416,6 +416,90 @@ TEST_CASE("rdf xml positive tests") {
 </rdf:RDF>)";
         nt = R"(<http://random.ioctl.org/#bar> <http://random.ioctl.org/#someProperty> "" .)";
     }
+    SUBCASE("empty property 3") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:random="http://random.ioctl.org/#">
+
+<rdf:Description rdf:about="http://random.ioctl.org/#bar">
+  <random:someProperty rdf:parseType="Literal"/>
+</rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://random.ioctl.org/#bar> <http://random.ioctl.org/#someProperty> ""^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral> .)";
+    }
+    SUBCASE("empty property 4") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:random="http://random.ioctl.org/#">
+
+<rdf:Description rdf:about="http://random.ioctl.org/#bar">
+  <random:someProperty rdf:parseType="Resource" />
+</rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://random.ioctl.org/#bar> <http://random.ioctl.org/#someProperty> _:a1 .)";
+    }
+    SUBCASE("empty property 13") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:random="http://random.ioctl.org/#">
+
+<rdf:Description rdf:about="http://random.ioctl.org/#bar">
+  <random:someProperty rdf:resource="http://random.ioctl.org/#foo"
+        random:prop2="baz" />
+</rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://random.ioctl.org/#foo> <http://random.ioctl.org/#prop2> "baz" .
+<http://random.ioctl.org/#bar> <http://random.ioctl.org/#someProperty> <http://random.ioctl.org/#foo> .)";
+    }
+    SUBCASE("blank node identity") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/">
+
+ <eg:node>
+   <eg:property>property value</eg:property>
+ </eg:node>
+
+</rdf:RDF>)";
+        nt = R"(_:j0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/node> .
+_:j0 <http://example.org/property> "property value" .)";
+    }
+    SUBCASE("blank node identity 2") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/">
+
+ <rdf:Description rdf:nodeID="a">
+   <eg:property1 rdf:nodeID="a" />
+ </rdf:Description>
+ <rdf:Description>
+   <eg:property2>
+<!-- Note the rdf:nodeID="b" is redundant. -->
+      <rdf:Description rdf:nodeID="b">
+            <eg:property3 rdf:nodeID="a" />
+      </rdf:Description>
+   </eg:property2>
+ </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(_:j0A <http://example.org/property1> _:j0A .
+_:j2 <http://example.org/property2> _:j1B .
+_:j1B <http://example.org/property3> _:j0A .)";
+    }
+//     SUBCASE("xml literal") { TODO
+//         xml = R"(<?xml version="1.0"?>
+// <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+//          xmlns:eg="http://example.org/">
+//
+//
+//   <rdf:Description rdf:about="http://www.example.org/a">
+//     <eg:prop rdf:parseType="Literal"><br /></eg:prop>
+//   </rdf:Description>
+//
+// </rdf:RDF>)";
+//         nt = R"(<http://www.example.org/a> <http://example.org/prop> "<br xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:eg=\"http://example.org/\"></br>"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral> .)";
+//     }
 
     if (xml.empty()) {
         return;
