@@ -37,6 +37,7 @@ TEST_CASE("sanity test") {
                 <ex:title>blank example 2</ex:title>
             </rdf:Description>
         </ex:recommended>
+        <ex:coll rdf:parseType="Collection"/>
     </rdf:Description>
 </rdf:RDF>)"};
 
@@ -119,6 +120,12 @@ TEST_CASE("sanity test") {
     CHECK(it->value().subject() == bn2);
     CHECK(it->value().predicate() == IRI::make("https://www.example.com/title"));
     CHECK(it->value().object() == Literal::make_simple("blank example 2"));
+    ++it;
+    CHECK(it != std::default_sentinel);
+    CHECK(it->has_value());
+    CHECK(it->value().subject() == IRI::make("https://www.example.com"));
+    CHECK(it->value().predicate() == IRI::make("https://www.example.com/coll"));
+    CHECK(it->value().object() == IRI::make("http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"));
     ++it;
     CHECK(it == std::default_sentinel);
 }
@@ -492,6 +499,29 @@ _:j0 <http://example.org/property> "property value" .)";
         nt = R"(_:j0A <http://example.org/property1> _:j0A .
 _:j2 <http://example.org/property2> _:j1B .
 _:j1B <http://example.org/property3> _:j0A .)";
+    }
+    SUBCASE("collection") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+    xmlns:eg="http://example.org/eg#">
+
+    <rdf:Description rdf:about="http://example.org/eg#eric">
+        <rdf:type rdf:parseType="Resource">
+            <eg:intersectionOf rdf:parseType="Collection">
+                <rdf:Description rdf:about="http://example.org/eg#Person"/>
+                <rdf:Description rdf:about="http://example.org/eg#Male"/>
+            </eg:intersectionOf>
+        </rdf:type>
+    </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/eg#eric> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _:a0 .
+_:a0 <http://example.org/eg#intersectionOf> _:a1 .
+_:a1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/eg#Person> .
+_:a1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:a2 .
+_:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/eg#Male> .
+_:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .)";
     }
 //     SUBCASE("xml literal") { TODO
 //         xml = R"(<?xml version="1.0"?>

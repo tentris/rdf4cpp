@@ -131,6 +131,22 @@ namespace rdf4cpp::parser {
 
             void source_input(Impl *impl);
         };
+        struct CollectionState final : BaseState {
+            void on_characters(Impl *impl, std::string_view chars) override;
+            void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
+            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+
+            Node subject;
+            IRI predicate;
+            Node last_bn = Node::make_null();
+            bool first = true;
+
+            CollectionState(Node sub, IRI pred) : subject(sub), predicate(pred) {}
+
+            static constexpr std::string_view iri_nil = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
+            static constexpr std::string_view iri_rest = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
+            static constexpr std::string_view iri_first = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
+        };
 
         struct EmptyElement final : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
@@ -139,7 +155,7 @@ namespace rdf4cpp::parser {
         };
 
         BaseState *current_state_ = nullptr;
-        std::vector<std::variant<EmptyState, RDFState, DescriptionState, PredicateState, TypedLiteralPredicateState, EmptyElement, XMLLiteralState>> state_stack_;
+        std::vector<std::variant<EmptyState, RDFState, DescriptionState, PredicateState, TypedLiteralPredicateState, EmptyElement, XMLLiteralState, CollectionState>> state_stack_;
 
         static xmlSAXHandler make_sax_handler();
 
@@ -454,6 +470,8 @@ namespace rdf4cpp::parser {
         } else if (parse_literal) { // TODO tests
             auto& xml_state = impl->state_stack_.emplace_back(std::in_place_type_t<XMLLiteralState>{}, subject, predicate);
             std::visit([&]<typename T>(T& o) { if constexpr (std::same_as<T, XMLLiteralState>) { o.source_input(impl); }}, xml_state);
+        } else if (parse_collection) {
+            impl->state_stack_.emplace_back(std::in_place_type_t<CollectionState>{}, subject, predicate);
         } else {
             impl->state_stack_.emplace_back(std::in_place_type_t<PredicateState>{}, subject, predicate);
         }
@@ -611,6 +629,34 @@ namespace rdf4cpp::parser {
             literal += sv;
         }
         last_offset = static_cast<size_t>(off) + last_size;
+    }
+    void XMLQuadIterator::Impl::CollectionState::on_characters(Impl *impl, std::string_view const chars) {
+        if (!trim(chars).empty()) {
+            impl->add_error(ParsingError::Type::BadSyntax, "expected element, found characters");
+        }
+    }
+    void XMLQuadIterator::Impl::CollectionState::on_start_element(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes) {
+        DescriptionState::enter(impl, local_name, uri, attributes, [&](Node const obj) {
+            if (first) {
+                first = false;
+                last_bn = impl->make_bn(std::nullopt);
+                impl->add_statement(subject, predicate, last_bn);
+            } else {
+                auto const bn = impl->make_bn(std::nullopt);
+                impl->add_statement(last_bn, impl->try_make_iri(iri_rest, ""), bn);
+                last_bn = bn;
+            }
+            impl->add_statement(last_bn, impl->try_make_iri(iri_first, ""), obj);
+        });
+    }
+    void XMLQuadIterator::Impl::CollectionState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
+        auto const nil = impl->try_make_iri(iri_nil, "");
+        if (first) {
+            impl->add_statement(subject, predicate, nil);
+        } else {
+            impl->add_statement(last_bn, impl->try_make_iri(iri_rest, ""), nil);
+        }
+        impl->pop_state(Node::make_null());
     }
     void XMLQuadIterator::Impl::EmptyElement::on_characters(Impl *impl, std::string_view const chars) {
         if (!trim(chars).empty()) {
