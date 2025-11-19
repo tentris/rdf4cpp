@@ -523,6 +523,93 @@ _:a1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:a2 .
 _:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/eg#Male> .
 _:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .)";
     }
+    SUBCASE("nested reify") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+ xmlns:eg="http://example.org/"
+ xml:base="http://example.com/">
+
+ <rdf:Description rdf:about="http://example.org/a">
+   <eg:prop rdf:ID="reify">
+     <rdf:Description rdf:about="http://example.org/b">
+       <eg:prop rdf:ID="reify2" rdf:resource="http://example.org/c"/>
+     </rdf:Description>
+   </eg:prop>
+ </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(
+<http://example.org/a> <http://example.org/prop> <http://example.org/b> .
+<http://example.com/#reify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/a> .
+<http://example.com/#reify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/prop> .
+<http://example.com/#reify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <http://example.org/b> .
+<http://example.com/#reify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<http://example.org/b> <http://example.org/prop> <http://example.org/c> .
+<http://example.com/#reify2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <http://example.org/b> .
+<http://example.com/#reify2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/prop> .
+<http://example.com/#reify2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <http://example.org/c> .
+<http://example.com/#reify2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .)";
+    }
+    SUBCASE("reify target") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/">
+
+  <rdf:Description>
+    <eg:prop1  rdf:ID="reify" eg:prop2="val"></eg:prop1>
+  </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(_:j88091 <http://example.org/prop2> "val" .
+_:j88090 <http://example.org/prop1> _:j88091 .
+<http://example.org/#reify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> _:j88090 .
+<http://example.org/#reify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/prop1> .
+<http://example.org/#reify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> _:j88091 .
+<http://example.org/#reify> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .)";
+    }
+    SUBCASE("reify collection") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+    xmlns:eg="http://example.org/eg#"
+    xml:base="http://example.com/">
+
+    <rdf:Description rdf:about="http://example.org/eg#eric">
+        <rdf:type rdf:parseType="Resource">
+            <eg:intersectionOf rdf:ID="reif" rdf:parseType="Collection">
+                <rdf:Description rdf:about="http://example.org/eg#Person"/>
+                <rdf:Description rdf:about="http://example.org/eg#Male"/>
+            </eg:intersectionOf>
+        </rdf:type>
+    </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/eg#eric> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> _:a0 .
+_:a0 <http://example.org/eg#intersectionOf> _:a1 .
+<http://example.com/#reif> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> _:a0 .
+<http://example.com/#reif> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/eg#intersectionOf> .
+<http://example.com/#reif> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> _:a1 .
+<http://example.com/#reif> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+_:a1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/eg#Person> .
+_:a1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:a2 .
+_:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> <http://example.org/eg#Male> .
+_:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .)";
+    }
+    SUBCASE("reify literal") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/"
+         xml:base="http://example.org/dir/file">
+
+ <rdf:Description>
+  <eg:value rdf:ID="frag">v</eg:value>
+ </rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(_:j0 <http://example.org/value> "v" .
+<http://example.org/dir/file#frag> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> _:j0 .
+<http://example.org/dir/file#frag> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://example.org/value> .
+<http://example.org/dir/file#frag> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> "v" .
+<http://example.org/dir/file#frag> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .)";
+    }
 //     SUBCASE("xml literal") { TODO
 //         xml = R"(<?xml version="1.0"?>
 // <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -610,6 +697,19 @@ TEST_CASE("rdf xml negative tests") {
 </rdf:Description>
 </rdf:RDF>)";
         expected_msg.emplace_back(ParsingError::Type::BadSyntax, "expected only one of rdf:parseType, rdf:nodeID and rdf:resource");
+        ignore_some_triples = true;
+    }
+    SUBCASE("multiple ids") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:ID="foo">
+  <rdf:value>abc</rdf:value>
+</rdf:Description>
+<rdf:Description rdf:ID="foo">
+  <rdf:value>abc</rdf:value>
+</rdf:Description>
+</rdf:RDF>)";
+        expected_msg.emplace_back(ParsingError::Type::BadIri, "<http://example.org/#foo>: is already used as a rdf:ID");
         ignore_some_triples = true;
     }
 
