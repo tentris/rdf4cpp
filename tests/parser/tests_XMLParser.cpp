@@ -610,6 +610,29 @@ _:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/0
 <http://example.org/dir/file#frag> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> "v" .
 <http://example.org/dir/file#frag> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .)";
     }
+    SUBCASE("lang literal") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/">
+
+  <rdf:Description rdf:about="http://example.org/node">
+     <eg:property xml:lang="fr">chat</eg:property>
+  </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://example.org/node> <http://example.org/property> "chat"@fr .)";
+    }
+    SUBCASE("lang literal attribute") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/">
+
+  <rdf:Description rdf:about="http://example.org/node"
+                   xml:lang="fr"
+                   eg:property="chat" />
+
+</rdf:RDF>)";
+        nt = R"(<http://example.org/node> <http://example.org/property> "chat"@fr .)";
+    }
 //     SUBCASE("xml literal") { TODO
 //         xml = R"(<?xml version="1.0"?>
 // <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
