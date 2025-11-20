@@ -87,6 +87,20 @@ _:customer2 a foaf:Person ;
             Quad{"http://example.org/NHNhUeDtouaBJHQX"_iri, "http://example.org/NxcdMhwfheBxOgMq"_iri, "http://example.org/xqpBsNpJLHQOHPuW"_iri, "http://example.org/spMEshGEBFdtMFuW"_iri},
         };
 
+        writer::BufOStreamWriter ofs{std::cout};
+
+        for (auto q : quads) {
+            q.serialize_nquads(ofs);
+        }
+
+        writer::write_str("\n", ofs);
+
+        for (auto q : expected) {
+            q.serialize_nquads(ofs);
+        }
+
+        ofs.finalize();
+
         CHECK_EQ(quads, expected);
     }
 }
