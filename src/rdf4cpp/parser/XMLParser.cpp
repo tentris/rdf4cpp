@@ -2,6 +2,7 @@
 
 #include <deque>
 #include <libxml/parser.h>
+#include <dice/sparse-map/sparse_set.hpp>
 #include <ranges>
 
 namespace rdf4cpp::parser {
@@ -17,12 +18,34 @@ namespace rdf4cpp::parser {
         size_t next_bn_index_ = 0;
         std::unique_ptr<state_type> owned_state_;
         state_type *state_;
-        std::set<IRI> reserved_ids_; // TODO faster alternative
+        dice::sparse_map::sparse_set<IRI> reserved_ids_;
 
         static constexpr std::string_view reify_subject = "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject";
         static constexpr std::string_view reify_predicate = "http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate";
         static constexpr std::string_view reify_object = "http://www.w3.org/1999/02/22-rdf-syntax-ns#object";
         static constexpr std::string_view reify_type = "http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement";
+
+        static std::string_view from_xml_char(xmlChar const * s) {
+            if (s == nullptr) {
+                return "";
+            }
+            // ReSharper disable once CppDFALocalValueEscapesFunction
+            return {reinterpret_cast<char const *>(s)};
+        }
+        static std::string_view from_xml_char(xmlChar const * s, xmlChar const * e) {
+            if (s == nullptr) {
+                return "";
+            }
+            // ReSharper disable once CppDFALocalValueEscapesFunction
+            return {reinterpret_cast<char const *>(s), reinterpret_cast<char const *>(e)};
+        }
+        static std::string_view from_xml_char(xmlChar const * s, int const n) {
+            if (s == nullptr) {
+                return "";
+            }
+            // ReSharper disable once CppDFALocalValueEscapesFunction
+            return {reinterpret_cast<char const *>(s), static_cast<size_t>(n)};
+        }
 
         struct Attribute {
             xmlChar const *local_name_raw;
@@ -32,13 +55,13 @@ namespace rdf4cpp::parser {
             xmlChar const *value_end_raw;
 
             [[nodiscard]] std::string_view value() const {
-                return {reinterpret_cast<char const *>(value_start_raw), reinterpret_cast<char const *>(value_end_raw)};
+                return from_xml_char(value_start_raw, value_end_raw);
             }
             [[nodiscard]] std::string_view local_name() const {
-                return {reinterpret_cast<char const *>(local_name_raw)};
+                return from_xml_char(local_name_raw);
             }
             [[nodiscard]] std::string_view uri() const {
-                return {reinterpret_cast<char const *>(uri_raw)};
+                return from_xml_char(uri_raw);
             }
         };
 
@@ -46,9 +69,7 @@ namespace rdf4cpp::parser {
             virtual ~BaseState() = default;
             virtual void on_characters(Impl *impl, std::string_view chars) = 0;
             virtual void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) = 0;
-            virtual void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) = 0; // TODO remove params?
-            virtual void re_enter([[maybe_unused]] Impl *impl, [[maybe_unused]] Node obj) { // TODO remove if not needed for something
-            }
+            virtual void on_end_element(Impl *impl) = 0;
 
             struct InheritedAttributeInfo {
                 std::string_view base = "";
@@ -68,14 +89,14 @@ namespace rdf4cpp::parser {
         struct InitialState final : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+            void on_end_element(Impl *impl) override;
 
             InitialState() : BaseState({}) {}
         };
         struct RDFState final : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+            void on_end_element(Impl *impl) override;
 
             static constexpr std::string_view start_element = "http://www.w3.org/1999/02/22-rdf-syntax-ns#RDF";
 
@@ -84,7 +105,7 @@ namespace rdf4cpp::parser {
         struct DescriptionState final : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+            void on_end_element(Impl *impl) override;
 
             Node subject;
             size_t list_current = 1;
@@ -105,7 +126,7 @@ namespace rdf4cpp::parser {
         struct PredicateState : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+            void on_end_element(Impl *impl) override;
 
             Node subject;
             IRI predicate;
@@ -128,7 +149,7 @@ namespace rdf4cpp::parser {
         };
         struct TypedLiteralPredicateState final : PredicateState {
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+            void on_end_element(Impl *impl) override;
 
             IRI datatype;
 
@@ -141,7 +162,7 @@ namespace rdf4cpp::parser {
         struct XMLLiteralState final : PredicateState {
             void on_characters(Impl *impl, std::string_view chars) override;
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+            void on_end_element(Impl *impl) override;
 
             size_t depth = 0;
             size_t data_start = 0;
@@ -155,7 +176,7 @@ namespace rdf4cpp::parser {
         struct CollectionState final : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+            void on_end_element(Impl *impl) override;
 
             Node subject;
             IRI predicate;
@@ -172,7 +193,7 @@ namespace rdf4cpp::parser {
         struct EmptyElement final : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
             void on_start_element(Impl *impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-            void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
+            void on_end_element(Impl *impl) override;
 
             EmptyElement() :BaseState({}) {}
         };
@@ -192,7 +213,7 @@ namespace rdf4cpp::parser {
          */
         void add_statement(Node subject, IRI predicate, Node object, IRI reify);
         void update_current_state();
-        void pop_state(Node object);
+        void pop_state();
         static std::string_view trim(std::string_view v);
         static bool iri_equal_pieces(std::string_view full_iri, std::string_view uri, std::string_view local_name);
         static bool iri_reserved(std::string_view uri, std::string_view local_name);
@@ -223,20 +244,20 @@ namespace rdf4cpp::parser {
         r.getEntity = [](void *, xmlChar const *e) {
             return xmlGetPredefinedEntity(e);
         };
-        r.characters = [](void *th, xmlChar const *e, int len) {
+        r.characters = [](void *th, xmlChar const *e, int const len) {
             auto *t = static_cast<Impl *>(th);
-            t->current_state_->on_characters(t, std::string_view(reinterpret_cast<char const *>(e), static_cast<size_t>(len)));
+            t->current_state_->on_characters(t, from_xml_char(e, len));
         };
         r.startElementNs = [](void *th, xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, xmlChar const *uri,
                               [[maybe_unused]] int n_namespaces, [[maybe_unused]] xmlChar const **namespaces,
                               int const n_attributes, [[maybe_unused]] int n_defaulted, xmlChar const **attributes) {
             auto *t = static_cast<Impl *>(th);
-            t->current_state_->on_start_element(t, reinterpret_cast<char const *>(local_name), uri == nullptr ? "" : reinterpret_cast<char const *>(uri),
+            t->current_state_->on_start_element(t, from_xml_char(local_name), from_xml_char(uri),
                                                 std::span{reinterpret_cast<Attribute *>(attributes), static_cast<size_t>(n_attributes)});
         };
-        r.endElementNs = [](void *th, xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, xmlChar const *uri) {
+        r.endElementNs = [](void *th, [[maybe_unused]] xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, [[maybe_unused]] xmlChar const *uri) {
             auto *t = static_cast<Impl *>(th);
-            t->current_state_->on_end_element(t, reinterpret_cast<char const *>(local_name), uri == nullptr ? "" : reinterpret_cast<char const *>(uri));
+            t->current_state_->on_end_element(t);
         };
         r.warning = on_error;
         r.error = on_error;
@@ -267,11 +288,10 @@ namespace rdf4cpp::parser {
         }
         current_state_ = std::visit([](auto &s) -> BaseState * { return &s; }, state_stack_.back());
     }
-    void XMLQuadIterator::Impl::pop_state(Node object) {
+    void XMLQuadIterator::Impl::pop_state() {
         assert(!state_stack_.empty());
         state_stack_.pop_back();
         update_current_state();
-        current_state_->re_enter(this, object);
     }
     std::string_view XMLQuadIterator::Impl::trim(std::string_view v) {
         auto s = v.find_first_not_of(" \t\r\n");
@@ -433,7 +453,7 @@ namespace rdf4cpp::parser {
         va_end(args);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
     }
 
-    XMLQuadIterator::Impl::BaseState::InheritedAttributeInfo XMLQuadIterator::Impl::BaseState::get_inherited_attributes(Impl *impl, std::span<Attribute> attributes) {
+    XMLQuadIterator::Impl::BaseState::InheritedAttributeInfo XMLQuadIterator::Impl::BaseState::get_inherited_attributes(Impl *impl, std::span<Attribute> const attributes) {
         InheritedAttributeInfo r{};
         for (const auto& a : attributes) {
             if (iri_equal_pieces(base_attribute, a.uri(), a.local_name()))
@@ -463,7 +483,7 @@ namespace rdf4cpp::parser {
         }
         impl->add_error(ParsingError::Type::BadSyntax, "expected RDF, found ???");
     }
-    void XMLQuadIterator::Impl::InitialState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
+    void XMLQuadIterator::Impl::InitialState::on_end_element(Impl *impl) {
         impl->add_error(ParsingError::Type::BadSyntax, "expected RDF, found end of ???");
     }
 
@@ -475,8 +495,8 @@ namespace rdf4cpp::parser {
     void XMLQuadIterator::Impl::RDFState::on_start_element(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes) {
         DescriptionState::enter(impl, local_name, uri, attributes, [](auto) {});
     }
-    void XMLQuadIterator::Impl::RDFState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
-        impl->pop_state(Node::make_null());
+    void XMLQuadIterator::Impl::RDFState::on_end_element(Impl *impl) {
+        impl->pop_state();
     }
 
     void XMLQuadIterator::Impl::DescriptionState::on_characters(Impl *impl, std::string_view const chars) {
@@ -556,8 +576,8 @@ namespace rdf4cpp::parser {
         }
         impl->update_current_state();
     }
-    void XMLQuadIterator::Impl::DescriptionState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
-        impl->pop_state(subject);
+    void XMLQuadIterator::Impl::DescriptionState::on_end_element(Impl *impl) {
+        impl->pop_state();
     }
     template<class F>
     void XMLQuadIterator::Impl::DescriptionState::enter(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes, F f) {
@@ -626,7 +646,7 @@ namespace rdf4cpp::parser {
         }
         literal.append(chars);
     }
-    void XMLQuadIterator::Impl::PredicateState::on_start_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes) {
+    void XMLQuadIterator::Impl::PredicateState::on_start_element(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes) {
         if (!trim(literal).empty()) {
             impl->add_error(ParsingError::Type::BadSyntax, "expected end of element or literal, found element");
             return;
@@ -640,12 +660,12 @@ namespace rdf4cpp::parser {
             impl->add_statement(subject, predicate, obj, reify);
         });
     }
-    void XMLQuadIterator::Impl::PredicateState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
+    void XMLQuadIterator::Impl::PredicateState::on_end_element(Impl *impl) {
         if (!done) {
             Literal const lit = impl->make_literal(literal, std::nullopt, std::nullopt);
             impl->add_statement(subject, predicate, lit, reify);
         }
-        impl->pop_state(Node::make_null());
+        impl->pop_state();
     }
 
     bool XMLQuadIterator::Impl::PredicateState::iri_reserved_predicate(std::string_view const uri, std::string_view const local_name) {
@@ -654,12 +674,12 @@ namespace rdf4cpp::parser {
     void XMLQuadIterator::Impl::TypedLiteralPredicateState::on_start_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes) {
         impl->add_error(ParsingError::Type::BadSyntax, "expected literal, found element");
     }
-    void XMLQuadIterator::Impl::TypedLiteralPredicateState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
+    void XMLQuadIterator::Impl::TypedLiteralPredicateState::on_end_element(Impl *impl) {
         if (!datatype.null()) {
             Literal const lit = impl->make_literal(literal, datatype, std::nullopt);
             impl->add_statement(subject, predicate, lit, reify);
         }
-        impl->pop_state(Node::make_null());
+        impl->pop_state();
     }
     void XMLQuadIterator::Impl::XMLLiteralState::on_characters(Impl *impl, [[maybe_unused]] std::string_view chars) {
         source_input(impl);
@@ -668,7 +688,7 @@ namespace rdf4cpp::parser {
         ++depth;
         source_input(impl);
     }
-    void XMLQuadIterator::Impl::XMLLiteralState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
+    void XMLQuadIterator::Impl::XMLLiteralState::on_end_element(Impl *impl) {
         if (depth > 0) {
             --depth;
             source_input(impl);
@@ -688,7 +708,7 @@ namespace rdf4cpp::parser {
         }
         Literal const lit = impl->make_literal(l, datatype, std::nullopt);
         impl->add_statement(subject, predicate, lit, reify);
-        impl->pop_state(Node::make_null());
+        impl->pop_state();
     }
     void XMLQuadIterator::Impl::XMLLiteralState::source_input(Impl *impl) {
         const xmlChar* data;
@@ -724,14 +744,14 @@ namespace rdf4cpp::parser {
             impl->add_statement(last_bn, impl->make_hardcoded_iri(iri_first), obj, IRI::make_null());
         });
     }
-    void XMLQuadIterator::Impl::CollectionState::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
+    void XMLQuadIterator::Impl::CollectionState::on_end_element(Impl *impl) {
         auto const nil = impl->make_hardcoded_iri(iri_nil);
         if (first) {
             impl->add_statement(subject, predicate, nil, reify);
         } else {
             impl->add_statement(last_bn, impl->make_hardcoded_iri(iri_rest), nil, IRI::make_null());
         }
-        impl->pop_state(Node::make_null());
+        impl->pop_state();
     }
     void XMLQuadIterator::Impl::EmptyElement::on_characters(Impl *impl, std::string_view const chars) {
         if (!trim(chars).empty()) {
@@ -741,8 +761,8 @@ namespace rdf4cpp::parser {
     void XMLQuadIterator::Impl::EmptyElement::on_start_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes) {
         impl->add_error(ParsingError::Type::BadSyntax, "expected end of element, found ???");
     }
-    void XMLQuadIterator::Impl::EmptyElement::on_end_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri) {
-        impl->pop_state(Node::make_null());
+    void XMLQuadIterator::Impl::EmptyElement::on_end_element(Impl *impl) {
+        impl->pop_state();
     }
 
     XMLQuadIterator::Impl::Impl(void* obj, ReadFunc read, ErrorFunc err, EOFFunc eof, state_type* state)
