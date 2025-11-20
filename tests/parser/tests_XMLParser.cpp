@@ -633,6 +633,126 @@ _:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/0
 </rdf:RDF>)";
         nt = R"(<http://example.org/node> <http://example.org/property> "chat"@fr .)";
     }
+    SUBCASE("simple list") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+
+  <rdf:Bag>
+    <rdf:li>1</rdf:li>
+    <rdf:li>2</rdf:li>
+  </rdf:Bag>
+</rdf:RDF>)";
+        nt = R"(_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Bag> .
+_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1" .
+_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2" .)";
+    }
+    SUBCASE("list interference") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:foo="http://foo/">
+
+  <foo:Bar>
+    <rdf:_1>_1</rdf:_1>
+    <rdf:li>1</rdf:li>
+    <rdf:_3>_3</rdf:_3>
+    <rdf:li>2</rdf:li>
+  </foo:Bar>
+</rdf:RDF>)";
+        nt = R"(_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://foo/Bar> .
+_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "_1" .
+_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1" .
+_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#_3> "_3" .
+_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2" .)";
+    }
+    SUBCASE("list advanced") {
+        xml = R"(<?xml version="1.0"?>
+
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:foo="http://foo/">
+
+  <foo:Bar>
+    <rdf:li rdf:ID="e1">1</rdf:li>
+    <rdf:li rdf:parseType="Literal">2</rdf:li>
+    <rdf:li rdf:parseType="Resource">
+      <rdf:type rdf:resource="http://foo/Bar"/>
+    </rdf:li>
+    <rdf:li rdf:ID="e4" foo:bar="foobar"/>
+  </foo:Bar>
+</rdf:RDF>)";
+        nt = R"(_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://foo/Bar> .
+_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1" .
+<http://example.org/#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> _:bar .
+<http://example.org/#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> .
+<http://example.org/#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> "1" .
+<http://example.org/#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral> .
+_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#_3> _:res .
+_:res <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://foo/Bar> .
+_:res2 <http://foo/bar> "foobar" .
+_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#_4> _:res2 .
+<http://example.org/#e4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> _:bar .
+<http://example.org/#e4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_4> .
+<http://example.org/#e4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> _:res2 .
+<http://example.org/#e4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .)";
+    }
+    SUBCASE("list other") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:foo="http://foo/">
+
+  <rdf:Seq rdf:ID="e1" rdf:_3="3" rdf:value="foobar"/>
+  <rdf:Alt rdf:about="#e2" rdf:_2="2" rdf:value="foobar">
+    <rdf:value>barfoo</rdf:value>
+  </rdf:Alt>
+  <rdf:Bag />
+</rdf:RDF>)";
+        nt = R"(<http://example.org/#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#Seq> .
+<http://example.org/#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_3> "3" .
+<http://example.org/#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "foobar" .
+<http://example.org/#e2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#Alt> .
+<http://example.org/#e2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2" .
+<http://example.org/#e2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "foobar" .
+<http://example.org/#e2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "barfoo" .
+_:bag <http://www.w3.org/1999/02/22-rdf-syntax-ns#type>  <http://www.w3.org/1999/02/22-rdf-syntax-ns#Bag> .)";
+    }
+    SUBCASE("list independence") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:foo="http://foo/">
+
+  <rdf:Description>
+    <rdf:li>
+      <rdf:Description>
+        <rdf:li>1</rdf:li>
+        <rdf:li>2</rdf:li>
+      </rdf:Description>
+    </rdf:li>
+    <rdf:li>2</rdf:li>
+  </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(_:d1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> _:d2 .
+
+_:d2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1" .
+_:d2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2" .
+
+_:d1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2" .)";
+    }
+    SUBCASE("list per element") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+
+  <rdf:Description rdf:about="http://desc">
+    <rdf:li>1</rdf:li>
+  </rdf:Description>
+
+  <rdf:Description rdf:about="http://desc">
+    <rdf:li>1-again</rdf:li>
+  </rdf:Description>
+</rdf:RDF>)";
+        nt = R"(<http://desc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1" .
+<http://desc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1-again" .)";
+    }
 //     SUBCASE("xml literal") { TODO
 //         xml = R"(<?xml version="1.0"?>
 // <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -659,8 +779,7 @@ _:a2 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/0
 
     std::map<BlankNode, BlankNode> bn_map{};
     auto check = [&bn_map](Node xml, Node nt) {
-        CHECK(xml.is_blank_node() == nt.is_blank_node());
-        if (nt.is_blank_node()) {
+        if (nt.is_blank_node() && xml.is_blank_node()) {
             auto i = bn_map.find(nt.as_blank_node());
             if (i != bn_map.end()) {
                 CHECK(xml.as_blank_node() == i->second.as_blank_node());

@@ -87,6 +87,7 @@ namespace rdf4cpp::parser {
             void on_end_element(Impl *impl, std::string_view local_name, std::string_view uri) override;
 
             Node subject;
+            size_t list_current = 1;
 
             explicit DescriptionState(InheritedAttributeInfo const &i, Node sub)
                 : BaseState(i), subject(sub) {
@@ -100,7 +101,6 @@ namespace rdf4cpp::parser {
             static constexpr std::string_view id_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#ID";
             static constexpr std::string_view node_id_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nodeID";
             static constexpr std::string_view type_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-            static constexpr std::string_view list_start_element = "http://www.w3.org/1999/02/22-rdf-syntax-ns#li";
         };
         struct PredicateState : BaseState {
             void on_characters(Impl *impl, std::string_view chars) override;
@@ -122,6 +122,7 @@ namespace rdf4cpp::parser {
             static constexpr std::string_view parse_type_resource = "Resource";
             static constexpr std::string_view parse_type_literal = "Literal";
             static constexpr std::string_view parse_type_collection = "Collection";
+            static constexpr std::string_view list_start_element = "http://www.w3.org/1999/02/22-rdf-syntax-ns#li";
 
             static bool iri_reserved_predicate(std::string_view uri, std::string_view local_name);
         };
@@ -485,7 +486,13 @@ namespace rdf4cpp::parser {
     }
     void XMLQuadIterator::Impl::DescriptionState::on_start_element(Impl *impl, std::string_view const local_name, std::string_view const uri, std::span<Attribute> attributes) {
         auto const i = get_inherited_attributes(impl, attributes);
-        auto predicate = impl->make_iri(uri, local_name, i.base);
+        IRI predicate;
+        if (iri_equal_pieces(PredicateState::list_start_element, uri, local_name)) {
+            predicate = impl->make_iri(std::format("http://www.w3.org/1999/02/22-rdf-syntax-ns#_{}", list_current++), i.base);
+        }
+        else {
+            predicate = impl->make_iri(uri, local_name, i.base);
+        }
         std::optional<IRI> datatype = std::nullopt;
         std::optional<Node> sub = std::nullopt;
         IRI reify = IRI::make_null();
@@ -642,7 +649,7 @@ namespace rdf4cpp::parser {
     }
 
     bool XMLQuadIterator::Impl::PredicateState::iri_reserved_predicate(std::string_view const uri, std::string_view const local_name) {
-        return iri_reserved(uri, local_name) || iri_equal_pieces(DescriptionState::start_element, uri, local_name) || iri_equal_pieces(DescriptionState::list_start_element, uri, local_name);
+        return iri_reserved(uri, local_name) || iri_equal_pieces(DescriptionState::start_element, uri, local_name) || iri_equal_pieces(list_start_element, uri, local_name);
     }
     void XMLQuadIterator::Impl::TypedLiteralPredicateState::on_start_element(Impl *impl, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes) {
         impl->add_error(ParsingError::Type::BadSyntax, "expected literal, found element");
