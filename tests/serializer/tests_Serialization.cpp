@@ -273,6 +273,22 @@ TEST_CASE("basic trig") {
              "<http://ex/sub> a \"7\"^^xsd:int .\n");
 }
 
+TEST_CASE("nquads bnode graph") {
+    Quad q{
+        BlankNode::make("G"),
+        IRI::make("http://example.com#s"),
+        IRI::make("http://example.com#p"),
+        IRI::make("http://example.com#o"),
+    };
+
+    auto s = writer::StringWriter::oneshot([&q](auto &w) {
+        q.serialize_nquads(w);
+        return true;
+    });
+
+    CHECK_EQ(s, "<http://example.com#s> <http://example.com#p> <http://example.com#o> _:G .\n");
+}
+
 TEST_CASE("trig bnode graph") {
     Quad q{
         BlankNode::make("G"),
