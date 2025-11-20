@@ -1,4 +1,4 @@
-#include "Dataset.hpp"
+#include <rdf4cpp/Dataset.hpp>
 #include <rdf4cpp/Graph.hpp>
 #include <rdf4cpp/writer/TryWrite.hpp>
 #include <rdf4cpp/writer/SerializationState.hpp>
@@ -181,6 +181,10 @@ Dataset::iterator &Dataset::iterator::operator++() noexcept {
     return *this;
 }
 
+void Dataset::iterator::operator++(int) noexcept {
+    ++*this;
+}
+
 Dataset::iterator::reference Dataset::iterator::operator*() const noexcept {
     return cur_;
 }
@@ -189,12 +193,12 @@ Dataset::iterator::pointer Dataset::iterator::operator->() const noexcept {
     return &cur_;
 }
 
-bool Dataset::iterator::operator==(Dataset::sentinel) const noexcept {
-    return giter_ == gend_;
+bool operator==(Dataset::iterator const &self, Dataset::sentinel) noexcept {
+    return self.giter_ == self.gend_;
 }
 
-bool Dataset::iterator::operator!=(Dataset::sentinel) const noexcept {
-    return !(*this == Dataset::sentinel{});
+bool operator==(Dataset::sentinel, Dataset::iterator const &self) noexcept {
+    return self.giter_ == self.gend_;
 }
 
 void Dataset::solution_iterator::fill_solution() noexcept {
@@ -243,6 +247,10 @@ Dataset::solution_iterator &Dataset::solution_iterator::operator++() noexcept {
     return *this;
 }
 
+void Dataset::solution_iterator::operator++(int) noexcept {
+    ++*this;
+}
+
 Dataset::solution_iterator::reference Dataset::solution_iterator::operator*() const noexcept {
     return cur_;
 }
@@ -251,12 +259,26 @@ Dataset::solution_iterator::pointer Dataset::solution_iterator::operator->() con
     return &cur_;
 }
 
-bool Dataset::solution_iterator::operator==(Dataset::sentinel) const noexcept {
-    return iter_ == Dataset::sentinel{};
+bool operator==(Dataset::solution_iterator const &self, Dataset::sentinel) noexcept {
+    return self.iter_ == Dataset::sentinel{};
 }
 
-bool Dataset::solution_iterator::operator!=(Dataset::sentinel) const noexcept {
-    return !(*this == Dataset::sentinel{});
+bool operator==(Dataset::sentinel, Dataset::solution_iterator const &self) noexcept {
+    return self.iter_ == Dataset::sentinel{};
 }
+
+Dataset Dataset::anonymize(util::Anonymizer &anonymizer) const {
+    Dataset anon{anonymizer.node_storage()};
+
+    for (auto const &[graph_id, graph] : graphs_) {
+        anon.graphs_.emplace(
+            anonymizer.anonymize(to_node(graph_id)).backend_handle().id(),
+            graph.anonymize(anonymizer)
+        );
+    }
+
+    return anon;
+}
+
 
 }  // namespace rdf4cpp

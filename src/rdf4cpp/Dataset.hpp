@@ -5,6 +5,7 @@
 #include <rdf4cpp/Quad.hpp>
 #include <rdf4cpp/query/QuadPattern.hpp>
 #include <rdf4cpp/writer/BufWriter.hpp>
+#include <rdf4cpp/util/Anonymizer.hpp>
 
 #include <dice/sparse-map/sparse_map.hpp>
 
@@ -49,11 +50,12 @@ public:
                  typename storage_type::const_iterator gend) noexcept;
 
         iterator &operator++() noexcept;
+        void operator++(int) noexcept;
         reference operator*() const noexcept;
         pointer operator->() const noexcept;
 
-        bool operator==(sentinel) const noexcept;
-        bool operator!=(sentinel) const noexcept;
+        friend bool operator==(iterator const &self, sentinel) noexcept;
+        friend bool operator==(sentinel, iterator const &self) noexcept;
     };
 
     using const_iterator = iterator;
@@ -84,11 +86,12 @@ public:
                           typename storage_type::const_iterator end) noexcept;
 
         solution_iterator &operator++() noexcept;
+        void operator++(int) noexcept;
         reference operator*() const noexcept;
         pointer operator->() const noexcept;
 
-        bool operator==(sentinel) const noexcept;
-        bool operator!=(sentinel) const noexcept;
+        friend bool operator==(solution_iterator const &self, sentinel) noexcept;
+        friend bool operator==(sentinel, solution_iterator const &self) noexcept;
     };
 
     struct solution_sequence {
@@ -201,6 +204,14 @@ public:
     bool serialize_trig(writer::BufWriterParts writer) const noexcept;
 
     friend std::ostream &operator<<(std::ostream &os, Dataset const &self);
+
+
+    /**
+     * Anonymize the dataset by removing all information except for the dataset structure itself.
+     *
+     * See `rdf4cpp::util::Anonymizer` for details
+     */
+    [[nodiscard]] Dataset anonymize(util::Anonymizer &anonymizer) const;
 
     // TODO: support union (+) and difference (-)
     // TODO: add empty

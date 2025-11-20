@@ -354,6 +354,12 @@ target_link_libraries(tests_Serialization
 )
 add_test(NAME tests_Serialization COMMAND tests_Serialization)
 
+add_executable(tests_Anonymizer util/tests_Anonymizer.cpp)
+target_link_libraries(tests_Anonymizer
+        doctest::doctest
+        rdf4cpp)
+add_test(NAME tests_Anonymizer COMMAND tests_Anonymizer)
+
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.nt")
         file(DOWNLOAD "https://files.tentris.dev/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
         execute_process(COMMAND unzip "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip" -d "${CMAKE_CURRENT_BINARY_DIR}/test_swdf")

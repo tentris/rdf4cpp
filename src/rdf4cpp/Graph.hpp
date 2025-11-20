@@ -7,6 +7,7 @@
 #include <rdf4cpp/writer/BufWriter.hpp>
 #include <rdf4cpp/writer/SerializationState.hpp>
 #include <rdf4cpp/parser/RDFFileParser.hpp>
+#include <rdf4cpp/util/Anonymizer.hpp>
 
 #include <dice/sparse-map/sparse_set.hpp>
 
@@ -50,18 +51,18 @@ public:
 
         Statement cur_;
 
-        Statement to_statement(triple const &t) const noexcept;
-
     public:
         iterator() noexcept = default;
         iterator(Graph const *parent, typename triple_storage_type::const_iterator beg, typename triple_storage_type::const_iterator end) noexcept;
 
         iterator &operator++() noexcept;
+        void operator++(int) noexcept;
+
         reference operator*() const noexcept;
         pointer operator->() const noexcept;
 
-        bool operator==(sentinel) const noexcept;
-        bool operator!=(sentinel) const noexcept;
+        friend bool operator==(iterator const &self, sentinel) noexcept;
+        friend bool operator==(sentinel, iterator const &self) noexcept;
     };
 
     using const_iterator = iterator;
@@ -87,11 +88,12 @@ public:
                           query::TriplePattern const &pat) noexcept;
 
         solution_iterator &operator++() noexcept;
+        void operator++(int) noexcept;
         reference operator*() const noexcept;
         pointer operator->() const noexcept;
 
-        bool operator==(sentinel) const noexcept;
-        bool operator!=(sentinel) const noexcept;
+        friend bool operator==(solution_iterator const &self, sentinel) noexcept;
+        friend bool operator==(sentinel, solution_iterator const &self) noexcept;
     };
 
     struct solution_sequence {
@@ -127,7 +129,10 @@ private:
     triple_storage_type triples_;
 
     static storage::identifier::NodeBackendID to_node_id(Node node) noexcept;
-    Node to_node(storage::identifier::NodeBackendID id) const noexcept;
+    static triple to_id_triple(Statement const &stmt) noexcept;
+
+    [[nodiscard]] Node to_node(storage::identifier::NodeBackendID id) const noexcept;
+    [[nodiscard]] Statement to_statement(triple const &t) const noexcept;
 
 public:
     explicit Graph(storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
@@ -195,6 +200,13 @@ public:
      * Serialize this graph as <a href="https://www.w3.org/TR/n-triples/">N-Triples</a>.
      */
     friend std::ostream &operator<<(std::ostream &os, Graph const &graph);
+
+    /**
+     * Anonymize the graph by removing all information except for the graph structure itself.
+     *
+     * See `rdf4cpp::util::Anonymizer` for details
+     */
+    [[nodiscard]] Graph anonymize(util::Anonymizer &anonymizer) const;
 
     // TODO: support union (+) and difference (-); open question: which graph name should be assigned?
     // TODO: add empty
