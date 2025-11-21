@@ -21,10 +21,15 @@ struct IStreamQuadIterator::ImplSerd final : Impl {
     using error_type = IStreamQuadIterator::error_type;
 
 private:
-    std::unique_ptr<SerdReader, decltype([](SerdReader* r) {
-        serd_reader_end_stream(r);
-        serd_reader_free(r);
-    })> reader;
+    // workaround for gcc-14 bug, erroneously warns on unsing a lambda here
+    // see https://github.com/NVIDIA/stdexec/issues/1143
+    struct SerdReaderDtorLambda {
+        void operator()(SerdReader* r) const {
+            serd_reader_end_stream(r);
+            serd_reader_free(r);
+        }
+    };
+    std::unique_ptr<SerdReader, SerdReaderDtorLambda> reader;
 
     std::unique_ptr<state_type> state_owned = nullptr;
     state_type *state;
