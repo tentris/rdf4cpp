@@ -1,11 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "rdf4cpp/parser/XMLParser.hpp"
-
-
 #include <doctest/doctest.h>
 
 #include <rdf4cpp.hpp>
-#include <rdf4cpp/storage/reference_node_storage/SyncReferenceNodeStorage.hpp>
 
 #include <iostream>
 
@@ -41,7 +37,7 @@ TEST_CASE("sanity test") {
     </rdf:Description>
 </rdf:RDF>)"};
 
-    XMLQuadIterator it{str};
+    IStreamQuadIterator it{str, ParsingFlag::RdfXml};
     CHECK(it != std::default_sentinel);
     CHECK(it->has_value());
     CHECK(it->value().subject() == IRI::make("https://www.example.com"));
@@ -772,7 +768,7 @@ _:d1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2" .)";
     }
 
     std::stringstream xml_str{xml};
-    XMLQuadIterator xml_iter{xml_str};
+    IStreamQuadIterator xml_iter{xml_str, ParsingFlag::RdfXml};
 
     std::stringstream nt_str{nt};
     IStreamQuadIterator nt_iter{nt_str, ParsingFlag::NTriples};
@@ -860,7 +856,7 @@ TEST_CASE("rdf xml negative tests") {
     }
 
     std::stringstream xml_str{xml};
-    XMLQuadIterator xml_iter{xml_str};
+    IStreamQuadIterator xml_iter{xml_str, ParsingFlag::RdfXml};
 
     while (xml_iter != std::default_sentinel) {
         if (!ignore_some_triples) {

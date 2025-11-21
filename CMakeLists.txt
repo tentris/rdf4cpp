@@ -131,7 +131,6 @@ add_library(rdf4cpp
         src/rdf4cpp/namespaces/RDF.cpp
         src/rdf4cpp/parser/IStreamQuadIterator.cpp
         src/rdf4cpp/parser/RDFFileParser.cpp
-        src/rdf4cpp/parser/XMLParser.cpp
         src/rdf4cpp/query/QuadPattern.cpp
         src/rdf4cpp/query/Solution.cpp
         src/rdf4cpp/query/TriplePattern.cpp
@@ -150,6 +149,7 @@ add_library(rdf4cpp
         src/rdf4cpp/IRIView.cpp
         src/rdf4cpp/IRIFactory.cpp
         private/rdf4cpp/parser/IStreamQuadIteratorSerdImpl.cpp
+        private/rdf4cpp/parser/XMLParser.cpp
         private/rdf4cpp/regex/RegexImpl.cpp
         private/rdf4cpp/regex/RegexReplacerImpl.cpp
         ${serd_source_files}

@@ -1,4 +1,5 @@
 #include "IStreamQuadIterator.hpp"
+
 #include <rdf4cpp/parser/IStreamQuadIteratorSerdImpl.hpp>
 
 #include <cstdio>
@@ -38,19 +39,33 @@ static int istream_error(void *voided_self) noexcept {
     return static_cast<int>(self->fail() && !self->eof());
 }
 
+/**
+ * Adaptor function for serd to check if an std::istream is at the end of file
+ *
+ * @param voided_self pointer to std::istream cast to void *
+ * @return whether the given istream encountered an error (cast to int)
+ */
+static int istream_eof(void *voided_self) noexcept {
+    auto *self = static_cast<std::istream *>(voided_self);
+    return static_cast<int>(self->eof());
+}
+
 IStreamQuadIterator::IStreamQuadIterator(void *stream,
                                          ReadFunc read,
                                          ErrorFunc error,
+                                         EOFFunc eof,
                                          flags_type flags,
                                          state_type *state)
-    : impl{std::make_unique<Impl>(stream, read, error, flags, state)},
+    : impl{flags.get_syntax() == ParsingFlag::RdfXml ?
+        make_xml_impl(stream, read, error, eof, state) :
+        std::make_unique<ImplSerd>(stream, read, error, flags, state)},
       cur{impl->next()} {
 }
 
 IStreamQuadIterator::IStreamQuadIterator(std::istream &istream,
                                          flags_type flags,
                                          state_type *state)
-    : IStreamQuadIterator{&istream, &istream_read, &istream_error, flags, state} {
+    : IStreamQuadIterator{&istream, &istream_read, &istream_error, &istream_eof, flags, state} {
 }
 
 IStreamQuadIterator::IStreamQuadIterator(IStreamQuadIterator &&other) noexcept = default;
