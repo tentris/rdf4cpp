@@ -51,7 +51,7 @@ public:
      * @param non_anon non-anonymized node to anonymize
      * @return anonymized node
      */
-    [[nodiscard]] Node anonymize(Node const &non_anon);
+    [[nodiscard]] IRI anonymize(Node const &non_anon);
 
         /**
      * Anonymize a statement by anonymizing each component (subject, predicate and object)

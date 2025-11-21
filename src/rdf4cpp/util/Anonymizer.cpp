@@ -28,15 +28,15 @@ storage::DynNodeStoragePtr Anonymizer::node_storage() const noexcept {
     return node_storage_;
 }
 
-Node Anonymizer::anonymize(Node const &non_anon) {
+IRI Anonymizer::anonymize(Node const &non_anon) {
     using namespace storage::identifier;
 
     if (non_anon.null() || non_anon.as_iri().is_default_graph()) {
-        return non_anon;
+        return non_anon.as_iri();
     }
 
     if (auto it = lookup_.find(non_anon.backend_handle()); it != lookup_.end()) {
-        return Node{NodeBackendHandle{it->second, node_storage_}};
+        return IRI{NodeBackendHandle{it->second, node_storage_}};
     }
 
     std::array<char, IRIFactory::default_base.size() + 16> buf;
