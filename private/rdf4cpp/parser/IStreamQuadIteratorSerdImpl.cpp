@@ -408,6 +408,8 @@ IStreamQuadIterator::ImplSerd::ImplSerd(void *stream,
     serd_reader_set_error_sink(this->reader.get(), &ImplSerd::on_error, this);
     serd_reader_start_source_stream(this->reader.get(), read, error, stream, nullptr, 4096);
 }
+IStreamQuadIterator::ImplSerd::~ImplSerd() {
+}
 
 std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type>> IStreamQuadIterator::ImplSerd::next() {
     while (this->quad_buffer.empty()) {

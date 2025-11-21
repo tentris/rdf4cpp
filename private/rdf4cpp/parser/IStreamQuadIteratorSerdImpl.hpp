@@ -70,7 +70,7 @@ public:
          flags_type flags,
          state_type *state) noexcept;
 
-    ~ImplSerd() override = default;
+    ~ImplSerd() override;
 
     /**
      * Tries to extract the next element from the serd backend.
