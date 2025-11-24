@@ -29,7 +29,7 @@ struct GlobalCryptoRng {
             unsigned long const code = ERR_get_error();
             ERR_error_string_n(code, err_buf.data(), err_buf.size());
 
-            throw std::runtime_error{std::format("Unable to generate random number: {}", std::string_view{err_buf.data()})};
+            throw std::runtime_error{std::format("Unable to generate random bytes for anonymizer: {}", std::string_view{err_buf.data()})};
         }
 
         return std::bit_cast<result_type>(buf);
