@@ -24,7 +24,7 @@ struct GlobalCryptoRng {
         std::array<unsigned char, sizeof(result_type)> buf;
 
         int const ret = RAND_bytes(buf.data(), buf.size());
-        if (ret == 0) [[unlikely]] {
+        if (ret != 1) [[unlikely]] {
             std::array<char, 120> err_buf;
             unsigned long const code = ERR_get_error();
             ERR_error_string_n(code, err_buf.data(), err_buf.size());
