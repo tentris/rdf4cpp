@@ -20,7 +20,7 @@ struct GlobalCryptoRng {
 
     constexpr GlobalCryptoRng() noexcept = default;
 
-    [[nodiscard]] constexpr result_type operator()() const {
+    [[nodiscard]] result_type operator()() const {
         std::array<unsigned char, sizeof(result_type)> buf;
 
         int const ret = RAND_bytes(buf.data(), buf.size());
@@ -29,7 +29,7 @@ struct GlobalCryptoRng {
             unsigned long const code = ERR_get_error();
             ERR_error_string_n(code, err_buf.data(), err_buf.size());
 
-            throw std::runtime_error{std::string{err_buf.data()}};
+            throw std::runtime_error{std::format("Unable to generate random number: {}", std::string_view{err_buf.data()})};
         }
 
         return std::bit_cast<result_type>(buf);
