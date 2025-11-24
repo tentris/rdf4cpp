@@ -212,6 +212,17 @@ void Dataset::solution_iterator::fill_solution() noexcept {
     }
 }
 
+void Dataset::solution_iterator::advance_until_result() {
+    while (iter_ == std::default_sentinel) {
+        ++giter_;
+        if (giter_ == gend_) {
+            return;
+        }
+
+        iter_ = giter_->second.match(pat_.without_graph()).begin();
+    }
+}
+
 Dataset::solution_iterator::solution_iterator(Dataset const *parent,
                                               query::QuadPattern const &pat,
                                               typename storage_type::const_iterator beg,
@@ -221,6 +232,7 @@ Dataset::solution_iterator::solution_iterator(Dataset const *parent,
 
         if (pat_.graph().is_variable()) {
             iter_ = giter_->second.match(tpat).begin();
+            advance_until_result();
         } else if (auto const *g = parent_->find_graph(pat_.graph()); g != nullptr) {
             iter_ = g->match(tpat).begin();
         }
@@ -233,14 +245,7 @@ Dataset::solution_iterator &Dataset::solution_iterator::operator++() noexcept {
     ++iter_;
 
     if (pat_.graph().is_variable()) {
-        while (iter_ == std::default_sentinel) {
-            ++giter_;
-            if (giter_ == gend_) {
-                return *this;
-            }
-
-            iter_ = giter_->second.match(pat_.without_graph()).begin();
-        }
+        advance_until_result();
     }
 
     fill_solution();

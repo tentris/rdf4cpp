@@ -19,8 +19,7 @@ namespace rdf4cpp::util {
  */
 struct Anonymizer {
 private:
-    std::mt19937_64 rng_;
-    std::uniform_int_distribution<size_t> dist_;
+    std::uniform_int_distribution<uint64_t> dist_;
 
     storage::DynNodeStoragePtr node_storage_;
     dice::sparse_map::sparse_map<storage::identifier::NodeBackendHandle, storage::identifier::NodeBackendID> lookup_;
@@ -31,9 +30,8 @@ public:
     /**
      * Initialize the anonymizer
      * @param node_storage node storage where to anonymizer will place its nodes
-     * @param seed optional seed for the random generator, if the seed is not specified std::random_device will be used to seed the random generator
      */
-    explicit Anonymizer(storage::DynNodeStoragePtr node_storage = storage::default_node_storage, std::optional<uint64_t> seed = std::nullopt);
+    explicit Anonymizer(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * @return the node storage where this anonymizer places its nodes

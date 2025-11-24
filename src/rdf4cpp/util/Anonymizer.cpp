@@ -4,6 +4,9 @@
 #include <ranges>
 #include <format>
 
+#include <openssl/err.h>
+#include <openssl/rand.h>
+
 namespace rdf4cpp::util {
 
 inline constexpr std::array chars{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
@@ -12,15 +15,45 @@ inline constexpr std::array chars{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', '
                                   'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
                                   'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
 
-Anonymizer::Anonymizer(storage::DynNodeStoragePtr node_storage, std::optional<uint64_t> seed)
-    : rng_{seed.has_value() ? *seed : std::random_device{}()},
-      dist_{0, chars.size() - 1},
+struct GlobalCryptoRng {
+    using result_type = uint64_t;
+
+    constexpr GlobalCryptoRng() noexcept = default;
+
+    [[nodiscard]] constexpr result_type operator()() const {
+        std::array<unsigned char, sizeof(result_type)> buf;
+
+        int const ret = RAND_bytes(buf.data(), buf.size());
+        if (ret == 0) [[unlikely]] {
+            std::array<char, 120> err_buf;
+            unsigned long const code = ERR_get_error();
+            ERR_error_string_n(code, err_buf.data(), err_buf.size());
+
+            throw std::runtime_error{std::string{err_buf.data()}};
+        }
+
+        return std::bit_cast<result_type>(buf);
+    }
+
+    static constexpr result_type min() noexcept {
+        return std::numeric_limits<result_type>::min();
+    }
+
+    static constexpr result_type max() noexcept {
+        return std::numeric_limits<result_type>::max();
+    }
+};
+inline constexpr GlobalCryptoRng global_crypto_rng;
+
+
+Anonymizer::Anonymizer(storage::DynNodeStoragePtr node_storage)
+    : dist_{0, chars.size() - 1},
       node_storage_{node_storage} {
 }
 
 void Anonymizer::gen_random_id(std::span<char> out) {
     std::ranges::generate(out, [this] {
-        return chars[dist_(rng_)];
+        return chars[dist_(global_crypto_rng)];
     });
 }
 

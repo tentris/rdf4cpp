@@ -97,7 +97,7 @@ public:
     };
 
     struct solution_sequence {
-        using value_type = Statement;
+        using value_type = query::Solution;
         using size_type = size_t;
         using difference_type = ptrdiff_t;
         using reference = value_type const &;

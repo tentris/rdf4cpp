@@ -5,11 +5,53 @@
 #include <rdf4cpp/IRI.hpp>
 #include <rdf4cpp/BlankNode.hpp>
 #include <rdf4cpp/Literal.hpp>
+#include <rdf4cpp/query/Variable.hpp>
+#include <rdf4cpp/namespaces/FOAF.hpp>
 
+#include <dice/template-library/ranges.hpp>
 
 TEST_SUITE("anonymizer") {
     using namespace rdf4cpp;
     using namespace rdf4cpp::shorthands;
+
+    TEST_CASE("sanity check") {
+        util::Anonymizer anony{};
+
+        Node const null{};
+        IRI const default_graph = IRI::default_graph();
+        IRI const iri{"http://example.com#x"};
+        BlankNode const bn{"bn"};
+        Literal const lit = Literal::make_simple("Hello World");
+
+        auto const anon_null = anony.anonymize(null);
+        auto const anon_default_graph = anony.anonymize(default_graph);
+        auto const anon_iri = anony.anonymize(iri);
+        auto const anon_bn = anony.anonymize(bn);
+        auto const anon_lit = anony.anonymize(lit);
+
+        // anonymized not same as original
+        CHECK_EQ(anon_null, null);
+        CHECK_EQ(anon_default_graph, default_graph);
+        CHECK_NE(anon_iri, iri);
+        CHECK_NE(anon_bn, bn);
+        CHECK_NE(anon_lit, lit);
+
+        // generates distinct nodes for all cases
+        CHECK((std::vector<Node>{anon_null, anon_default_graph, anon_iri, anon_bn, anon_lit, iri, bn, lit} | dice::template_library::all_distinct()));
+
+        // same result for second call
+        CHECK_EQ(anony.anonymize(iri), anon_iri);
+        CHECK_EQ(anony.anonymize(bn), anon_bn);
+        CHECK_EQ(anony.anonymize(lit), anon_lit);
+    }
+
+    template<typename DS, typename Pat>
+    [[nodiscard]] query::Solution first_solution(DS const &ds, Pat const &pat) {
+        auto const solutions = ds.match(pat);
+        CHECK_EQ(std::ranges::distance(solutions), 1);
+
+        return *solutions.begin();
+    }
 
     TEST_CASE("graph") {
         std::string const data{R"(
@@ -29,26 +71,29 @@ _:customer2 a foaf:Person ;
         Graph g;
         g.load_rdf_data(iss);
 
-        util::Anonymizer anony{storage::default_node_storage, 42};
+        util::Anonymizer anony{};
         auto anon =  g.anonymize(anony);
+        CHECK_EQ(anon.size(), g.size());
 
-        std::vector<Statement> stmts;
-        std::ranges::copy(anon, std::back_inserter(stmts));
-        std::ranges::sort(stmts);
+        auto const rdf_type = anony.anonymize(IRI::rdf_type());
 
-        std::vector<Statement> const expected{
-            Statement{"http://example.org/IvwedQyxZEGDSyQz"_iri, "http://example.org/MlBgOmeUyfKgLFsN"_iri, "http://example.org/QweTPUSbMdkGxrsK"_iri},
-            Statement{"http://example.org/IvwedQyxZEGDSyQz"_iri, "http://example.org/NxcdMhwfheBxOgMq"_iri, "http://example.org/NPcWMvpbKxBzlFzt"_iri},
-            Statement{"http://example.org/IvwedQyxZEGDSyQz"_iri, "http://example.org/xqpBsNpJLHQOHPuW"_iri, "http://example.org/spMEshGEBFdtMFuW"_iri},
+        auto foaf = namespaces::FOAF{};
+        auto const foaf_person = anony.anonymize(foaf + "Person");
+        auto const foaf_name = anony.anonymize(foaf + "name");
+        auto const foaf_mbox = anony.anonymize(foaf + "mbox");
 
-            Statement{"http://example.org/NHNhUeDtouaBJHQX"_iri, "http://example.org/MlBgOmeUyfKgLFsN"_iri, "http://example.org/WZutRNITdqpviSzp"_iri},
-            Statement{"http://example.org/NHNhUeDtouaBJHQX"_iri, "http://example.org/NxcdMhwfheBxOgMq"_iri, "http://example.org/NPcWMvpbKxBzlFzt"_iri},
-            Statement{"http://example.org/NHNhUeDtouaBJHQX"_iri, "http://example.org/xqpBsNpJLHQOHPuW"_iri, "http://example.org/rMiHeusAILABuPjs"_iri},
-        };
+        auto customers = anon.match({query::Variable{"c"}, rdf_type, foaf_person});
+        CHECK_EQ(std::ranges::distance(customers), 2);
 
-        CHECK_EQ(stmts, expected);
+        auto const c1 = (*customers.begin())[0];
+        auto const c2 = (*std::next(customers.begin()))[0];
+        auto const n1 = first_solution(anon, query::TriplePattern{c1, foaf_name, query::Variable{"n"}})[0];
+        auto const n2 = first_solution(anon, query::TriplePattern{c2, foaf_name, query::Variable{"n"}})[0];
+        auto const m1 = first_solution(anon, query::TriplePattern{c1, foaf_mbox, query::Variable{"n"}})[0];
+        auto const m2 = first_solution(anon, query::TriplePattern{c2, foaf_mbox, query::Variable{"n"}})[0];
+
+        CHECK((std::vector{c1, c2, n1, n2, m1, m2} | dice::template_library::all_distinct()));
     }
-
 
     TEST_CASE("dataset") {
         std::string const data{R"(
@@ -70,37 +115,26 @@ _:customer2 a foaf:Person ;
         Dataset ds;
         ds.load_rdf_data(iss);
 
-        util::Anonymizer anony{storage::default_node_storage, 42};
+        util::Anonymizer anony{storage::default_node_storage};
         auto anon = ds.anonymize(anony);
+        CHECK_EQ(anon.size(), ds.size());
 
-        std::vector<Quad> quads;
-        std::ranges::copy(anon, std::back_inserter(quads));
-        std::ranges::sort(quads);
+        auto const default_graph = anony.anonymize(IRI::default_graph());
+        auto const named_graph = anony.anonymize(BlankNode{"G"});
+        auto const rdf_type = anony.anonymize(IRI::rdf_type());
 
-        std::vector<Quad> const expected{
-            Quad{"http://example.org/QweTPUSbMdkGxrsK"_iri, "http://example.org/MlBgOmeUyfKgLFsN"_iri, "http://example.org/CemwylFZUtzpxqpx"_iri},
-            Quad{"http://example.org/QweTPUSbMdkGxrsK"_iri, "http://example.org/NPcWMvpbKxBzlFzt"_iri, "http://example.org/rMiHeusAILABuPjs"_iri},
-            Quad{"http://example.org/QweTPUSbMdkGxrsK"_iri, "http://example.org/xqpBsNpJLHQOHPuW"_iri, "http://example.org/spMEshGEBFdtMFuW"_iri},
+        auto foaf = namespaces::FOAF{};
+        auto const foaf_person = anony.anonymize(foaf + "Person");
+        auto const foaf_name = anony.anonymize(foaf + "name");
+        auto const foaf_mbox = anony.anonymize(foaf + "mbox");
 
-            Quad{"http://example.org/NHNhUeDtouaBJHQX"_iri, "http://example.org/NxcdMhwfheBxOgMq"_iri, "http://example.org/MlBgOmeUyfKgLFsN"_iri, "http://example.org/WZutRNITdqpviSzp"_iri},
-            Quad{"http://example.org/NHNhUeDtouaBJHQX"_iri, "http://example.org/NxcdMhwfheBxOgMq"_iri, "http://example.org/NPcWMvpbKxBzlFzt"_iri, "http://example.org/IvwedQyxZEGDSyQz"_iri},
-            Quad{"http://example.org/NHNhUeDtouaBJHQX"_iri, "http://example.org/NxcdMhwfheBxOgMq"_iri, "http://example.org/xqpBsNpJLHQOHPuW"_iri, "http://example.org/spMEshGEBFdtMFuW"_iri},
-        };
+        auto const c1 = first_solution(anon, query::QuadPattern{default_graph, query::Variable{"c"}, rdf_type, foaf_person})[0];
+        auto const c2 = first_solution(anon, query::QuadPattern{named_graph, query::Variable{"c"}, rdf_type, foaf_person})[0];
+        auto const n1 = first_solution(anon, query::QuadPattern{query::Variable{"g"}, c1, foaf_name, query::Variable{"n"}})[1];
+        auto const n2 = first_solution(anon, query::QuadPattern{query::Variable{"g"}, c2, foaf_name, query::Variable{"n"}})[1];
+        auto const m1 = first_solution(anon, query::QuadPattern{query::Variable{"g"}, c1, foaf_mbox, query::Variable{"n"}})[1];
+        auto const m2 = first_solution(anon, query::QuadPattern{query::Variable{"g"}, c2, foaf_mbox, query::Variable{"n"}})[1];
 
-        writer::BufOStreamWriter ofs{std::cout};
-
-        for (auto q : quads) {
-            q.serialize_nquads(ofs);
-        }
-
-        writer::write_str("\n", ofs);
-
-        for (auto q : expected) {
-            q.serialize_nquads(ofs);
-        }
-
-        ofs.finalize();
-
-        CHECK_EQ(quads, expected);
+        CHECK((std::vector{c1, c2, n1, n2, m1, m2} | dice::template_library::all_distinct()));
     }
 }

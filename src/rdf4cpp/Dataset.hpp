@@ -77,6 +77,7 @@ public:
         Graph::solution_iterator iter_;
         value_type cur_;
 
+        void advance_until_result();
         void fill_solution() noexcept;
 
     public:
