@@ -147,6 +147,7 @@ add_library(rdf4cpp
         src/rdf4cpp/writer/SerializationState.cpp
         src/rdf4cpp/IRIView.cpp
         src/rdf4cpp/IRIFactory.cpp
+        src/rdf4cpp/util/Anonymizer.cpp
         private/rdf4cpp/parser/IStreamQuadIteratorSerdImpl.cpp
         private/rdf4cpp/regex/RegexImpl.cpp
         private/rdf4cpp/regex/RegexReplacerImpl.cpp
