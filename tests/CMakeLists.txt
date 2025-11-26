@@ -354,6 +354,12 @@ target_link_libraries(tests_Serialization
 )
 add_test(NAME tests_Serialization COMMAND tests_Serialization)
 
+add_executable(tests_Anonymizer util/tests_Anonymizer.cpp)
+target_link_libraries(tests_Anonymizer
+        doctest::doctest
+        rdf4cpp)
+add_test(NAME tests_Anonymizer COMMAND tests_Anonymizer)
+
 add_executable(tests_XMLParser parser/tests_XMLParser.cpp)
 target_link_libraries(tests_XMLParser
         doctest::doctest

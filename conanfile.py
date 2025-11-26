@@ -38,7 +38,7 @@ class Recipe(ConanFile):
         self.requires("highway/1.2.0")
         self.requires("dice-hash/0.4.11", transitive_headers=True)
         self.requires("dice-sparse-map/0.2.9", transitive_headers=True)
-        self.requires("dice-template-library/1.13.0", transitive_headers=True)
+        self.requires("dice-template-library/1.19.0", transitive_headers=True)
         self.requires("libxml2/2.15.0")
 
         if self.options.with_test_deps:

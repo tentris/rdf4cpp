@@ -38,8 +38,7 @@ bool write_pred(Node const pred, writer::BufWriterParts const writer) {
     }
 
 [[nodiscard]] inline bool print_graph(Node const &graph) noexcept {
-    auto const g = graph.as_iri();
-    return !g.is_default_graph();
+    return !graph.null() && graph.as_iri().is_default_graph() != TriBool::True;
 }
 
 template<writer::OutputFormat F, typename Q>

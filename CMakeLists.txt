@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(rdf4cpp VERSION 0.1.6)
+project(rdf4cpp VERSION 0.1.9)
 set(POBR_VERSION 3)  # Persisted Object Binary Representation
 
 include(cmake/boilerplate_init.cmake)
@@ -148,6 +148,7 @@ add_library(rdf4cpp
         src/rdf4cpp/writer/SerializationState.cpp
         src/rdf4cpp/IRIView.cpp
         src/rdf4cpp/IRIFactory.cpp
+        src/rdf4cpp/util/Anonymizer.cpp
         private/rdf4cpp/parser/IStreamQuadIteratorSerdImpl.cpp
         private/rdf4cpp/parser/XMLParser.cpp
         private/rdf4cpp/regex/RegexImpl.cpp
