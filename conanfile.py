@@ -40,7 +40,6 @@ class Recipe(ConanFile):
         self.requires("dice-sparse-map/0.2.9", transitive_headers=True)
         self.requires("dice-template-library/1.13.0", transitive_headers=True)
         self.requires("libxml2/2.15.0")
-        self.requires("zlib/1.3.1", force=True)
 
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")

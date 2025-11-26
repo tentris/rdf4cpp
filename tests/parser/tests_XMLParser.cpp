@@ -749,19 +749,19 @@ _:d1 <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2" .)";
         nt = R"(<http://desc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1" .
 <http://desc> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1-again" .)";
     }
-//     SUBCASE("xml literal") { TODO
-//         xml = R"(<?xml version="1.0"?>
-// <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-//          xmlns:eg="http://example.org/">
-//
-//
-//   <rdf:Description rdf:about="http://www.example.org/a">
-//     <eg:prop rdf:parseType="Literal"><br /></eg:prop>
-//   </rdf:Description>
-//
-// </rdf:RDF>)";
-//         nt = R"(<http://www.example.org/a> <http://example.org/prop> "<br xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:eg=\"http://example.org/\"></br>"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral> .)";
-//     }
+    SUBCASE("xml literal") {
+        xml = R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:eg="http://example.org/">
+
+
+  <rdf:Description rdf:about="http://www.example.org/a">
+    <eg:prop rdf:parseType="Literal"><br /></eg:prop>
+  </rdf:Description>
+
+</rdf:RDF>)";
+        nt = R"(<http://www.example.org/a> <http://example.org/prop> "<br />"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral> .)";
+    }
 
     if (xml.empty()) {
         return;
