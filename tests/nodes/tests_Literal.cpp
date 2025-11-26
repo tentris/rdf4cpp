@@ -172,7 +172,13 @@ TEST_CASE("Literal - check fixed id") {
 TEST_CASE("Literal - casting") {
     using namespace datatypes::xsd;
 
-    auto const lit1 = Literal::make_typed_from_value<datatypes::xsd::Int>(123);
+    SUBCASE("any -> non-fixed") {
+        auto const lit1 = Literal::make_simple("1/2");
+        auto const lit2 = lit1.template cast<datatypes::owl::Rational>();
+
+        CHECK_EQ(lit2.datatype(), IRI{datatypes::owl::Rational::identifier});
+        CHECK_EQ(lit2.template value<datatypes::owl::Rational>(), datatypes::owl::Rational::cpp_type{1, 2});
+    }
 
     SUBCASE("id cast") {
         auto const lit1 = Literal::make_typed_from_value<String>("hello");
@@ -444,6 +450,7 @@ TEST_CASE("Literal - casting") {
     }
 
     SUBCASE("subtypes") {
+        auto const lit1 = Literal::make_typed_from_value<datatypes::xsd::Int>(123);
         CHECK_EQ(lit1.template cast<Integer>().datatype(), IRI{Integer::identifier});
         CHECK_EQ(lit1.template cast<Float>().datatype(), IRI{Float::identifier});
 

@@ -715,7 +715,8 @@ public:
      */
     template<datatypes::LiteralDatatype T>
     [[nodiscard]] Literal cast(storage::DynNodeStoragePtr node_storage = keep_node_storage) const {
-        return this->cast(IRI{T::datatype_id, node_storage}, node_storage);
+        auto const ns = select_node_storage(node_storage);
+        return this->cast(IRI{T::datatype_id, ns}, ns);
     }
 
     /**
