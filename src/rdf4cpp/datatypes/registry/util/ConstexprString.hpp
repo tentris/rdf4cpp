@@ -22,6 +22,9 @@ struct ConstexprString {
 
     constexpr ConstexprString() noexcept = default;
 
+    /**
+     * @param str null-terminated char array/string literal
+     */
     constexpr ConstexprString(char const (&str)[N]) noexcept {
         std::copy_n(str, N, value.data());
     }
@@ -31,7 +34,7 @@ struct ConstexprString {
             throw std::invalid_argument{"size mismatch"};
         }
 
-        std::copy_n(v.data(), v.size(), value.data());
+        std::copy_n(v.data(), N - 1, value.data());
         // implicitly null terminated by default init of array
     }
 
