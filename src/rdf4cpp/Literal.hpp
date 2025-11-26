@@ -296,6 +296,8 @@ private:
     template<bool simplified, typename C>
     auto serialize_lexical_form_impl(C &&consume) const noexcept;
 
+    [[nodiscard]] Literal cast_impl(datatypes::registry::DatatypeIDView target_dtid, storage::DynNodeStoragePtr node_storage) const;
+
     explicit Literal(storage::identifier::NodeBackendHandle handle) noexcept;
 
 public:
@@ -715,8 +717,7 @@ public:
      */
     template<datatypes::LiteralDatatype T>
     [[nodiscard]] Literal cast(storage::DynNodeStoragePtr node_storage = keep_node_storage) const {
-        auto const ns = select_node_storage(node_storage);
-        return this->cast(IRI{T::datatype_id, ns}, ns);
+        return this->cast_impl(T::datatype_id, node_storage);
     }
 
     /**
