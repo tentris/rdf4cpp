@@ -862,7 +862,7 @@ namespace rdf4cpp::parser {
         state_stack_.reserve(10);
         state_stack_.emplace_back(std::in_place_type_t<InitialState>{});
         update_current_state();
-        current_state_->base = IRIFactory::default_base;
+        current_state_->base = state_->iri_factory.get_base();
     }
 
     std::optional<IStreamQuadIterator::value_type> IStreamQuadIterator::ImplXML::next() {
