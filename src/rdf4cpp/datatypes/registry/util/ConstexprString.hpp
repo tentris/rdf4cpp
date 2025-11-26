@@ -18,57 +18,63 @@ namespace rdf4cpp::datatypes::registry::util {
  */
 template<size_t N>
 struct ConstexprString {
-    std::array<char, N> value;
+    std::array<char, N> value{};
 
-    constexpr ConstexprString(const char (&str)[N]) noexcept {
+    constexpr ConstexprString() noexcept = default;
+
+    constexpr ConstexprString(char const (&str)[N]) noexcept {
         std::copy_n(str, N, value.data());
     }
+
     constexpr ConstexprString(std::string_view v) {
-        if (v.size()+1 != N)
-            throw std::invalid_argument{"size missmatch"};
-        std::copy_n(v.data(), N-1, value.data());
-        value[N-1] = 0;
+        if (v.size() != N - 1) {
+            throw std::invalid_argument{"size mismatch"};
+        }
+
+        std::copy_n(v.data(), v.size(), value.data());
+        // implicitly null terminated by default init of array
     }
-    constexpr ConstexprString() = default;
+
+    [[nodiscard]] constexpr char const *data() const noexcept {
+        return value.data();
+    }
+
+    [[nodiscard]] constexpr char *data() noexcept {
+        return value.data();
+    }
+
+    [[nodiscard]] static constexpr size_t size() noexcept {
+        return N - 1; // exclude null terminator
+    }
+
+    [[nodiscard]] constexpr std::string_view view() const noexcept {
+        return std::string_view{data(), size()};
+    }
 
     constexpr operator std::string_view() const noexcept {
-        return std::string_view{value.data(), value.size() - 1};
-    }
-
-    [[nodiscard]] constexpr char const *c_str() const noexcept {
-        return value.data();
+        return view();
     }
 
     template<size_t M>
     constexpr std::strong_ordering operator<=>(ConstexprString<M> const &other) const noexcept {
-        auto min = std::min(M, N);
-        for (size_t i = 0; i < min; ++i) {
-            std::strong_ordering cmp = this->value[i] <=> other.value[i];
-            if (cmp != std::strong_ordering::equal)
-                return cmp;
-        }
-        std::strong_ordering cmp = N <=> M;
-        return cmp;
+        return view() <=> other.view();
     }
 
     template<size_t M>
     constexpr bool operator==(ConstexprString<M> const &other) const noexcept {
-        if (M == N) {
-            return (*this <=> other == std::strong_ordering::equal);
+        if constexpr (M == N) {
+            return value == other.value;
         } else {
             return false;
         }
     }
 
-    [[nodiscard]] constexpr size_t size() const noexcept {
-        return N;
-    }
-
     template<size_t M>
-    constexpr ConstexprString<M+N-1> operator+(const ConstexprString<M>& other) const noexcept {
-        ConstexprString<M+N-1> r{};
-        std::copy_n(this->value.data(), N-1, r.value.data());
-        std::copy_n(other.value.data(), M-1, r.value.data() + (N-1));
+    constexpr ConstexprString<M+N-1> operator+(ConstexprString<M> const &other) const noexcept {
+        ConstexprString<M+N-1> r{}; // only include a single null terminator N+M would include 2
+        std::copy_n(data(), size(), r.data());
+        std::copy_n(other.data(), other.size(), r.data() + size());
+        // implicitly null terminated by default init of array
         return r;
     }
 };
@@ -83,7 +89,7 @@ struct ConstexprStringHolder {
 template<size_t N>
 struct std::formatter<rdf4cpp::datatypes::registry::util::ConstexprString<N>> : std::formatter<std::string_view> {
     auto format(rdf4cpp::datatypes::registry::util::ConstexprString<N> const &s, format_context& ctx) const {
-        return formatter<string_view>::format(static_cast<std::string_view>(s), ctx);
+        return formatter<string_view>::format(s.view(), ctx);
     }
 };
 
