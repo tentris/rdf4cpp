@@ -972,7 +972,12 @@ Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage
         // TODO: if performance is bad split into separate cases for up-, down- and cross-casting to avoid one set of std::any wrapping and unwrapping for the former 2
 
         auto const common_type_value = common_conversion->convert_lhs(this->value()); // upcast to common
-        auto target_value = common_conversion->inverted_convert_rhs(common_type_value); // downcast to target
+        if (!common_type_value.has_value()) {
+            // upcast failed
+            return Literal{};
+        }
+
+        auto target_value = common_conversion->inverted_convert_rhs(*common_type_value); // downcast to target
         if (!target_value.has_value()) {
             // downcast failed
             return Literal{};
@@ -1048,8 +1053,17 @@ Literal Literal::numeric_binop_impl(OpSelect op_select, Literal const &other, st
         RDF4CPP_ASSERT(equalized_entry->numeric_ops.has_value());
         RDF4CPP_ASSERT(equalized_entry->numeric_ops->is_impl());
 
-        DatatypeRegistry::OpResult op_res = op_select(equalized_entry->numeric_ops->get_impl())(equalizer->convert_lhs(this->value()),
-                                                                                                equalizer->convert_rhs(other.value()));
+        auto converted_this = equalizer->convert_lhs(this->value());
+        if (!converted_this.has_value()) {
+            return Literal{};
+        }
+
+        auto converted_other = equalizer->convert_rhs(other.value());
+        if (!converted_other.has_value()) {
+            return Literal{};
+        }
+
+        DatatypeRegistry::OpResult op_res = op_select(equalized_entry->numeric_ops->get_impl())(*converted_this, *converted_other);
 
         if (!op_res.result_value.has_value()) {
             return Literal{};
@@ -1085,7 +1099,7 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
         return Literal{};  // this_datatype not numeric
     }
 
-    auto const [operand_entry, value] = [&]() noexcept {
+    auto const [operand_entry, value] = [&]() noexcept -> std::pair<DatatypeRegistry::DatatypeEntry const *, nonstd::expected<std::any, datatypes::DynamicError>> {
         if (this_entry->numeric_ops->is_stub()) {
             auto const &impl_converter = DatatypeRegistry::get_numeric_op_impl_conversion(*this_entry);
             auto const target_num_ops = DatatypeRegistry::get_entry(impl_converter.target_type_id);
@@ -1100,7 +1114,11 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
     RDF4CPP_ASSERT(operand_entry->numeric_ops.has_value());
     RDF4CPP_ASSERT(operand_entry->numeric_ops->is_impl());
 
-    DatatypeRegistry::OpResult op_res = op_select(operand_entry->numeric_ops->get_impl())(value);
+    if (!value.has_value()) {
+        return Literal{};
+    }
+
+    DatatypeRegistry::OpResult op_res = op_select(operand_entry->numeric_ops->get_impl())(*value);
 
     auto const *result_entry = [&op_res, operand_entry = operand_entry]() {
         if (op_res.result_type_id == DatatypeIDView{operand_entry->datatype_iri}) [[likely]] {
@@ -1199,8 +1217,17 @@ std::partial_ordering Literal::compare_impl(Literal const &other, std::strong_or
 
         RDF4CPP_ASSERT(equalized_compare_fptr != nullptr);
 
-        return equalized_compare_fptr(equalizer->convert_lhs(this->value()),
-                                      equalizer->convert_rhs(other.value()));
+        auto converted_this = equalizer->convert_lhs(this->value());
+        if (!converted_this.has_value()) {
+            return std::partial_ordering::unordered;
+        }
+
+        auto converted_other = equalizer->convert_rhs(other.value());
+        if (!converted_other.has_value()) {
+            return std::partial_ordering::unordered;
+        }
+
+        return equalized_compare_fptr(*converted_this, *converted_other);
     }
 }
 
@@ -1414,10 +1441,20 @@ std::optional<Literal> Literal::run_binop(Literal const &other,
 
         RDF4CPP_ASSERT(equalized_entry != nullptr);
 
+        auto converted_this = equalizer->convert_lhs(this->value());
+        if (!converted_this.has_value()) {
+            return Literal{};
+        }
+
+        auto converted_other = equalizer->convert_rhs(other.value());
+        if (!converted_other.has_value()) {
+            return Literal{};
+        }
+
         DatatypeRegistry::OpResult op_res = std::invoke(std::forward<Op>(op),
                                                         *equalized_entry,
-                                                        equalizer->convert_lhs(this->value()),
-                                                        equalizer->convert_rhs(other.value()));
+                                                        *converted_this,
+                                                        *converted_other);
         if (!op_res.result_value.has_value()) {
             // operation failed
             return Literal{};
@@ -1460,7 +1497,11 @@ std::optional<Literal> Literal::run_binop_cast_rhs(Literal const &other,
     }
 
     auto const other_casted = other_converter->convert_lhs(other.value());
-    DatatypeRegistry::OpResult op_res = std::invoke(std::forward<Op>(op), this->value(), other_casted);
+    if (!other_casted.has_value()) {
+        return Literal{};
+    }
+
+    DatatypeRegistry::OpResult op_res = std::invoke(std::forward<Op>(op), this->value(), *other_casted);
     if (!op_res.result_value.has_value()) {
         return Literal{};
     }
@@ -2417,115 +2458,123 @@ Literal Literal::now(storage::DynNodeStoragePtr node_storage) {
 }
 
 std::optional<Year> Literal::year() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Date>()
-            && !datatype_eq<datatypes::xsd::GYearMonth>() && !datatype_eq<datatypes::xsd::GYear>())
+    auto casted = this->cast_to_value<datatypes::xsd::GYear>();
+    if (!casted.has_value()) {
         return std::nullopt;
-    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
-        return std::nullopt;
-    auto [date, _] = util::deconstruct_timepoint(casted->first);
-    return date.year();
+    }
+    return casted->first;
 }
 
 Literal Literal::as_year(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->year();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<int64_t>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::month> Literal::month() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Date>()
-        && !datatype_eq<datatypes::xsd::GYearMonth>() && !datatype_eq<datatypes::xsd::GMonthDay>() && !datatype_eq<datatypes::xsd::GMonth>())
+    auto casted = this->cast_to_value<datatypes::xsd::GMonth>();
+    if (!casted.has_value()) {
         return std::nullopt;
-    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
-        return std::nullopt;
-    auto [date, _] = util::deconstruct_timepoint(casted->first);
-    return date.month();
+    }
+    return casted->first;
 }
 
 Literal Literal::as_month(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->month();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<unsigned int>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::day> Literal::day() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Date>()
-        && !datatype_eq<datatypes::xsd::GMonthDay>() && !datatype_eq<datatypes::xsd::GDay>())
+    auto casted = this->cast_to_value<datatypes::xsd::GDay>();
+    if (!casted.has_value()) {
         return std::nullopt;
-    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
-        return std::nullopt;
-    auto [date, _] = util::deconstruct_timepoint(casted->first);
-    return date.day();
+    }
+    return casted->first;
 }
 
 Literal Literal::as_day(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->day();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(static_cast<unsigned int>(*r), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::hours> Literal::hours() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Time>())
+    if (!this->is_timepoint()) {
         return std::nullopt;
-    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    }
+
+    auto casted = this->cast_to_value<datatypes::xsd::Time>();
+    if (!casted.has_value()) {
         return std::nullopt;
-    auto [_, time] = util::deconstruct_timepoint(casted->first);
-    return std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)}.hours();
+    }
+    return std::chrono::hh_mm_ss{casted->first}.hours();
 }
 
 Literal Literal::as_hours(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->hours();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(r->count(), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::minutes> Literal::minutes() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Time>())
+    if (!this->is_timepoint()) {
         return std::nullopt;
-    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    }
+
+    auto casted = this->cast_to_value<datatypes::xsd::Time>();
+    if (!casted.has_value()) {
         return std::nullopt;
-    auto [_, time] = util::deconstruct_timepoint(casted->first);
-    return std::chrono::hh_mm_ss{std::chrono::duration_cast<std::chrono::nanoseconds>(time)}.minutes();
+    }
+    return std::chrono::hh_mm_ss{casted->first}.minutes();
 }
 
 Literal Literal::as_minutes(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->minutes();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Integer>(r->count(), select_node_storage(node_storage));
 }
 
 std::optional<std::chrono::nanoseconds> Literal::seconds() const noexcept {
-    if (!datatype_eq<datatypes::xsd::DateTime>() && !datatype_eq<datatypes::xsd::DateTimeStamp>() && !datatype_eq<datatypes::xsd::Time>())
+    if (!this->is_timepoint()) {
         return std::nullopt;
-    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    }
+
+    auto casted = this->cast_to_value<datatypes::xsd::Time>();
+    if (!casted.has_value()) {
         return std::nullopt;
-    auto [_, t] = util::deconstruct_timepoint(casted->first);
-    std::chrono::hh_mm_ss const time{std::chrono::duration_cast<std::chrono::nanoseconds>(t)};
+    }
+    std::chrono::hh_mm_ss const time{casted->first};
     return time.seconds() + time.subseconds();
 }
 
 Literal Literal::as_seconds(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->seconds();
-    if (!r.has_value())
+    if (!r.has_value()) {
         return Literal{};
+    }
     return Literal::make_typed_from_value<datatypes::xsd::Decimal>(rdf4cpp::BigDecimal<>{r->count(), 9}, select_node_storage(node_storage));
 }
 
 std::optional<Timezone> Literal::timezone() const noexcept {
-    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!this->is_timepoint()) {
         return std::nullopt;
+    }
+
+    auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
+    if (!casted.has_value()) {
+        return std::nullopt;
+    }
     auto tz = casted->second;
     return tz;
 }
@@ -2539,11 +2588,13 @@ Literal Literal::as_timezone(storage::DynNodeStoragePtr node_storage) const {
 
 std::optional<std::string> Literal::tz() const noexcept {
     auto casted = this->cast_to_value<datatypes::xsd::DateTime>();
-    if (!casted.has_value())
+    if (!casted.has_value()) {
         return std::nullopt;
+    }
     auto tz = casted->second;
-    if (!tz.has_value())
+    if (!tz.has_value()) {
         return "";
+    }
     return tz->to_canonical_string();
 }
 Literal Literal::as_tz(storage::DynNodeStoragePtr node_storage) const {

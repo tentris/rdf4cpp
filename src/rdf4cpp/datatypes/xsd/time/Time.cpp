@@ -5,6 +5,11 @@
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
+
+inline capabilities::Promotable<xsd_time>::promoted_cpp_type<0> time_to_tp(capabilities::Default<xsd_time>::cpp_type const &value) {
+    return std::make_pair(rdf4cpp::util::construct_timepoint(rdf4cpp::util::time_point_replacement_date, value.first), value.second);
+}
+
 template<>
 capabilities::Default<xsd_time>::cpp_type capabilities::Default<xsd_time>::from_string(std::string_view s) {
     using namespace registry::util;
@@ -70,34 +75,37 @@ capabilities::Inlineable<xsd_time>::cpp_type capabilities::Inlineable<xsd_time>:
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_time>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    return registry::util::compare_time_points(rdf4cpp::util::construct_timepoint(rdf4cpp::util::time_point_replacement_date, lhs.first), lhs.second,
-                                               rdf4cpp::util::construct_timepoint(rdf4cpp::util::time_point_replacement_date, rhs.first), rhs.second);
+    return registry::util::compare_time_points(time_to_tp(lhs),
+                                               time_to_tp(rhs));
 }
 
 template<>
 template<>
-capabilities::Promotable<xsd_time>::promoted_cpp_type<0> capabilities::Promotable<xsd_time>::promote<0>(cpp_type const &value) noexcept {
-    return std::make_pair(rdf4cpp::util::construct_timepoint(rdf4cpp::util::time_point_replacement_date, value.first), value.second);
+nonstd::expected<capabilities::Promotable<xsd_time>::promoted_cpp_type<0>, DynamicError>
+capabilities::Promotable<xsd_time>::promote<0>([[maybe_unused]] cpp_type const &value) noexcept {
+    return nonstd::make_unexpected(DynamicError::Unsupported);
 }
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_time>::cpp_type, DynamicError> capabilities::Promotable<xsd_time>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+nonstd::expected<capabilities::Promotable<xsd_time>::cpp_type, DynamicError>
+capabilities::Promotable<xsd_time>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     return std::make_pair(std::chrono::duration_cast<std::chrono::nanoseconds>(value.first - std::chrono::floor<std::chrono::days>(value.first)), value.second);
 }
 
 template<>
 nonstd::expected<capabilities::Timepoint<xsd_time>::timepoint_sub_result_cpp_type, DynamicError>
 capabilities::Timepoint<xsd_time>::timepoint_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto const super_lhs = Promotable<xsd_time>::promote(lhs);
-    auto const super_rhs = Promotable<xsd_time>::promote(rhs);
-    return util::timepoint_sub(super_lhs, super_rhs);
+    auto const lhs_tp = time_to_tp(lhs);
+    auto const rhs_tp = time_to_tp(rhs);
+
+    return util::timepoint_sub(lhs_tp, rhs_tp);
 }
 
 template<>
 nonstd::expected<capabilities::Timepoint<xsd_time>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_time>::timepoint_duration_add(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
-    auto const super_tp = Promotable<xsd_time>::promote(tp);
+    auto const super_tp = time_to_tp(tp);
     auto const super_dur = Subtype<timepoint_duration_operand_type::identifier>::into_supertype(dur);
 
     auto ret_tp = util::add_duration_to_date_time(super_tp.first, super_dur);
@@ -109,7 +117,7 @@ capabilities::Timepoint<xsd_time>::timepoint_duration_add(cpp_type const &tp, ti
 template<>
 nonstd::expected<capabilities::Timepoint<xsd_time>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_time>::timepoint_duration_sub(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
-    auto const super_tp = Promotable<xsd_time>::promote(tp);
+    auto const super_tp = time_to_tp(tp);
     auto const super_dur = Subtype<timepoint_duration_operand_type::identifier>::into_supertype(dur);
 
     auto ret_tp = util::add_duration_to_date_time(super_tp.first, std::make_pair(-super_dur.first, -super_dur.second));

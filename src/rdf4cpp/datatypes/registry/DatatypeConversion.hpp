@@ -105,7 +105,7 @@ consteval ConversionLayer auto make_conversion_layer_impl() {
                     using source_type = Type;
                     using target_type = typename next::template converted<ix>;
 
-                    inline static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
+                    inline static nonstd::expected<typename target_type::cpp_type, DynamicError> convert(typename source_type::cpp_type const &value) noexcept {
                         return next::template convert<ix>(value);
                     }
 
@@ -128,8 +128,13 @@ consteval ConversionLayer auto make_conversion_layer_impl() {
                     using source_type = typename prev_promotion_t::source_type;
                     using target_type = typename next::template converted<ix>;
 
-                    inline static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
-                        return next::template convert<ix>(prev_promotion_t::convert(value));
+                    inline static nonstd::expected<typename target_type::cpp_type, DynamicError> convert(typename source_type::cpp_type const &value) noexcept {
+                        auto const promoted = prev_promotion_t::convert(value);
+                        if (!promoted.has_value()) {
+                            return nonstd::make_unexpected(promoted.error());
+                        }
+
+                        return next::template convert<ix>(*promoted);
                     }
 
                     inline static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
@@ -174,7 +179,7 @@ struct PromoteConversion<LiteralDatatypeImpl> {
     using converted_cpp_type = typename LiteralDatatypeImpl::template promoted_cpp_type<ix>;
 
     template<size_t ix>
-    inline static converted_cpp_type<ix> convert(cpp_type const &value) noexcept {
+    inline static nonstd::expected<converted_cpp_type<ix>, DynamicError> convert(cpp_type const &value) noexcept {
         return LiteralDatatypeImpl::template promote<ix>(value);
     }
 
@@ -340,7 +345,7 @@ consteval ConversionTable auto make_conversion_table() {
         using source_type = Type;
         using target_type = Type;
 
-        inline static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
+        inline static nonstd::expected<typename target_type::cpp_type, DynamicError> convert(typename source_type::cpp_type const &value) noexcept {
             return value;
         }
 
@@ -367,8 +372,13 @@ consteval ConversionTable auto make_conversion_table() {
                     using source_type = typename ToSuper::source_type;
                     using target_type = typename PromoteSuper::target_type;
 
-                    inline static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
-                        return PromoteSuper::convert(ToSuper::convert(value));
+                    inline static nonstd::expected<typename target_type::cpp_type, DynamicError> convert(typename source_type::cpp_type const &value) noexcept {
+                        auto const super = ToSuper::convert(value);
+                        if (!super.has_value()) {
+                            return nonstd::make_unexpected(super.error());
+                        }
+
+                        return PromoteSuper::convert(*super);
                     }
 
                     inline static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {

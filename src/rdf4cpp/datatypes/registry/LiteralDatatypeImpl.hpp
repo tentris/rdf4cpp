@@ -105,12 +105,12 @@ struct Promotable {
     using promoted_cpp_type = typename DatatypeMapping<promoted<ix>::identifier>::cpp_datatype;
 
     template<size_t ix = 0>
-    inline static promoted_cpp_type<ix> promote(cpp_type const &value) noexcept {
+    static nonstd::expected<promoted_cpp_type<ix>, DynamicError> promote(cpp_type const &value) noexcept {
         return static_cast<promoted_cpp_type<ix>>(value);
     }
 
     template<size_t ix = 0>
-    inline static nonstd::expected<cpp_type, DynamicError> demote(promoted_cpp_type<ix> const &value) noexcept {
+    static nonstd::expected<cpp_type, DynamicError> demote(promoted_cpp_type<ix> const &value) noexcept {
         if constexpr (std::is_integral_v<cpp_type> && std::is_integral_v<promoted_cpp_type<ix>>) {
             if (!std::in_range<cpp_type>(value)) {
                 return nonstd::make_unexpected(DynamicError::InvalidValueForCast);

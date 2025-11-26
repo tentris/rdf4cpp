@@ -20,7 +20,7 @@ template<typename T>
 concept ConversionEntry = requires(typename T::source_type::cpp_type value) {
                               requires LiteralDatatype<typename T::source_type>;
                               requires LiteralDatatype<typename T::target_type>;
-                              { T::convert(value) } -> std::same_as<typename T::target_type::cpp_type>;
+                              { T::convert(value) } -> std::same_as<nonstd::expected<typename T::target_type::cpp_type, DynamicError>>;
                           };
 
 
@@ -73,7 +73,7 @@ concept ConversionTable = conversion_typing_detail::IsConversionTable<T>::value;
  * A type erased version of a ConversionEntry.
  */
 struct RuntimeConversionEntry {
-    using convert_fptr_t = std::any (*)(std::any const &) noexcept;
+    using convert_fptr_t = nonstd::expected<std::any, DynamicError> (*)(std::any const &) noexcept;
     using inverted_convert_fptr_t = nonstd::expected<std::any, DynamicError> (*)(std::any const &) noexcept;
 
     DatatypeID target_type_id;
@@ -92,9 +92,15 @@ struct RuntimeConversionEntry {
 
         return RuntimeConversionEntry{
                 .target_type_id = std::move(target_type_iri),
-                .convert = [](std::any const &value) noexcept -> std::any {
+                .convert = [](std::any const &value) noexcept -> nonstd::expected<std::any, DynamicError> {
                     auto const actual_value = std::any_cast<typename Entry::source_type::cpp_type>(value);
-                    return std::any{Entry::convert(actual_value)};
+                    auto const maybe_converted = Entry::convert(actual_value);
+
+                    if (!maybe_converted.has_value()) {
+                        return nonstd::make_unexpected(maybe_converted.error());
+                    }
+
+                    return std::any{*maybe_converted};
                 },
                 .inverted_convert = [](std::any const &value) noexcept -> nonstd::expected<std::any, DynamicError> {
                     auto const actual_value = std::any_cast<typename Entry::target_type::cpp_type>(value);

@@ -63,13 +63,15 @@ capabilities::Inlineable<xsd_gDay>::cpp_type capabilities::Inlineable<xsd_gDay>:
 
 template<>
 template<>
-capabilities::Promotable<xsd_gDay>::promoted_cpp_type<0> capabilities::Promotable<xsd_gDay>::promote<0>(cpp_type const &value) noexcept {
-    return std::make_pair(YearMonthDay{rdf4cpp::util::time_point_replacement_date.year(), rdf4cpp::util::time_point_replacement_date.month(), value.first}, value.second);
+nonstd::expected<capabilities::Promotable<xsd_gDay>::promoted_cpp_type<0>, DynamicError>
+capabilities::Promotable<xsd_gDay>::promote<0>([[maybe_unused]] cpp_type const &value) noexcept {
+    return nonstd::make_unexpected(DynamicError::Unsupported);
 }
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_gDay>::cpp_type, DynamicError> capabilities::Promotable<xsd_gDay>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+nonstd::expected<capabilities::Promotable<xsd_gDay>::cpp_type, DynamicError>
+capabilities::Promotable<xsd_gDay>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     return std::make_pair(value.first.day(), value.second);
 }
 #endif

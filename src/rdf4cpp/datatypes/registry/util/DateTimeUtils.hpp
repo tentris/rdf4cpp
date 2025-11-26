@@ -219,7 +219,7 @@ inline nonstd::expected<std::chrono::nanoseconds, DynamicError> timepoint_sub(st
     }
 }
 
-static inline std::partial_ordering compare_time_points(const rdf4cpp::TimePoint& a, std::optional<rdf4cpp::Timezone> atz,
+inline std::partial_ordering compare_time_points(const rdf4cpp::TimePoint& a, std::optional<rdf4cpp::Timezone> atz,
                                                         const rdf4cpp::TimePoint& b, std::optional<rdf4cpp::Timezone> btz) noexcept {
     auto apply_timezone = [](const rdf4cpp::TimePoint& t, rdf4cpp::Timezone tz) noexcept -> std::optional<rdf4cpp::TimePointSys> {
         try {
@@ -254,6 +254,12 @@ static inline std::partial_ordering compare_time_points(const rdf4cpp::TimePoint
     auto a_sys = apply_timezone(a, *atz);
     return cmp_opt(a_sys, apply_timezone(b, *btz));
 }
+
+inline std::partial_ordering compare_time_points(std::pair<rdf4cpp::TimePoint, rdf4cpp::OptionalTimezone> const &lhs,
+                                                 std::pair<rdf4cpp::TimePoint, rdf4cpp::OptionalTimezone> const &rhs) {
+    return compare_time_points(lhs.first, lhs.second, rhs.first, rhs.second);
+}
+
 template<std::unsigned_integral T>
 constexpr T number_of_bits(T x) noexcept {
     return x < 2 ? x : 1 + number_of_bits(x >> 1);

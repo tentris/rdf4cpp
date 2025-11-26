@@ -805,7 +805,12 @@ public:
             // TODO: if performance is bad split into separate cases for up-, down- and cross-casting to avoid one set of std::any wrapping and unwrapping for the former 2
 
             auto const common_type_value = common_conversion->convert_lhs(this->value()); // upcast to common
-            auto target_value = common_conversion->inverted_convert_rhs(common_type_value); // downcast to target
+            if (!common_type_value.has_value()) {
+                // upcast failed
+                return std::nullopt;
+            }
+
+            auto target_value = common_conversion->inverted_convert_rhs(*common_type_value); // downcast to target
             if (!target_value.has_value()) {
                 // downcast failed
                 return std::nullopt;

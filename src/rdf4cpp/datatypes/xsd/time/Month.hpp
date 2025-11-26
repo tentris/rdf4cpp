@@ -41,7 +41,8 @@ capabilities::Inlineable<xsd_gMonth>::cpp_type capabilities::Inlineable<xsd_gMon
 
 template<>
 template<>
-capabilities::Promotable<xsd_gMonth>::promoted_cpp_type<0> capabilities::Promotable<xsd_gMonth>::promote<0>(cpp_type const &value) noexcept;
+nonstd::expected<capabilities::Promotable<xsd_gMonth>::promoted_cpp_type<0>, DynamicError>
+capabilities::Promotable<xsd_gMonth>::promote<0>(cpp_type const &value) noexcept;
 
 template<>
 template<>

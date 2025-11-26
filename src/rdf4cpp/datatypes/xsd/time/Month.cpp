@@ -63,13 +63,15 @@ capabilities::Inlineable<xsd_gMonth>::cpp_type capabilities::Inlineable<xsd_gMon
 
 template<>
 template<>
-capabilities::Promotable<xsd_gMonth>::promoted_cpp_type<0> capabilities::Promotable<xsd_gMonth>::promote<0>(cpp_type const &value) noexcept {
-    return std::make_pair(YearMonthDay{rdf4cpp::util::time_point_replacement_date.year(), value.first, std::chrono::last}, value.second);
+nonstd::expected<capabilities::Promotable<xsd_gMonth>::promoted_cpp_type<0>, DynamicError>
+capabilities::Promotable<xsd_gMonth>::promote<0>([[maybe_unused]] cpp_type const &value) noexcept {
+    return nonstd::make_unexpected(DynamicError::Unsupported);
 }
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_gMonth>::cpp_type, DynamicError> capabilities::Promotable<xsd_gMonth>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+nonstd::expected<capabilities::Promotable<xsd_gMonth>::cpp_type, DynamicError>
+capabilities::Promotable<xsd_gMonth>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     return std::make_pair(value.first.month(), value.second);
 }
 #endif
