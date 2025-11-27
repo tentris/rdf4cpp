@@ -34,6 +34,8 @@ TEST_CASE("sanity test") {
             </rdf:Description>
         </ex:recommended>
         <ex:coll rdf:parseType="Collection"/>
+        <ex:a rdf:parseType="Literal"><a> <b> </b> </a></ex:a>
+        <ex:a rdf:parseType="Literal">abc<a> <b> </b> </a>def</ex:a>
     </rdf:Description>
 </rdf:RDF>)"};
 
@@ -122,6 +124,18 @@ TEST_CASE("sanity test") {
     CHECK(it->value().subject() == IRI::make("https://www.example.com"));
     CHECK(it->value().predicate() == IRI::make("https://www.example.com/coll"));
     CHECK(it->value().object() == IRI::make("http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"));
+    ++it;
+    CHECK(it != std::default_sentinel);
+    CHECK(it->has_value());
+    CHECK(it->value().subject() == IRI::make("https://www.example.com"));
+    CHECK(it->value().predicate() == IRI::make("https://www.example.com/a"));
+    CHECK(it->value().object() == Literal::make_typed("<a> <b> </b> </a>", IRI::make("http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral")));
+    ++it;
+    CHECK(it != std::default_sentinel);
+    CHECK(it->has_value());
+    CHECK(it->value().subject() == IRI::make("https://www.example.com"));
+    CHECK(it->value().predicate() == IRI::make("https://www.example.com/a"));
+    CHECK(it->value().object() == Literal::make_typed("abc<a> <b> </b> </a>def", IRI::make("http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral")));
     ++it;
     CHECK(it == std::default_sentinel);
 }

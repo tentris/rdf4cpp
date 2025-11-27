@@ -18,6 +18,8 @@
 #include <dice/sparse-map/sparse_set.hpp>
 
 namespace rdf4cpp::parser {
+    // not in a header, because that would complicate linking it against libxml
+    // probably even requiring to make libxml public
     struct IStreamQuadIterator::ImplXML final : Impl {
     private:
         xmlSAXHandler handler_;
@@ -460,7 +462,7 @@ namespace rdf4cpp::parser {
         }
         try {
             if (state_->blank_node_scope_manager == nullptr) {
-                return inspect_node(BlankNode::make(*name));
+                return inspect_node(BlankNode::make(*name, state_->node_storage));
             } else {
                 return inspect_node(state_->blank_node_scope_manager.scope("").get_or_generate_node(*name, state_->node_storage));
             }
@@ -494,7 +496,7 @@ namespace rdf4cpp::parser {
                 if (lang_tag.has_value() && !lang_tag->empty()) {
                     l = Literal::make_lang_tagged(value, *lang_tag, state_->node_storage);
                 } else {
-                    l = Literal::make_simple(value);
+                    l = Literal::make_simple(value, state_->node_storage);
                 }
             }
         } catch (InvalidNode const &e) {
