@@ -11,17 +11,19 @@ namespace rdf4cpp {
  * IRI Resource node.
  */
 struct IRI : Node {
+private:
     /**
      * Constructs the corresponding IRI from a given datatype id and places it into node_storage if
      * it does not exist already.
      */
     IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept;
 
+public:
     /**
      * Constructs the corresponding datatype id for this iri. Return value can be safely used to
      * index the registry and yields the correct result.
      */
-    explicit operator datatypes::registry::DatatypeIDView() const noexcept;
+    operator datatypes::registry::DatatypeIDView() const noexcept;
 
     /**
      * Constructs an IRI from a node backend handle
