@@ -33,9 +33,9 @@ namespace rdf4cpp::parser {
         EOFFunc eof_func_;
         std::deque<value_type> result_queue_;
         size_t next_bn_index_ = 0;
-        std::unique_ptr<state_type> owned_state_;
         state_type *state_;
-        dice::sparse_map::sparse_set<IRI> reserved_ids_;
+        bool state_is_owned_ = false;
+        dice::sparse_map::sparse_set<storage::identifier::NodeBackendID> reserved_ids_;
 
         static constexpr std::string_view reify_subject = "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject";
         static constexpr std::string_view reify_predicate = "http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate";
@@ -280,6 +280,7 @@ namespace rdf4cpp::parser {
 
     public:
         ImplXML(void *obj, ReadFunc read, ErrorFunc err, EOFFunc eof, state_type *state);
+        ~ImplXML() override;
 
         [[nodiscard]] std::optional<value_type> next() override;
 
@@ -343,9 +344,8 @@ namespace rdf4cpp::parser {
             return;
         }
         current_state_ = std::visit([](auto &s) -> BaseState * {
-            return &s;
-        },
-                                    state_stack_.back());
+                                        return &s;
+                                    }, state_stack_.back());
     }
 
     void IStreamQuadIterator::ImplXML::pop_state() {
@@ -438,11 +438,11 @@ namespace rdf4cpp::parser {
         std::string local = "#";
         local.append(local_name);
         auto iri = make_iri(local, base);
-        if (reserved_ids_.contains(iri)) {
+        if (reserved_ids_.contains(iri.backend_handle().id())) {
             add_error(ParsingError::Type::BadIri, std::format("{}: is already used as a rdf:ID", iri));
             return IRI::make_null();
         }
-        reserved_ids_.insert(iri);
+        reserved_ids_.insert(iri.backend_handle().id());
         return iri;
     }
 
@@ -859,12 +859,23 @@ namespace rdf4cpp::parser {
         : handler_(make_sax_handler()),
           context_(xmlCreatePushParserCtxt(&handler_, this, nullptr, 0, "mem")),
           reader_obj_(obj), read_func_(read), error_func_(err), eof_func_(eof),
-          owned_state_(state == nullptr ? std::make_unique<state_type>() : nullptr), state_(state == nullptr ? owned_state_.get() : state) {
+          state_(state) {
         xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.reserve(10);
         state_stack_.emplace_back(std::in_place_type_t<InitialState>{});
         update_current_state();
+
+        if (state_ == nullptr) {
+            state_ = new state_type();
+            state_is_owned_ = true;
+        }
+
         current_state_->base = state_->iri_factory.get_base();
+    }
+    IStreamQuadIterator::ImplXML::~ImplXML() {
+        if (state_is_owned_) {
+            delete state_;
+        }
     }
 
     std::optional<IStreamQuadIterator::value_type> IStreamQuadIterator::ImplXML::next() {

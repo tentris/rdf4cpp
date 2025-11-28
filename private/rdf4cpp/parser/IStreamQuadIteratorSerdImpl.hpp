@@ -31,8 +31,8 @@ private:
     };
     std::unique_ptr<SerdReader, SerdReaderDtorLambda> reader;
 
-    std::unique_ptr<state_type> state_owned = nullptr;
     state_type *state;
+    bool state_is_owned;
 
     std::deque<Quad> quad_buffer;
     std::optional<ParsingError> last_error;

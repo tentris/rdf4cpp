@@ -400,15 +400,22 @@ IStreamQuadIterator::ImplSerd::ImplSerd(void *stream,
                                 flags_type flags,
                                 state_type *initial_state) noexcept
     : reader{serd_reader_new(extract_syntax_from_flags(flags), this, nullptr, &ImplSerd::on_base, &ImplSerd::on_prefix, &ImplSerd::on_stmt, nullptr)},
-        state_owned(initial_state == nullptr ? std::make_unique<state_type>() : nullptr),
-        state{initial_state == nullptr ? state_owned.get() : initial_state},
+      state{initial_state},
+      state_is_owned{false},
       flags{flags} {
+    if (this->state == nullptr) {
+        this->state = new state_type{};
+        this->state_is_owned = true;
+    }
 
     serd_reader_set_strict(this->reader.get(), !flags.contains(ParsingFlag::Lax));
     serd_reader_set_error_sink(this->reader.get(), &ImplSerd::on_error, this);
     serd_reader_start_source_stream(this->reader.get(), read, error, stream, nullptr, 4096);
 }
 IStreamQuadIterator::ImplSerd::~ImplSerd() {
+    if (this->state_is_owned) {
+        delete this->state;
+    }
 }
 
 std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type>> IStreamQuadIterator::ImplSerd::next() {

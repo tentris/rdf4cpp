@@ -22,9 +22,8 @@ enum struct ParsingFlag : uint8_t {
     NQuads   = 0b10 << 4,
     TriG     = 0b11 << 4,
     RdfXml  = 0b100 << 4,
-
-    SyntaxMask = 0b111 << 4,
 };
+constexpr uint8_t ParsingFlag_SyntaxMask = 0b111 << 4;
 
 struct ParsingFlags {
 private:
@@ -70,7 +69,7 @@ public:
      * @return the syntax ParsingFlag contained in this ParsingFlags. (Turtle if not specified)
      */
     [[nodiscard]] constexpr ParsingFlag get_syntax() const noexcept {
-        return static_cast<ParsingFlag>(flags & static_cast<flag_u_type>(ParsingFlag::SyntaxMask));
+        return static_cast<ParsingFlag>(flags & static_cast<flag_u_type>(ParsingFlag_SyntaxMask));
     }
 
     [[nodiscard]] constexpr bool syntax_allows_prefixes() const noexcept {
