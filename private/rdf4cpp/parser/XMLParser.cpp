@@ -88,6 +88,11 @@ namespace rdf4cpp::parser {
             }
         };
 
+        /**
+         * most states handle one or more of the elements in https://www.w3.org/TR/rdf11-xml/#section-Infoset-Grammar .
+         * note that the creation of a state is done by on_start_element of the previous state.
+         * each state holds information on base iri and language tag defined on the corresponding xml element.
+         */
         struct BaseState {  // NOLINT(*-special-member-functions)
             virtual ~BaseState() = default;
             virtual void on_characters(ImplXML &impl, std::string_view chars) = 0;
@@ -112,6 +117,9 @@ namespace rdf4cpp::parser {
             static InheritedAttributeInfo get_inherited_attributes(ImplXML &impl, std::span<Attribute> attributes);
         };
 
+        /**
+         * initial state, checks for start of https://www.w3.org/TR/rdf11-xml/#RDF
+         */
         struct InitialState final : BaseState {
             void on_characters(ImplXML &i, std::string_view chars) override;
             void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
@@ -123,6 +131,9 @@ namespace rdf4cpp::parser {
             }
         };
 
+        /**
+         * state for https://www.w3.org/TR/rdf11-xml/#RDF
+         */
         struct RDFState final : BaseState {
             void on_characters(ImplXML &i, std::string_view chars) override;
             void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
@@ -134,6 +145,11 @@ namespace rdf4cpp::parser {
             using BaseState::BaseState;
         };
 
+        /**
+         * state for https://www.w3.org/TR/rdf11-xml/#nodeElementList and https://www.w3.org/TR/rdf11-xml/#nodeElement
+         * on_start_element checks and dispatches for the different options in https://www.w3.org/TR/rdf11-xml/#propertyEltList
+         * (https://www.w3.org/TR/rdf11-xml/#parseTypeResourcePropertyElt has no own state, instead gets handled directly by on_start_element)
+         */
         struct DescriptionState final : BaseState {
             void on_characters(ImplXML &i, std::string_view chars) override;
             void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
@@ -157,6 +173,11 @@ namespace rdf4cpp::parser {
             static constexpr std::string_view type_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
         };
 
+        /**
+         * state for https://www.w3.org/TR/rdf11-xml/#resourcePropertyElt (nested nodeElement / DescriptionState
+         * and https://www.w3.org/TR/rdf11-xml/#literalPropertyElt (literal with no datatype attribute)
+         * and https://www.w3.org/TR/rdf11-xml/#emptyPropertyElt (with no attributes (empty literal))
+         */
         struct PredicateState : BaseState {
             void on_characters(ImplXML &i, std::string_view chars) override;
             void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
@@ -183,6 +204,9 @@ namespace rdf4cpp::parser {
             static bool iri_reserved_predicate(std::string_view uri, std::string_view local_name);
         };
 
+        /**
+         * state for https://www.w3.org/TR/rdf11-xml/#literalPropertyElt (with datatype attribute)
+         */
         struct TypedLiteralPredicateState final : PredicateState {
             void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
             void on_end_element(ImplXML &i) override;
@@ -197,6 +221,10 @@ namespace rdf4cpp::parser {
             static constexpr std::string_view datatype_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#datatype";
         };
 
+        /**
+         * state for https://www.w3.org/TR/rdf11-xml/#parseTypeLiteralPropertyElt
+         * (and https://www.w3.org/TR/rdf11-xml/#parseTypeOtherPropertyElt)
+         */
         struct XMLLiteralState final : PredicateState {
             void on_characters(ImplXML &i, std::string_view chars) override;
             void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
@@ -213,6 +241,9 @@ namespace rdf4cpp::parser {
             void source_input(ImplXML &i);
         };
 
+        /**
+         * state for https://www.w3.org/TR/rdf11-xml/#parseTypeCollectionPropertyElt
+         */
         struct CollectionState final : BaseState {
             void on_characters(ImplXML &i, std::string_view chars) override;
             void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
@@ -234,6 +265,9 @@ namespace rdf4cpp::parser {
             static constexpr std::string_view iri_first = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
         };
 
+        /**
+         * state for https://www.w3.org/TR/rdf11-xml/#emptyPropertyElt (if attributes are present)
+         */
         struct EmptyElement final : BaseState {
             void on_characters(ImplXML &i, std::string_view chars) override;
             void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
