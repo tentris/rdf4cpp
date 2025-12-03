@@ -102,6 +102,7 @@ private:
         Impl &operator=(Impl &&) = delete;
     };
     struct ImplSerd;
+    struct ImplXMLStateCollector;
     struct ImplXML;
 
     std::unique_ptr<Impl> impl;

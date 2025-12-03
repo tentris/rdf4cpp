@@ -151,6 +151,15 @@ add_library(rdf4cpp
         src/rdf4cpp/util/Anonymizer.cpp
         private/rdf4cpp/parser/IStreamQuadIteratorSerdImpl.cpp
         private/rdf4cpp/parser/XMLParser.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserBaseState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserCollectionState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserDescriptionState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserEmptyElement.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserInitialState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserPredicateState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserRDFState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserTypedLiteralPredicateState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserXMLLiteralState.cpp
         private/rdf4cpp/regex/RegexImpl.cpp
         private/rdf4cpp/regex/RegexReplacerImpl.cpp
         ${serd_source_files}
