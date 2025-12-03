@@ -36,10 +36,14 @@ namespace rdf4cpp::parser {
     struct IStreamQuadIterator::ImplXML final : ImplXMLStateCollector {
     private:
         xmlSAXHandler handler_;
-        std::unique_ptr<xmlParserCtxt, decltype([](xmlParserCtxt *c) {
-                            xmlFreeParserCtxt(c);
-                        })>
-                context_;
+        // workaround for gcc-14 bug, erroneously warns on unsing a lambda here
+        // see https://github.com/NVIDIA/stdexec/issues/1143
+        struct XmlParserCtxtDtorLambda {
+            void operator()(xmlParserCtxt* c) const {
+                xmlFreeParserCtxt(c);
+            }
+        };
+        std::unique_ptr<xmlParserCtxt, XmlParserCtxtDtorLambda> context_;
         void *reader_obj_;
         ReadFunc read_func_;
         ErrorFunc error_func_;
