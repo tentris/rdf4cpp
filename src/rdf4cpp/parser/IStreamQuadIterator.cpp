@@ -1,6 +1,7 @@
 #include "IStreamQuadIterator.hpp"
 
 #include <rdf4cpp/parser/IStreamQuadIteratorSerdImpl.hpp>
+#include <rdf4cpp/parser/XMLParser.hpp>
 
 #include <cstdio>
 
@@ -57,7 +58,7 @@ IStreamQuadIterator::IStreamQuadIterator(void *stream,
                                          flags_type flags,
                                          state_type *state)
     : impl{flags.get_syntax() == ParsingFlag::RdfXml ?
-        make_xml_impl(stream, read, error, eof, state) :
+        static_cast<std::unique_ptr<Impl>>(std::make_unique<ImplXML>(stream, read, error, eof, state)) :
         std::make_unique<ImplSerd>(stream, read, error, flags, state)},
       cur{impl->next()} {
 }

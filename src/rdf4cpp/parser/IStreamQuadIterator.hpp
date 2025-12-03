@@ -106,8 +106,6 @@ private:
 
     std::unique_ptr<Impl> impl;
     std::optional<nonstd::expected<ok_type, error_type>> cur;
-
-    static std::unique_ptr<Impl> make_xml_impl(void* obj, ReadFunc read, ErrorFunc err, EOFFunc eof, state_type* state);
 public:
     /**
      * Constructs a IStreamQuadIterator from a C-like io api. That is something similar to
