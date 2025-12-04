@@ -39,7 +39,7 @@ class Recipe(ConanFile):
         self.requires("dice-hash/0.4.11", transitive_headers=True)
         self.requires("dice-sparse-map/0.2.9", transitive_headers=True)
         self.requires("dice-template-library/1.19.0", transitive_headers=True)
-        self.requires("libxml2/2.15.0")
+        self.requires("libxml2/2.15.0", options={"iconv": False})
 
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")
