@@ -890,7 +890,7 @@ std::any Literal::value() const noexcept {
             });
 }
 
-Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage) const {
+Literal Literal::cast_impl(datatypes::registry::DatatypeIDView target_dtid, storage::DynNodeStoragePtr node_storage) const {
     using namespace datatypes::registry;
     using namespace datatypes::xsd;
 
@@ -901,7 +901,6 @@ Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage
     node_storage = select_node_storage(node_storage);
 
     auto const this_dtid = this->datatype_id();
-    DatatypeIDView const target_dtid{target};
 
     if (this_dtid == target_dtid) {
         return this->to_node_storage(node_storage);
@@ -911,7 +910,7 @@ Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage
         // string -> any
         try {
             auto const lex = this->lexical_form();
-            return Literal::make_typed(lex, target, node_storage);
+            return Literal::make_typed(lex, IRI{target_dtid, node_storage}, node_storage);
         } catch (...) {
             return Literal{};
         }
@@ -982,6 +981,10 @@ Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage
 
     // no conversion found
     return Literal{};
+}
+
+Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage) const {
+    return this->cast_impl(static_cast<datatypes::registry::DatatypeIDView>(target), node_storage);
 }
 
 template<typename OpSelect>

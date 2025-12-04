@@ -100,39 +100,39 @@ consteval ConversionLayer auto make_conversion_layer_impl() {
                       "conversion must preserve timepoint");
 
         if constexpr (BaseType::identifier == Type::identifier) {
-            auto const additional_conversions = util::type_list_generate<next::max_specialization_ix + 1>([]<size_t ix> {
+            using AdditionalConversions = util::generate_t<next::max_specialization_ix + 1, []<size_t ix>(std::integral_constant<size_t, ix>) {
                 struct FirstConversion {
                     using source_type = Type;
                     using target_type = typename next::template converted<ix>;
 
-                    inline static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
+                    static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
                         return next::template convert<ix>(value);
                     }
 
-                    inline static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
+                    static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
                         return next::template inverse_convert<ix>(value);
                     }
                 };
 
-                return FirstConversion{};
-            });
+                return std::type_identity<FirstConversion>{};
+            }>;
 
-            using next_table = util::type_list_cat<LayerAcc, decltype(additional_conversions)>;
+            using next_table = util::concat_t<LayerAcc, AdditionalConversions>;
             return make_conversion_layer_impl<BaseType, typename next::template converted<next::max_specialization_ix>, Conversion, HasConversion, RankRule, next_table>();
         } else {
-            constexpr size_t table_size = LayerAcc::length;
-            using prev_promotion_t = typename LayerAcc::template select<table_size - 1>;
+            constexpr size_t table_size = util::size_v<LayerAcc>;
+            using prev_promotion_t = util::nth_t<LayerAcc, table_size - 1>;
 
-            auto const additional_conversions = util::type_list_generate<next::max_specialization_ix + 1>([]<size_t ix> {
+            using AdditionalConversions = util::generate_t<next::max_specialization_ix + 1, []<size_t ix>(std::integral_constant<size_t, ix>) {
                 struct NextConversion {
                     using source_type = typename prev_promotion_t::source_type;
                     using target_type = typename next::template converted<ix>;
 
-                    inline static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
+                    static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
                         return next::template convert<ix>(prev_promotion_t::convert(value));
                     }
 
-                    inline static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
+                    static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
                         auto const converted = next::template inverse_convert<ix>(value);
                         if (!converted.has_value()) {
                             return nonstd::make_unexpected(converted.error());
@@ -142,10 +142,10 @@ consteval ConversionLayer auto make_conversion_layer_impl() {
                     }
                 };
 
-                return NextConversion{};
-            });
+                return std::type_identity<NextConversion>{};
+            }>;
 
-            using next_table = util::type_list_cat<LayerAcc, decltype(additional_conversions)>;
+            using next_table = util::concat_t<LayerAcc, AdditionalConversions>;
             return make_conversion_layer_impl<BaseType, typename next::template converted<next::max_specialization_ix>, Conversion, HasConversion, RankRule, next_table>();
         }
     }
@@ -260,9 +260,9 @@ consteval ConversionLayer auto make_promotion_layer() {
                                                              conversion_detail::adaptor::PromoteConversion,
                                                              conversion_detail::adaptor::PromoteConcept,
                                                              conversion_detail::adaptor::PromoteRankRule,
-                                                             mz::type_list<>>();
+                                                             util::type_list<>>();
     } else {
-        return mz::type_list{};
+        return util::type_list{};
     }
 }
 
@@ -293,9 +293,9 @@ consteval ConversionLayer auto make_subtype_layer() {
                                                              conversion_detail::adaptor::SupertypeConversion,
                                                              conversion_detail::adaptor::SubtypeConcept,
                                                              conversion_detail::adaptor::SubtypeRankRule,
-                                                             mz::type_list<>>();
+                                                             util::type_list<>>();
     } else {
-        return mz::type_list{};
+        return util::type_list{};
     }
 }
 
@@ -340,38 +340,38 @@ consteval ConversionTable auto make_conversion_table() {
         using source_type = Type;
         using target_type = Type;
 
-        inline static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
+        static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
             return value;
         }
 
-        inline static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
+        static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
             return value;
         }
     };
 
-    using level_0_table = typename decltype(make_promotion_layer<Type>())::template prepend<IdConversion>;
+    using Level0Table = util::concat_t<util::type_list<IdConversion>, decltype(make_promotion_layer<Type>())>;
 
     if constexpr (!SubtypedLiteralDatatype<Type>) {
-        return mz::type_list<level_0_table>{};
+        return util::type_list<Level0Table>{};
     } else {
         using s_table = decltype(make_subtype_layer<Type>());
 
         // generate the linear promotion table for each supertype
-        auto const other_level_tables = util::type_list_map<s_table>([]<ConversionEntry ToSuper>() noexcept {
-            using level_p_table = decltype(make_promotion_layer<typename ToSuper::target_type>());
+        using OtherLevelTables = util::transform_t<s_table, []<ConversionEntry ToSuper>(std::type_identity<ToSuper>) {
+            using LevelPTable = decltype(make_promotion_layer<typename ToSuper::target_type>());
 
             // compose each promotion for the supertype with the function to convert to the supertype
             // to get direct conversions from Type to promoted supertype
-            auto const to_promoted_supers = util::type_list_map<level_p_table>([]<ConversionEntry PromoteSuper>() noexcept {
+            using ToPromotedSupers = util::transform_t<LevelPTable, []<ConversionEntry PromoteSuper>(std::type_identity<PromoteSuper>) {
                 struct PromotedSuperConversion {
                     using source_type = typename ToSuper::source_type;
                     using target_type = typename PromoteSuper::target_type;
 
-                    inline static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
+                    static typename target_type::cpp_type convert(typename source_type::cpp_type const &value) noexcept {
                         return PromoteSuper::convert(ToSuper::convert(value));
                     }
 
-                    inline static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
+                    static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
                         auto const demoted = PromoteSuper::inverse_convert(value);
                         if (!demoted.has_value()) {
                             return nonstd::make_unexpected(demoted.error());
@@ -381,13 +381,13 @@ consteval ConversionTable auto make_conversion_table() {
                     }
                 };
 
-                return PromotedSuperConversion{};
-            });
+                return std::type_identity<PromotedSuperConversion>{};
+            }>;
 
-            return typename decltype(to_promoted_supers)::template prepend<ToSuper>{};
-        });
+            return util::concat<util::type_list<ToSuper>, ToPromotedSupers>{};
+        }>;
 
-        return typename decltype(other_level_tables)::template prepend<level_0_table>{};
+        return util::concat_t<util::type_list<Level0Table>, OtherLevelTables>{};
     }
 }
 
@@ -401,11 +401,11 @@ consteval ConversionTable auto make_conversion_table() {
  * @return equivalent to: subtype.subtype_rank - supertype.subtype_rank if sub- and supertype are in the same subtype hierarchy, else nullopt
  */
 template<LiteralDatatype Supertype, ConversionTable SubtypeTable>
-consteval std::optional<size_t> calculate_subtype_offset() {
-    return util::type_list_find_if<SubtypeTable>([]<ConversionLayer Layer>() {
-        using target_t = typename Layer::first::target_type;
+consteval size_t calculate_subtype_offset() {
+    return util::position_v<SubtypeTable, []<ConversionLayer Layer>(std::type_identity<Layer>) {
+        using target_t = typename util::first_t<Layer>::target_type;
         return std::is_same_v<target_t, Supertype>;
-    });
+    }>;
 }
 
 }  // namespace conversion_detail
