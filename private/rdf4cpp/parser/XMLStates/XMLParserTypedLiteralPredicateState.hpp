@@ -9,8 +9,8 @@ namespace rdf4cpp::parser {
      * state for https://www.w3.org/TR/rdf11-xml/#literalPropertyElt (with datatype attribute)
      */
     struct IStreamQuadIterator::ImplXMLStateCollector::TypedLiteralPredicateState final : PredicateState {
-        void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-        void on_end_element(ImplXML &i) override;
+        StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info) override;
+        StateTransition on_end_element(XMLOutputQueue &out, Info const &info) override;
         void move_to(BaseState *b) noexcept override;
 
         IRI datatype;

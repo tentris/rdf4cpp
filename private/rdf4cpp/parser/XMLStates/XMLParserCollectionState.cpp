@@ -1,39 +1,38 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
-#include <rdf4cpp/parser/XMLStates/XMLParserDescriptionStateEnter.hpp>
-
 namespace rdf4cpp::parser {
-    void IStreamQuadIterator::ImplXML::CollectionState::on_characters(ImplXML &i, std::string_view const chars) {
-        if (!ImplXML::trim_left(chars).empty()) {
-            i.add_error(ParsingError::Type::BadSyntax, "expected element, found characters");
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::CollectionState::on_characters(XMLOutputQueue &out, std::string_view const chars, Info const &info) {
+        if (!trim_left(chars).empty()) {
+            out.add_error(ParsingError::Type::BadSyntax, "expected element, found characters", info);
         }
+        return {};
     }
 
-    void IStreamQuadIterator::ImplXML::CollectionState::on_start_element(ImplXML &i, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes) {
-        DescriptionState::enter(i, local_name, uri, attributes, [&](Node const obj) {
-            if (first) {
-                first = false;
-                last_bn = i.make_bn(std::nullopt);
-                i.add_statement(subject, predicate, last_bn, reify);
-            } else {
-                auto const bn = i.make_bn(std::nullopt);
-                i.add_statement(last_bn, i.make_hardcoded_iri(iri_rest), bn, IRI::make_null());
-                last_bn = bn;
-            }
-            i.add_statement(last_bn, i.make_hardcoded_iri(iri_first), obj, IRI::make_null());
-        });
-    }
-
-    void IStreamQuadIterator::ImplXML::CollectionState::on_end_element(ImplXML &i) {
-        auto const nil = i.make_hardcoded_iri(iri_nil);
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::CollectionState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes, Info const &info) {
+        auto [transition, obj] = DescriptionState::enter(out, local_name, uri, attributes, info);
         if (first) {
-            i.add_statement(subject, predicate, nil, reify);
+            first = false;
+            last_bn = out.make_bn(std::nullopt, info);
+            out.add_statement(subject, predicate, last_bn, reify);
         } else {
-            i.add_statement(last_bn, i.make_hardcoded_iri(iri_rest), nil, IRI::make_null());
+            auto const bn = out.make_bn(std::nullopt, info);
+            out.add_statement(last_bn, out.make_hardcoded_iri(iri_rest), bn, IRI::make_null());
+            last_bn = bn;
         }
-        i.pop_state();
+        out.add_statement(last_bn, out.make_hardcoded_iri(iri_first), obj, IRI::make_null());
+        return transition;
     }
-    void IStreamQuadIterator::ImplXML::CollectionState::move_to(BaseState *b) noexcept {
+
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::CollectionState::on_end_element(XMLOutputQueue &out, [[maybe_unused]] Info const &info) {
+        auto const nil = out.make_hardcoded_iri(iri_nil);
+        if (first) {
+            out.add_statement(subject, predicate, nil, reify);
+        } else {
+            out.add_statement(last_bn, out.make_hardcoded_iri(iri_rest), nil, IRI::make_null());
+        }
+        return StateTransition{std::in_place_type_t<PopState>{}};
+    }
+    void IStreamQuadIterator::ImplXMLStateCollector::CollectionState::move_to(BaseState *b) noexcept {
         new (b) CollectionState(std::move(*this));
     }
-}
+}  // namespace rdf4cpp::parser

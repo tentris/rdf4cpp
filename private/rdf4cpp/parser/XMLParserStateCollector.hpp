@@ -2,8 +2,6 @@
 #define RDF4CPP_XMLPARSERSTATECOLLECTOR_H
 
 #include <deque>
-#include <iterator>
-#include <memory>
 
 #include <rdf4cpp/Expected.hpp>
 
@@ -17,8 +15,6 @@
 #include <libxml/parser.h>
 
 #include <dice/sparse-map/sparse_set.hpp>
-
-#include <dice/template-library/inplace_polymorphic.hpp>
 
 namespace rdf4cpp::parser {
     struct IStreamQuadIterator::ImplXMLStateCollector : Impl {
@@ -84,6 +80,85 @@ namespace rdf4cpp::parser {
         struct CollectionState;
 
         struct EmptyElement;
+
+        struct PopState {};
+        struct NoStateChange {};
+
+        struct Info {
+            uint64_t line;
+            uint64_t column;
+            std::string_view base;
+            std::string_view lang_tag;
+            std::string_view source;
+            int source_offset;
+        };
+
+        struct XMLOutputQueue {
+        private:
+            std::deque<value_type> result_queue_;
+            size_t next_bn_index_ = 0;
+            state_type *state_;
+            bool state_is_owned_ = false;
+            dice::sparse_map::sparse_set<storage::identifier::NodeBackendID> reserved_ids_;
+
+            static constexpr std::string_view reify_subject = "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject";
+            static constexpr std::string_view reify_predicate = "http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate";
+            static constexpr std::string_view reify_object = "http://www.w3.org/1999/02/22-rdf-syntax-ns#object";
+            static constexpr std::string_view reify_type = "http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement";
+
+            template<typename NT>
+            [[nodiscard]] NT inspect_node(NT node, Info const &i);
+
+        public:
+            explicit XMLOutputQueue(state_type *state);
+            ~XMLOutputQueue();
+
+            XMLOutputQueue(XMLOutputQueue const &) = delete;
+            XMLOutputQueue &operator=(XMLOutputQueue const &) = delete;
+            XMLOutputQueue(XMLOutputQueue &&) = delete;
+            XMLOutputQueue &operator=(XMLOutputQueue &&) = delete;
+
+            [[nodiscard]] bool empty() const;
+            [[nodiscard]] std::optional<value_type> next();
+            [[nodiscard]] std::string_view current_base_iri() const;
+
+            void add_error(ParsingError::Type ty, std::string msg, Info const &i);
+            /**
+             * add statement to the output list, if none of the components is null
+             * (null is used to track an already inserted parse error for that component)
+             */
+            void add_statement(Node subject, IRI predicate, Node object, IRI reify);
+            /**
+             * create an IRI with no checks, intended for hardcoded IRIs like reify_subject
+             */
+            [[nodiscard]] IRI make_hardcoded_iri(std::string_view iri) const;
+            [[nodiscard]] IRI make_type_iri() const;
+            [[nodiscard]] IRI make_iri(std::string_view iri, std::string_view base, Info const &i);
+            [[nodiscard]] IRI make_iri(std::string_view uri, std::string_view local_name, std::string_view base, Info const &i);
+            /**
+             * create the IRI for an id_attrib, including uniqueness check
+             */
+            [[nodiscard]] IRI make_id(std::string_view local_name, std::string_view base, Info const &i);
+            [[nodiscard]] Node make_bn(std::optional<std::string_view> name, Info const &i);
+            /**
+             * creates a literal
+             * @param value
+             * @param datatype
+             * @param lang_tag (ignored, if datatype is set)
+             * @param i
+             * @return
+             */
+            [[nodiscard]] Literal make_literal(std::string_view value, std::optional<IRI> datatype, std::optional<std::string_view> lang_tag, Info const &i);
+        };
+
+        /**
+         * removes whitespace according to xml spec
+         */
+        [[nodiscard]] static std::string_view trim_left(std::string_view v);
+        [[nodiscard]] static bool iri_equal_pieces(std::string_view full_iri, std::string_view uri, std::string_view local_name);
+        [[nodiscard]] static bool iri_reserved(std::string_view uri, std::string_view local_name);
+
+        struct StateTransition;
     };
 }  // namespace rdf4cpp::parser
 

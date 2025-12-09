@@ -1,47 +1,46 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
-#include <rdf4cpp/parser/XMLStates/XMLParserDescriptionStateEnter.hpp>
-
 namespace rdf4cpp::parser {
 
-    void IStreamQuadIterator::ImplXML::PredicateState::on_characters([[maybe_unused]] ImplXML &i, std::string_view const chars) {
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::PredicateState::on_characters([[maybe_unused]] XMLOutputQueue &out, std::string_view const chars, Info const &info) {
         if (done) {
-            if (!ImplXML::trim_left(chars).empty()) {
-                i.add_error(ParsingError::Type::BadSyntax, "expected end of element, found literal");
+            if (!trim_left(chars).empty()) {
+                out.add_error(ParsingError::Type::BadSyntax, "expected end of element, found literal", info);
             }
-            return;
+            return {};
         }
         literal.append(chars);
+        return {};
     }
 
-    void IStreamQuadIterator::ImplXML::PredicateState::on_start_element(ImplXML &i, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes) {
-        if (!ImplXML::trim_left(literal).empty()) {
-            i.add_error(ParsingError::Type::BadSyntax, "expected end of element or literal, found element");
-            return;
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::PredicateState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes, Info const &info) {
+        if (!trim_left(literal).empty()) {
+            out.add_error(ParsingError::Type::BadSyntax, "expected end of element or literal, found element", info);
+            return {};
         }
         if (done) {
-            i.add_error(ParsingError::Type::BadSyntax, "expected end of element, found element");
-            return;
+            out.add_error(ParsingError::Type::BadSyntax, "expected end of element, found element", info);
+            return {};
         }
-        DescriptionState::enter(i, local_name, uri, attributes, [&](Node obj) {
-            done = true;
-            i.add_statement(subject, predicate, obj, reify);
-        });
+        auto [transition, obj] = DescriptionState::enter(out, local_name, uri, attributes, info);
+        done = true;
+        out.add_statement(subject, predicate, obj, reify);
+        return transition;
     }
 
-    void IStreamQuadIterator::ImplXML::PredicateState::on_end_element(ImplXML &i) {
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::PredicateState::on_end_element(XMLOutputQueue &out, Info const &info) {
         if (!done) {
-            Literal const lit = i.make_literal(literal, std::nullopt, std::nullopt);
-            i.add_statement(subject, predicate, lit, reify);
+            Literal const lit = out.make_literal(literal, std::nullopt, std::nullopt, info);
+            out.add_statement(subject, predicate, lit, reify);
         }
-        i.pop_state();
+        return StateTransition{std::in_place_type_t<PopState>{}};
     }
-    void IStreamQuadIterator::ImplXML::PredicateState::move_to(BaseState *b) noexcept {
+    void IStreamQuadIterator::ImplXMLStateCollector::PredicateState::move_to(BaseState *b) noexcept {
         new (b) PredicateState(std::move(*this));
     }
 
-    bool IStreamQuadIterator::ImplXML::PredicateState::iri_reserved_predicate(std::string_view const uri, std::string_view const local_name) {
-        return ImplXML::iri_reserved(uri, local_name) || ImplXML::iri_equal_pieces(DescriptionState::start_element, uri, local_name) || ImplXML::iri_equal_pieces(list_start_element, uri, local_name);
+    bool IStreamQuadIterator::ImplXMLStateCollector::PredicateState::iri_reserved_predicate(std::string_view const uri, std::string_view const local_name) {
+        return iri_reserved(uri, local_name) || iri_equal_pieces(DescriptionState::start_element, uri, local_name) || iri_equal_pieces(list_start_element, uri, local_name);
     }
 
-}
+}  // namespace rdf4cpp::parser

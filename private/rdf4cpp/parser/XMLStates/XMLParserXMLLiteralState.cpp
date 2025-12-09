@@ -1,22 +1,24 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
 namespace rdf4cpp::parser {
-    void IStreamQuadIterator::ImplXML::XMLLiteralState::on_characters(ImplXML &i, [[maybe_unused]] std::string_view chars) {
-        source_input(i);
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::on_characters([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] std::string_view chars, Info const &info) {
+        source_input(info);
+        return {};
     }
 
-    void IStreamQuadIterator::ImplXML::XMLLiteralState::on_start_element(ImplXML &i, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes) {
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::on_start_element([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes, Info const &info) {
         ++depth;
-        source_input(i);
+        source_input(info);
+        return {};
     }
 
-    void IStreamQuadIterator::ImplXML::XMLLiteralState::on_end_element(ImplXML &i) {
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::on_end_element(XMLOutputQueue &out, Info const &info) {
         if (depth > 0) {
             --depth;
-            source_input(i);
-            return;
+            source_input(info);
+            return {};
         }
-        IRI datatype = i.make_hardcoded_iri("http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral");
+        IRI datatype = out.make_hardcoded_iri("http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral");
         std::string_view l = literal;
         l = l.substr(0, last_offset);
         l.remove_prefix(data_start);
@@ -26,20 +28,17 @@ namespace rdf4cpp::parser {
         if (!l.empty() && l[0] == '>') {
             l.remove_prefix(1);
         }
-        Literal const lit = i.make_literal(l, datatype, std::nullopt);
-        i.add_statement(subject, predicate, lit, reify);
-        i.pop_state();
+        Literal const lit = out.make_literal(l, datatype, std::nullopt, info);
+        out.add_statement(subject, predicate, lit, reify);
+        return StateTransition{std::in_place_type_t<PopState>{}};
     }
-    void IStreamQuadIterator::ImplXML::XMLLiteralState::move_to(BaseState *b) noexcept {
+    void IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::move_to(BaseState *b) noexcept {
         new (b) XMLLiteralState(std::move(*this));
     }
 
-    void IStreamQuadIterator::ImplXML::XMLLiteralState::source_input(ImplXML &i) {
-        xmlChar const *data;
-        int size = 1024;
-        int off = 0;
-        xmlCtxtGetInputWindow(i.context_.get(), 0, &data, &size, &off);
-        std::string_view const sv{reinterpret_cast<char const *>(data), static_cast<size_t>(size)};
+    void IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::source_input(Info const &info) {
+        int const off = info.source_offset;
+        std::string_view const sv = info.source;
         if (literal.empty()) {
             data_start = off;
         }
@@ -49,4 +48,4 @@ namespace rdf4cpp::parser {
         }
         last_offset = static_cast<size_t>(off) + last_size;
     }
-}
+}  // namespace rdf4cpp::parser

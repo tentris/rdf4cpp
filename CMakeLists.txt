@@ -151,6 +151,7 @@ add_library(rdf4cpp
         src/rdf4cpp/util/Anonymizer.cpp
         private/rdf4cpp/parser/IStreamQuadIteratorSerdImpl.cpp
         private/rdf4cpp/parser/XMLParser.cpp
+        private/rdf4cpp/parser/XMLParserStateCollector.cpp
         private/rdf4cpp/parser/XMLStates/XMLParserBaseState.cpp
         private/rdf4cpp/parser/XMLStates/XMLParserCollectionState.cpp
         private/rdf4cpp/parser/XMLStates/XMLParserDescriptionState.cpp

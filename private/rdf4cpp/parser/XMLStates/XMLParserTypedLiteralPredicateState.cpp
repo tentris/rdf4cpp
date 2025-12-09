@@ -1,18 +1,19 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
 namespace rdf4cpp::parser {
-    void IStreamQuadIterator::ImplXML::TypedLiteralPredicateState::on_start_element(ImplXML &i, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes) {
-        i.add_error(ParsingError::Type::BadSyntax, "expected literal, found element");
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::TypedLiteralPredicateState::on_start_element(XMLOutputQueue &out, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes, Info const &info) {
+        out.add_error(ParsingError::Type::BadSyntax, "expected literal, found element", info);
+        return {};
     }
 
-    void IStreamQuadIterator::ImplXML::TypedLiteralPredicateState::on_end_element(ImplXML &i) {
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::TypedLiteralPredicateState::on_end_element(XMLOutputQueue &out, Info const &info) {
         if (!datatype.null()) {
-            Literal const lit = i.make_literal(literal, datatype, std::nullopt);
-            i.add_statement(subject, predicate, lit, reify);
+            Literal const lit = out.make_literal(literal, datatype, std::nullopt, info);
+            out.add_statement(subject, predicate, lit, reify);
         }
-        i.pop_state();
+        return StateTransition{std::in_place_type_t<PopState>{}};
     }
-    void IStreamQuadIterator::ImplXML::TypedLiteralPredicateState::move_to(BaseState *b) noexcept {
+    void IStreamQuadIterator::ImplXMLStateCollector::TypedLiteralPredicateState::move_to(BaseState *b) noexcept {
         new (b) TypedLiteralPredicateState(std::move(*this));
     }
-}
+}  // namespace rdf4cpp::parser

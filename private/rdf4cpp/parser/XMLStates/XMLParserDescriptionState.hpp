@@ -11,9 +11,9 @@ namespace rdf4cpp::parser {
      * (https://www.w3.org/TR/rdf11-xml/#parseTypeResourcePropertyElt has no own state, instead gets handled directly by on_start_element)
      */
     struct IStreamQuadIterator::ImplXMLStateCollector::DescriptionState final : BaseState {
-        void on_characters(ImplXML &i, std::string_view chars) override;
-        void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-        void on_end_element(ImplXML &i) override;
+        StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, Info const &info) override;
+        StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info) override;
+        StateTransition on_end_element(XMLOutputQueue &out, Info const &info) override;
         void move_to(BaseState *b) noexcept override;
 
         Node subject;
@@ -23,11 +23,7 @@ namespace rdf4cpp::parser {
             : BaseState(i), subject(sub) {
         }
 
-        /**
-         * include XMLParserDescriptionStateEnter.hpp to use it
-         */
-        template<class F>
-        static void enter(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, F f);
+        static std::pair<StateTransition, Node> enter(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info);
 
         static constexpr std::string_view start_element = "http://www.w3.org/1999/02/22-rdf-syntax-ns#Description";
         static constexpr std::string_view about_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#about";

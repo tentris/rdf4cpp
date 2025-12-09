@@ -1,23 +1,22 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
-#include <rdf4cpp/parser/XMLStates/XMLParserDescriptionStateEnter.hpp>
-
 namespace rdf4cpp::parser {
-    void IStreamQuadIterator::ImplXML::RDFState::on_characters(ImplXML &i, std::string_view const chars) {
-        if (!ImplXML::trim_left(chars).empty()) {
-            i.add_error(ParsingError::Type::BadSyntax, "expected Description, found characters");
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::RDFState::on_characters(XMLOutputQueue &out, std::string_view const chars, Info const &info) {
+        if (!trim_left(chars).empty()) {
+            out.add_error(ParsingError::Type::BadSyntax, "expected Description, found characters", info);
         }
+        return {};
     }
 
-    void IStreamQuadIterator::ImplXML::RDFState::on_start_element(ImplXML &i, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes) {
-        DescriptionState::enter(i, local_name, uri, attributes, [](auto) {
-        });
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::RDFState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes, Info const &info) {
+        auto [trans, _] = DescriptionState::enter(out, local_name, uri, attributes, info);
+        return trans;
     }
 
-    void IStreamQuadIterator::ImplXML::RDFState::on_end_element(ImplXML &i) {
-        i.pop_state();
+    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::RDFState::on_end_element([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] Info const &info) {
+        return StateTransition{std::in_place_type_t<PopState>{}};
     }
-    void IStreamQuadIterator::ImplXML::RDFState::move_to(BaseState *b) noexcept {
+    void IStreamQuadIterator::ImplXMLStateCollector::RDFState::move_to(BaseState *b) noexcept {
         new (b) RDFState(std::move(*this));
     }
 }  // namespace rdf4cpp::parser

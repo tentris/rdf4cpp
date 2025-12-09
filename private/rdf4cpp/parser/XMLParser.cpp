@@ -15,41 +15,35 @@ namespace rdf4cpp::parser {
         };
         r.characters = [](void *th, xmlChar const *e, int const len) {
             auto *t = static_cast<ImplXML *>(th);
-            t->current_state_->on_characters(*t, from_xml_char(e, len));
+            t->handle_state_transition(t->current_state_->on_characters(t->output_, from_xml_char(e, len), t->make_info()));
         };
         r.startElementNs = [](void *th, xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, xmlChar const *uri,
                               [[maybe_unused]] int n_namespaces, [[maybe_unused]] xmlChar const **namespaces,
                               int const n_attributes, [[maybe_unused]] int n_defaulted, xmlChar const **attributes) {
             auto *t = static_cast<ImplXML *>(th);
-            t->current_state_->on_start_element(*t, from_xml_char(local_name), from_xml_char(uri),
-                                                std::span{reinterpret_cast<Attribute *>(attributes), static_cast<size_t>(n_attributes)});
+            t->handle_state_transition(t->current_state_->on_start_element(t->output_, from_xml_char(local_name), from_xml_char(uri),
+                                                                           std::span{reinterpret_cast<Attribute *>(attributes), static_cast<size_t>(n_attributes)}, t->make_info()));
         };
         r.endElementNs = [](void *th, [[maybe_unused]] xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, [[maybe_unused]] xmlChar const *uri) {
             auto *t = static_cast<ImplXML *>(th);
-            t->current_state_->on_end_element(*t);
+            t->handle_state_transition(t->current_state_->on_end_element(t->output_, t->make_info()));
         };
         r.warning = on_error;
         r.error = on_error;
         return r;
     }
-
-    void IStreamQuadIterator::ImplXML::add_error(ParsingError::Type const ty, std::string msg) {
-        uint64_t const lin = xmlSAX2GetLineNumber(context_.get());
-        uint64_t const col = xmlSAX2GetColumnNumber(context_.get());
-        result_queue_.emplace_back(nonstd::unexpect, ty, lin, col, std::move(msg));
-    }
-
-    void IStreamQuadIterator::ImplXML::add_statement(Node const subject, IRI const predicate, Node const object, IRI const reify) {
-        if (subject.null() || predicate.null() || object.null()) {
-            return;
-        }
-        result_queue_.emplace_back(Quad(subject, predicate, object));
-        if (!reify.null()) {
-            result_queue_.emplace_back(Quad(reify, make_hardcoded_iri(reify_subject), subject));
-            result_queue_.emplace_back(Quad(reify, make_hardcoded_iri(reify_predicate), predicate));
-            result_queue_.emplace_back(Quad(reify, make_hardcoded_iri(reify_object), object));
-            result_queue_.emplace_back(Quad(reify, make_type_iri(), make_hardcoded_iri(reify_type)));
-        }
+    void IStreamQuadIterator::ImplXML::handle_state_transition(StateTransition transition) {
+        std::visit([&]<typename T>(T &&s) {
+            if constexpr (std::same_as<T, NoStateChange>) {
+                return;
+            } else if constexpr (std::same_as<T, PopState>) {
+                pop_state();
+            } else {
+                state_stack_.emplace_back(std::in_place_type_t<T>{}, std::forward<T>(s));
+                update_current_state();
+            }
+        },
+                   std::move(transition.modify_state));
     }
 
     void IStreamQuadIterator::ImplXML::update_current_state() {
@@ -66,24 +60,8 @@ namespace rdf4cpp::parser {
         update_current_state();
     }
 
-    std::string_view IStreamQuadIterator::ImplXML::trim_left(std::string_view v) {
-        auto s = v.find_first_not_of(" \t\r\n");
-        if (s == std::string_view::npos) {
-            return "";
-        }
-        v.remove_prefix(s);
-        // ReSharper disable once CppDFALocalValueEscapesFunction
-        return v;
-    }
-
-    bool IStreamQuadIterator::ImplXML::iri_equal_pieces(std::string_view const full_iri, std::string_view const uri, std::string_view const local_name) {
-        if (full_iri.size() != local_name.size() + uri.size()) {
-            return false;
-        }
-        return full_iri.starts_with(uri) && full_iri.ends_with(local_name);
-    }
-
-    bool IStreamQuadIterator::ImplXML::iri_reserved(std::string_view uri, std::string_view local_name) {
+    // implemented here, to have access to states
+    bool IStreamQuadIterator::ImplXMLStateCollector::iri_reserved(std::string_view const uri, std::string_view const local_name) {
         static constexpr std::array reserved = {
                 RDFState::start_element,
                 DescriptionState::id_attrib,
@@ -103,116 +81,6 @@ namespace rdf4cpp::parser {
         });
     }
 
-    template<typename NT>
-    NT IStreamQuadIterator::ImplXML::inspect_node(NT node) {
-        try {
-            state_->inspect_node_func(node);
-            return node;
-        } catch (std::exception &e) {
-            add_error(ParsingError::Type::BadSyntax, std::format("Triple explicitly skipped by inspect function: {}", e.what()));
-        } catch (...) {
-            add_error(ParsingError::Type::BadSyntax, "Triple explicitly skipped by inspect function");
-        }
-        return NT::make_null();
-    }
-
-    IRI IStreamQuadIterator::ImplXML::make_iri(std::string_view const iri, std::string_view const base) {
-        if (base.empty()) {
-            for (auto const &s : state_stack_ | std::ranges::views::reverse) {
-                std::string_view const v = s.get().base;
-                if (!v.empty()) {
-                    state_->iri_factory.set_base_unchecked(v);
-                    break;
-                }
-            }
-        } else {
-            state_->iri_factory.set_base_unchecked(base);
-        }
-        auto exp = state_->iri_factory.from_maybe_relative(iri, state_->node_storage);
-        if (exp.has_value()) {
-            return inspect_node(*exp);
-        } else {
-            add_error(ParsingError::Type::BadIri, std::format("{}: {}", iri, exp.error()));
-            return IRI::make_null();
-        }
-    }
-
-    IRI IStreamQuadIterator::ImplXML::make_iri(std::string_view const uri, std::string_view const local_name, std::string_view const base) {
-        std::string iri{uri};
-        iri.append(local_name);
-        return make_iri(iri, base);
-    }
-
-    IRI IStreamQuadIterator::ImplXML::make_id(std::string_view const local_name, std::string_view const base) {
-        std::string local = "#";
-        local.append(local_name);
-        auto iri = make_iri(local, base);
-        if (reserved_ids_.contains(iri.backend_handle().id())) {
-            add_error(ParsingError::Type::BadIri, std::format("{}: is already used as a rdf:ID", iri));
-            return IRI::make_null();
-        }
-        reserved_ids_.insert(iri.backend_handle().id());
-        return iri;
-    }
-
-    IRI IStreamQuadIterator::ImplXML::make_hardcoded_iri(std::string_view const iri) const {
-        return IRI::make_unchecked(iri, state_->node_storage);
-    }
-
-    IRI IStreamQuadIterator::ImplXML::make_type_iri() const {
-        return IRI::rdf_type(state_->node_storage);
-    }
-
-    Node IStreamQuadIterator::ImplXML::make_bn(std::optional<std::string_view> name) {
-        std::string n = "";
-        if (!name.has_value()) {
-            n = std::format("bn_{}", next_bn_index_++);
-            name = n;
-        }
-        try {
-            if (state_->blank_node_scope_manager == nullptr) {
-                return inspect_node(BlankNode::make(*name, state_->node_storage));
-            } else {
-                return inspect_node(state_->blank_node_scope_manager.scope("").get_or_generate_node(*name, state_->node_storage));
-            }
-        } catch (InvalidNode const &e) {
-            add_error(ParsingError::Type::BadBlankNode, e.what());
-            return BlankNode::make_null();
-        } catch (...) {
-            add_error(ParsingError::Type::BadBlankNode, "unknown error");
-            return BlankNode::make_null();
-        }
-    }
-
-    Literal IStreamQuadIterator::ImplXML::make_literal(std::string_view value, std::optional<IRI> datatype, std::optional<std::string_view> lang_tag) {
-        Literal l = Literal::make_null();
-        try {
-            if (datatype.has_value()) {
-                l = Literal::make_typed(value, *datatype, state_->node_storage);
-            } else {
-                if (!lang_tag.has_value() || lang_tag->empty()) {
-                    for (auto const &s : state_stack_ | std::ranges::views::reverse) {
-                        std::string_view const v = s.get().lang_tag;
-                        if (!v.empty()) {
-                            lang_tag = v;
-                            break;
-                        }
-                    }
-                }
-                if (lang_tag.has_value() && !lang_tag->empty()) {
-                    l = Literal::make_lang_tagged(value, *lang_tag, state_->node_storage);
-                } else {
-                    l = Literal::make_simple(value, state_->node_storage);
-                }
-            }
-        } catch (InvalidNode const &e) {
-            add_error(ParsingError::Type::BadLiteral, e.what());
-        } catch (...) {
-            add_error(ParsingError::Type::BadLiteral, "unknown error");
-        }
-        return inspect_node(l);
-    }
-
     void IStreamQuadIterator::ImplXML::on_error(void *th, char const *msg, ...) {  // NOLINT(*-dcl50-cpp)
         va_list args;
         auto t = static_cast<ImplXML *>(th);
@@ -225,45 +93,67 @@ namespace rdf4cpp::parser {
         } else {
             out = "unknown error, too long to fit";
         }
-        t->add_error(ParsingError::Type::BadSyntax, std::move(out));
+        t->output_.add_error(ParsingError::Type::BadSyntax, std::move(out), t->make_info());
         va_end(args);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
+    }
+
+    IStreamQuadIterator::ImplXMLStateCollector::Info IStreamQuadIterator::ImplXML::make_info() const {
+        std::string_view base = "";
+        for (auto const &s : state_stack_ | std::ranges::views::reverse) {
+            std::string_view const v = s.get().base;
+            if (!v.empty()) {
+                base = v;
+                break;
+            }
+        }
+
+        std::string_view lang_tag = "";
+        for (auto const &s : state_stack_ | std::ranges::views::reverse) {
+            std::string_view const v = s.get().lang_tag;
+            if (!v.empty()) {
+                lang_tag = v;
+                break;
+            }
+        }
+
+        xmlChar const *data;
+        int size = 1024;
+        int off = 0;
+        xmlCtxtGetInputWindow(context_.get(), 0, &data, &size, &off);
+        std::string_view const source{reinterpret_cast<char const *>(data), static_cast<size_t>(size)};
+
+        return Info{
+                static_cast<uint64_t>(xmlSAX2GetLineNumber(context_.get())),
+                static_cast<uint64_t>(xmlSAX2GetColumnNumber(context_.get())),
+                base,
+                lang_tag,
+                source,
+                off,
+        };
     }
 
     IStreamQuadIterator::ImplXML::ImplXML(void *obj, ReadFunc const read, ErrorFunc const err, EOFFunc const eof, state_type *state)
         : handler_(make_sax_handler()),
           context_(xmlCreatePushParserCtxt(&handler_, this, nullptr, 0, "rdf/xml")),
           reader_obj_(obj), read_func_(read), error_func_(err), eof_func_(eof),
-          state_(state) {
+          output_(state) {
         xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.reserve(10);
         state_stack_.emplace_back(std::in_place_type_t<InitialState>{});
         update_current_state();
 
-        if (state_ == nullptr) {
-            state_ = new state_type();
-            state_is_owned_ = true;
-        }
-
-        current_state_->base = state_->iri_factory.get_base();
+        current_state_->base = output_.current_base_iri();
     }
-    IStreamQuadIterator::ImplXML::~ImplXML() {
-        if (state_is_owned_) {
-            delete state_;
-        }
+    IStreamQuadIterator::ImplXML::~ImplXML() {  // NOLINT(*-use-equals-default)
     }
 
     std::optional<IStreamQuadIterator::value_type> IStreamQuadIterator::ImplXML::next() {
         std::array<char, 1024> buffer;  // NOLINT(*-pro-type-member-init)
-        while (result_queue_.empty() && error_func_(reader_obj_) == 0 && eof_func_(reader_obj_) == 0) {
+        while (output_.empty() && error_func_(reader_obj_) == 0 && eof_func_(reader_obj_) == 0) {
             auto const read = read_func_(buffer.data(), sizeof(char), buffer.size(), reader_obj_);
             xmlParseChunk(context_.get(), buffer.data(), static_cast<int>(read), eof_func_(reader_obj_) != 0);
         }
-        if (result_queue_.empty()) {
-            return std::nullopt;
-        }
-        auto r = result_queue_.front();
-        result_queue_.pop_front();
-        return r;
+        return output_.next();
     }
 
     uint64_t IStreamQuadIterator::ImplXML::current_line() const noexcept {

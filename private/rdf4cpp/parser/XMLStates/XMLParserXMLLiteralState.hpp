@@ -10,9 +10,9 @@ namespace rdf4cpp::parser {
      * (and https://www.w3.org/TR/rdf11-xml/#parseTypeOtherPropertyElt)
      */
     struct IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState final : PredicateState {
-        void on_characters(ImplXML &i, std::string_view chars) override;
-        void on_start_element(ImplXML &i, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) override;
-        void on_end_element(ImplXML &i) override;
+        StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, Info const &info) override;
+        StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info) override;
+        StateTransition on_end_element(XMLOutputQueue &out, Info const &info) override;
         void move_to(BaseState *b) noexcept override;
 
         size_t depth = 0;
@@ -20,9 +20,11 @@ namespace rdf4cpp::parser {
         size_t last_offset = 0;
         size_t last_size = 0;
 
-        using PredicateState::PredicateState;
+        void source_input(Info const &info);
 
-        void source_input(ImplXML &i);
+        XMLLiteralState(InheritedAttributeInfo const &i, Node sub, IRI predicate, IRI reify, Info const &info) : PredicateState(i, sub, predicate, reify) {
+            source_input(info);
+        }
     };
 }
 

@@ -11,9 +11,9 @@ namespace rdf4cpp::parser {
      */
     struct IStreamQuadIterator::ImplXMLStateCollector::BaseState {  // NOLINT(*-special-member-functions)
         virtual ~BaseState() = default;
-        virtual void on_characters(ImplXML &impl, std::string_view chars) = 0;
-        virtual void on_start_element(ImplXML &impl, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes) = 0;
-        virtual void on_end_element(ImplXML &impl) = 0;
+        [[nodiscard]] virtual StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, Info const &info) = 0;
+        [[nodiscard]] virtual StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info) = 0;
+        [[nodiscard]] virtual StateTransition on_end_element(XMLOutputQueue &out, Info const &info) = 0;
         virtual void move_to(BaseState *b) noexcept = 0;
 
         struct InheritedAttributeInfo {
@@ -30,8 +30,8 @@ namespace rdf4cpp::parser {
 
         static constexpr std::string_view base_attribute = "http://www.w3.org/XML/1998/namespacebase";
         static constexpr std::string_view lang_attribute = "http://www.w3.org/XML/1998/namespacelang";
-        static InheritedAttributeInfo get_inherited_attributes(ImplXML &impl, std::span<Attribute> attributes);
+        static InheritedAttributeInfo get_inherited_attributes(XMLOutputQueue &out, std::span<Attribute> attributes, Info const &info);
     };
-}
+}  // namespace rdf4cpp::parser
 
 #endif  //RDF4CPP_XMLPARSERBASESTATE_H
