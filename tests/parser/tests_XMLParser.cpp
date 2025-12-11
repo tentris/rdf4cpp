@@ -887,3 +887,153 @@ TEST_CASE("rdf xml negative tests") {
     }
     REQUIRE(expected_msg.empty());
 }
+
+void xml_test_positive(std::string xml_str, std::string nt_str, std::string_view base_iri) {
+    CAPTURE(base_iri);
+
+    IStreamQuadIterator::state_type state{};
+    CHECK(state.iri_factory.set_base(base_iri) == IRIFactoryError::Ok);
+    std::stringstream xml{std::move(xml_str)};
+    IStreamQuadIterator xml_iter{xml, ParsingFlag::RdfXml, &state};
+    std::vector<query::QuadPattern> xml_results;
+
+    std::stringstream nt{std::move(nt_str)};
+    IStreamQuadIterator nt_iter{nt, ParsingFlag::NTriples};
+    std::vector<query::QuadPattern> nt_results;
+
+    static constexpr auto read_iter_to = [](IStreamQuadIterator& i, std::vector<query::QuadPattern>& r) {
+        while (i != std::default_sentinel) {
+            if (!i->has_value()) {
+                FAIL(i->error().message);
+            }
+            r.emplace_back(i->value());
+            ++i;
+        }
+    };
+    read_iter_to(xml_iter, xml_results);
+    read_iter_to(nt_iter, nt_results);
+
+    REQUIRE(xml_results.size() == nt_results.size());
+
+    static constexpr auto num_blanks = [](const query::QuadPattern& p) {
+        size_t n = 0;
+        if (p.subject().is_blank_node()) {
+            ++n;
+        }
+        if (p.predicate().is_blank_node()) {
+            ++n;
+        }
+        if (p.object().is_blank_node()) {
+            ++n;
+        }
+        return n;
+    };
+    static constexpr auto sort = [](std::vector<query::QuadPattern>& v) {
+        std::sort(v.begin(), v.end(), [](const query::QuadPattern& a, const query::QuadPattern& b) {
+            auto a_bl = num_blanks(a);
+            auto b_bl = num_blanks(b);
+            if (a_bl != b_bl) {
+                return std::less{}(a_bl, b_bl);
+            }
+            if (a.subject() != b.subject()) {
+                return std::less{}(a.subject(), b.subject());
+            }
+            if (a.predicate() != b.predicate()) {
+                return std::less{}(a.predicate(), b.predicate());
+            }
+            return std::less{}(a.object(), b.object());
+        });
+    };
+    sort(xml_results);
+    sort(nt_results);
+
+    std::map<BlankNode, BlankNode> bn_map{};
+    auto check = [&bn_map](Node xml, Node nt) {
+        if (nt.is_blank_node() && xml.is_blank_node()) {
+            auto i = bn_map.find(nt.as_blank_node());
+            if (i != bn_map.end()) {
+                CHECK(xml.as_blank_node() == i->second.as_blank_node());
+            }
+            else {
+                bn_map[nt.as_blank_node()] = xml.as_blank_node();
+            }
+        }
+        else {
+            CHECK(xml == nt);
+        }
+    };
+
+    for (size_t i = 0; i < nt_results.size(); ++i) {
+        check(xml_results.at(i).subject(), nt_results.at(i).subject());
+        check(xml_results.at(i).predicate(), nt_results.at(i).predicate());
+        check(xml_results.at(i).object(), nt_results.at(i).object());
+    }
+}
+
+void xml_test_negative(std::string xml_str, std::string_view base_iri) {
+    CAPTURE(base_iri);
+
+
+    std::stringstream xml{std::move(xml_str)};
+    IStreamQuadIterator xml_iter{xml, ParsingFlag::RdfXml};
+
+    bool had_error = false;
+    while (xml_iter != std::default_sentinel) {
+        if (xml_iter->has_value()) {
+            ++xml_iter;
+            continue;
+        }
+        had_error = true;
+        ++xml_iter;
+    }
+    CHECK(had_error == true);
+}
+
+TEST_CASE("test xml tests") {
+    // TODO replace with tests by Nikos
+    // basic functionality
+    xml_test_positive(R"(<?xml version="1.0"?>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+
+<rdf:Description rdf:about="http://example/q?abc=1&#38;def=2">
+<rdf:value>xxx</rdf:value>
+</rdf:Description>
+
+</rdf:RDF>)", R"(<http://example/q?abc=1&def=2> <http://www.w3.org/1999/02/22-rdf-syntax-ns#value> "xxx" .)", "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/amp-in-url/test001.rdf");
+
+    xml_test_negative(R"(<?xml version="1.0"?>"
+    "<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+
+<rdf:Description rdf:ID='333-555-666' />
+
+</rdf:RDF>)", "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdfms-rdf-id/error001.rdf");
+
+    // check reordering & base
+    xml_test_positive(R"(<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:foo="http://foo/">
+
+  <foo:Bar>
+    <rdf:li rdf:ID="e1">1</rdf:li>
+    <rdf:li rdf:parseType="Literal">2</rdf:li>
+    <rdf:li rdf:parseType="Resource">
+      <rdf:type rdf:resource="http://foo/Bar"/>
+    </rdf:li>
+    <rdf:li rdf:ID="e4" foo:bar="foobar"/>
+  </foo:Bar>
+</rdf:RDF>)", R"(_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://foo/Bar> .
+_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> "1" .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> _:bar .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_1> .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf#e1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> "1" .
+_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#_2> "2"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral> .
+_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#_3> _:res .
+_:res <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://foo/Bar> .
+_:bar <http://www.w3.org/1999/02/22-rdf-syntax-ns#_4> _:res2 .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf#e4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf#e4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> _:bar .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf#e4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <http://www.w3.org/1999/02/22-rdf-syntax-ns#_4> .
+<https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf#e4> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> _:res2 .
+_:res2 <http://foo/bar> "foobar" .)", "https://w3c.github.io/rdf-tests/rdf/rdf11/rdf-xml/rdf-containers-syntax-vs-schema/test004.rdf");
+}
