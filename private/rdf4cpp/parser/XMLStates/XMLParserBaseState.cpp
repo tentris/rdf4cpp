@@ -1,7 +1,7 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
-namespace rdf4cpp::parser {
-    IStreamQuadIterator::ImplXML::BaseState::InheritedAttributeInfo IStreamQuadIterator::ImplXMLStateCollector::BaseState::get_inherited_attributes(XMLOutputQueue &out, std::span<Attribute> const attributes, Info const &info) {
+namespace rdf4cpp::parser::xml_states {
+    BaseState::InheritedAttributeInfo BaseState::get_inherited_attributes(XMLOutputQueue &out, std::span<XMLAttribute> const attributes, XMLStateInfo const &info) {
         InheritedAttributeInfo r{};
         for (auto const &a : attributes) {
             if (iri_equal_pieces(base_attribute, a.uri(), a.local_name())) {
@@ -15,4 +15,4 @@ namespace rdf4cpp::parser {
         }
         return r;
     }
-}  // namespace rdf4cpp::parser
+}  // namespace rdf4cpp::parser::xml_states

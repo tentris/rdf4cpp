@@ -1,14 +1,14 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
-namespace rdf4cpp::parser {
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::CollectionState::on_characters(XMLOutputQueue &out, std::string_view const chars, Info const &info) {
+namespace rdf4cpp::parser::xml_states {
+    StateTransition CollectionState::on_characters(XMLOutputQueue &out, std::string_view const chars, XMLStateInfo const &info) {
         if (!trim_left(chars).empty()) {
             out.add_error(ParsingError::Type::BadSyntax, "expected element, found characters", info);
         }
         return {};
     }
 
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::CollectionState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<Attribute> const attributes, Info const &info) {
+    StateTransition CollectionState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<XMLAttribute> const attributes, XMLStateInfo const &info) {
         auto [transition, obj] = DescriptionState::enter(out, local_name, uri, attributes, info);
         if (first) {
             first = false;
@@ -23,7 +23,7 @@ namespace rdf4cpp::parser {
         return transition;
     }
 
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::CollectionState::on_end_element(XMLOutputQueue &out, [[maybe_unused]] Info const &info) {
+    StateTransition CollectionState::on_end_element(XMLOutputQueue &out, [[maybe_unused]] XMLStateInfo const &info) {
         auto const nil = out.make_hardcoded_iri(iri_nil);
         if (first) {
             out.add_statement(subject, predicate, nil, reify);
@@ -32,7 +32,7 @@ namespace rdf4cpp::parser {
         }
         return StateTransition{std::in_place_type_t<PopState>{}};
     }
-    void IStreamQuadIterator::ImplXMLStateCollector::CollectionState::move_to(BaseState *b) noexcept {
+    void CollectionState::move_to(BaseState *b) noexcept {
         new (b) CollectionState(std::move(*this));
     }
-}  // namespace rdf4cpp::parser
+}  // namespace rdf4cpp::parser::xml_states

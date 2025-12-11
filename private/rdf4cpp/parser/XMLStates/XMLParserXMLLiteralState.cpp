@@ -1,18 +1,18 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
-namespace rdf4cpp::parser {
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::on_characters([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] std::string_view chars, Info const &info) {
+namespace rdf4cpp::parser::xml_states {
+    StateTransition XMLLiteralState::on_characters([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] std::string_view chars, XMLStateInfo const &info) {
         source_input(info);
         return {};
     }
 
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::on_start_element([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<Attribute> attributes, Info const &info) {
+    StateTransition XMLLiteralState::on_start_element([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<XMLAttribute> attributes, XMLStateInfo const &info) {
         ++depth;
         source_input(info);
         return {};
     }
 
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::on_end_element(XMLOutputQueue &out, Info const &info) {
+    StateTransition XMLLiteralState::on_end_element(XMLOutputQueue &out, XMLStateInfo const &info) {
         if (depth > 0) {
             --depth;
             source_input(info);
@@ -32,11 +32,11 @@ namespace rdf4cpp::parser {
         out.add_statement(subject, predicate, lit, reify);
         return StateTransition{std::in_place_type_t<PopState>{}};
     }
-    void IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::move_to(BaseState *b) noexcept {
+    void XMLLiteralState::move_to(BaseState *b) noexcept {
         new (b) XMLLiteralState(std::move(*this));
     }
 
-    void IStreamQuadIterator::ImplXMLStateCollector::XMLLiteralState::source_input(Info const &info) {
+    void XMLLiteralState::source_input(XMLStateInfo const &info) {
         int const off = info.source_offset;
         std::string_view const sv = info.source;
         if (literal.empty()) {
@@ -48,4 +48,4 @@ namespace rdf4cpp::parser {
         }
         last_offset = static_cast<size_t>(off) + last_size;
     }
-}  // namespace rdf4cpp::parser
+}  // namespace rdf4cpp::parser::xml_states

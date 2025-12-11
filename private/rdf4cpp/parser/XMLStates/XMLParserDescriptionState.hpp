@@ -1,19 +1,19 @@
 #ifndef RDF4CPP_XMLPARSERDESCRIPTIONSTATE_H
 #define RDF4CPP_XMLPARSERDESCRIPTIONSTATE_H
 
-#include <rdf4cpp/parser/XMLParserStateCollector.hpp>
+#include <rdf4cpp/parser/XMLParserUtility.hpp>
 #include <rdf4cpp/parser/XMLStates/XMLParserBaseState.hpp>
 
-namespace rdf4cpp::parser {
+namespace rdf4cpp::parser::xml_states {
     /**
      * state for https://www.w3.org/TR/rdf11-xml/#nodeElementList and https://www.w3.org/TR/rdf11-xml/#nodeElement
      * on_start_element checks and dispatches for the different options in https://www.w3.org/TR/rdf11-xml/#propertyEltList
      * (https://www.w3.org/TR/rdf11-xml/#parseTypeResourcePropertyElt has no own state, instead gets handled directly by on_start_element)
      */
-    struct IStreamQuadIterator::ImplXMLStateCollector::DescriptionState final : BaseState {
-        StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, Info const &info) override;
-        StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info) override;
-        StateTransition on_end_element(XMLOutputQueue &out, Info const &info) override;
+    struct DescriptionState final : BaseState {
+        StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, XMLStateInfo const &info) override;
+        StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<XMLAttribute> attributes, XMLStateInfo const &info) override;
+        StateTransition on_end_element(XMLOutputQueue &out, XMLStateInfo const &info) override;
         void move_to(BaseState *b) noexcept override;
 
         Node subject;
@@ -23,7 +23,7 @@ namespace rdf4cpp::parser {
             : BaseState(i), subject(sub) {
         }
 
-        static std::pair<StateTransition, Node> enter(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info);
+        static std::pair<StateTransition, Node> enter(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<XMLAttribute> attributes, XMLStateInfo const &info);
 
         static constexpr std::string_view start_element = "http://www.w3.org/1999/02/22-rdf-syntax-ns#Description";
         static constexpr std::string_view about_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#about";
@@ -31,6 +31,6 @@ namespace rdf4cpp::parser {
         static constexpr std::string_view node_id_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nodeID";
         static constexpr std::string_view type_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
     };
-}
+}  // namespace rdf4cpp::parser::xml_states
 
 #endif  //RDF4CPP_XMLPARSERDESCRIPTIONSTATE_H

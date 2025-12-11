@@ -1,16 +1,16 @@
 #ifndef RDF4CPP_XMLPARSERTYPEDLITERALPREDICATESTATE_H
 #define RDF4CPP_XMLPARSERTYPEDLITERALPREDICATESTATE_H
 
-#include <rdf4cpp/parser/XMLParserStateCollector.hpp>
+#include <rdf4cpp/parser/XMLParserUtility.hpp>
 #include <rdf4cpp/parser/XMLStates/XMLParserPredicateState.hpp>
 
-namespace rdf4cpp::parser {
+namespace rdf4cpp::parser::xml_states {
     /**
      * state for https://www.w3.org/TR/rdf11-xml/#literalPropertyElt (with datatype attribute)
      */
-    struct IStreamQuadIterator::ImplXMLStateCollector::TypedLiteralPredicateState final : PredicateState {
-        StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info) override;
-        StateTransition on_end_element(XMLOutputQueue &out, Info const &info) override;
+    struct TypedLiteralPredicateState final : PredicateState {
+        StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<XMLAttribute> attributes, XMLStateInfo const &info) override;
+        StateTransition on_end_element(XMLOutputQueue &out, XMLStateInfo const &info) override;
         void move_to(BaseState *b) noexcept override;
 
         IRI datatype;
@@ -21,6 +21,6 @@ namespace rdf4cpp::parser {
 
         static constexpr std::string_view datatype_attrib = "http://www.w3.org/1999/02/22-rdf-syntax-ns#datatype";
     };
-}
+}  // namespace rdf4cpp::parser::xml_states
 
 #endif  //RDF4CPP_XMLPARSERTYPEDLITERALPREDICATESTATE_H

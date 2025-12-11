@@ -1,14 +1,14 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
-namespace rdf4cpp::parser {
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::DescriptionState::on_characters(XMLOutputQueue &out, std::string_view const chars, Info const &info) {
+namespace rdf4cpp::parser::xml_states {
+    StateTransition DescriptionState::on_characters(XMLOutputQueue &out, std::string_view const chars, XMLStateInfo const &info) {
         if (!trim_left(chars).empty()) {
             out.add_error(ParsingError::Type::BadSyntax, "expected predicate, found characters", info);
         }
         return {};
     }
 
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::DescriptionState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<Attribute> attributes, Info const &info) {
+    StateTransition DescriptionState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<XMLAttribute> attributes, XMLStateInfo const &info) {
         auto const inherited_attribute_info = get_inherited_attributes(out, attributes, info);
         IRI predicate;
         if (iri_equal_pieces(PredicateState::list_start_element, uri, local_name)) {
@@ -78,13 +78,13 @@ namespace rdf4cpp::parser {
         }
     }
 
-    IStreamQuadIterator::ImplXMLStateCollector::StateTransition IStreamQuadIterator::ImplXMLStateCollector::DescriptionState::on_end_element([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] Info const &info) {
+    StateTransition DescriptionState::on_end_element([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] XMLStateInfo const &info) {
         return StateTransition{std::in_place_type_t<PopState>{}};
     }
-    void IStreamQuadIterator::ImplXMLStateCollector::DescriptionState::move_to(BaseState *b) noexcept {
+    void DescriptionState::move_to(BaseState *b) noexcept {
         new (b) DescriptionState(std::move(*this));
     }
-    std::pair<IStreamQuadIterator::ImplXMLStateCollector::StateTransition, Node> IStreamQuadIterator::ImplXMLStateCollector::DescriptionState::enter(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<Attribute> attributes, Info const &info) {
+    std::pair<StateTransition, Node> DescriptionState::enter(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<XMLAttribute> attributes, XMLStateInfo const &info) {
         auto const inherited_attribute_info = get_inherited_attributes(out, attributes, info);
         Node sub = Node::make_null();
         auto check_only_one = [&sub, &out, &info]() {
@@ -139,4 +139,4 @@ namespace rdf4cpp::parser {
                 sub,
         };
     }
-}  // namespace rdf4cpp::parser
+}  // namespace rdf4cpp::parser::xml_states

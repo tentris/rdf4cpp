@@ -16,7 +16,7 @@
 
 #include <dice/template-library/inplace_polymorphic.hpp>
 
-#include <rdf4cpp/parser/XMLParserStateCollector.hpp>
+#include <rdf4cpp/parser/XMLParserUtility.hpp>
 
 #include <rdf4cpp/parser/XMLStates/XMLParserBaseState.hpp>
 
@@ -37,7 +37,7 @@
 #include <rdf4cpp/parser/XMLStates/XMLParserEmptyElement.hpp>
 
 namespace rdf4cpp::parser {
-    struct IStreamQuadIterator::ImplXML final : ImplXMLStateCollector {
+    struct IStreamQuadIterator::ImplXML final : Impl {
     private:
         xmlSAXHandler handler_;
         // workaround for gcc-14 bug, erroneously warns on unsing a lambda here
@@ -54,8 +54,12 @@ namespace rdf4cpp::parser {
         EOFFunc eof_func_;
         XMLOutputQueue output_;
 
-        BaseState *current_state_ = nullptr;
-        std::vector<dice::template_library::inplace_polymorphic<BaseState, InitialState, RDFState, DescriptionState, PredicateState, TypedLiteralPredicateState, EmptyElement, XMLLiteralState, CollectionState>> state_stack_;
+        xml_states::BaseState *current_state_ = nullptr;
+        std::vector<dice::template_library::inplace_polymorphic<xml_states::BaseState, xml_states::InitialState, xml_states::RDFState,
+                                                                xml_states::DescriptionState, xml_states::PredicateState,
+                                                                xml_states::TypedLiteralPredicateState, xml_states::EmptyElement,
+                                                                xml_states::XMLLiteralState, xml_states::CollectionState>>
+                state_stack_;
 
         static xmlSAXHandler make_sax_handler();
 
@@ -65,7 +69,7 @@ namespace rdf4cpp::parser {
 
         static void on_error(void *th, char const *msg, ...);
 
-        [[nodiscard]] Info make_info() const;
+        [[nodiscard]] XMLStateInfo make_info() const;
 
     public:
         ImplXML(void *obj, ReadFunc read, ErrorFunc err, EOFFunc eof, state_type *state);
@@ -82,8 +86,10 @@ namespace rdf4cpp::parser {
         [[nodiscard]] uint64_t current_column() const noexcept override;
     };
 
-    struct IStreamQuadIterator::ImplXMLStateCollector::StateTransition {
-        using ModifyStateStack = std::variant<NoStateChange, PopState, RDFState, DescriptionState, PredicateState, TypedLiteralPredicateState, XMLLiteralState, CollectionState, EmptyElement>;
+    struct StateTransition {
+        using ModifyStateStack = std::variant<NoStateChange, PopState, xml_states::RDFState, xml_states::DescriptionState,
+                                              xml_states::PredicateState, xml_states::TypedLiteralPredicateState, xml_states::XMLLiteralState,
+                                              xml_states::CollectionState, xml_states::EmptyElement>;
 
         ModifyStateStack modify_state;
 

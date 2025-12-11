@@ -22,7 +22,7 @@ namespace rdf4cpp::parser {
                               int const n_attributes, [[maybe_unused]] int n_defaulted, xmlChar const **attributes) {
             auto *t = static_cast<ImplXML *>(th);
             t->handle_state_transition(t->current_state_->on_start_element(t->output_, from_xml_char(local_name), from_xml_char(uri),
-                                                                           std::span{reinterpret_cast<Attribute *>(attributes), static_cast<size_t>(n_attributes)}, t->make_info()));
+                                                                           std::span{reinterpret_cast<XMLAttribute *>(attributes), static_cast<size_t>(n_attributes)}, t->make_info()));
         };
         r.endElementNs = [](void *th, [[maybe_unused]] xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, [[maybe_unused]] xmlChar const *uri) {
             auto *t = static_cast<ImplXML *>(th);
@@ -61,17 +61,17 @@ namespace rdf4cpp::parser {
     }
 
     // implemented here, to have access to states
-    bool IStreamQuadIterator::ImplXMLStateCollector::iri_reserved(std::string_view const uri, std::string_view const local_name) {
+    bool iri_reserved(std::string_view const uri, std::string_view const local_name) {
         static constexpr std::array reserved = {
-                RDFState::start_element,
-                DescriptionState::id_attrib,
-                DescriptionState::about_attrib,
-                PredicateState::parse_type_attrib,
-                PredicateState::resource_attrib,
-                DescriptionState::node_id_attrib,
-                TypedLiteralPredicateState::datatype_attrib,
-                BaseState::base_attribute,
-                BaseState::lang_attribute,
+                xml_states::RDFState::start_element,
+                xml_states::DescriptionState::id_attrib,
+                xml_states::DescriptionState::about_attrib,
+                xml_states::PredicateState::parse_type_attrib,
+                xml_states::PredicateState::resource_attrib,
+                xml_states::DescriptionState::node_id_attrib,
+                xml_states::TypedLiteralPredicateState::datatype_attrib,
+                xml_states::BaseState::base_attribute,
+                xml_states::BaseState::lang_attribute,
                 std::string_view("http://www.w3.org/1999/02/22-rdf-syntax-ns#aboutEach"),
                 std::string_view("http://www.w3.org/1999/02/22-rdf-syntax-ns#aboutEachPrefix"),
                 std::string_view("http://www.w3.org/1999/02/22-rdf-syntax-ns#bagID"),
@@ -97,7 +97,7 @@ namespace rdf4cpp::parser {
         va_end(args);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
     }
 
-    IStreamQuadIterator::ImplXMLStateCollector::Info IStreamQuadIterator::ImplXML::make_info() const {
+    XMLStateInfo IStreamQuadIterator::ImplXML::make_info() const {
         std::string_view base = "";
         for (auto const &s : state_stack_ | std::ranges::views::reverse) {
             std::string_view const v = s.get().base;
@@ -122,7 +122,7 @@ namespace rdf4cpp::parser {
         xmlCtxtGetInputWindow(context_.get(), 0, &data, &size, &off);
         std::string_view const source{reinterpret_cast<char const *>(data), static_cast<size_t>(size)};
 
-        return Info{
+        return XMLStateInfo{
                 static_cast<uint64_t>(xmlSAX2GetLineNumber(context_.get())),
                 static_cast<uint64_t>(xmlSAX2GetColumnNumber(context_.get())),
                 base,
@@ -139,7 +139,7 @@ namespace rdf4cpp::parser {
           output_(state) {
         xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.reserve(10);
-        state_stack_.emplace_back(std::in_place_type_t<InitialState>{});
+        state_stack_.emplace_back(std::in_place_type_t<xml_states::InitialState>{});
         update_current_state();
 
         current_state_->base = output_.current_base_iri();

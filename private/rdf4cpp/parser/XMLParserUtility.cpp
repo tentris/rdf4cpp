@@ -1,25 +1,25 @@
-#include <rdf4cpp/parser/XMLParserStateCollector.hpp>
+#include <rdf4cpp/parser/XMLParserUtility.hpp>
 
 
 namespace rdf4cpp::parser {
-    IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::XMLOutputQueue(state_type *state) : state_(state) {
+    XMLOutputQueue::XMLOutputQueue(state_type *state) : state_(state) {
         if (state_ == nullptr) {
             state_ = new state_type();
             state_is_owned_ = true;
         }
     }
 
-    IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::~XMLOutputQueue() {
+    XMLOutputQueue::~XMLOutputQueue() {
         if (state_is_owned_) {
             delete state_;
         }
     }
 
-    bool IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::empty() const {
+    bool XMLOutputQueue::empty() const {
         return result_queue_.empty();
     }
 
-    std::optional<IStreamQuadIterator::value_type> IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::next() {
+    std::optional<IStreamQuadIterator::value_type> XMLOutputQueue::next() {
         if (result_queue_.empty()) {
             return std::nullopt;
         }
@@ -28,15 +28,15 @@ namespace rdf4cpp::parser {
         return r;
     }
 
-    std::string_view IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::current_base_iri() const {
+    std::string_view XMLOutputQueue::current_base_iri() const {
         return state_->iri_factory.get_base();
     }
 
-    void IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::add_error(ParsingError::Type ty, std::string msg, Info const &i) {
+    void XMLOutputQueue::add_error(ParsingError::Type ty, std::string msg, XMLStateInfo const &i) {
         result_queue_.emplace_back(nonstd::unexpect, ty, i.line, i.column, std::move(msg));
     }
 
-    void IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::add_statement(Node subject, IRI predicate, Node object, IRI reify) {
+    void XMLOutputQueue::add_statement(Node subject, IRI predicate, Node object, IRI reify) {
         if (subject.null() || predicate.null() || object.null()) {
             return;
         }
@@ -49,16 +49,16 @@ namespace rdf4cpp::parser {
         }
     }
 
-    IRI IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::make_hardcoded_iri(std::string_view const iri) const {
+    IRI XMLOutputQueue::make_hardcoded_iri(std::string_view const iri) const {
         return IRI::make_unchecked(iri, state_->node_storage);
     }
 
-    IRI IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::make_type_iri() const {
+    IRI XMLOutputQueue::make_type_iri() const {
         return IRI::rdf_type(state_->node_storage);
     }
 
     template<typename NT>
-    NT IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::inspect_node(NT node, Info const &i) {
+    NT XMLOutputQueue::inspect_node(NT node, XMLStateInfo const &i) {
         try {
             state_->inspect_node_func(node);
             return node;
@@ -70,7 +70,7 @@ namespace rdf4cpp::parser {
         return NT::make_null();
     }
 
-    IRI IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::make_iri(std::string_view const iri, std::string_view const base, Info const &i) {
+    IRI XMLOutputQueue::make_iri(std::string_view const iri, std::string_view const base, XMLStateInfo const &i) {
         if (base.empty()) {
             state_->iri_factory.set_base_unchecked(i.base);
         } else {
@@ -85,13 +85,13 @@ namespace rdf4cpp::parser {
         }
     }
 
-    IRI IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::make_iri(std::string_view const uri, std::string_view const local_name, std::string_view const base, Info const &i) {
+    IRI XMLOutputQueue::make_iri(std::string_view const uri, std::string_view const local_name, std::string_view const base, XMLStateInfo const &i) {
         std::string iri{uri};
         iri.append(local_name);
         return make_iri(iri, base, i);
     }
 
-    IRI IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::make_id(std::string_view const local_name, std::string_view const base, Info const &i) {
+    IRI XMLOutputQueue::make_id(std::string_view const local_name, std::string_view const base, XMLStateInfo const &i) {
         std::string local = "#";
         local.append(local_name);
         auto iri = make_iri(local, base, i);
@@ -103,7 +103,7 @@ namespace rdf4cpp::parser {
         return iri;
     }
 
-    Node IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::make_bn(std::optional<std::string_view> name, Info const &i) {
+    Node XMLOutputQueue::make_bn(std::optional<std::string_view> name, XMLStateInfo const &i) {
         std::string n = "";
         if (!name.has_value()) {
             n = std::format("bn_{}", next_bn_index_++);
@@ -124,7 +124,7 @@ namespace rdf4cpp::parser {
         }
     }
 
-    Literal IStreamQuadIterator::ImplXMLStateCollector::XMLOutputQueue::make_literal(std::string_view value, std::optional<IRI> datatype, std::optional<std::string_view> lang_tag, Info const &i) {
+    Literal XMLOutputQueue::make_literal(std::string_view value, std::optional<IRI> datatype, std::optional<std::string_view> lang_tag, XMLStateInfo const &i) {
         Literal l = Literal::make_null();
         try {
             if (datatype.has_value()) {
@@ -147,7 +147,7 @@ namespace rdf4cpp::parser {
         return inspect_node(l, i);
     }
 
-    std::string_view IStreamQuadIterator::ImplXMLStateCollector::trim_left(std::string_view v) {
+    std::string_view trim_left(std::string_view v) {
         auto s = v.find_first_not_of(" \t\r\n");
         if (s == std::string_view::npos) {
             return "";
@@ -157,7 +157,7 @@ namespace rdf4cpp::parser {
         return v;
     }
 
-    bool IStreamQuadIterator::ImplXMLStateCollector::iri_equal_pieces(std::string_view const full_iri, std::string_view const uri, std::string_view const local_name) {
+    bool iri_equal_pieces(std::string_view const full_iri, std::string_view const uri, std::string_view const local_name) {
         if (full_iri.size() != local_name.size() + uri.size()) {
             return false;
         }
