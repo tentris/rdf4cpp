@@ -15,49 +15,36 @@ namespace rdf4cpp::parser {
         };
         r.characters = [](void *th, xmlChar const *e, int const len) {
             auto *t = static_cast<ImplXML *>(th);
-            t->handle_state_transition(t->current_state_->on_characters(t->output_, from_xml_char(e, len), t->make_info()));
+            t->handle_state_transition(t->current_state().on_characters(t->output_, from_xml_char(e, len), t->make_info()));
         };
         r.startElementNs = [](void *th, xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, xmlChar const *uri,
                               [[maybe_unused]] int n_namespaces, [[maybe_unused]] xmlChar const **namespaces,
                               int const n_attributes, [[maybe_unused]] int n_defaulted, xmlChar const **attributes) {
             auto *t = static_cast<ImplXML *>(th);
-            t->handle_state_transition(t->current_state_->on_start_element(t->output_, from_xml_char(local_name), from_xml_char(uri),
+            t->handle_state_transition(t->current_state().on_start_element(t->output_, from_xml_char(local_name), from_xml_char(uri),
                                                                            std::span{reinterpret_cast<XMLAttribute *>(attributes), static_cast<size_t>(n_attributes)}, t->make_info()));
         };
         r.endElementNs = [](void *th, [[maybe_unused]] xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, [[maybe_unused]] xmlChar const *uri) {
             auto *t = static_cast<ImplXML *>(th);
-            t->handle_state_transition(t->current_state_->on_end_element(t->output_, t->make_info()));
+            t->handle_state_transition(t->current_state().on_end_element(t->output_, t->make_info()));
         };
         r.warning = on_error;
         r.error = on_error;
         return r;
     }
+
     void IStreamQuadIterator::ImplXML::handle_state_transition(StateTransition transition) {
-        std::visit([&]<typename T>(T &&s) {
-            if constexpr (std::same_as<T, NoStateChange>) {
-                return;
-            } else if constexpr (std::same_as<T, PopState>) {
-                pop_state();
-            } else {
-                state_stack_.emplace_back(std::in_place_type_t<T>{}, std::forward<T>(s));
-                update_current_state();
+        dice::template_library::match(std::move(transition.modify_state),
+            [](NoStateChange) {
+                // noop
+            },
+            [this](PopState) {
+                state_stack_.pop_back();
+            },
+            [this]<typename S>(S &&new_state) {
+                state_stack_.emplace_back(std::in_place_type<S>, std::forward<S>(new_state));
             }
-        },
-                   std::move(transition.modify_state));
-    }
-
-    void IStreamQuadIterator::ImplXML::update_current_state() {
-        if (state_stack_.empty()) {
-            current_state_ = nullptr;
-            return;
-        }
-        current_state_ = &state_stack_.back().get();
-    }
-
-    void IStreamQuadIterator::ImplXML::pop_state() {
-        assert(!state_stack_.empty());
-        state_stack_.pop_back();
-        update_current_state();
+        );
     }
 
     // implemented here, to have access to states
@@ -140,11 +127,8 @@ namespace rdf4cpp::parser {
         xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.reserve(10);
         state_stack_.emplace_back(std::in_place_type_t<xml_states::InitialState>{});
-        update_current_state();
 
-        current_state_->base = output_.current_base_iri();
-    }
-    IStreamQuadIterator::ImplXML::~ImplXML() {  // NOLINT(*-use-equals-default)
+        current_state().base = output_.current_base_iri();
     }
 
     std::optional<IStreamQuadIterator::value_type> IStreamQuadIterator::ImplXML::next() {
