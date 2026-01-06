@@ -26,7 +26,7 @@ find_package(dice-template-library REQUIRED)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/rdf4cpp/version.hpp)
 
-set(serd_rev 15c042d29a030c78a3cc3bdf1feef98315df5208)
+set(serd_rev 44ed1719e80ef4cc833d1f7d8087fb506f9a55bf)
 set(serd_source_files
         include/serd/serd.h
         src/attributes.h
