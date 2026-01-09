@@ -1,5 +1,7 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
+#include <rdf4cpp/parser/XMLParserStateTransition.hpp>
+
 namespace rdf4cpp::parser::xml_states {
     StateTransition DescriptionState::on_characters(XMLOutputQueue &out, std::string_view const chars, XMLStateInfo const &info) {
         if (!trim_left(chars).empty()) {
@@ -64,7 +66,8 @@ namespace rdf4cpp::parser::xml_states {
             return StateTransition(std::in_place_type_t<TypedLiteralPredicateState>{}, inherited_attribute_info, subject, predicate, reify, *datatype);
         } else if (sub.has_value()) {
             out.add_statement(subject, predicate, *sub, reify);
-            return StateTransition(std::in_place_type_t<EmptyElement>{});
+            return StateTransition(std::in_place_type_t<EmptyElement>{}); // predicate is expected to be empty, object defined as attribute
+            // example: https://www.w3.org/2013/RDFXMLTests/rdfms-empty-property-elements/test013.rdf
         } else if (parse_resource) {
             Node const obj = out.make_bn(std::nullopt, info);
             out.add_statement(subject, predicate, obj, reify);

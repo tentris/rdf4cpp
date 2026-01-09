@@ -6,6 +6,15 @@
 namespace rdf4cpp::parser::xml_states {
     /**
      * state for https://www.w3.org/TR/rdf11-xml/#parseTypeCollectionPropertyElt
+     *
+     * example:
+     * <rdf:Description>
+     *  <ex:parseTypeCollectionPropertyElt rdf:parseType="Collection">
+     *    <rdf:Description>...</rdf:Description>
+     *    <rdf:Description>...</rdf:Description>
+     *    <rdf:Description>...</rdf:Description>
+     *  </ex:parseTypeCollectionPropertyElt>
+     * </rdf:Description>
      */
     struct CollectionState final : BaseState {
         StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, XMLStateInfo const &info) override;

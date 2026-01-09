@@ -68,6 +68,12 @@ namespace rdf4cpp::parser {
         void pop_state();
 
         static void on_error(void *th, char const *msg, ...);
+        static xmlEntity *get_entity(void *th, xmlChar const *e);
+        static void on_characters(void *th, xmlChar const *e, int len);
+        static void on_start_element(void *th, xmlChar const *local_name, xmlChar const *prefix, xmlChar const *uri,
+                                     int n_namespaces, xmlChar const **namespaces,
+                                     int n_attributes, int n_defaulted, xmlChar const **attributes);
+        static void on_end_element(void *th, xmlChar const *local_name, xmlChar const *prefix, xmlChar const *uri);
 
         [[nodiscard]] XMLStateInfo make_info() const;
 
@@ -84,21 +90,6 @@ namespace rdf4cpp::parser {
 
         [[nodiscard]] uint64_t current_line() const noexcept override;
         [[nodiscard]] uint64_t current_column() const noexcept override;
-    };
-
-    struct StateTransition {
-        using ModifyStateStack = std::variant<NoStateChange, PopState, xml_states::RDFState, xml_states::DescriptionState,
-                                              xml_states::PredicateState, xml_states::TypedLiteralPredicateState, xml_states::XMLLiteralState,
-                                              xml_states::CollectionState, xml_states::EmptyElement>;
-
-        ModifyStateStack modify_state;
-
-        template<typename... T>
-        explicit StateTransition(T &&...a) : modify_state(std::forward<T>(a)...) {
-        }
-
-        StateTransition() : StateTransition(std::in_place_type_t<NoStateChange>{}) {
-        }
     };
 }  // namespace rdf4cpp::parser
 

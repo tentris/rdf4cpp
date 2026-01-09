@@ -7,6 +7,11 @@
 namespace rdf4cpp::parser::xml_states {
     /**
      * state for https://www.w3.org/TR/rdf11-xml/#RDF
+     *
+     * example:
+     * <rdf:RDF>
+     *  ...
+     * </rdf:RDF>
      */
     struct RDFState final : BaseState {
         StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, XMLStateInfo const &info) override;

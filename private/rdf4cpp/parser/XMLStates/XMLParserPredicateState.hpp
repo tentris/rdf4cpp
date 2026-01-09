@@ -9,6 +9,17 @@ namespace rdf4cpp::parser::xml_states {
      * state for https://www.w3.org/TR/rdf11-xml/#resourcePropertyElt (nested nodeElement / DescriptionState
      * and https://www.w3.org/TR/rdf11-xml/#literalPropertyElt (literal with no datatype attribute)
      * and https://www.w3.org/TR/rdf11-xml/#emptyPropertyElt (with no attributes (empty literal))
+     *
+     * example:
+     * <rdf:Description>
+     *  <ex:resourcePropertyElt>
+     *    <rdf:Description>
+     *      ...
+     *    </rdf:Description>
+     *  </ex:resourcePropertyElt>
+     *  <ex:literalPropertyElt>foo</ex:literalPropertyElt>
+     *  <ex:emptyPropertyElt/>
+     * </rdf:Description>
      */
     struct PredicateState : BaseState {
         StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, XMLStateInfo const &info) override;

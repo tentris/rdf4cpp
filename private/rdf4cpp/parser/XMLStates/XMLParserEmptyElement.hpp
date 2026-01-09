@@ -6,6 +6,11 @@
 namespace rdf4cpp::parser::xml_states {
     /**
      * state for https://www.w3.org/TR/rdf11-xml/#emptyPropertyElt (if attributes are present)
+     *
+     * example:
+     * <rdf:Description>
+     *  <ex:emptyPropertyElt rdf:nodeID="bn" ex:property="foo"/>
+     * </rdf:Description>
      */
     struct EmptyElement final : BaseState {
         StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, XMLStateInfo const &info) override;

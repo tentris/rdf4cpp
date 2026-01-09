@@ -7,6 +7,11 @@
 namespace rdf4cpp::parser::xml_states {
     /**
      * state for https://www.w3.org/TR/rdf11-xml/#literalPropertyElt (with datatype attribute)
+     *
+     * example:
+     * <rdf:Description>
+     *  <ex:literalPropertyElt rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">10</ex:literalPropertyElt>
+     * </rdf:Description>
      */
     struct TypedLiteralPredicateState final : PredicateState {
         StateTransition on_start_element(XMLOutputQueue &out, std::string_view local_name, std::string_view uri, std::span<XMLAttribute> attributes, XMLStateInfo const &info) override;

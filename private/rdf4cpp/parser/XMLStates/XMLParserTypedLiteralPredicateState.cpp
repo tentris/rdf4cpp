@@ -1,5 +1,7 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
+#include <rdf4cpp/parser/XMLParserStateTransition.hpp>
+
 namespace rdf4cpp::parser::xml_states {
     StateTransition TypedLiteralPredicateState::on_start_element(XMLOutputQueue &out, [[maybe_unused]] std::string_view local_name, [[maybe_unused]] std::string_view uri, [[maybe_unused]] std::span<XMLAttribute> attributes, XMLStateInfo const &info) {
         out.add_error(ParsingError::Type::BadSyntax, "expected literal, found element", info);

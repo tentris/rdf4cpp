@@ -1,5 +1,7 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
+#include <rdf4cpp/parser/XMLParserStateTransition.hpp>
+
 namespace rdf4cpp::parser::xml_states {
     StateTransition RDFState::on_characters(XMLOutputQueue &out, std::string_view const chars, XMLStateInfo const &info) {
         if (!trim_left(chars).empty()) {

@@ -1,5 +1,7 @@
 #include <rdf4cpp/parser/XMLParser.hpp>
 
+#include <rdf4cpp/parser/XMLParserStateTransition.hpp>
+
 #include <ranges>
 
 namespace rdf4cpp::parser {
@@ -7,27 +9,11 @@ namespace rdf4cpp::parser {
         xmlSAXHandler r{};
         std::memset(&r, 0, sizeof(xmlSAXHandler));
         r.initialized = XML_SAX2_MAGIC;
-        r.getParameterEntity = [](void *, xmlChar const *e) {
-            return xmlGetPredefinedEntity(e);
-        };
-        r.getEntity = [](void *, xmlChar const *e) {
-            return xmlGetPredefinedEntity(e);
-        };
-        r.characters = [](void *th, xmlChar const *e, int const len) {
-            auto *t = static_cast<ImplXML *>(th);
-            t->handle_state_transition(t->current_state_->on_characters(t->output_, from_xml_char(e, len), t->make_info()));
-        };
-        r.startElementNs = [](void *th, xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, xmlChar const *uri,
-                              [[maybe_unused]] int n_namespaces, [[maybe_unused]] xmlChar const **namespaces,
-                              int const n_attributes, [[maybe_unused]] int n_defaulted, xmlChar const **attributes) {
-            auto *t = static_cast<ImplXML *>(th);
-            t->handle_state_transition(t->current_state_->on_start_element(t->output_, from_xml_char(local_name), from_xml_char(uri),
-                                                                           std::span{reinterpret_cast<XMLAttribute *>(attributes), static_cast<size_t>(n_attributes)}, t->make_info()));
-        };
-        r.endElementNs = [](void *th, [[maybe_unused]] xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, [[maybe_unused]] xmlChar const *uri) {
-            auto *t = static_cast<ImplXML *>(th);
-            t->handle_state_transition(t->current_state_->on_end_element(t->output_, t->make_info()));
-        };
+        r.getParameterEntity = get_entity;
+        r.getEntity = get_entity;
+        r.characters = on_characters;
+        r.startElementNs = on_start_element;
+        r.endElementNs = on_end_element;
         r.warning = on_error;
         r.error = on_error;
         return r;
@@ -96,11 +82,29 @@ namespace rdf4cpp::parser {
         t->output_.add_error(ParsingError::Type::BadSyntax, std::move(out), t->make_info());
         va_end(args);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
     }
+    xmlEntity *IStreamQuadIterator::ImplXML::get_entity(void *, xmlChar const *e) {
+        return xmlGetPredefinedEntity(e);
+    }
+    void IStreamQuadIterator::ImplXML::on_characters(void *th, xmlChar const *e, int const len) {
+        auto *t = static_cast<ImplXML *>(th);
+        t->handle_state_transition(t->current_state_->on_characters(t->output_, from_xml_char(e, len), t->make_info()));
+    }
+    void IStreamQuadIterator::ImplXML::on_start_element(void *th, xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, xmlChar const *uri,
+                                                        [[maybe_unused]] int n_namespaces, [[maybe_unused]] xmlChar const **namespaces,
+                                                        int const n_attributes, [[maybe_unused]] int n_defaulted, xmlChar const **attributes) {
+        auto *t = static_cast<ImplXML *>(th);
+        t->handle_state_transition(t->current_state_->on_start_element(t->output_, from_xml_char(local_name), from_xml_char(uri),
+                                                                       std::span{reinterpret_cast<XMLAttribute *>(attributes), static_cast<size_t>(n_attributes)}, t->make_info()));
+    }
+    void IStreamQuadIterator::ImplXML::on_end_element(void *th, [[maybe_unused]] xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, [[maybe_unused]] xmlChar const *uri) {
+        auto *t = static_cast<ImplXML *>(th);
+        t->handle_state_transition(t->current_state_->on_end_element(t->output_, t->make_info()));
+    }
 
     XMLStateInfo IStreamQuadIterator::ImplXML::make_info() const {
         std::string_view base = "";
-        for (auto const &s : state_stack_ | std::ranges::views::reverse) {
-            std::string_view const v = s.get().base;
+        for (auto const &s : state_stack_ | std::views::reverse) {
+            std::string_view const v = s->base;
             if (!v.empty()) {
                 base = v;
                 break;
@@ -108,8 +112,8 @@ namespace rdf4cpp::parser {
         }
 
         std::string_view lang_tag = "";
-        for (auto const &s : state_stack_ | std::ranges::views::reverse) {
-            std::string_view const v = s.get().lang_tag;
+        for (auto const &s : state_stack_ | std::views::reverse) {
+            std::string_view const v = s->lang_tag;
             if (!v.empty()) {
                 lang_tag = v;
                 break;
@@ -123,8 +127,8 @@ namespace rdf4cpp::parser {
         std::string_view const source{reinterpret_cast<char const *>(data), static_cast<size_t>(size)};
 
         return XMLStateInfo{
-                static_cast<uint64_t>(xmlSAX2GetLineNumber(context_.get())),
-                static_cast<uint64_t>(xmlSAX2GetColumnNumber(context_.get())),
+                current_line(),
+                current_column(),
                 base,
                 lang_tag,
                 source,
@@ -148,7 +152,7 @@ namespace rdf4cpp::parser {
     }
 
     std::optional<IStreamQuadIterator::value_type> IStreamQuadIterator::ImplXML::next() {
-        std::array<char, 1024> buffer;  // NOLINT(*-pro-type-member-init)
+        std::array<char, 8192> buffer;  // NOLINT(*-pro-type-member-init)
         while (output_.empty() && error_func_(reader_obj_) == 0 && eof_func_(reader_obj_) == 0) {
             auto const read = read_func_(buffer.data(), sizeof(char), buffer.size(), reader_obj_);
             xmlParseChunk(context_.get(), buffer.data(), static_cast<int>(read), eof_func_(reader_obj_) != 0);
