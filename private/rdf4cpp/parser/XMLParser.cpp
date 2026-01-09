@@ -74,18 +74,18 @@ namespace rdf4cpp::parser {
     }
     void IStreamQuadIterator::ImplXML::on_characters(void *th, xmlChar const *e, int const len) {
         auto *t = static_cast<ImplXML *>(th);
-        t->handle_state_transition(t->current_state_->on_characters(t->output_, from_xml_char(e, len), t->make_info()));
+        t->handle_state_transition(t->current_state().on_characters(t->output_, from_xml_char(e, len), t->make_info()));
     }
     void IStreamQuadIterator::ImplXML::on_start_element(void *th, xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, xmlChar const *uri,
                                                         [[maybe_unused]] int n_namespaces, [[maybe_unused]] xmlChar const **namespaces,
                                                         int const n_attributes, [[maybe_unused]] int n_defaulted, xmlChar const **attributes) {
         auto *t = static_cast<ImplXML *>(th);
-        t->handle_state_transition(t->current_state_->on_start_element(t->output_, from_xml_char(local_name), from_xml_char(uri),
+        t->handle_state_transition(t->current_state().on_start_element(t->output_, from_xml_char(local_name), from_xml_char(uri),
                                                                        std::span{reinterpret_cast<XMLAttribute *>(attributes), static_cast<size_t>(n_attributes)}, t->make_info()));
     }
     void IStreamQuadIterator::ImplXML::on_end_element(void *th, [[maybe_unused]] xmlChar const *local_name, [[maybe_unused]] xmlChar const *prefix, [[maybe_unused]] xmlChar const *uri) {
         auto *t = static_cast<ImplXML *>(th);
-        t->handle_state_transition(t->current_state_->on_end_element(t->output_, t->make_info()));
+        t->handle_state_transition(t->current_state().on_end_element(t->output_, t->make_info()));
     }
 
     XMLStateInfo IStreamQuadIterator::ImplXML::make_info() const {

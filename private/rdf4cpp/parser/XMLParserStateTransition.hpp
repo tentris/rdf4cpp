@@ -27,11 +27,11 @@ namespace rdf4cpp::parser {
 
         ModifyStateStack modify_state;
 
-        template<typename... T>
-        explicit StateTransition(T &&...a) : modify_state(std::forward<T>(a)...) {
+        template<typename ...Args>
+        explicit StateTransition(Args &&...args) : modify_state(std::forward<Args>(args)...) {
         }
 
-        StateTransition() : StateTransition(std::in_place_type_t<NoStateChange>{}) {
+        StateTransition() noexcept : StateTransition(std::in_place_type_t<NoStateChange>{}) {
         }
     };
 }
