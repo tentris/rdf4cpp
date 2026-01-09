@@ -18,32 +18,19 @@ namespace rdf4cpp::parser {
         r.error = on_error;
         return r;
     }
+
     void IStreamQuadIterator::ImplXML::handle_state_transition(StateTransition transition) {
-        std::visit([&]<typename T>(T &&s) {
-            if constexpr (std::same_as<T, NoStateChange>) {
-                return;
-            } else if constexpr (std::same_as<T, PopState>) {
-                pop_state();
-            } else {
-                state_stack_.emplace_back(std::in_place_type_t<T>{}, std::forward<T>(s));
-                update_current_state();
+        dice::template_library::match(std::move(transition.modify_state),
+            [](NoStateChange) {
+                // noop
+            },
+            [this](PopState) {
+                state_stack_.pop_back();
+            },
+            [this]<typename S>(S &&new_state) {
+                state_stack_.emplace_back(std::in_place_type<S>, std::forward<S>(new_state));
             }
-        },
-                   std::move(transition.modify_state));
-    }
-
-    void IStreamQuadIterator::ImplXML::update_current_state() {
-        if (state_stack_.empty()) {
-            current_state_ = nullptr;
-            return;
-        }
-        current_state_ = &state_stack_.back().get();
-    }
-
-    void IStreamQuadIterator::ImplXML::pop_state() {
-        assert(!state_stack_.empty());
-        state_stack_.pop_back();
-        update_current_state();
+        );
     }
 
     // implemented here, to have access to states
@@ -144,11 +131,8 @@ namespace rdf4cpp::parser {
         xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.reserve(10);
         state_stack_.emplace_back(std::in_place_type_t<xml_states::InitialState>{});
-        update_current_state();
 
-        current_state_->base = output_.current_base_iri();
-    }
-    IStreamQuadIterator::ImplXML::~ImplXML() {  // NOLINT(*-use-equals-default)
+        current_state().base = output_.current_base_iri();
     }
 
     std::optional<IStreamQuadIterator::value_type> IStreamQuadIterator::ImplXML::next() {
