@@ -167,6 +167,18 @@ TEST_CASE_TEMPLATE("checked casting", T, uint32_t, uint64_t, unsigned __int128, 
     CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<T>::max(), i8) == true);
     CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<uint8_t>::max(), t) == false);
     CHECK(t == std::numeric_limits<uint8_t>::max());
+
+    CHECK(cast_checked<OverflowMode::Checked>(0.0, t) == false);
+    CHECK(t == 0);
+    CHECK(cast_checked<OverflowMode::Checked>(static_cast<double>(std::numeric_limits<T>::max()) / 2, t) == false);
+    CHECK(t < std::numeric_limits<T>::max());
+    if constexpr (!rdf4cpp::util::detail::BoostNumber<T>) {
+        CHECK(cast_checked<OverflowMode::Checked>(static_cast<double>(std::numeric_limits<T>::min()), t) == false);
+        CHECK(t == std::numeric_limits<T>::min());
+    }
+    CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<double>::quiet_NaN(), t) == true);
+    CHECK(cast_checked<OverflowMode::Checked>(std::numeric_limits<double>::infinity(), t) == true);
+    CHECK(cast_checked<OverflowMode::Checked>(static_cast<double>(std::numeric_limits<T>::max()) * 2, t) == true);
 }
 
 constexpr __int128 Make128(int64_t h, int64_t l) {

@@ -214,8 +214,8 @@ std::partial_ordering capabilities::Comparable<xsd_duration>::compare(cpp_type c
 template<>
 nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto mon = util::to_checked(lhs.first) + util::to_checked(rhs.first);
-    auto nanos = util::to_checked(lhs.second) + util::to_checked(rhs.second);
+    auto mon = rdf4cpp::util::to_checked(lhs.first) + rdf4cpp::util::to_checked(rhs.first);
+    auto nanos = rdf4cpp::util::to_checked(lhs.second) + rdf4cpp::util::to_checked(rhs.second);
     if (mon.count().is_invalid() || nanos.count().is_invalid()) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
     }
@@ -225,14 +225,14 @@ capabilities::Duration<xsd_duration>::duration_add(cpp_type const &lhs, cpp_type
     if (mon > std::chrono::months{0} && nanos < std::chrono::nanoseconds{0}) {
         return nonstd::make_unexpected(DynamicError::Unsupported);
     }
-    return std::make_pair(util::from_checked(mon), util::from_checked(nanos));
+    return std::make_pair(*rdf4cpp::util::from_checked(mon), *rdf4cpp::util::from_checked(nanos));
 }
 
 template<>
 nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto mon = util::to_checked(lhs.first) - util::to_checked(rhs.first);
-    auto nanos = util::to_checked(lhs.second) - util::to_checked(rhs.second);
+    auto mon = rdf4cpp::util::to_checked(lhs.first) - rdf4cpp::util::to_checked(rhs.first);
+    auto nanos = rdf4cpp::util::to_checked(lhs.second) - rdf4cpp::util::to_checked(rhs.second);
     if (mon.count().is_invalid() || nanos.count().is_invalid()) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
     }
@@ -242,7 +242,7 @@ capabilities::Duration<xsd_duration>::duration_sub(cpp_type const &lhs, cpp_type
     if (mon > std::chrono::months{0} && nanos < std::chrono::nanoseconds{0}) {
         return nonstd::make_unexpected(DynamicError::Unsupported);
     }
-    return std::make_pair(util::from_checked(mon), util::from_checked(nanos));
+    return std::make_pair(*rdf4cpp::util::from_checked(mon), *rdf4cpp::util::from_checked(nanos));
 }
 
 template<>
@@ -255,15 +255,17 @@ template<>
 nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_scalar_mul(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept {
     auto mon = std::round(static_cast<double>(dur.first.count()) * scalar);
-    if (!datatypes::registry::util::fits_into<int64_t>(mon)) {
+    int64_t m64;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(mon, m64)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
     }
     auto nanos = std::round(static_cast<double>(dur.second.count()) * scalar);
-    if (!datatypes::registry::util::fits_into<int64_t>(nanos)) {
+    int64_t n64;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(nanos, n64)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
     }
 
-    return std::make_pair(std::chrono::months{static_cast<int64_t>(mon)}, std::chrono::nanoseconds{static_cast<int64_t>(nanos)});
+    return std::make_pair(std::chrono::months{m64}, std::chrono::nanoseconds{n64});
 }
 
 template<>
@@ -274,15 +276,17 @@ capabilities::Duration<xsd_duration>::duration_scalar_div(cpp_type const &dur, d
     }
 
     auto mon = std::round(static_cast<double>(dur.first.count()) / scalar);
-    if (!datatypes::registry::util::fits_into<int64_t>(mon)) {
+    int64_t m64;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(mon, m64)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
     }
     auto nanos = std::round(static_cast<double>(dur.second.count()) / scalar);
-    if (!datatypes::registry::util::fits_into<int64_t>(nanos)) {
+    int64_t n64;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(nanos, n64)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
     }
 
-    return std::make_pair(std::chrono::months{static_cast<int64_t>(mon)}, std::chrono::nanoseconds{static_cast<int64_t>(nanos)});
+    return std::make_pair(std::chrono::months{m64}, std::chrono::nanoseconds{n64});
 }
 
 #endif

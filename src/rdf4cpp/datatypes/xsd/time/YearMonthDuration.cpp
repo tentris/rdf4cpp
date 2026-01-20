@@ -108,23 +108,15 @@ nonstd::expected<capabilities::Subtype<xsd_yearMonthDuration>::cpp_type, Dynamic
 template<>
 nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto r = util::to_checked(lhs) + util::to_checked(rhs);
-    if (r.count().is_invalid()) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
-    }
-
-    return util::from_checked(r);
+    auto r = rdf4cpp::util::to_checked(lhs) + rdf4cpp::util::to_checked(rhs);
+    return util::optional_to_overflow(rdf4cpp::util::from_checked(r));
 }
 
 template<>
 nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto r = util::to_checked(lhs) - util::to_checked(rhs);
-    if (r.count().is_invalid()) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
-    }
-
-    return util::from_checked(r);
+    auto r = rdf4cpp::util::to_checked(lhs) - rdf4cpp::util::to_checked(rhs);
+    return util::optional_to_overflow(rdf4cpp::util::from_checked(r));
 }
 
 template<>
@@ -142,11 +134,12 @@ template<>
 nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_scalar_mul(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept {
     auto r = std::round(static_cast<double>(dur.count()) * scalar);
-    if (!datatypes::registry::util::fits_into<int64_t>(r)) {
+    int64_t i64;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(r, i64)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
     }
 
-    return std::chrono::months{static_cast<int64_t>(r)};
+    return std::chrono::months{i64};
 }
 
 template<>
@@ -157,11 +150,12 @@ capabilities::Duration<xsd_yearMonthDuration>::duration_scalar_div(cpp_type cons
     }
 
     auto r = std::round(static_cast<double>(dur.count()) / scalar);
-    if (!datatypes::registry::util::fits_into<int64_t>(r)) {
+    int64_t i64;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(r, i64)) {
         return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
     }
 
-    return std::chrono::months{static_cast<int64_t>(r)};
+    return std::chrono::months{i64};
 }
 
 #endif

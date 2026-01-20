@@ -252,10 +252,25 @@ namespace rdf4cpp {
                 using t = boost::multiprecision::number<boost::multiprecision::cpp_int_backend<MinBits, MaxBits, boost::multiprecision::unsigned_magnitude, Checked, Alloc>>;
             };
             template<OverflowMode m, typename To, typename From>
-            requires IntegralExt<To> && IntegralExt<From>
+            requires(IntegralExt<To> || std::floating_point<To>) && (IntegralExt<From> || std::floating_point<From>)
             static constexpr bool cast_checked(From const &f, To &result) noexcept {
                 if constexpr (m == OverflowMode::Checked) {
-                    if constexpr (std::numeric_limits<To>::is_signed == std::numeric_limits<From>::is_signed) {
+                    if constexpr (std::floating_point<From> && !std::floating_point<To>) {
+                        // from https://stackoverflow.com/questions/25857843/how-do-i-convert-an-arbitrary-double-to-an-integer-while-avoiding-undefined-beha
+                        if (std::isnan(f) || std::isinf(f)) {
+                            return true;
+                        }
+                        if constexpr (!std::numeric_limits<To>::is_signed) {
+                            if (f < 0) {
+                                return true;
+                            }
+                        }
+                        int exp;
+                        std::frexp(f, &exp);
+                        if (exp > std::numeric_limits<To>::digits && f != std::numeric_limits<To>::min()) {
+                            return true;
+                        }
+                    } else if constexpr (std::numeric_limits<To>::is_signed == std::numeric_limits<From>::is_signed) {
                         if (std::numeric_limits<To>::min() > f || f > std::numeric_limits<To>::max()) {
                             return true;
                         }
@@ -277,9 +292,7 @@ namespace rdf4cpp {
                 if constexpr (m == OverflowMode::Checked) {
                     try {
                         result = static_cast<To>(f);
-                    } catch (std::overflow_error const &) {
-                        return true;
-                    } catch (std::range_error const &) {
+                    } catch (std::runtime_error const &) {
                         return true;
                     }
                     return false;
@@ -292,15 +305,39 @@ namespace rdf4cpp {
                 if constexpr (m == OverflowMode::Checked) {
                     try {
                         result = static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(f);
-                    } catch (std::overflow_error const &) {
-                        return true;
-                    } catch (std::range_error const &) {
+                    } catch (std::runtime_error const &) {
                         return true;
                     }
                     return false;
                 }
                 result = static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(f));
                 return false;
+            }
+            template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, typename From>
+            requires IntegralExt<From> || std::floating_point<From>
+            static constexpr bool cast_checked(From const &f, cpp_int_checked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
+                if constexpr (m == OverflowMode::Checked) {
+                    try {
+                        result = static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(f);
+                    } catch (std::runtime_error const &) {
+                        return true;
+                    }
+                    return false;
+                }
+                result = static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(f));
+                return false;
+            }
+            template<OverflowMode m, std::size_t MinBits, std::size_t MaxBits, boost::multiprecision::cpp_integer_type SignType, typename Alloc, typename From>
+            requires IntegralExt<From> || std::floating_point<From>
+            static constexpr bool cast_checked(From const &f, cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc> &result) noexcept {
+                if constexpr (m == OverflowMode::Checked) {
+                    try {
+                        result = static_cast<cpp_int_unchecked<MinBits, MaxBits, SignType, Alloc>>(static_cast<cpp_int_checked<MinBits, MaxBits, SignType, Alloc>>(f));
+                    } catch (std::runtime_error const &) {
+                        return true;
+                    }
+                    return false;
+                }
             }
         }  // namespace detail
 
@@ -333,6 +370,15 @@ inline std::ostream &operator<<(std::ostream &str, __int128 const &bn) {
     w.finalize();
     return str;
 }
+template<>
+struct std::formatter<__int128> : std::formatter<std::string_view> {
+    inline auto format(__int128 const &p, format_context &ctx) const {
+        rdf4cpp::writer::BufOutputIteratorWriter w{ctx.out()};
+        rdf4cpp::util::to_chars_canonical(p, w);
+        w.finalize();
+        return w.buffer().iter;
+    }
+};
 #endif
 
 #endif  //RDF4CPP_INT128_HPP

@@ -38,7 +38,7 @@ bool capabilities::Default<xsd_gDay>::serialize_canonical_string(cpp_type const 
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_gDay>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    auto day_to_tp = [](std::chrono::day d) noexcept -> rdf4cpp::TimePoint {
+    auto day_to_tp = [](std::chrono::day d) noexcept -> TimePoint {
         return rdf4cpp::util::construct_timepoint(YearMonthDay{rdf4cpp::util::time_point_replacement_date.year(), rdf4cpp::util::time_point_replacement_date.month(), d}, rdf4cpp::util::time_point_replacement_time_of_day);
     };
     return registry::util::compare_time_points(day_to_tp(lhs.first), lhs.second, day_to_tp(rhs.first), rhs.second);
