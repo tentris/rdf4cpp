@@ -273,6 +273,46 @@ TEST_CASE("basic trig") {
              "<http://ex/sub> a \"7\"^^xsd:int .\n");
 }
 
+TEST_CASE("nquads bnode graph") {
+    Quad q{
+        BlankNode::make("G"),
+        IRI::make("http://example.com#s"),
+        IRI::make("http://example.com#p"),
+        IRI::make("http://example.com#o"),
+    };
+
+    auto s = writer::StringWriter::oneshot([&q](auto &w) {
+        q.serialize_nquads(w);
+        return true;
+    });
+
+    CHECK_EQ(s, "<http://example.com#s> <http://example.com#p> <http://example.com#o> _:G .\n");
+}
+
+TEST_CASE("trig bnode graph") {
+    Quad q{
+        BlankNode::make("G"),
+        IRI::make("http://example.com#s"),
+        IRI::make("http://example.com#p"),
+        IRI::make("http://example.com#o"),
+    };
+
+    auto s = writer::StringWriter::oneshot([&q](auto &w) {
+        writer::SerializationState st{};
+        st.begin(w);
+        q.serialize_trig(st, w);
+        st.flush(w);
+        return true;
+    });
+
+    CHECK_EQ(s, R"(@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+_:G {
+<http://example.com#s> <http://example.com#p> <http://example.com#o> .
+}
+)");
+}
+
 template<OutputFormat F>
 std::string write_ext_data() {
     std::string buf;
@@ -395,4 +435,4 @@ TEST_CASE("extended") {
 }
 
 static_assert(datatypes::registry::util::ConstexprString("abc")+datatypes::registry::util::ConstexprString("def") == datatypes::registry::util::ConstexprString("abcdef"));
-static_assert((datatypes::registry::util::ConstexprString("abc")+datatypes::registry::util::ConstexprString("def")).size() == 7);
+static_assert((datatypes::registry::util::ConstexprString("abc")+datatypes::registry::util::ConstexprString("def")).size() == 6);

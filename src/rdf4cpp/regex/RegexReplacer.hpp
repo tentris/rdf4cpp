@@ -12,15 +12,11 @@ private:
     friend struct Regex;
 
     struct Impl;
-    std::unique_ptr<Impl> impl;
+    std::shared_ptr<Impl> impl_;
 
-    explicit RegexReplacer(std::unique_ptr<Impl> &&impl) noexcept;
+    explicit RegexReplacer(std::shared_ptr<Impl> impl) noexcept;
+
 public:
-    RegexReplacer() noexcept;
-    RegexReplacer(RegexReplacer &&other) noexcept;
-    RegexReplacer &operator=(RegexReplacer &&other) noexcept;
-    ~RegexReplacer() noexcept;
-
     /**
      * Replaces all matches of the regex this replacer was constructed from in "str" with "rewrite" it
      * was constructed with.
@@ -42,7 +38,7 @@ public:
      * assert(s == "Hello 13th World);
      * @endcode
      */
-    void regex_replace(std::string &str) const noexcept;
+    void regex_replace(std::string &str) const;
 };
 
 }  //namespace rdf4cpp::regex

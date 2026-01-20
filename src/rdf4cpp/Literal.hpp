@@ -296,6 +296,8 @@ private:
     template<bool simplified, typename C>
     auto serialize_lexical_form_impl(C &&consume) const noexcept;
 
+    [[nodiscard]] Literal cast_impl(datatypes::registry::DatatypeIDView target_dtid, storage::DynNodeStoragePtr node_storage) const;
+
     explicit Literal(storage::identifier::NodeBackendHandle handle) noexcept;
 
 public:
@@ -715,7 +717,7 @@ public:
      */
     template<datatypes::LiteralDatatype T>
     [[nodiscard]] Literal cast(storage::DynNodeStoragePtr node_storage = keep_node_storage) const {
-        return this->cast(IRI{T::datatype_id, node_storage}, node_storage);
+        return this->cast_impl(T::datatype_id, node_storage);
     }
 
     /**
@@ -751,7 +753,7 @@ public:
 
         if constexpr (std::same_as<T, Boolean>) {
             // any -> bool
-            TriBool t = this->ebv();
+            TriBool const t = this->ebv();
             if (t == TriBool::Err)
                 return std::nullopt;
             else if (t == TriBool::True)
@@ -1175,6 +1177,13 @@ public:
     [[nodiscard]] Literal as_regex_matches(Literal const &pattern, Literal const &flags = Literal::make_simple(""), storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
 
     /**
+     * @brief Creates a regex, whose pattern is the lexical form of the caller (this->lexical_form())
+     * @param flags regex flags to use for matching (https://www.w3.org/TR/xpath-functions/#flags)
+     * @return A regex object (rdf4cpp::regex::Regex)
+     */
+    [[nodiscard]] regex::Regex make_regex(Literal const &flags = Literal::make_simple("")) const;
+
+    /**
      * @see https://www.w3.org/TR/xpath-functions/#func-replace
      *
      * @param replacer replacement regex
@@ -1560,6 +1569,91 @@ public:
 
     friend struct Node;
     friend Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage::DynNodeStoragePtr node_storage) noexcept;
+
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-pi
+     * @return std::numbers::pi as xsd::Double
+     */
+    [[nodiscard]] static Literal math_pi(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-exp
+     * returns null, if this is not of type xsd::Double.
+     * @return pow(e, this)
+     */
+    [[nodiscard]] Literal math_exp(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-exp10
+     * returns null, if this is not of type xsd::Double.
+     * @return pow(10, this)
+     */
+    [[nodiscard]] Literal math_exp10(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-log
+     * returns null, if this is not of type xsd::Double.
+     * @return log(e, this)
+     */
+    [[nodiscard]] Literal math_log(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-log10
+     * returns null, if this is not of type xsd::Double.
+     * @return log(10, this)
+     */
+    [[nodiscard]] Literal math_log10(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-pow
+     * returns null, if this is not of type xsd::Double or exp not numeric.
+     * @return pow(this, exp)
+     */
+    [[nodiscard]] Literal math_pow(Literal exp, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-sqrt
+     * returns null, if this is not of type xsd::Double.
+     * @return sqrt(this)
+     */
+    [[nodiscard]] Literal math_sqrt(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-sin
+     * returns null, if this is not of type xsd::Double.
+     * @return sin(this)
+     */
+    [[nodiscard]] Literal math_sin(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-cos
+     * returns null, if this is not of type xsd::Double.
+     * @return cos(this)
+     */
+    [[nodiscard]] Literal math_cos(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-tan
+     * returns null, if this is not of type xsd::Double.
+     * @return tan(this)
+     */
+    [[nodiscard]] Literal math_tan(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-asin
+     * returns null, if this is not of type xsd::Double.
+     * @return asin(this)
+     */
+    [[nodiscard]] Literal math_asin(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-acos
+     * returns null, if this is not of type xsd::Double.
+     * @return acos(this)
+     */
+    [[nodiscard]] Literal math_acos(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-atan
+     * returns null, if this is not of type xsd::Double.
+     * @return atan(this)
+     */
+    [[nodiscard]] Literal math_atan(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    /**
+     * https://www.w3.org/TR/xpath-functions/#func-math-atan2
+     * returns null, if this or y is not of type xsd::Double.
+     * @return atan2(this, y)
+     */
+    [[nodiscard]] Literal math_atan2(Literal y, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 };
 
 /**

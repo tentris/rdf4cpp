@@ -890,7 +890,7 @@ std::any Literal::value() const noexcept {
             });
 }
 
-Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage) const {
+Literal Literal::cast_impl(datatypes::registry::DatatypeIDView target_dtid, storage::DynNodeStoragePtr node_storage) const {
     using namespace datatypes::registry;
     using namespace datatypes::xsd;
 
@@ -901,7 +901,6 @@ Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage
     node_storage = select_node_storage(node_storage);
 
     auto const this_dtid = this->datatype_id();
-    DatatypeIDView const target_dtid{target};
 
     if (this_dtid == target_dtid) {
         return this->to_node_storage(node_storage);
@@ -911,7 +910,7 @@ Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage
         // string -> any
         try {
             auto const lex = this->lexical_form();
-            return Literal::make_typed(lex, target, node_storage);
+            return Literal::make_typed(lex, IRI{target_dtid, node_storage}, node_storage);
         } catch (...) {
             return Literal{};
         }
@@ -982,6 +981,10 @@ Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage
 
     // no conversion found
     return Literal{};
+}
+
+Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage) const {
+    return this->cast_impl(static_cast<datatypes::registry::DatatypeIDView>(target), node_storage);
 }
 
 template<typename OpSelect>
@@ -1972,22 +1975,13 @@ Literal Literal::as_regex_matches(regex::Regex const &pattern, storage::DynNodeS
 }
 
 Literal Literal::as_regex_matches(Literal const &pattern, Literal const &flags, storage::DynNodeStoragePtr node_storage) const noexcept {
-    if (this->null()) {
-        return Literal{};
-    }
-
-    if (!this->is_string_like() || !pattern.is_string_like() || !flags.is_string_like()) {
-        return Literal{};
-    }
-
-    if (pattern.datatype_eq<datatypes::rdf::LangString>() && this->language_tag() != pattern.language_tag()) {
+    if (this->null() || !this->is_string_like()) {
         return Literal{};
     }
 
     auto const re = [&]() noexcept -> std::optional<regex::Regex> {
         try {
-            auto const regex_flags = translate_regex_flags(flags.lexical_form());
-            return regex::Regex{pattern.lexical_form(), regex_flags};
+            return pattern.make_regex(flags);
         } catch (std::runtime_error const &) {
             return std::nullopt;
         }
@@ -1999,6 +1993,17 @@ Literal Literal::as_regex_matches(Literal const &pattern, Literal const &flags, 
 
     auto const res = this->regex_matches(*re);
     return Literal::make_boolean(res, select_node_storage(node_storage));
+}
+
+regex::Regex Literal::make_regex(Literal const &flags) const {
+    if (this->null() || !this->datatype_eq<datatypes::xsd::String>()) {
+        throw std::runtime_error{"Literal cannot be converted for creating regex (null or not simple literal)"};
+    }
+    if (flags.null() || !flags.datatype_eq<datatypes::xsd::String>()) {
+        throw std::runtime_error{"Flags cannot be used for creating regex (null or not string-like)"};
+    }
+    auto const regex_flags = translate_regex_flags(flags.lexical_form());
+    return regex::Regex{this->lexical_form(), regex_flags};
 }
 
 Literal Literal::regex_replace(regex::RegexReplacer const &replacer, storage::DynNodeStoragePtr node_storage) const {
@@ -2013,18 +2018,13 @@ Literal Literal::regex_replace(regex::RegexReplacer const &replacer, storage::Dy
 }
 
 Literal Literal::regex_replace(Literal const &pattern, Literal const &replacement, Literal const &flags, storage::DynNodeStoragePtr node_storage) const {
-    if (!this->is_string_like() || !pattern.is_string_like() || !replacement.is_string_like() || !flags.is_string_like()) {
-        return Literal{};
-    }
-
-    if (pattern.datatype_eq<datatypes::rdf::LangString>() && this->language_tag() != pattern.language_tag()) {
+    if (this->null() || !this->is_string_like()) {
         return Literal{};
     }
 
     auto const re = [&]() noexcept -> std::optional<regex::Regex> {
         try {
-            auto const regex_flags = translate_regex_flags(flags.lexical_form());
-            return regex::Regex{pattern.lexical_form(), regex_flags};
+            return pattern.make_regex(flags);
         } catch (std::runtime_error const &) {
             return std::nullopt;
         }
@@ -2587,6 +2587,79 @@ Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage
 
     auto const res = lang_matches(lang_tag.lexical_form(), lang_range.lexical_form());
     return Literal::make_boolean(res, lang_tag.select_node_storage(node_storage));
+}
+Literal Literal::math_pi(storage::DynNodeStoragePtr node_storage) {
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::numbers::pi, node_storage);
+}
+
+#define CPP_DOUBLE_OR_RETURN_NULL(source_expr, var_name)                               \
+auto const var_name##_opt = [&source_obj = (source_expr)]() -> std::optional<double> { \
+    if (source_obj.null()) {                                                           \
+        return std::nullopt;                                                           \
+    }                                                                                  \
+    if (!source_obj.datatype_eq<datatypes::xsd::Double>()) {                           \
+        return source_obj.cast_to_value<datatypes::xsd::Double>();                     \
+    }                                                                                  \
+    return source_obj.value<datatypes::xsd::Double>();                                 \
+}();                                                                                   \
+if (!var_name##_opt.has_value()) {                                                     \
+    return {};                                                                         \
+}                                                                                      \
+auto const var_name = *var_name##_opt;
+
+Literal Literal::math_exp(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::exp(th), select_node_storage(node_storage));
+}
+Literal Literal::math_exp10(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::pow(10.0, th), select_node_storage(node_storage));
+}
+Literal Literal::math_log(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::log(th), select_node_storage(node_storage));
+}
+Literal Literal::math_log10(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::log10(th), select_node_storage(node_storage));
+}
+Literal Literal::math_pow(Literal exp, storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    CPP_DOUBLE_OR_RETURN_NULL(exp, ex);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::pow(th, ex), select_node_storage(node_storage));
+}
+Literal Literal::math_sqrt(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::sqrt(th), select_node_storage(node_storage));
+}
+Literal Literal::math_sin(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::sin(th), select_node_storage(node_storage));
+}
+Literal Literal::math_cos(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::cos(th), select_node_storage(node_storage));
+}
+Literal Literal::math_tan(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::tan(th), select_node_storage(node_storage));
+}
+Literal Literal::math_asin(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::asin(th), select_node_storage(node_storage));
+}
+Literal Literal::math_acos(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::acos(th), select_node_storage(node_storage));
+}
+Literal Literal::math_atan(storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::atan(th), select_node_storage(node_storage));
+}
+Literal Literal::math_atan2(Literal y, storage::DynNodeStoragePtr node_storage) const {
+    CPP_DOUBLE_OR_RETURN_NULL(*this, th);
+    CPP_DOUBLE_OR_RETURN_NULL(y, yd);
+    return Literal::make_typed_from_value<datatypes::xsd::Double>(std::atan2(th, yd), select_node_storage(node_storage));
 }
 
 inline namespace shorthands {

@@ -52,6 +52,13 @@ nonstd::expected<Node, SerdStatus> IStreamQuadIterator::Impl::get_bnode(std::str
                                         .message = std::string{e.what()} + ". note: position may not be accurate and instead point to the end of the triple."};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+    } catch (...) {
+        this->last_error = ParsingError{.error_type = ParsingError::Type::BadBlankNode,
+                                        .line = serd_reader_get_current_line(this->reader),
+                                        .col = serd_reader_get_current_col(this->reader),
+                                        .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
+
+        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     }
 }
 
@@ -159,6 +166,13 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::Impl::get_literal(Ser
                                         .line = serd_reader_get_current_line(this->reader),
                                         .col = serd_reader_get_current_col(this->reader),
                                         .message = std::string{e.what()} + ". note: position may not be accurate and instead point to the end of the triple."};
+
+        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+    } catch (...) {
+        this->last_error = ParsingError{.error_type = ParsingError::Type::BadLiteral,
+                                        .line = serd_reader_get_current_line(this->reader),
+                                        .col = serd_reader_get_current_col(this->reader),
+                                        .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     }

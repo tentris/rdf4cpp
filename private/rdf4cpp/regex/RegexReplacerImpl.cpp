@@ -74,8 +74,8 @@ static std::string translate_rewrite(std::string_view const s) {
 
 } // namespace detail
 
-RegexReplacer::Impl::Impl(Regex::Impl const &regex, std::string_view const rewrite) : regex{&regex},
-                                                                                      rewrite{regex.flags.contains(RegexFlag::Literal)
+RegexReplacer::Impl::Impl(std::shared_ptr<Regex::Impl const> regex, std::string_view const rewrite) : regex{std::move(regex)},
+                                                                                                      rewrite{this->regex->flags.contains(RegexFlag::Literal)
                                                                                                       ? rewrite
                                                                                                       : detail::translate_rewrite(rewrite)} {
     std::string err{};
@@ -87,7 +87,7 @@ RegexReplacer::Impl::Impl(Regex::Impl const &regex, std::string_view const rewri
     }
 }
 
-void RegexReplacer::Impl::regex_replace(std::string &str) const noexcept {
+void RegexReplacer::Impl::regex_replace(std::string &str) const {
     RE2::GlobalReplace(&str, this->regex->regex, this->rewrite);
 }
 
