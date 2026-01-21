@@ -13,7 +13,7 @@ namespace rdf4cpp::parser::xml_states {
     StateTransition InitialState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, [[maybe_unused]] std::span<XMLAttribute> attributes, XMLStateInfo const &info) {
         if (iri_equal_pieces(RDFState::start_element, uri, local_name)) {
             return StateTransition{
-                    std::in_place_type_t<RDFState>{},
+                    std::in_place_type<RDFState>,
                     get_inherited_attributes(out, attributes, info),
             };
         }

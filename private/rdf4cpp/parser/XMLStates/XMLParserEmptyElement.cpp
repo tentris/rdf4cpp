@@ -16,7 +16,7 @@ namespace rdf4cpp::parser::xml_states {
     }
 
     StateTransition EmptyElement::on_end_element([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] XMLStateInfo const &info) {
-        return StateTransition{std::in_place_type_t<PopState>{}};
+        return StateTransition{std::in_place_type<PopState>};
     }
     void EmptyElement::move_to(BaseState *b) noexcept {
         new (b) EmptyElement(std::move(*this));

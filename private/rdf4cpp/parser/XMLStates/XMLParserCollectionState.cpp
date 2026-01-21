@@ -11,6 +11,8 @@ namespace rdf4cpp::parser::xml_states {
     }
 
     StateTransition CollectionState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<XMLAttribute> const attributes, XMLStateInfo const &info) {
+        // https://www.w3.org/TR/rdf11-xml/#parseTypeCollectionPropertyElt
+        // only node elements (=>DescriptionState) can appear in the list
         auto [transition, obj] = DescriptionState::enter(out, local_name, uri, attributes, info);
         if (first) {
             first = false;
@@ -32,7 +34,7 @@ namespace rdf4cpp::parser::xml_states {
         } else {
             out.add_statement(last_bn, out.make_hardcoded_iri(iri_rest), nil, IRI::make_null());
         }
-        return StateTransition{std::in_place_type_t<PopState>{}};
+        return StateTransition{std::in_place_type<PopState>};
     }
     void CollectionState::move_to(BaseState *b) noexcept {
         new (b) CollectionState(std::move(*this));

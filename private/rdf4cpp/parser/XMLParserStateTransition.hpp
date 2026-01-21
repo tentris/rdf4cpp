@@ -2,21 +2,13 @@
 #define RDF4CPP_XMLPARSERSTATETRANSITION_H
 
 #include <rdf4cpp/parser/XMLParserUtility.hpp>
-
 #include <rdf4cpp/parser/XMLStates/XMLParserBaseState.hpp>
-
 #include <rdf4cpp/parser/XMLStates/XMLParserRDFState.hpp>
-
 #include <rdf4cpp/parser/XMLStates/XMLParserDescriptionState.hpp>
-
 #include <rdf4cpp/parser/XMLStates/XMLParserPredicateState.hpp>
-
 #include <rdf4cpp/parser/XMLStates/XMLParserTypedLiteralPredicateState.hpp>
-
 #include <rdf4cpp/parser/XMLStates/XMLParserXMLLiteralState.hpp>
-
 #include <rdf4cpp/parser/XMLStates/XMLParserCollectionState.hpp>
-
 #include <rdf4cpp/parser/XMLStates/XMLParserEmptyElement.hpp>
 
 namespace rdf4cpp::parser {
@@ -31,7 +23,7 @@ namespace rdf4cpp::parser {
         explicit StateTransition(Args &&...args) : modify_state(std::forward<Args>(args)...) {
         }
 
-        StateTransition() noexcept : StateTransition(std::in_place_type_t<NoStateChange>{}) {
+        StateTransition() noexcept : StateTransition(std::in_place_type<NoStateChange>) {
         }
     };
 }

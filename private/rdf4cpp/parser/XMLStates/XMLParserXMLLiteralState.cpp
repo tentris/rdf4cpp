@@ -21,9 +21,12 @@ namespace rdf4cpp::parser::xml_states {
             return {};
         }
         IRI datatype = out.make_hardcoded_iri("http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral");
+        // filter out the parts of the source that are not part of the literal
         std::string_view l = literal;
         l = l.substr(0, last_offset);
         l.remove_prefix(data_start);
+        // filter out the end of the start tag
+        // this tag belongs to the predicate
         if (!l.empty() && l[0] == '/') {
             l.remove_prefix(1);
         }
@@ -32,13 +35,14 @@ namespace rdf4cpp::parser::xml_states {
         }
         Literal const lit = out.make_literal(l, datatype, std::nullopt, info);
         out.add_statement(subject, predicate, lit, reify);
-        return StateTransition{std::in_place_type_t<PopState>{}};
+        return StateTransition{std::in_place_type<PopState>};
     }
     void XMLLiteralState::move_to(BaseState *b) noexcept {
         new (b) XMLLiteralState(std::move(*this));
     }
 
     void XMLLiteralState::source_input(XMLStateInfo const &info) {
+        // collect all the different source parts and append them
         int const off = info.source_offset;
         std::string_view const sv = info.source;
         if (literal.empty()) {

@@ -13,15 +13,15 @@ namespace rdf4cpp::parser::xml_states {
     StateTransition DescriptionState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<XMLAttribute> attributes, XMLStateInfo const &info) {
         if (iri_core_syntax(uri, local_name)) {
             out.add_error(ParsingError::Type::BadSyntax, "core syntax terms are not allowed as predicates", info);
-            return StateTransition(std::in_place_type_t<EmptyElement>{});
+            return StateTransition(std::in_place_type<EmptyElement>);
         }
         if (iri_equal_pieces(start_element, uri, local_name)) {
             out.add_error(ParsingError::Type::BadSyntax, "rdf:Description is not allowed as predicate", info);
-            return StateTransition(std::in_place_type_t<EmptyElement>{});
+            return StateTransition(std::in_place_type<EmptyElement>);
         }
         if (iri_old_term(uri, local_name)) {
             out.add_old_term_error(info);
-            return StateTransition(std::in_place_type_t<EmptyElement>{});
+            return StateTransition(std::in_place_type<EmptyElement>);
         }
 
         auto const inherited_attribute_info = get_inherited_attributes(out, attributes, info);
@@ -60,11 +60,13 @@ namespace rdf4cpp::parser::xml_states {
                     parse_resource = true;
                 } else if (att.value() == PredicateState::parse_type_collection) {
                     parse_collection = true;
-                } else {
+                } else { // literal is the default case thats supposed to be used if anything unknown appears
                     parse_literal = true;
                 }
             }
         }
+        // need to loop twice, because anything in the second loop needs a established sub
+        // and the xml spec allows attributes in arbitrary order
         for (auto const &att : attributes) {
             if (iri_equal_pieces(PredicateState::list_start_element, att.uri(), att.local_name())) {
                 out.add_error(ParsingError::Type::BadSyntax, "rdf:li is not allowed as attribute", info);
@@ -97,26 +99,26 @@ namespace rdf4cpp::parser::xml_states {
             out.add_error(ParsingError::Type::BadSyntax, "expected only one of rdf:parseType, rdf:nodeID and rdf:resource", info);
         }
         if (datatype.has_value()) {
-            return StateTransition(std::in_place_type_t<TypedLiteralPredicateState>{}, inherited_attribute_info, subject, predicate, reify, *datatype);
+            return StateTransition(std::in_place_type<TypedLiteralPredicateState>, inherited_attribute_info, subject, predicate, reify, *datatype);
         } else if (sub.has_value()) {
             out.add_statement(subject, predicate, *sub, reify);
-            return StateTransition(std::in_place_type_t<EmptyElement>{}); // predicate is expected to be empty, object defined as attribute
+            return StateTransition(std::in_place_type<EmptyElement>); // predicate is expected to be empty, object defined as attribute
             // example: https://www.w3.org/2013/RDFXMLTests/rdfms-empty-property-elements/test013.rdf
         } else if (parse_resource) {
             Node const obj = out.make_bn(std::nullopt, info);
             out.add_statement(subject, predicate, obj, reify);
-            return StateTransition(std::in_place_type_t<DescriptionState>{}, inherited_attribute_info, obj);
+            return StateTransition(std::in_place_type<DescriptionState>, inherited_attribute_info, obj);
         } else if (parse_literal) {
-            return StateTransition(std::in_place_type_t<XMLLiteralState>{}, inherited_attribute_info, subject, predicate, reify, info);
+            return StateTransition(std::in_place_type<XMLLiteralState>, inherited_attribute_info, subject, predicate, reify, info);
         } else if (parse_collection) {
-            return StateTransition(std::in_place_type_t<CollectionState>{}, inherited_attribute_info, subject, predicate, reify);
+            return StateTransition(std::in_place_type<CollectionState>, inherited_attribute_info, subject, predicate, reify);
         } else {
-            return StateTransition(std::in_place_type_t<PredicateState>{}, inherited_attribute_info, subject, predicate, reify);
+            return StateTransition(std::in_place_type<PredicateState>, inherited_attribute_info, subject, predicate, reify);
         }
     }
 
     StateTransition DescriptionState::on_end_element([[maybe_unused]] XMLOutputQueue &out, [[maybe_unused]] XMLStateInfo const &info) {
-        return StateTransition{std::in_place_type_t<PopState>{}};
+        return StateTransition{std::in_place_type<PopState>};
     }
     void DescriptionState::move_to(BaseState *b) noexcept {
         new (b) DescriptionState(std::move(*this));
@@ -194,7 +196,7 @@ namespace rdf4cpp::parser::xml_states {
             }
         }
         return {
-                StateTransition{std::in_place_type_t<DescriptionState>{}, inherited_attribute_info, sub},
+                StateTransition{std::in_place_type<DescriptionState>, inherited_attribute_info, sub},
                 sub,
         };
     }

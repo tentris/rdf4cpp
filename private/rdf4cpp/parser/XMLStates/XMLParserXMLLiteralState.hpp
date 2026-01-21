@@ -13,6 +13,9 @@ namespace rdf4cpp::parser::xml_states {
      * <rdf:Description>
      *  <ex:parseTypeLiteralPropertyElt rdf:parseType="Literal"/>
      * </rdf:Description>
+     *
+     * note:
+     * this implementation does not match the specification exactly (omitting namespaces)
      */
     struct XMLLiteralState final : PredicateState {
         StateTransition on_characters(XMLOutputQueue &out, std::string_view chars, XMLStateInfo const &info) override;

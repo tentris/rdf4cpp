@@ -79,10 +79,12 @@ namespace rdf4cpp::parser {
 
     void IStreamQuadIterator::ImplXML::on_error(void *th, char const *msg, ...) {  // NOLINT(*-dcl50-cpp)
         va_list args;
+        va_list args_copy;
         auto t = static_cast<ImplXML *>(th);
         va_start(args, msg);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
+        va_copy(args_copy, args);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
         std::string out{};
-        out.resize(1024, '\0');
+        out.resize(1+vsnprintf(nullptr, 0, msg, args_copy), '\0');  // NOLINT(*-pro-bounds-array-to-pointer-decay)
         auto l = vsnprintf(out.data(), out.size(), msg, args);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
         if (l > 0) {
             out.resize(l);
@@ -91,6 +93,7 @@ namespace rdf4cpp::parser {
         }
         t->output_.add_error(ParsingError::Type::BadSyntax, std::move(out), t->make_info());
         va_end(args);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
+        va_end(args_copy);  // NOLINT(*-pro-bounds-array-to-pointer-decay)
     }
     xmlEntity *IStreamQuadIterator::ImplXML::get_entity(void *, xmlChar const *e) {
         return xmlGetPredefinedEntity(e);
@@ -153,7 +156,7 @@ namespace rdf4cpp::parser {
           output_(state) {
         xmlCtxtSetOptions(context_.get(), XML_PARSE_NOENT | XML_PARSE_PEDANTIC | XML_PARSE_NOCDATA | XML_PARSE_NO_XXE | XML_PARSE_BIG_LINES);
         state_stack_.reserve(10);
-        state_stack_.emplace_back(std::in_place_type_t<xml_states::InitialState>{});
+        state_stack_.emplace_back(std::in_place_type<xml_states::InitialState>);
 
         current_state().base = output_.current_base_iri();
     }

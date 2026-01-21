@@ -35,7 +35,7 @@ namespace rdf4cpp::parser::xml_states {
             Literal const lit = out.make_literal(literal, std::nullopt, std::nullopt, info);
             out.add_statement(subject, predicate, lit, reify);
         }
-        return StateTransition{std::in_place_type_t<PopState>{}};
+        return StateTransition{std::in_place_type<PopState>};
     }
     void PredicateState::move_to(BaseState *b) noexcept {
         new (b) PredicateState(std::move(*this));
