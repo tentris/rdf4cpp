@@ -103,6 +103,7 @@ namespace rdf4cpp::parser {
         [[nodiscard]] std::string_view current_base_iri() const;
 
         void add_error(ParsingError::Type ty, std::string msg, XMLStateInfo const &i);
+        void add_old_term_error(XMLStateInfo const &i);
         /**
          * add statement to the output list, if none of the components is null
          * (null is used to track an already inserted parse error for that component)
@@ -142,6 +143,9 @@ namespace rdf4cpp::parser {
     [[nodiscard]] std::string_view trim_left(std::string_view v);
     [[nodiscard]] bool iri_equal_pieces(std::string_view full_iri, std::string_view uri, std::string_view local_name);
     [[nodiscard]] bool iri_reserved(std::string_view uri, std::string_view local_name);
+    [[nodiscard]] bool iri_core_syntax(std::string_view uri, std::string_view local_name);
+    [[nodiscard]] bool iri_old_term(std::string_view uri, std::string_view local_name);
+    [[nodiscard]] bool iri_in_xml_namespace(std::string_view uri, std::string_view local_name);
 }  // namespace rdf4cpp::parser
 
 #endif  //RDF4CPP_XMLPARSERSTATECOLLECTOR_H

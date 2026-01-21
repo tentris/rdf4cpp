@@ -11,6 +11,19 @@ namespace rdf4cpp::parser::xml_states {
     }
 
     StateTransition DescriptionState::on_start_element(XMLOutputQueue &out, std::string_view const local_name, std::string_view const uri, std::span<XMLAttribute> attributes, XMLStateInfo const &info) {
+        if (iri_core_syntax(uri, local_name)) {
+            out.add_error(ParsingError::Type::BadSyntax, "core syntax terms are not allowed as predicates", info);
+            return StateTransition(std::in_place_type_t<EmptyElement>{});
+        }
+        if (iri_equal_pieces(start_element, uri, local_name)) {
+            out.add_error(ParsingError::Type::BadSyntax, "rdf:Description is not allowed as predicate", info);
+            return StateTransition(std::in_place_type_t<EmptyElement>{});
+        }
+        if (iri_old_term(uri, local_name)) {
+            out.add_old_term_error(info);
+            return StateTransition(std::in_place_type_t<EmptyElement>{});
+        }
+
         auto const inherited_attribute_info = get_inherited_attributes(out, attributes, info);
         IRI predicate;
         if (iri_equal_pieces(PredicateState::list_start_element, uri, local_name)) {
@@ -20,6 +33,13 @@ namespace rdf4cpp::parser::xml_states {
         }
         std::optional<IRI> datatype = std::nullopt;
         std::optional<Node> sub = std::nullopt;
+        auto check_only_one = [&sub, &out, &info]() {
+            if (sub.has_value()) {
+                out.add_error(ParsingError::Type::BadSyntax, "expected only one of rdf:ID, rdf:about, and rdf:nodeID", info);
+                return true;
+            }
+            return false;
+        };
         IRI reify = IRI::make_null();
         bool parse_resource = false;
         bool parse_literal = false;
@@ -28,8 +48,10 @@ namespace rdf4cpp::parser::xml_states {
             if (iri_equal_pieces(TypedLiteralPredicateState::datatype_attrib, att.uri(), att.local_name())) {
                 datatype = out.make_iri(att.value(), inherited_attribute_info.base, info);
             } else if (iri_equal_pieces(PredicateState::resource_attrib, att.uri(), att.local_name())) {
+                check_only_one();
                 sub = out.make_iri(att.value(), inherited_attribute_info.base, info);
             } else if (iri_equal_pieces(node_id_attrib, att.uri(), att.local_name())) {
+                check_only_one();
                 sub = out.make_bn(att.value(), info);
             } else if (iri_equal_pieces(id_attrib, att.uri(), att.local_name())) {
                 reify = out.make_id(att.value(), inherited_attribute_info.base, info);
@@ -44,7 +66,19 @@ namespace rdf4cpp::parser::xml_states {
             }
         }
         for (auto const &att : attributes) {
+            if (iri_equal_pieces(PredicateState::list_start_element, att.uri(), att.local_name())) {
+                out.add_error(ParsingError::Type::BadSyntax, "rdf:li is not allowed as attribute", info);
+                continue;
+            }
+            if (iri_old_term(att.uri(), att.local_name())) {
+                out.add_old_term_error(info);
+                continue;
+            }
             if (PredicateState::iri_reserved_predicate(att.uri(), att.local_name())) {
+                continue;
+            }
+            // the only reference i found to this is: https://github.com/w3c/rdf-tests/blob/main/rdf/rdf11/rdf-xml/unrecognised-xml-attributes/test001.rdf
+            if (iri_in_xml_namespace(att.uri(), att.local_name())) {
                 continue;
             }
             if (!sub.has_value()) {
@@ -119,13 +153,35 @@ namespace rdf4cpp::parser::xml_states {
             sub = out.make_bn(std::nullopt, info);
         }
         if (!iri_equal_pieces(start_element, uri, local_name)) {
-            IRI const obj = out.make_iri(uri, local_name, inherited_attribute_info.base, info);
-            if (!obj.null()) {
-                out.add_statement(sub, out.make_type_iri(), obj, IRI::make_null());
+            if (iri_equal_pieces(PredicateState::list_start_element, uri, local_name)) {
+                out.add_error(ParsingError::Type::BadSyntax, "rdf:li is not allowed as element type", info);
+            }
+            else if (iri_core_syntax(uri, local_name)) {
+                out.add_error(ParsingError::Type::BadSyntax, "core syntax terms are not allowed as element type", info);
+            }
+            else if (iri_old_term( uri, local_name)) {
+                out.add_old_term_error(info);
+            }
+            else {
+                IRI const obj = out.make_iri(uri, local_name, inherited_attribute_info.base, info);
+                if (!obj.null()) {
+                    out.add_statement(sub, out.make_type_iri(), obj, IRI::make_null());
+                }
             }
         }
         for (auto const &att : attributes) {
+            if (iri_equal_pieces(PredicateState::list_start_element, att.uri(), att.local_name())) {
+                out.add_error(ParsingError::Type::BadSyntax, "rdf:li is not allowed as attribute", info);
+                continue;
+            }
+            if (iri_old_term(att.uri(), att.local_name())) {
+                out.add_old_term_error(info);
+                continue;
+            }
             if (PredicateState::iri_reserved_predicate(att.uri(), att.local_name())) {
+                continue;
+            }
+            if (iri_in_xml_namespace(att.uri(), att.local_name())) {
                 continue;
             }
             if (iri_equal_pieces(type_attrib, att.uri(), att.local_name())) {

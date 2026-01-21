@@ -1,5 +1,6 @@
 #include <rdf4cpp/parser/XMLParserUtility.hpp>
-
+#include <rdf4cpp/util/CharMatcher.hpp>
+#include <uni_algo/ranges_conv.h>
 
 namespace rdf4cpp::parser {
     XMLOutputQueue::XMLOutputQueue(state_type *state) : state_(state) {
@@ -34,6 +35,9 @@ namespace rdf4cpp::parser {
 
     void XMLOutputQueue::add_error(ParsingError::Type ty, std::string msg, XMLStateInfo const &i) {
         result_queue_.emplace_back(nonstd::unexpect, ty, i.line, i.column, std::move(msg));
+    }
+    void XMLOutputQueue::add_old_term_error(XMLStateInfo const &i) {
+        add_error(ParsingError::Type::BadSyntax, "rdf:bagID, rdf:aboutEach and rdf:aboutEachPrefix were removed", i);
     }
 
     void XMLOutputQueue::add_statement(Node subject, IRI predicate, Node object, IRI reify) {
@@ -91,7 +95,27 @@ namespace rdf4cpp::parser {
         return make_iri(iri, base, i);
     }
 
+    bool is_ncname(std::string_view v) {
+        using namespace util::char_matcher_detail;
+
+        if (v.empty()) {
+            return false;
+        }
+        if (!match<xml::NCNameChar, una::views::utf8>(v)) {
+            return false;
+        }
+        auto r = v | una::views::utf8;
+        if (r.begin() == r.end()) {
+            return false;
+        }
+        return xml::NCNameStartChar.match(static_cast<int>(*r.begin()));
+    }
+
     IRI XMLOutputQueue::make_id(std::string_view const local_name, std::string_view const base, XMLStateInfo const &i) {
+        if (!is_ncname(local_name)) {
+            add_error(ParsingError::Type::BadIri, std::format("{}: is not a valid NCName (required for rdf:ID)", local_name), i);
+            return IRI::make_null();
+        }
         std::string local = "#";
         local.append(local_name);
         auto iri = make_iri(local, base, i);
@@ -106,8 +130,12 @@ namespace rdf4cpp::parser {
     Node XMLOutputQueue::make_bn(std::optional<std::string_view> name, XMLStateInfo const &i) {
         std::string n = "";
         if (!name.has_value()) {
-            n = std::format("bn_{}", next_bn_index_++);
+            n = std::format("{}_bn", next_bn_index_++);
             name = n;
+        }
+        else if (!is_ncname(*name)) {
+            add_error(ParsingError::Type::BadIri, std::format("{}: is not a valid NCName (required for rdf:nodeID)", *name), i);
+            return IRI::make_null();
         }
         try {
             if (state_->blank_node_scope_manager == nullptr) {
@@ -162,6 +190,22 @@ namespace rdf4cpp::parser {
             return false;
         }
         return full_iri.starts_with(uri) && full_iri.ends_with(local_name);
+    }
+    bool iri_in_xml_namespace(std::string_view uri, std::string_view local_name) {
+        static constexpr std::string_view xml_namespace = "http://www.w3.org/XML/1998/namespace";
+        if (uri.length() + local_name.length() >= xml_namespace.length()) {
+            if (uri != xml_namespace.substr(0, uri.length())) {
+                return false;
+            }
+            if (uri.length() < xml_namespace.length() && !local_name.starts_with(xml_namespace.substr(uri.length()))) {
+                return false;
+            }
+            return true;
+        }
+        if (uri.empty() && local_name.starts_with("xml")) {
+            return true;
+        }
+        return false;
     }
 
 }  // namespace rdf4cpp::parser

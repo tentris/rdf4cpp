@@ -53,6 +53,29 @@ namespace rdf4cpp::parser {
             return iri_equal_pieces(e, uri, local_name);
         });
     }
+    bool iri_core_syntax(std::string_view const uri, std::string_view const local_name) {
+        static constexpr std::array reserved = {
+            xml_states::RDFState::start_element,
+            xml_states::DescriptionState::id_attrib,
+            xml_states::DescriptionState::about_attrib,
+            xml_states::PredicateState::parse_type_attrib,
+            xml_states::PredicateState::resource_attrib,
+            xml_states::DescriptionState::node_id_attrib,
+        };
+        return std::ranges::any_of(reserved, [&](std::string_view const e) {
+            return iri_equal_pieces(e, uri, local_name);
+        });
+    }
+    bool iri_old_term(std::string_view const uri, std::string_view const local_name) {
+        static constexpr std::array reserved = {
+            std::string_view{"http://www.w3.org/1999/02/22-rdf-syntax-ns#aboutEach"},
+            std::string_view{"http://www.w3.org/1999/02/22-rdf-syntax-ns#aboutEachPrefix"},
+            std::string_view{"http://www.w3.org/1999/02/22-rdf-syntax-ns#bagID"},
+        };
+        return std::ranges::any_of(reserved, [&](std::string_view const e) {
+            return iri_equal_pieces(e, uri, local_name);
+        });
+    }
 
     void IStreamQuadIterator::ImplXML::on_error(void *th, char const *msg, ...) {  // NOLINT(*-dcl50-cpp)
         va_list args;
