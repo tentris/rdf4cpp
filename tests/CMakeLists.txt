@@ -2,6 +2,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(doctest REQUIRED)
 find_package(nanobench REQUIRED)
+find_package(CURL REQUIRED)
 
 # add the executable for all tests
 add_executable(tests_Variable query/tests_Variable.cpp)
@@ -364,6 +365,7 @@ add_executable(tests_XMLParser parser/tests_XMLParser.cpp)
 target_link_libraries(tests_XMLParser
         doctest::doctest
         rdf4cpp
+        CURL::libcurl
 )
 add_test(NAME tests_XMLParser COMMAND tests_XMLParser)
 
