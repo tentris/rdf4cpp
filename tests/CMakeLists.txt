@@ -2,6 +2,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(doctest REQUIRED)
 find_package(nanobench REQUIRED)
+find_package(CURL REQUIRED)
 
 # add the executable for all tests
 add_executable(tests_Variable query/tests_Variable.cpp)
@@ -359,6 +360,14 @@ target_link_libraries(tests_Anonymizer
         doctest::doctest
         rdf4cpp)
 add_test(NAME tests_Anonymizer COMMAND tests_Anonymizer)
+
+add_executable(tests_XMLParser parser/tests_XMLParser.cpp)
+target_link_libraries(tests_XMLParser
+        doctest::doctest
+        rdf4cpp
+        CURL::libcurl
+)
+add_test(NAME tests_XMLParser COMMAND tests_XMLParser)
 
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.nt")
         file(DOWNLOAD "https://files.tentris.dev/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")

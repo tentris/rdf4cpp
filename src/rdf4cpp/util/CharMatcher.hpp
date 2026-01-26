@@ -327,6 +327,61 @@ struct PNChars_UnicodePartMatcher {
  */
 constexpr auto PNCharsMatcher = ASCIINumMatcher{} | ASCIIPatternMatcher{"-"} | PNCharsUMatcher | PNChars_UnicodePartMatcher{};
 
+namespace xml {
+    /**
+     * Matches the unicode part (the characters listed as numbers) of NCNameStartChar of the XML specification
+     */
+    struct NCNameStartChar_UnicodePartMatcher {
+        [[nodiscard]] static constexpr bool match(int c) noexcept {
+            return (c >= 0xC0 && c <= 0xD6) ||
+                   (c >= 0xD8 && c <= 0xF6) ||
+                   (c >= 0xF8 && c <= 0x2FF) ||
+                   (c >= 0x370 && c <= 0x37D) ||
+                   (c >= 0x37F && c <= 0x1FFF) ||
+                   (c >= 0x200C && c <= 0x200D) ||
+                   (c >= 0x2070 && c <= 0x218F) ||
+                   (c >= 0x2C00 && c <= 0x2FEF) ||
+                   (c >= 0x3001 && c <= 0xD7FF) ||
+                   (c >= 0xF900 && c <= 0xFDCF) ||
+                   (c >= 0xFDF0 && c <= 0xFFFD) ||
+                   (c >= 0x10000 && c <= 0xEFFFF);
+        }
+
+        static constexpr size_t simd_range_num = 0;
+        static constexpr bool fail_if_unicode = false;
+        [[nodiscard]] static consteval std::array<CharRange, simd_range_num> simd_ranges() noexcept {
+            return {};
+        }
+        [[nodiscard]] static consteval auto simd_singles() noexcept {
+            return datatypes::registry::util::ConstexprString("");
+        }
+    };
+
+
+    /**
+     * Matches the unicode part (the characters listed as numbers) of NCNameChar of the XML specification
+     */
+    struct NCNameChar_UnicodePartMatcher {
+        [[nodiscard]] static constexpr bool match(int c) noexcept {
+            return c == 0xB7 ||
+                   (c >= 0x0300 && c <= 0x036F) ||
+                   (c >= 0x203F && c <= 0x2040);
+        }
+
+        static constexpr size_t simd_range_num = 0;
+        static constexpr bool fail_if_unicode = false;
+        [[nodiscard]] static consteval std::array<CharRange, simd_range_num> simd_ranges() noexcept {
+            return {};
+        }
+        [[nodiscard]] static consteval auto simd_singles() noexcept {
+            return datatypes::registry::util::ConstexprString("");
+        }
+    };
+
+    constexpr auto NCNameStartChar = ASCIIAlphaMatcher{} | ASCIIPatternMatcher{"_"} | NCNameStartChar_UnicodePartMatcher{};
+    constexpr auto NCNameChar = ASCIIAlphaMatcher{} | ASCIINumMatcher{} | ASCIIPatternMatcher{"_-."} | NCNameStartChar_UnicodePartMatcher{} | NCNameChar_UnicodePartMatcher{};
+}
+
 /**
   * iterates over s and tries to match all in m.
   * attempts to do an ASCII SIMD match first, if that does not decide the matching, decodes the utf-8 and matches char by char.

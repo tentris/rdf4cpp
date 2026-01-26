@@ -30,7 +30,7 @@ RDFFileParser::iterator::iterator(FILE *&&stream,
                                   state_type *state)
     : stream_(stream),
       iter_(std::make_unique<IStreamQuadIterator>(stream_, reinterpret_cast<ReadFunc>(&fread), reinterpret_cast<ErrorFunc>(&ferror),
-                                                  flags, state)) {
+                                            reinterpret_cast<EOFFunc>(feof), flags, state)) {
 }
 RDFFileParser::iterator::~iterator() noexcept {
     fclose(stream_);

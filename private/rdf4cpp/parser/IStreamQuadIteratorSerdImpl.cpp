@@ -7,11 +7,11 @@
 
 namespace rdf4cpp::parser {
 
-std::string_view IStreamQuadIterator::Impl::node_into_string_view(SerdNode const *node) noexcept {
+std::string_view IStreamQuadIterator::ImplSerd::node_into_string_view(SerdNode const *node) noexcept {
     return std::string_view{reinterpret_cast<char const *>(node->buf), node->n_bytes};
 }
 
-ParsingError::Type IStreamQuadIterator::Impl::parsing_error_type_from_serd(SerdStatus const st) noexcept {
+ParsingError::Type IStreamQuadIterator::ImplSerd::parsing_error_type_from_serd(SerdStatus const st) noexcept {
     switch (st) {
         case SERD_ERR_BAD_SYNTAX:
             return ParsingError::Type::BadSyntax;
@@ -26,13 +26,13 @@ ParsingError::Type IStreamQuadIterator::Impl::parsing_error_type_from_serd(SerdS
     }
 }
 
-nonstd::expected<Node, SerdStatus> IStreamQuadIterator::Impl::get_bnode(std::string &&graph_str, SerdNode const *node) noexcept {
+nonstd::expected<Node, SerdStatus> IStreamQuadIterator::ImplSerd::get_bnode(std::string &&graph_str, SerdNode const *node) noexcept {
     auto const node_str = node_into_string_view(node);
 
     if (this->flags.contains(ParsingFlag::NoParseBlankNode)) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
-                                        .line = serd_reader_get_current_line(this->reader),
-                                        .col = serd_reader_get_current_col(this->reader),
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Encountered blank node while parsing. hint: blank nodes are not allowed in the current document. note: position may not be accurate and instead point to the end of the line."};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
@@ -47,22 +47,22 @@ nonstd::expected<Node, SerdStatus> IStreamQuadIterator::Impl::get_bnode(std::str
     } catch (InvalidNode const &e) {
         // NOTE: line, col not entirely accurate as this function is called after a triple was parsed
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadBlankNode,
-                                        .line = serd_reader_get_current_line(this->reader),
-                                        .col = serd_reader_get_current_col(this->reader),
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = std::string{e.what()} + ". note: position may not be accurate and instead point to the end of the triple."};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadBlankNode,
-                                        .line = serd_reader_get_current_line(this->reader),
-                                        .col = serd_reader_get_current_col(this->reader),
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     }
 }
 
-nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_iri(SerdNode const *node) noexcept {
+nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_iri(SerdNode const *node) noexcept {
     auto const iri = [this, node]() noexcept {
         auto const s = node_into_string_view(node);
 
@@ -76,8 +76,8 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_iri(SerdNode co
     if (!iri.has_value()) {
         IRIFactoryError err = iri.error();
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadIri,
-                                        .line = serd_reader_get_current_line(this->reader),
-                                        .col = serd_reader_get_current_col(this->reader),
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = std::format("invalid iri. {}. note: position may not be accurate and instead point to the end of the triple.", err)};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
@@ -86,11 +86,11 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_iri(SerdNode co
     return *iri;
 }
 
-nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_prefixed_iri(SerdNode const *node) noexcept {
+nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_iri(SerdNode const *node) noexcept {
     if (!flags.syntax_allows_prefixes()) [[unlikely]] {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
-                                        .line = serd_reader_get_current_line(this->reader),
-                                        .col = serd_reader_get_current_col(this->reader),
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Encountered prefix while parsing. hint: prefixes are not allowed in the current document. note: position may not be accurate and instead point to the end of the line."};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
@@ -112,15 +112,15 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_prefixed_iri(Se
         if (err == IRIFactoryError::UnknownPrefix) {
             // NOTE: line, col not entirely accurate as this function is called after a triple was parsed
             this->last_error = ParsingError{.error_type = ParsingError::Type::BadCurie,
-                                            .line = serd_reader_get_current_line(this->reader),
-                                            .col = serd_reader_get_current_col(this->reader),
+                                            .line = serd_reader_get_current_line(this->reader.get()),
+                                            .col = serd_reader_get_current_col(this->reader.get()),
                                             .message = "unknown prefix. note: position may not be accurate and instead point to the end of the triple."};
 
             return nonstd::make_unexpected(SERD_ERR_BAD_CURIE);
         } else {
             this->last_error = ParsingError{.error_type = ParsingError::Type::BadIri,
-                                            .line = serd_reader_get_current_line(this->reader),
-                                            .col = serd_reader_get_current_col(this->reader),
+                                            .line = serd_reader_get_current_line(this->reader.get()),
+                                            .col = serd_reader_get_current_col(this->reader.get()),
                                             .message = std::format("unable to expand curie into valid iri. {}. note: position may not be accurate and instead point to the end of the triple.", err)};
 
             return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
@@ -130,7 +130,7 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::Impl::get_prefixed_iri(Se
     return *iri;
 }
 
-nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::Impl::get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept {
+nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::ImplSerd::get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept {
     auto const literal_value = node_into_string_view(literal);
 
     auto const datatype_iri = [&]() -> std::optional<nonstd::expected<IRI, SerdStatus>> {
@@ -163,15 +163,15 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::Impl::get_literal(Ser
     } catch (InvalidNode const &e) {
         // NOTE: line, col not entirely accurate as this function is called after a triple was parsed
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadLiteral,
-                                        .line = serd_reader_get_current_line(this->reader),
-                                        .col = serd_reader_get_current_col(this->reader),
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = std::string{e.what()} + ". note: position may not be accurate and instead point to the end of the triple."};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadLiteral,
-                                        .line = serd_reader_get_current_line(this->reader),
-                                        .col = serd_reader_get_current_col(this->reader),
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
@@ -200,8 +200,8 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::Impl::get_literal(Ser
     return SERD_SUCCESS;
 }
 
-SerdStatus IStreamQuadIterator::Impl::on_error(void *voided_self, SerdError const *error) noexcept {
-    auto *self = static_cast<Impl *>(voided_self);
+SerdStatus IStreamQuadIterator::ImplSerd::on_error(void *voided_self, SerdError const *error) noexcept {
+    auto *self = static_cast<ImplSerd *>(voided_self);
 
     size_t buf_size;
     SerdStatus const st = calc_required_buffer_size(error, buf_size);
@@ -233,37 +233,37 @@ SerdStatus IStreamQuadIterator::Impl::on_error(void *voided_self, SerdError cons
     return SERD_SUCCESS;
 }
 
-SerdStatus IStreamQuadIterator::Impl::on_base(void *voided_self, const SerdNode *uri) noexcept {
-    auto *self = static_cast<Impl *>(voided_self);
+SerdStatus IStreamQuadIterator::ImplSerd::on_base(void *voided_self, const SerdNode *uri) noexcept {
+    auto *self = static_cast<ImplSerd *>(voided_self);
 
     if (self->flags.contains(ParsingFlag::NoParsePrefix)) {
         self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
-                                        .line = serd_reader_get_current_line(self->reader),
-                                        .col = serd_reader_get_current_col(self->reader),
+                                        .line = serd_reader_get_current_line(self->reader.get()),
+                                        .col = serd_reader_get_current_col(self->reader.get()),
                                         .message = "Encountered base while parsing. hint: bases are not allowed in the current document. note: position may not be accurate and instead point to the end of the line."};
     } else if (auto e = self->state->iri_factory.set_base(node_into_string_view(uri)); e != IRIFactoryError::Ok) {
         self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
-                                        .line = serd_reader_get_current_line(self->reader),
-                                        .col = serd_reader_get_current_col(self->reader),
+                                        .line = serd_reader_get_current_line(self->reader.get()),
+                                        .col = serd_reader_get_current_col(self->reader.get()),
                                         .message = std::format("Error setting base: {}. note: position may not be accurate and instead point to the end of the line.", e)};
     }
 
     return SERD_SUCCESS;
 }
 
-SerdStatus IStreamQuadIterator::Impl::on_prefix(void *voided_self, SerdNode const *name, SerdNode const *uri) noexcept {
-    auto *self = static_cast<Impl *>(voided_self);
+SerdStatus IStreamQuadIterator::ImplSerd::on_prefix(void *voided_self, SerdNode const *name, SerdNode const *uri) noexcept {
+    auto *self = static_cast<ImplSerd *>(voided_self);
 
     if (self->flags.contains(ParsingFlag::NoParsePrefix)) {
         self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
-                                        .line = serd_reader_get_current_line(self->reader),
-                                        .col = serd_reader_get_current_col(self->reader),
+                                        .line = serd_reader_get_current_line(self->reader.get()),
+                                        .col = serd_reader_get_current_col(self->reader.get()),
                                         .message = "Encountered prefix while parsing. hint: prefixes are not allowed in the current document. note: position may not be accurate and instead point to the end of the line."};
     } else {
         if (self->state->iri_factory.assign_prefix(node_into_string_view(name), node_into_string_view(uri)) != IRIFactoryError::Ok) {
             self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
-                                            .line = serd_reader_get_current_line(self->reader),
-                                            .col = serd_reader_get_current_col(self->reader),
+                                            .line = serd_reader_get_current_line(self->reader.get()),
+                                            .col = serd_reader_get_current_col(self->reader.get()),
                                             .message = std::format("Invalid prefix: {}. note: position may not be accurate and instead point to the end of the line.", node_into_string_view(name))};
         }
     }
@@ -271,27 +271,27 @@ SerdStatus IStreamQuadIterator::Impl::on_prefix(void *voided_self, SerdNode cons
     return SERD_SUCCESS;
 }
 
-SerdStatus IStreamQuadIterator::Impl::inspect_node(Node const &node) noexcept {
+SerdStatus IStreamQuadIterator::ImplSerd::inspect_node(Node const &node) noexcept {
     try {
         state->inspect_node_func(node);
         return SERD_SUCCESS;
     } catch (std::exception const &e) {
         // skip
         last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
-                                  .line = serd_reader_get_current_line(reader),
-                                  .col = serd_reader_get_current_col(reader),
+                                  .line = serd_reader_get_current_line(reader.get()),
+                                  .col = serd_reader_get_current_col(reader.get()),
                                   .message = std::format("Triple explicitly skipped by inspect function: {}", e.what())};
     } catch (...) {
         last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
-                                  .line = serd_reader_get_current_line(reader),
-                                  .col = serd_reader_get_current_col(reader),
+                                  .line = serd_reader_get_current_line(reader.get()),
+                                  .col = serd_reader_get_current_col(reader.get()),
                                   .message = "Triple explicitly skipped by inspect function"};
     }
 
     return SERD_FAILURE;
 }
 
-SerdStatus IStreamQuadIterator::Impl::on_stmt(void *voided_self,
+SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
                                               SerdStatementFlags,
                                               SerdNode const *graph,
                                               SerdNode const *subj,
@@ -300,7 +300,7 @@ SerdStatus IStreamQuadIterator::Impl::on_stmt(void *voided_self,
                                               SerdNode const *obj_datatype,
                                               SerdNode const *obj_lang) noexcept {
 
-    auto *self = static_cast<Impl *>(voided_self);
+    auto *self = static_cast<ImplSerd *>(voided_self);
 
     auto const graph_node = [&]() -> nonstd::expected<Node, SerdStatus> {
         if (graph != nullptr) {
@@ -394,42 +394,37 @@ SerdStatus IStreamQuadIterator::Impl::on_stmt(void *voided_self,
     return SERD_SUCCESS;
 }
 
-IStreamQuadIterator::Impl::Impl(void *stream,
+IStreamQuadIterator::ImplSerd::ImplSerd(void *stream,
                                 ReadFunc read,
                                 ErrorFunc error,
                                 flags_type flags,
                                 state_type *initial_state) noexcept
-    : reader{serd_reader_new(extract_syntax_from_flags(flags), this, nullptr, &Impl::on_base, &Impl::on_prefix, &Impl::on_stmt, nullptr)},
+    : reader{serd_reader_new(extract_syntax_from_flags(flags), this, nullptr, &ImplSerd::on_base, &ImplSerd::on_prefix, &ImplSerd::on_stmt, nullptr)},
       state{initial_state},
       state_is_owned{false},
       flags{flags} {
-
     if (this->state == nullptr) {
         this->state = new state_type{};
         this->state_is_owned = true;
     }
 
-    serd_reader_set_strict(this->reader, !flags.contains(ParsingFlag::Lax));
-    serd_reader_set_error_sink(this->reader, &Impl::on_error, this);
-    serd_reader_start_source_stream(this->reader, read, error, stream, nullptr, 4096);
+    serd_reader_set_strict(this->reader.get(), !flags.contains(ParsingFlag::Lax));
+    serd_reader_set_error_sink(this->reader.get(), &ImplSerd::on_error, this);
+    serd_reader_start_source_stream(this->reader.get(), read, error, stream, nullptr, 4096);
 }
-
-IStreamQuadIterator::Impl::~Impl() noexcept {
-    serd_reader_end_stream(this->reader);
-    serd_reader_free(this->reader);
-
+IStreamQuadIterator::ImplSerd::~ImplSerd() {
     if (this->state_is_owned) {
         delete this->state;
     }
 }
 
-std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type>> IStreamQuadIterator::Impl::next() {
+std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type>> IStreamQuadIterator::ImplSerd::next() {
     while (this->quad_buffer.empty()) {
         if (this->last_error.has_value()) {
             // handle error from last time
             if (this->last_error_requires_skip) {
                 this->last_error_requires_skip = false;
-                if (serd_reader_skip_until_byte(this->reader, '\n') != SERD_SUCCESS) {
+                if (serd_reader_skip_until_byte(this->reader.get(), '\n') != SERD_SUCCESS) {
                     // EOF reached
                     this->end_flag = true;
                 }
@@ -439,7 +434,7 @@ std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator
             return std::nullopt;
         }
 
-        SerdStatus const st = serd_reader_read_chunk(this->reader);
+        SerdStatus const st = serd_reader_read_chunk(this->reader.get());
 
         if (st == SERD_SUCCESS) {
             // was able to parse something
@@ -455,8 +450,8 @@ std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator
                 // got some other specific error => not eof
                 // but we don't really know what because the error handler was not called
                 this->last_error = ParsingError{.error_type = parsing_error_type_from_serd(st),
-                                                .line = serd_reader_get_current_line(this->reader),
-                                                .col = serd_reader_get_current_col(this->reader),
+                                                .line = serd_reader_get_current_line(this->reader.get()),
+                                                .col = serd_reader_get_current_col(this->reader.get()),
                                                 .message = "Unknown error"};
                 this->last_error_requires_skip = true;
             }
@@ -468,12 +463,12 @@ std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator
     return ret;
 }
 
-uint64_t IStreamQuadIterator::Impl::current_line() const noexcept {
-    return serd_reader_get_current_line(this->reader);
+uint64_t IStreamQuadIterator::ImplSerd::current_line() const noexcept {
+    return serd_reader_get_current_line(this->reader.get());
 }
 
-uint64_t IStreamQuadIterator::Impl::current_column() const noexcept {
-    return serd_reader_get_current_col(this->reader);
+uint64_t IStreamQuadIterator::ImplSerd::current_column() const noexcept {
+    return serd_reader_get_current_col(this->reader.get());
 }
 
 }  // namespace rdf4cpp::parser

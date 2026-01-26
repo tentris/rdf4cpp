@@ -14,14 +14,22 @@
 
 namespace rdf4cpp::parser {
 
-struct IStreamQuadIterator::Impl {
+struct IStreamQuadIterator::ImplSerd final : Impl {
     using flags_type = IStreamQuadIterator::flags_type;
     using state_type = IStreamQuadIterator::state_type;
     using ok_type = IStreamQuadIterator::ok_type;
     using error_type = IStreamQuadIterator::error_type;
 
 private:
-    SerdReader *reader;
+    // workaround for gcc-14 bug, erroneously warns on unsing a lambda here
+    // see https://github.com/NVIDIA/stdexec/issues/1143
+    struct SerdReaderDtorLambda {
+        void operator()(SerdReader* r) const {
+            serd_reader_end_stream(r);
+            serd_reader_free(r);
+        }
+    };
+    std::unique_ptr<SerdReader, SerdReaderDtorLambda> reader;
 
     state_type *state;
     bool state_is_owned;
@@ -33,11 +41,9 @@ private:
 
     flags_type flags;
 
-private:
     static std::string_view node_into_string_view(SerdNode const *node) noexcept;
     static ParsingError::Type parsing_error_type_from_serd(SerdStatus st) noexcept;
 
-private:
     nonstd::expected<Node, SerdStatus> get_bnode(std::string &&graph_str, SerdNode const *node) noexcept;
     nonstd::expected<IRI, SerdStatus> get_iri(SerdNode const *node) noexcept;
     nonstd::expected<IRI, SerdStatus> get_prefixed_iri(SerdNode const *node) noexcept;
@@ -63,13 +69,13 @@ private:
     }
 
 public:
-    Impl(void *stream,
+    ImplSerd(void *stream,
          ReadFunc read,
          ErrorFunc,
          flags_type flags,
          state_type *state) noexcept;
 
-    ~Impl() noexcept;
+    ~ImplSerd() override;
 
     /**
      * Tries to extract the next element from the serd backend.
@@ -81,10 +87,10 @@ public:
      *      expected Quad: if there was a next element and it could be parsed
      *      unexpected ParsingError: if there was a next element but it could not be parsed
      */
-    [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next();
+    [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
 
-    [[nodiscard]] uint64_t current_line() const noexcept;
-    [[nodiscard]] uint64_t current_column() const noexcept;
+    [[nodiscard]] uint64_t current_line() const noexcept override;
+    [[nodiscard]] uint64_t current_column() const noexcept override;
 };
 
 }  // namespace rdf4cpp::parser
