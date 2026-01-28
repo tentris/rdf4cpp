@@ -11,6 +11,7 @@
 
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/util/Int128.hpp>
+#include <rdf4cpp/util/boost_int.hpp>
 #include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry::util {
@@ -106,7 +107,6 @@ F from_chars(std::string_view s) {
     }
 }
 
-#ifdef __SIZEOF_INT128__
 template<typename F, ConstexprString datatype>
 requires std::same_as<F, __int128>
 F from_chars(std::string_view s) {
@@ -158,7 +158,6 @@ F from_chars(std::string_view s) {
     }
     return value;
 }
-#endif
 
 namespace detail  {
 /**

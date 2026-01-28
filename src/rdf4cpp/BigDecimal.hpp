@@ -14,6 +14,7 @@
 #include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/util/Int128.hpp>
+#include <rdf4cpp/util/boost_int.hpp>
 #include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp {

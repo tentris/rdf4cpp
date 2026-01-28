@@ -11,7 +11,6 @@ using Dec = rdf4cpp::Decimal128;
 using DecI = rdf4cpp::util::BigDecimal<int32_t, uint32_t>;
 using RoundingMode = rdf4cpp::util::RoundingMode;
 
-#ifdef __SIZEOF_INT128__
 namespace doctest {
     template<> struct StringMaker<__int128> {
         static String convert(const __int128& value) {
@@ -22,7 +21,6 @@ namespace doctest {
     };
 }
 static_assert(!rdf4cpp::util::detail::BoostNumber<__int128>);
-#endif
 static_assert(rdf4cpp::util::detail::BoostNumber<boost::multiprecision::checked_cpp_int>);
 static_assert(!rdf4cpp::util::detail::BoostNumber<int>);
 
