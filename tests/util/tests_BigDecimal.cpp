@@ -215,7 +215,7 @@ TEST_CASE("int128 from_chars") {
     CHECK(rdf4cpp::datatypes::registry::util::from_chars<__int128, s>("-5000000000000000500000") == Make128(-5000, -500000));
 
     std::random_device rd{};
-    std::default_random_engine r{std::uniform_int_distribution<size_t>{}(rd)};
+    std::default_random_engine r{rd()};
     std::uniform_int_distribution<int64_t> d{};
     std::array<char, std::numeric_limits<__int128>::digits10 + 2> buff;
     for (int i = 0; i < 100000; ++i) {
