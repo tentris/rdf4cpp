@@ -10,7 +10,7 @@ jobs:
   detect-pobr-diff:
     uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/abi-diff.yml@main
     with:
-      os: ubuntu-24.04
+      os: arc-runner-set-noble
       cc: clang-20
       cxx: clang++-20
       base-branch: ${{ github.base_ref }}
