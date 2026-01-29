@@ -27,6 +27,7 @@ void deserialize(std::filesystem::path const &in_path, Dataset &ds, storage::Dyn
     parser::IStreamQuadIterator qit{in_file,
                                     reinterpret_cast<parser::ReadFunc>(&fread),
                                     reinterpret_cast<parser::ErrorFunc>(&ferror),
+                                    reinterpret_cast<parser::EOFFunc>(&feof),
                                     parser::ParsingFlags::none(),
                                     &state};
 

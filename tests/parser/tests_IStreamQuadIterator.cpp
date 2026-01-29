@@ -404,7 +404,7 @@ TEST_SUITE("IStreamQuadIterator") {
             }
 
             auto *f = fopen(path, "r");
-            for (IStreamQuadIterator qit{f, reinterpret_cast<ReadFunc>(fread), reinterpret_cast<ErrorFunc>(ferror)}; qit != std::default_sentinel; ++qit) {
+            for (IStreamQuadIterator qit{f, reinterpret_cast<ReadFunc>(fread), reinterpret_cast<ErrorFunc>(ferror), reinterpret_cast<EOFFunc>(feof)}; qit != std::default_sentinel; ++qit) {
                 FAIL("not empty");
             }
 

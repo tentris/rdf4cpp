@@ -36,6 +36,15 @@ using ReadFunc = size_t (*)(void *buffer, size_t elem_size, size_t count, void *
 using ErrorFunc = int (*)(void *stream);
 
 /**
+ * Identical semantics to feof.
+ *
+ *
+ * @param stream pointer to any object
+ * @return nonzero value if there is an error in stream, zero value otherwise
+ */
+using EOFFunc = int (*)(void *stream);
+
+/**
  * Similar to std::istream_iterator<>.
  * Parses the given istream and tries to extract Quads given in TURTLE format.
  *
@@ -70,11 +79,34 @@ struct IStreamQuadIterator {
     using istream_type = std::istream;
 
 private:
-    struct Impl;
+    struct Impl {
+        virtual ~Impl() = default;
+        /**
+         * Tries to extract the next element from the backend.
+         * Will try to skip over errors so that the next call might be able to return a value.
+         *
+         * @note Call until std::nullopt is returned
+         * @return
+         *      std::nullopt: if there is no next element (eof)
+         *      expected Quad: if there was a next element and it could be parsed
+         *      unexpected ParsingError: if there was a next element but it could not be parsed
+         */
+        [[nodiscard]] virtual std::optional<nonstd::expected<ok_type, error_type>> next() = 0;
+        [[nodiscard]] virtual uint64_t current_line() const noexcept = 0;
+        [[nodiscard]] virtual uint64_t current_column() const noexcept = 0;
+
+        Impl() = default;
+        Impl(Impl const &) = delete;
+        Impl(Impl&&) = delete;
+        Impl &operator=(Impl const &) = delete;
+        Impl &operator=(Impl &&) = delete;
+    };
+
+    struct ImplSerd;
+    struct ImplXML;
 
     std::unique_ptr<Impl> impl;
     std::optional<nonstd::expected<ok_type, error_type>> cur;
-
 public:
     /**
      * Constructs a IStreamQuadIterator from a C-like io api. That is something similar to
@@ -91,6 +123,7 @@ public:
     IStreamQuadIterator(void *stream,
                         ReadFunc read,
                         ErrorFunc error,
+                        EOFFunc eof,
                         flags_type flags = ParsingFlags::none(),
                         state_type *initial_state = nullptr);
 

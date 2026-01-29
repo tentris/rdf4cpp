@@ -292,5 +292,9 @@ IRIFactoryError IRIFactory::set_base(std::string_view b) noexcept {
     base_parts_cache = IRIView{base}.all_parts();
     return IRIFactoryError::Ok;
 }
+void IRIFactory::set_base_unchecked(std::string_view b) noexcept {
+    base = b;
+    base_parts_cache = IRIView{base}.all_parts();
+}
 
 }  // namespace rdf4cpp

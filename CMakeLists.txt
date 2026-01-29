@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(rdf4cpp VERSION 0.1.12)
+project(rdf4cpp VERSION 0.1.13)
 set(POBR_VERSION 3)  # Persisted Object Binary Representation
 
 include(cmake/boilerplate_init.cmake)
@@ -23,6 +23,7 @@ find_package(highway REQUIRED)
 find_package(dice-hash REQUIRED)
 find_package(dice-sparse-map REQUIRED)
 find_package(dice-template-library REQUIRED)
+find_package(libxml2 REQUIRED)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/rdf4cpp/version.hpp)
 
@@ -149,6 +150,17 @@ add_library(rdf4cpp
         src/rdf4cpp/IRIFactory.cpp
         src/rdf4cpp/util/Anonymizer.cpp
         private/rdf4cpp/parser/IStreamQuadIteratorSerdImpl.cpp
+        private/rdf4cpp/parser/XMLParser.cpp
+        private/rdf4cpp/parser/XMLParserUtility.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserBaseState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserCollectionState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserDescriptionState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserEmptyElement.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserInitialState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserPredicateState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserRDFState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserTypedLiteralPredicateState.cpp
+        private/rdf4cpp/parser/XMLStates/XMLParserXMLLiteralState.cpp
         private/rdf4cpp/regex/RegexImpl.cpp
         private/rdf4cpp/regex/RegexReplacerImpl.cpp
         ${serd_source_files}
@@ -178,6 +190,7 @@ target_link_libraries(rdf4cpp
         OpenSSL::Crypto
         uni-algo::uni-algo
         highway::highway
+        LibXml2::LibXml2
         )
 
 set_target_properties(rdf4cpp PROPERTIES

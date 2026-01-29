@@ -105,6 +105,12 @@ public:
      * @return
      */
     [[nodiscard]] IRIFactoryError set_base(std::string_view b) noexcept;
+    /**
+     * Changes the base IRI. Skips validating the new base IRI.
+     * @param b
+     * @return
+     */
+    void set_base_unchecked(std::string_view b) noexcept;
 
     /**
      * validates the given IRI and creates it in the given node storage, if valid.
