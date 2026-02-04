@@ -10,7 +10,8 @@ _rdf4cpp_ is a modern C++20 library providing basic RDF support.
 
 The focus is **correctness**, **performance** and **ease-of-use** for **basic building blocks** like:
 
-- parsing, validating and writing RDF data ([N-Triples](https://www.w3.org/TR/n-triples/), [Turtle](https://www.w3.org/TR/turtle/), [N-Quads](https://www.w3.org/TR/n-quads/), [TriG](https://www.w3.org/TR/trig/), [RDF/XML](https://www.w3.org/TR/rdf11-xml/))
+- parsing, validating and writing RDF data ([N-Triples](https://www.w3.org/TR/n-triples/), [Turtle](https://www.w3.org/TR/turtle/), [N-Quads](https://www.w3.org/TR/n-quads/), [TriG](https://www.w3.org/TR/trig/))
+- parsing and validating [RDF/XML](https://www.w3.org/TR/rdf11-xml/)
 - Complete and extensible literal datatypes (validation, functions, operations, subtype and promotion casting, mapping to C++ types, error handling, ...) 
 - Managing RDF nodes efficiently
 - Blank node scoping (e.g., for RDF datasets)
