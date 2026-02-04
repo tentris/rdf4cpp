@@ -183,12 +183,6 @@ namespace rdf4cpp {
     }  // namespace util
 }  // namespace rdf4cpp
 
-template<typename Policy>
-struct dice::hash::dice_hash_overload<Policy, __int128> {
-    static size_t dice_hash(__int128 const &x) noexcept {
-        return dice::hash::dice_hash_templates<Policy>::dice_hash(std::bit_cast<std::array<int64_t, 2>>(x));
-    }
-};
 inline std::ostream &operator<<(std::ostream &str, __int128 const &bn) {
     rdf4cpp::writer::BufOStreamWriter w{str};
     rdf4cpp::util::to_chars_canonical(bn, w);
