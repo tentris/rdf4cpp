@@ -40,7 +40,7 @@ Parsing Files
 -------------
 
 The class :class:`rdf4cpp::parser::RDFFileParser` allows reading files containing rdf Statements and iterate over them.
-Supported Formats: Turtle, TriG, N-Triples and N-Quads.
+Supported Formats: Turtle, TriG, N-Triples N-Quads and RDF/XML.
 :class:`rdf4cpp::parser::IStreamQuadIterator` allows doing the same over arbitrary data streams.
 
 Relaxed Parsing Mode
