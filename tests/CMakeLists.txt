@@ -369,6 +369,14 @@ target_link_libraries(tests_XMLParser
 )
 add_test(NAME tests_XMLParser COMMAND tests_XMLParser)
 
+add_executable(tests_JSON_LD_Parser parser/tests_JSON_LD_Parser.cpp)
+target_link_libraries(tests_JSON_LD_Parser
+        doctest::doctest
+        rdf4cpp
+        CURL::libcurl
+)
+add_test(NAME tests_JSON_LD_Parser COMMAND tests_JSON_LD_Parser)
+
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.nt")
         file(DOWNLOAD "https://files.tentris.dev/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
         execute_process(COMMAND unzip "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip" -d "${CMAKE_CURRENT_BINARY_DIR}/test_swdf")
