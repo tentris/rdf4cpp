@@ -196,7 +196,7 @@ target_link_libraries(rdf4cpp
 set_target_properties(rdf4cpp PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
-        CXX_STANDARD 20
+        CXX_STANDARD 23
         CXX_EXTENSIONS OFF
         CXX_STANDARD_REQUIRED ON
 )
