@@ -11,10 +11,11 @@ jobs:
     uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/abi-diff.yml@main
     with:
       os: ubuntu-24.04
-      compiler: clang-20
+      cc: clang-20
       cmake-version: 3.24.0
       conan-version: 2.17.0
       base-branch: ${{ github.base_ref }}
+      setup_tools: true
       search-path: >
         src/rdf4cpp/storage/identifier
         src/rdf4cpp/storage/view
