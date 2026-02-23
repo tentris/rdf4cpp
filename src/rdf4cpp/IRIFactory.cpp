@@ -210,6 +210,15 @@ nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_relative(std::string_vie
 nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage) const noexcept {
     return create_and_validate(to_absolute<false>(base_parts_cache, rel), node_storage);
 }
+nonstd::expected<std::string_view, IRIFactoryError> IRIFactory::from_maybe_relative_as_string(std::string_view rel) const noexcept {
+    auto r = to_absolute<false>(base_parts_cache, rel);
+    if (!rdf4cpp::datatypes::registry::relaxed_parsing_mode) {
+        if (auto const e = IRIView{r}.quick_validate(); e != IRIFactoryError::Ok) {
+            return nonstd::make_unexpected(e);
+        }
+    }
+    return r;
+}
 
 nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_prefix(std::string_view prefix, std::string_view local, storage::DynNodeStoragePtr node_storage) const {
     auto i = prefixes.find(prefix);

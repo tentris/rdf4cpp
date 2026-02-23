@@ -65,6 +65,15 @@ public:
      */
     [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const noexcept;
     /**
+     * Creates a IRI from a possibly relative IRI.
+     * if rel is relative, returns the same as from_relative, otherwise returns rel unchanged.
+     * the result is only valid, until the next call that resolves a relative IRI.
+     * @param rel
+     * @return
+     */
+    [[nodiscard]] nonstd::expected<std::string_view, IRIFactoryError> from_maybe_relative_as_string(std::string_view rel) const noexcept;
+
+    /**
      * Creates a IRI by looking up a prefix in the prefix map and possibly resolving a relative IRI.
      * @param prefix
      * @param local

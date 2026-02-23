@@ -104,6 +104,7 @@ private:
 
     struct ImplSerd;
     struct ImplXML;
+    struct ImplJsonLd;
 
     std::unique_ptr<Impl> impl;
     std::optional<nonstd::expected<ok_type, error_type>> cur;
