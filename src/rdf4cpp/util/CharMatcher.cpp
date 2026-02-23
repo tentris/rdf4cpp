@@ -149,6 +149,9 @@ namespace rdf4cpp::util::char_matcher_detail::HWY_NAMESPACE {
     std::optional<bool> try_match_simd_impl_1_1(std::string_view data, std::array<CharRange, 1> const &ranges, datatypes::registry::util::ConstexprString<1> const &single) {
         return try_match_simd_impl(data, ranges, single);
     }
+    std::optional<bool> try_match_simd_impl_2_1(std::string_view data, std::array<CharRange, 2> const &ranges, datatypes::registry::util::ConstexprString<1> const &single) {
+        return try_match_simd_impl(data, ranges, single);
+    }
 
     template<size_t n>
     HWY_INLINE bool contains_any_impl(std::string_view data, datatypes::registry::util::ConstexprString<n> const &match) {
@@ -229,6 +232,7 @@ namespace rdf4cpp::util::char_matcher_detail {
     HWY_EXPORT(try_match_simd_impl_3_20);
     HWY_EXPORT(try_match_simd_impl_3_21);
     HWY_EXPORT(try_match_simd_impl_1_1);
+    HWY_EXPORT(try_match_simd_impl_2_1);
     HWY_EXPORT(contains_any_impl_5);
 
     template<>
@@ -254,6 +258,10 @@ namespace rdf4cpp::util::char_matcher_detail {
     template<>
     std::optional<bool> try_match_simd(std::string_view data, std::array<CharRange, 1> const &ranges, datatypes::registry::util::ConstexprString<1> const &single) {
         return HWY_DYNAMIC_DISPATCH(try_match_simd_impl_1_1)(data, ranges, single);
+    }
+    template<>
+    std::optional<bool> try_match_simd(std::string_view data, std::array<CharRange, 2> const &ranges, datatypes::registry::util::ConstexprString<1> const &single) {
+        return HWY_DYNAMIC_DISPATCH(try_match_simd_impl_2_1)(data, ranges, single);
     }
 
     template<>

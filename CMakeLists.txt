@@ -24,6 +24,7 @@ find_package(dice-hash REQUIRED)
 find_package(dice-sparse-map REQUIRED)
 find_package(dice-template-library REQUIRED)
 find_package(libxml2 REQUIRED)
+find_package(simdjson REQUIRED)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/rdf4cpp/version.hpp)
 
@@ -161,6 +162,7 @@ add_library(rdf4cpp
         private/rdf4cpp/parser/XMLStates/XMLParserRDFState.cpp
         private/rdf4cpp/parser/XMLStates/XMLParserTypedLiteralPredicateState.cpp
         private/rdf4cpp/parser/XMLStates/XMLParserXMLLiteralState.cpp
+        private/rdf4cpp/parser/JsonLdParser.cpp
         private/rdf4cpp/regex/RegexImpl.cpp
         private/rdf4cpp/regex/RegexReplacerImpl.cpp
         ${serd_source_files}
@@ -191,6 +193,7 @@ target_link_libraries(rdf4cpp
         uni-algo::uni-algo
         highway::highway
         LibXml2::LibXml2
+        simdjson::simdjson
         )
 
 set_target_properties(rdf4cpp PROPERTIES
