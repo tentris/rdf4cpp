@@ -1,62 +1,85 @@
 #include "FormatGuess.hpp"
 
 #include <algorithm>
-#include <cctype>
 #include <string>
+
+#include <uni_algo/all.h>
 
 namespace rdf4cpp::parser {
 
     // --- helpers ---
 
-    static std::string to_lower(std::string_view sv) {
-        std::string s{sv};
-        std::ranges::transform(s, s.begin(), [](unsigned char c) {
-            return std::tolower(c);
-        });
-        return s;
+    struct SplitLine {
+        std::string_view line;
+        std::string_view rest;
+    };
+
+    // RDF syntax delimiters are ASCII bytes (0x00-0x7F) which never appear as
+    // UTF-8 continuation bytes.  Byte-level scanning for these markers is safe
+    // in valid UTF-8.
+
+    static std::string to_lower(std::string_view const sv) {
+        return una::cases::to_lowercase_utf8(sv);
     }
 
-    static std::string_view skip_whitespace_and_bom(std::string_view sv) {
+    static bool is_ascii_ws(char const c) noexcept {
+        return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+    }
+
+    static std::string_view ltrim_ascii_whitespace(std::string_view const sv) noexcept {
+        auto const it = std::ranges::find_if_not(sv, is_ascii_ws);
+        return sv.substr(static_cast<size_t>(it - sv.begin()));
+    }
+
+    static std::string_view trim_ascii_whitespace(std::string_view const sv) noexcept {
+        auto result = ltrim_ascii_whitespace(sv);
+        while (!result.empty() && is_ascii_ws(result.back())) {
+            result.remove_suffix(1);
+        }
+        return result;
+    }
+
+    /// Split into first line and everything after the newline. If no newline, rest is empty.
+    static SplitLine split_next_line(std::string_view const sv) noexcept {
+        auto const eol = sv.find('\n');
+        if (eol == std::string_view::npos) {
+            return {.line = sv, .rest = {}};
+        }
+        return {.line = sv.substr(0, eol), .rest = sv.substr(eol + 1)};
+    }
+
+    static std::string_view skip_whitespace_and_bom(std::string_view const sv) {
         // skip UTF-8 BOM
-        if (sv.size() >= 3 && sv[0] == '\xEF' && sv[1] == '\xBB' && sv[2] == '\xBF') {
-            sv.remove_prefix(3);
+        if (sv.starts_with("\xEF\xBB\xBF")) {
+            return ltrim_ascii_whitespace(sv.substr(3));
         }
-        // skip leading whitespace
-        while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t' || sv.front() == '\n' || sv.front() == '\r')) {
-            sv.remove_prefix(1);
-        }
-        return sv;
+        return ltrim_ascii_whitespace(sv);
     }
 
-    static bool starts_with_icase(std::string_view haystack, std::string_view needle) {
+    static bool starts_with_icase(std::string_view const haystack, std::string_view const needle) {
         if (haystack.size() < needle.size()) {
             return false;
         }
-        for (size_t i = 0; i < needle.size(); ++i) {
-            if (std::tolower(static_cast<unsigned char>(haystack[i])) != std::tolower(static_cast<unsigned char>(needle[i]))) {
-                return false;
-            }
-        }
-        return true;
+        return una::cases::to_lowercase_utf8(haystack.substr(0, needle.size())) == una::cases::to_lowercase_utf8(needle);
     }
 
-    static bool contains(std::string_view haystack, std::string_view needle) {
+    static bool contains(std::string_view const haystack, std::string_view const needle) {
         return haystack.find(needle) != std::string_view::npos;
     }
 
-    static bool contains_icase(std::string_view haystack, std::string_view needle) {
+    static bool contains_icase(std::string_view const haystack, std::string_view const needle) {
         if (needle.size() > haystack.size()) {
             return false;
         }
-        auto lower_hay = to_lower(haystack);
-        auto lower_needle = to_lower(needle);
+        auto const lower_hay = to_lower(haystack);
+        auto const lower_needle = to_lower(needle);
         return lower_hay.find(lower_needle) != std::string::npos;
     }
 
     // --- extension mapping ---
 
-    FormatGuess guess_format_from_extension(std::string_view extension) noexcept {
-        auto ext = to_lower(extension);
+    FormatGuess guess_format_from_extension(std::string_view const extension) noexcept {
+        auto const ext = to_lower(extension);
 
         if (ext == ".ttl" || ext == ".turtle") {
             return {ParsingFlag::Turtle, GuessConfidence::High};
@@ -88,7 +111,7 @@ namespace rdf4cpp::parser {
         return {ParsingFlag::Auto, GuessConfidence::None};
     }
 
-    FormatGuess guess_format_from_path(std::string_view file_path) noexcept {
+    FormatGuess guess_format_from_path(std::string_view const file_path) noexcept {
         // find last path separator
         auto const last_sep = file_path.find_last_of("/\\");
         auto const filename = (last_sep != std::string_view::npos) ? file_path.substr(last_sep + 1) : file_path;
@@ -104,9 +127,8 @@ namespace rdf4cpp::parser {
 
     // --- content sniffing ---
 
-    static bool has_trig_markers(std::string_view content) {
+    static bool has_trig_markers(std::string_view const content) {
         // Look for GRAPH keyword or { } blocks outside of string literals
-        // Simple heuristic: look for GRAPH keyword or standalone { not inside quotes
         if (contains_icase(content, "GRAPH")) {
             return true;
         }
@@ -115,11 +137,13 @@ namespace rdf4cpp::parser {
         // or just { at start of a line (default graph block)
         bool in_string = false;
         char string_delim = 0;
-        for (size_t i = 0; i < content.size(); ++i) {
-            char c = content[i];
+        auto cursor = content;
+        while (!cursor.empty()) {
+            char const c = cursor.front();
+            cursor.remove_prefix(1);
             if (in_string) {
-                if (c == '\\' && i + 1 < content.size()) {
-                    ++i;  // skip escaped char
+                if (c == '\\' && !cursor.empty()) {
+                    cursor.remove_prefix(1);  // skip escaped char
                     continue;
                 }
                 if (c == string_delim) {
@@ -139,15 +163,15 @@ namespace rdf4cpp::parser {
         return false;
     }
 
-    static FormatGuess sniff_xml_content(std::string_view content) {
+    static FormatGuess sniff_xml_content(std::string_view const content) {
         // Check for OWL/XML first — more specific markers.
         // OWL/XML uses <Ontology> root element (not <rdf:RDF>) and may still
         // declare xmlns:rdf as a namespace prefix, so checking OWL/XML before
         // RDF/XML avoids false positives.
-        bool has_ontology_root = contains(content, "<Ontology");
-        bool has_owl_ns = contains(content, "xmlns=\"http://www.w3.org/2002/07/owl#\"");
-        bool has_rdf_root = contains(content, "<rdf:RDF");
-        bool has_rdf_desc = contains(content, "<rdf:Description");
+        bool const has_ontology_root = contains(content, "<Ontology");
+        bool const has_owl_ns = contains(content, "xmlns=\"http://www.w3.org/2002/07/owl#\"");
+        bool const has_rdf_root = contains(content, "<rdf:RDF");
+        bool const has_rdf_desc = contains(content, "<rdf:Description");
 
         if (has_ontology_root && !has_rdf_root) {
             return {ParsingFlag::OwlXml, GuessConfidence::High};
@@ -165,33 +189,24 @@ namespace rdf4cpp::parser {
         return {ParsingFlag::RdfXml, GuessConfidence::Low};
     }
 
-    static FormatGuess sniff_json_content(std::string_view content) {
+    static FormatGuess sniff_json_content(std::string_view const content) {
         if (contains(content, "\"@context\"") || contains(content, "\"@id\"") || contains(content, "\"@graph\"")) {
             return {ParsingFlag::JsonLd, GuessConfidence::High};
         }
         return {ParsingFlag::Auto, GuessConfidence::None};
     }
 
-    static FormatGuess sniff_ntriples_or_nquads(std::string_view content) {
+    static FormatGuess sniff_ntriples_or_nquads(std::string_view const content) {
         // Scan lines looking for N-Triples/N-Quads patterns:
         // Lines of <iri> <iri> <obj> . (3 terms = NT, 4 terms = NQ)
         bool found_4_terms = false;
         bool found_any_triple = false;
 
-        size_t pos = 0;
-        while (pos < content.size()) {
-            // find end of line
-            auto eol = content.find('\n', pos);
-            auto line = content.substr(pos, eol == std::string_view::npos ? std::string_view::npos : eol - pos);
-            pos = (eol == std::string_view::npos) ? content.size() : eol + 1;
-
-            // trim
-            while (!line.empty() && (line.front() == ' ' || line.front() == '\t')) {
-                line.remove_prefix(1);
-            }
-            while (!line.empty() && (line.back() == ' ' || line.back() == '\t' || line.back() == '\r')) {
-                line.remove_suffix(1);
-            }
+        auto remaining = content;
+        while (!remaining.empty()) {
+            auto const [line_raw, rest] = split_next_line(remaining);
+            remaining = rest;
+            auto const line = trim_ascii_whitespace(line_raw);
 
             // skip empty lines and comments
             if (line.empty() || line.front() == '#') {
@@ -202,79 +217,70 @@ namespace rdf4cpp::parser {
             // that appear outside of IRIs and literals correctly.
             int term_count = 0;
             bool found_dot = false;
-            size_t i = 0;
-            while (i < line.size()) {
+            auto cursor = line;
+            while (!cursor.empty()) {
                 // skip whitespace
-                while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
-                    ++i;
-                }
-                if (i >= line.size()) {
+                cursor = ltrim_ascii_whitespace(cursor);
+                if (cursor.empty()) {
                     break;
                 }
-                char c = line[i];
+                char const c = cursor.front();
 
                 if (c == '.') {
                     found_dot = true;
-                    ++i;
-                    // skip trailing whitespace and optional comment after .
-                    while (i < line.size() && (line[i] == ' ' || line[i] == '\t')) {
-                        ++i;
-                    }
-                    if (i < line.size() && line[i] == '#') {
-                        // inline comment after dot — valid
-                    }
+                    cursor.remove_prefix(1);
                     break;
                 } else if (c == '#') {
                     // comment at top level (outside IRI/literal) — not valid N-Triples
-                    // unless we already found the dot
                     return {ParsingFlag::Auto, GuessConfidence::None};
                 } else if (c == '<') {
                     // IRI — find closing >
-                    auto close = line.find('>', i);
+                    auto const close = cursor.find('>');
                     if (close == std::string_view::npos) {
                         break;
                     }
-                    i = close + 1;
+                    cursor.remove_prefix(close + 1);
                     ++term_count;
-                } else if (c == '_' && i + 1 < line.size() && line[i + 1] == ':') {
+                } else if (cursor.starts_with("_:")) {
                     // blank node — skip to next whitespace
-                    while (i < line.size() && line[i] != ' ' && line[i] != '\t') {
-                        ++i;
-                    }
+                    auto const ws = std::ranges::find_if(cursor, is_ascii_ws);
+                    cursor.remove_prefix(static_cast<size_t>(ws - cursor.begin()));
                     ++term_count;
                 } else if (c == '"') {
                     // literal — find unescaped closing quote, then skip datatype/lang
-                    ++i;
-                    while (i < line.size()) {
-                        if (line[i] == '\\') {
-                            i += 2;
+                    cursor.remove_prefix(1);
+                    while (!cursor.empty()) {
+                        if (cursor.front() == '\\') {
+                            cursor.remove_prefix(std::min<size_t>(2, cursor.size()));
                             continue;
                         }
-                        if (line[i] == '"') {
+                        if (cursor.front() == '"') {
                             break;
                         }
-                        ++i;
+                        cursor.remove_prefix(1);
                     }
-                    if (i < line.size()) {
-                        ++i;  // skip closing quote
+                    if (!cursor.empty()) {
+                        cursor.remove_prefix(1);  // skip closing quote
                     }
                     // skip ^^<datatype> or @lang (which may contain # inside <...>)
-                    if (i + 1 < line.size() && line[i] == '^' && line[i + 1] == '^') {
-                        i += 2;
-                        if (i < line.size() && line[i] == '<') {
-                            auto close = line.find('>', i);
+                    if (cursor.starts_with("^^")) {
+                        cursor.remove_prefix(2);
+                        if (!cursor.empty() && cursor.front() == '<') {
+                            auto const close = cursor.find('>');
                             if (close != std::string_view::npos) {
-                                i = close + 1;
+                                cursor.remove_prefix(close + 1);
                             }
                         } else {
-                            while (i < line.size() && line[i] != ' ' && line[i] != '\t' && line[i] != '.') {
-                                ++i;
-                            }
+                            auto const end = std::ranges::find_if(cursor, [](char ch) {
+                                return is_ascii_ws(ch) || ch == '.';
+                            });
+                            cursor.remove_prefix(static_cast<size_t>(end - cursor.begin()));
                         }
-                    } else if (i < line.size() && line[i] == '@') {
-                        while (i < line.size() && line[i] != ' ' && line[i] != '\t' && line[i] != '.') {
-                            ++i;
-                        }
+                    } else if (!cursor.empty() && cursor.front() == '@') {
+                        auto const end = std::ranges::find_if(cursor, [](char ch) {
+                            return is_ascii_ws(ch) || ch == '.';
+                        });
+                        cursor.remove_prefix(static_cast<size_t>(end - cursor.begin()));
                     }
                     ++term_count;
                 } else {
@@ -306,30 +312,27 @@ namespace rdf4cpp::parser {
         return {ParsingFlag::NTriples, GuessConfidence::Medium};
     }
 
-    static std::string_view skip_comments(std::string_view sv) {
+    static std::string_view skip_comments(std::string_view const sv) {
         // skip lines starting with # (comments in N-Triples/Turtle/TriG)
-        while (!sv.empty() && sv.front() == '#') {
-            auto eol = sv.find('\n');
+        auto cursor = sv;
+        while (!cursor.empty() && cursor.front() == '#') {
+            auto const eol = cursor.find('\n');
             if (eol == std::string_view::npos) {
                 return {};
             }
-            sv.remove_prefix(eol + 1);
-            // skip whitespace after comment line
-            while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t' || sv.front() == '\n' || sv.front() == '\r')) {
-                sv.remove_prefix(1);
-            }
+            cursor = ltrim_ascii_whitespace(cursor.substr(eol + 1));
         }
-        return sv;
+        return cursor;
     }
 
-    FormatGuess guess_format_from_content(std::string_view prefix) noexcept {
-        auto full_content = skip_whitespace_and_bom(prefix);
+    FormatGuess guess_format_from_content(std::string_view const prefix) noexcept {
+        auto const full_content = skip_whitespace_and_bom(prefix);
         if (full_content.empty()) {
             return {ParsingFlag::Auto, GuessConfidence::None};
         }
 
         // Skip leading comment lines for the first-byte checks
-        auto content = skip_comments(full_content);
+        auto const content = skip_comments(full_content);
         if (content.empty()) {
             return {ParsingFlag::Auto, GuessConfidence::None};
         }
@@ -344,13 +347,7 @@ namespace rdf4cpp::parser {
         // JSON-based formats — but `{` can also be a TriG default graph block,
         // and `[` can be a TriG blank node graph name or a Turtle blank node property list.
         if (content.front() == '[') {
-            auto after_bracket = content.substr(1);
-            while (!after_bracket.empty()
-                   && (after_bracket.front() == ' ' || after_bracket.front() == '\t' || after_bracket.front() == '\n'
-                       || after_bracket.front() == '\r'))
-            {
-                after_bracket.remove_prefix(1);
-            }
+            auto const after_bracket = ltrim_ascii_whitespace(content.substr(1));
             // JSON arrays start with `[` followed by `{`, `"`, `[`, number, true, false, null
             // Turtle/TriG blank nodes: `[]` or `[ predicate object ]`
             if (!after_bracket.empty() && (after_bracket.front() == ']' || after_bracket.front() == '<' || after_bracket.front() == '_')) {
@@ -363,13 +360,7 @@ namespace rdf4cpp::parser {
             return sniff_json_content(content);
         }
         if (content.front() == '{') {
-            auto after_brace = content.substr(1);
-            while (!after_brace.empty()
-                   && (after_brace.front() == ' ' || after_brace.front() == '\t' || after_brace.front() == '\n'
-                       || after_brace.front() == '\r'))
-            {
-                after_brace.remove_prefix(1);
-            }
+            auto const after_brace = ltrim_ascii_whitespace(content.substr(1));
             if (after_brace.empty() || after_brace.front() == '"') {
                 return sniff_json_content(content);
             }
@@ -394,8 +385,8 @@ namespace rdf4cpp::parser {
         }
 
         // Phase 2: try N-Triples / N-Quads line-based detection
-        if (content.front() == '<' || (content.front() == '_' && content.size() > 1 && content[1] == ':')) {
-            auto result = sniff_ntriples_or_nquads(full_content);
+        if (content.front() == '<' || content.starts_with("_:")) {
+            auto const result = sniff_ntriples_or_nquads(full_content);
             if (result.is_known()) {
                 return result;
             }
@@ -406,50 +397,60 @@ namespace rdf4cpp::parser {
         // Phase 3: check for Turtle/TriG syntax markers in content that didn't
         // match any earlier patterns (e.g. Turtle without @prefix directives)
         {
+            static constexpr std::string_view turtle_markers = ";,()[]{}";
             bool has_turtle_marker = false;
             bool in_iri = false;
             bool in_string = false;
             char string_delim = 0;
+            char prev_char = 0;
 
-            for (size_t i = 0; i < content.size(); ++i) {
-                char c = content[i];
+            auto cursor = content;
+            while (!cursor.empty()) {
+                char const c = cursor.front();
+                cursor.remove_prefix(1);
                 if (in_string) {
-                    if (c == '\\' && i + 1 < content.size()) {
-                        ++i;
+                    if (c == '\\' && !cursor.empty()) {
+                        prev_char = cursor.front();
+                        cursor.remove_prefix(1);
                         continue;
                     }
                     if (c == string_delim) {
                         in_string = false;
                     }
+                    prev_char = c;
                     continue;
                 }
                 if (in_iri) {
                     if (c == '>') {
                         in_iri = false;
                     }
+                    prev_char = c;
                     continue;
                 }
                 if (c == '<') {
                     in_iri = true;
+                    prev_char = c;
                     continue;
                 }
                 if (c == '"' || c == '\'') {
                     in_string = true;
                     string_delim = c;
+                    prev_char = c;
                     continue;
                 }
                 // Turtle/TriG syntax markers not valid in N-Triples
-                if (c == ';' || c == ',' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}') {
+                if (turtle_markers.find(c) != std::string_view::npos) {
                     has_turtle_marker = true;
                     break;
                 }
                 // bare `a` surrounded by whitespace = Turtle shorthand for rdf:type
-                if (c == 'a' && i > 0 && (content[i - 1] == ' ' || content[i - 1] == '\t') && i + 1 < content.size()
-                    && (content[i + 1] == ' ' || content[i + 1] == '\t'))
+                if (c == 'a' && (prev_char == ' ' || prev_char == '\t') && !cursor.empty()
+                    && (cursor.front() == ' ' || cursor.front() == '\t'))
                 {
                     has_turtle_marker = true;
                     break;
                 }
+                prev_char = c;
             }
 
             if (has_turtle_marker) {
@@ -463,9 +464,9 @@ namespace rdf4cpp::parser {
         return {ParsingFlag::Auto, GuessConfidence::None};
     }
 
-    FormatGuess guess_format(std::string_view file_path, std::string_view prefix) noexcept {
-        auto ext_guess = guess_format_from_path(file_path);
-        auto content_guess = guess_format_from_content(prefix);
+    FormatGuess guess_format(std::string_view const file_path, std::string_view const prefix) noexcept {
+        auto const ext_guess = guess_format_from_path(file_path);
+        auto const content_guess = guess_format_from_content(prefix);
 
         // If extension gives a strong match and no content sniffing needed
         if (ext_guess.confidence == GuessConfidence::High) {
