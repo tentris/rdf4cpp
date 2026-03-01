@@ -1,6 +1,7 @@
 #include "FormatGuess.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <string>
 
 #include <uni_algo/all.h>
@@ -103,17 +104,11 @@ namespace rdf4cpp::parser {
     }
 
     FormatGuess guess_format_from_path(std::string_view const file_path) noexcept {
-        // find last path separator
-        auto const last_sep = file_path.find_last_of("/\\");
-        auto const filename = (last_sep != std::string_view::npos) ? file_path.substr(last_sep + 1) : file_path;
-
-        // find the last dot in the filename
-        auto const dot_pos = filename.rfind('.');
-        if (dot_pos == std::string_view::npos) {
+        auto const ext = std::filesystem::path{file_path}.extension().string();
+        if (ext.empty()) {
             return {ParsingFlag::Auto, GuessConfidence::None};
         }
-
-        return guess_format_from_extension(filename.substr(dot_pos));
+        return guess_format_from_extension(ext);
     }
 
     // --- content sniffing ---
