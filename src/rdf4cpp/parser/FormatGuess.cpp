@@ -18,10 +18,6 @@ namespace rdf4cpp::parser {
     // UTF-8 continuation bytes.  Byte-level scanning for these markers is safe
     // in valid UTF-8.
 
-    static std::string to_lower(std::string_view const sv) {
-        return una::cases::to_lowercase_utf8(sv);
-    }
-
     static bool is_ascii_ws(char const c) noexcept {
         return c == ' ' || c == '\t' || c == '\n' || c == '\r';
     }
@@ -48,7 +44,7 @@ namespace rdf4cpp::parser {
         return {.line = sv.substr(0, eol), .rest = sv.substr(eol + 1)};
     }
 
-    static std::string_view skip_whitespace_and_bom(std::string_view const sv) {
+    static std::string_view skip_whitespace_and_bom(std::string_view const sv) noexcept {
         // skip UTF-8 BOM
         if (sv.starts_with("\xEF\xBB\xBF")) {
             return ltrim_ascii_whitespace(sv.substr(3));
@@ -68,18 +64,13 @@ namespace rdf4cpp::parser {
     }
 
     static bool contains_icase(std::string_view const haystack, std::string_view const needle) {
-        if (needle.size() > haystack.size()) {
-            return false;
-        }
-        auto const lower_hay = to_lower(haystack);
-        auto const lower_needle = to_lower(needle);
-        return lower_hay.find(lower_needle) != std::string::npos;
+        return static_cast<bool>(una::caseless::find_utf8(haystack, needle));
     }
 
     // --- extension mapping ---
 
     FormatGuess guess_format_from_extension(std::string_view const extension) noexcept {
-        auto const ext = to_lower(extension);
+        auto const ext = una::cases::to_lowercase_utf8(extension);
 
         if (ext == ".ttl" || ext == ".turtle") {
             return {ParsingFlag::Turtle, GuessConfidence::High};
@@ -116,7 +107,7 @@ namespace rdf4cpp::parser {
         auto const last_sep = file_path.find_last_of("/\\");
         auto const filename = (last_sep != std::string_view::npos) ? file_path.substr(last_sep + 1) : file_path;
 
-        // find last dot in filename
+        // find the last dot in the filename
         auto const dot_pos = filename.rfind('.');
         if (dot_pos == std::string_view::npos) {
             return {ParsingFlag::Auto, GuessConfidence::None};
@@ -133,8 +124,8 @@ namespace rdf4cpp::parser {
             return true;
         }
 
-        // Look for pattern like IRI/prefixed-name followed by {
-        // or just { at start of a line (default graph block)
+        // Look for a pattern like IRI/prefixed-name followed by {
+        // or just { at the start of a line (default graph block)
         bool in_string = false;
         char string_delim = 0;
         auto cursor = content;
@@ -214,7 +205,7 @@ namespace rdf4cpp::parser {
             }
 
             // Count terms by walking through the line, handling # comments
-            // that appear outside of IRIs and literals correctly.
+            // that appear outside IRIs and literals correctly.
             int term_count = 0;
             bool found_dot = false;
             auto cursor = line;
@@ -224,14 +215,13 @@ namespace rdf4cpp::parser {
                 if (cursor.empty()) {
                     break;
                 }
-                char const c = cursor.front();
 
-                if (c == '.') {
+                if (char const c = cursor.front(); c == '.') {
                     found_dot = true;
                     cursor.remove_prefix(1);
                     break;
                 } else if (c == '#') {
-                    // comment at top level (outside IRI/literal) — not valid N-Triples
+                    // comment at the top level (outside IRI/literal) — not valid N-Triples
                     return {ParsingFlag::Auto, GuessConfidence::None};
                 } else if (c == '<') {
                     // IRI — find closing >
@@ -242,7 +232,7 @@ namespace rdf4cpp::parser {
                     cursor.remove_prefix(close + 1);
                     ++term_count;
                 } else if (cursor.starts_with("_:")) {
-                    // blank node — skip to next whitespace
+                    // blank node — skip to the next whitespace
                     auto const ws = std::ranges::find_if(cursor, is_ascii_ws);
                     cursor.remove_prefix(static_cast<size_t>(ws - cursor.begin()));
                     ++term_count;
@@ -266,18 +256,17 @@ namespace rdf4cpp::parser {
                     if (cursor.starts_with("^^")) {
                         cursor.remove_prefix(2);
                         if (!cursor.empty() && cursor.front() == '<') {
-                            auto const close = cursor.find('>');
-                            if (close != std::string_view::npos) {
+                            if (auto const close = cursor.find('>'); close != std::string_view::npos) {
                                 cursor.remove_prefix(close + 1);
                             }
                         } else {
-                            auto const end = std::ranges::find_if(cursor, [](char ch) {
+                            auto const end = std::ranges::find_if(cursor, [](char const ch) noexcept {
                                 return is_ascii_ws(ch) || ch == '.';
                             });
                             cursor.remove_prefix(static_cast<size_t>(end - cursor.begin()));
                         }
                     } else if (!cursor.empty() && cursor.front() == '@') {
-                        auto const end = std::ranges::find_if(cursor, [](char ch) {
+                        auto const end = std::ranges::find_if(cursor, [](char const ch) noexcept {
                             return is_ascii_ws(ch) || ch == '.';
                         });
                         cursor.remove_prefix(static_cast<size_t>(end - cursor.begin()));
@@ -325,6 +314,95 @@ namespace rdf4cpp::parser {
         return cursor;
     }
 
+    static FormatGuess sniff_bracket_content(std::string_view const content, std::string_view const full_content) {
+        auto const after_bracket = ltrim_ascii_whitespace(content.substr(1));
+        // JSON arrays start with `[` followed by `{`, `"`, `[`, number, true, false, null
+        // Turtle/TriG blank nodes: `[]` or `[ predicate object ]`
+        if (!after_bracket.empty() && (after_bracket.front() == ']' || after_bracket.front() == '<' || after_bracket.front() == '_')) {
+            // Likely Turtle/TriG blank node
+            if (has_trig_markers(full_content)) {
+                return {ParsingFlag::TriG, GuessConfidence::Medium};
+            }
+            return {ParsingFlag::Turtle, GuessConfidence::Low};
+        }
+        return sniff_json_content(content);
+    }
+
+    static FormatGuess sniff_brace_content(std::string_view const content) {
+        auto const after_brace = ltrim_ascii_whitespace(content.substr(1));
+        if (after_brace.empty() || after_brace.front() == '"') {
+            return sniff_json_content(content);
+        }
+        // Likely TriG — `{` followed by non-JSON content
+        return {ParsingFlag::TriG, GuessConfidence::Medium};
+    }
+
+    static FormatGuess sniff_turtle_or_trig_markers(std::string_view const content, std::string_view const full_content) {
+        static constexpr std::string_view turtle_markers = ";,()[]{}";
+        bool has_turtle_marker = false;
+        bool in_iri = false;
+        bool in_string = false;
+        char string_delim = 0;
+        char prev_char = 0;
+
+        auto cursor = content;
+        while (!cursor.empty()) {
+            char const c = cursor.front();
+            cursor.remove_prefix(1);
+            if (in_string) {
+                if (c == '\\' && !cursor.empty()) {
+                    prev_char = cursor.front();
+                    cursor.remove_prefix(1);
+                    continue;
+                }
+                if (c == string_delim) {
+                    in_string = false;
+                }
+                prev_char = c;
+                continue;
+            }
+            if (in_iri) {
+                if (c == '>') {
+                    in_iri = false;
+                }
+                prev_char = c;
+                continue;
+            }
+            if (c == '<') {
+                in_iri = true;
+                prev_char = c;
+                continue;
+            }
+            if (c == '"' || c == '\'') {
+                in_string = true;
+                string_delim = c;
+                prev_char = c;
+                continue;
+            }
+            // Turtle/TriG syntax markers not valid in N-Triples
+            if (turtle_markers.find(c) != std::string_view::npos) {
+                has_turtle_marker = true;
+                break;
+            }
+            // bare `a` surrounded by whitespace = Turtle shorthand for rdf:type
+            if (c == 'a' && (prev_char == ' ' || prev_char == '\t') && !cursor.empty() && (cursor.front() == ' ' || cursor.front() == '\t'))
+            {
+                has_turtle_marker = true;
+                break;
+            }
+            prev_char = c;
+        }
+
+        if (has_turtle_marker) {
+            if (has_trig_markers(full_content)) {
+                return {ParsingFlag::TriG, GuessConfidence::Low};
+            }
+            return {ParsingFlag::Turtle, GuessConfidence::Low};
+        }
+
+        return {ParsingFlag::Auto, GuessConfidence::None};
+    }
+
     FormatGuess guess_format_from_content(std::string_view const prefix) noexcept {
         auto const full_content = skip_whitespace_and_bom(prefix);
         if (full_content.empty()) {
@@ -347,25 +425,10 @@ namespace rdf4cpp::parser {
         // JSON-based formats — but `{` can also be a TriG default graph block,
         // and `[` can be a TriG blank node graph name or a Turtle blank node property list.
         if (content.front() == '[') {
-            auto const after_bracket = ltrim_ascii_whitespace(content.substr(1));
-            // JSON arrays start with `[` followed by `{`, `"`, `[`, number, true, false, null
-            // Turtle/TriG blank nodes: `[]` or `[ predicate object ]`
-            if (!after_bracket.empty() && (after_bracket.front() == ']' || after_bracket.front() == '<' || after_bracket.front() == '_')) {
-                // Likely Turtle/TriG blank node
-                if (has_trig_markers(full_content)) {
-                    return {ParsingFlag::TriG, GuessConfidence::Medium};
-                }
-                return {ParsingFlag::Turtle, GuessConfidence::Low};
-            }
-            return sniff_json_content(content);
+            return sniff_bracket_content(content, full_content);
         }
         if (content.front() == '{') {
-            auto const after_brace = ltrim_ascii_whitespace(content.substr(1));
-            if (after_brace.empty() || after_brace.front() == '"') {
-                return sniff_json_content(content);
-            }
-            // Likely TriG — `{` followed by non-JSON content
-            return {ParsingFlag::TriG, GuessConfidence::Medium};
+            return sniff_brace_content(content);
         }
 
         // Turtle directives (case-sensitive @prefix/@base)
@@ -386,8 +449,7 @@ namespace rdf4cpp::parser {
 
         // Phase 2: try N-Triples / N-Quads line-based detection
         if (content.front() == '<' || content.starts_with("_:")) {
-            auto const result = sniff_ntriples_or_nquads(full_content);
-            if (result.is_known()) {
+            if (auto const result = sniff_ntriples_or_nquads(full_content); result.is_known()) {
                 return result;
             }
             // If N-Triples detection failed, the content starts with `<` or `_:`
@@ -395,73 +457,8 @@ namespace rdf4cpp::parser {
         }
 
         // Phase 3: check for Turtle/TriG syntax markers in content that didn't
-        // match any earlier patterns (e.g. Turtle without @prefix directives)
-        {
-            static constexpr std::string_view turtle_markers = ";,()[]{}";
-            bool has_turtle_marker = false;
-            bool in_iri = false;
-            bool in_string = false;
-            char string_delim = 0;
-            char prev_char = 0;
-
-            auto cursor = content;
-            while (!cursor.empty()) {
-                char const c = cursor.front();
-                cursor.remove_prefix(1);
-                if (in_string) {
-                    if (c == '\\' && !cursor.empty()) {
-                        prev_char = cursor.front();
-                        cursor.remove_prefix(1);
-                        continue;
-                    }
-                    if (c == string_delim) {
-                        in_string = false;
-                    }
-                    prev_char = c;
-                    continue;
-                }
-                if (in_iri) {
-                    if (c == '>') {
-                        in_iri = false;
-                    }
-                    prev_char = c;
-                    continue;
-                }
-                if (c == '<') {
-                    in_iri = true;
-                    prev_char = c;
-                    continue;
-                }
-                if (c == '"' || c == '\'') {
-                    in_string = true;
-                    string_delim = c;
-                    prev_char = c;
-                    continue;
-                }
-                // Turtle/TriG syntax markers not valid in N-Triples
-                if (turtle_markers.find(c) != std::string_view::npos) {
-                    has_turtle_marker = true;
-                    break;
-                }
-                // bare `a` surrounded by whitespace = Turtle shorthand for rdf:type
-                if (c == 'a' && (prev_char == ' ' || prev_char == '\t') && !cursor.empty()
-                    && (cursor.front() == ' ' || cursor.front() == '\t'))
-                {
-                    has_turtle_marker = true;
-                    break;
-                }
-                prev_char = c;
-            }
-
-            if (has_turtle_marker) {
-                if (has_trig_markers(full_content)) {
-                    return {ParsingFlag::TriG, GuessConfidence::Low};
-                }
-                return {ParsingFlag::Turtle, GuessConfidence::Low};
-            }
-        }
-
-        return {ParsingFlag::Auto, GuessConfidence::None};
+        // match any earlier patterns (e.g., Turtle without @prefix directives)
+        return sniff_turtle_or_trig_markers(content, full_content);
     }
 
     FormatGuess guess_format(std::string_view const file_path, std::string_view const prefix) noexcept {
@@ -474,11 +471,11 @@ namespace rdf4cpp::parser {
             if (content_guess.is_known() && content_guess.syntax == ext_guess.syntax) {
                 return {ext_guess.syntax, GuessConfidence::Certain};
             }
-            // Extension is high confidence — trust it even if content is ambiguous
+            // Extension is high confidence — trust it even if the content is ambiguous
             return ext_guess;
         }
 
-        // Low confidence extension (e.g. .owl, .xml) — need content disambiguation
+        // Low confidence extension (e.g., .owl, .xml) — need content disambiguation
         if (ext_guess.confidence == GuessConfidence::Low) {
             if (content_guess.is_known()) {
                 // Content overrides ambiguous extension

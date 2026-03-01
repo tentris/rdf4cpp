@@ -13,7 +13,7 @@ namespace rdf4cpp::parser {
      */
     enum struct GuessConfidence : uint8_t {
         None = 0,  ///< no guess could be made
-        Low,       ///< weak heuristic match (e.g. ambiguous extension like .owl)
+        Low,       ///< weak heuristic match (e.g., ambiguous extension like .owl)
         Medium,    ///< content sniffing with good signal
         High,      ///< file extension match or strong content match
         Certain,   ///< unambiguous (extension + content agree)

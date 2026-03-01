@@ -6,7 +6,7 @@
 #include <rdf4cpp/storage/reference_node_storage/UnsyncReferenceNodeStorage.hpp>
 
 void download_swdf(std::filesystem::path const &base) {
-    auto curl_cmd = std::format("wget -P '{}' https://hobbitdata.informatik.uni-leipzig.de/ISWC2020_Tentris/swdf.zip", base.c_str());
+    auto curl_cmd = std::format("wget -P '{}' https://files.dice-research.org/datasets/ISWC2020_Tentris/swdf.zip", base.c_str());
     std::system(curl_cmd.c_str());
 
     auto const swdf_path = base / "swdf.zip";
