@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(rdf4cpp VERSION 0.1.13)
+project(rdf4cpp VERSION 0.2.0)
 set(POBR_VERSION 3)  # Persisted Object Binary Representation
 
 include(cmake/boilerplate_init.cmake)
@@ -129,6 +129,7 @@ add_library(rdf4cpp
         src/rdf4cpp/datatypes/xsd/time/DayTimeDuration.cpp
         src/rdf4cpp/datatypes/xsd/time/YearMonthDuration.cpp
         src/rdf4cpp/namespaces/RDF.cpp
+        src/rdf4cpp/parser/FormatGuess.cpp
         src/rdf4cpp/parser/IStreamQuadIterator.cpp
         src/rdf4cpp/parser/RDFFileParser.cpp
         src/rdf4cpp/query/QuadPattern.cpp
