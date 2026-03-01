@@ -11,19 +11,20 @@ syntax) and a `GuessConfidence` level.
 
 Three entry points, in order of specificity:
 
-| Function                        | Input          | Returned confidence levels                                                                                                                                         |
-|---------------------------------|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `guess_format_from_extension()` | file extension | High (`.ttl`, `.nt`, …), Low (`.owl`, `.xml`), or None                                                                                                             |
-| `guess_format_from_content()`   | byte prefix    | High (XML root, `@prefix`, JSON-LD keywords), Medium (`PREFIX`/`BASE`, N-Triples/N-Quads grammar, TriG markers), Low (Turtle syntax markers, generic XML), or None |
-| `guess_format()`                | path + prefix  | Certain (extension + content agree), otherwise delegates to the above                                                                                              |
+| Function                        | Input          | Returned confidence levels                                                                                                                                              |
+|---------------------------------|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `guess_format_from_extension()` | file extension | High (`.ttl`, `.nt`, …), Low (`.owl`, `.xml`), or None                                                                                                                  |
+| `guess_format_from_content()`   | byte prefix    | High (XML root, `@prefix`, JSON-LD keywords), Medium (`PREFIX`/`BASE`, N-Triples/N-Quads grammar, TriG markers), Low (Turtle/TriG syntax markers, generic XML), or None |
+| `guess_format()`                | path + prefix  | Certain (extension + content agree), otherwise delegates to the above                                                                                                   |
 
 `guess_format()` combines extension and content results: when both agree the
 confidence is boosted to **Certain**.
 
 ## Content Sniffing Phases
 
-`guess_format_from_content()` inspects the prefix in three ordered phases.
-Processing stops at the first match.
+`guess_format_from_content()` first strips a UTF-8 BOM (if present) and
+leading whitespace, then skips leading `#`-comment lines before inspecting
+the prefix in three ordered phases. Processing stops at the first match.
 
 ### Phase 1 — Deterministic Checks
 
@@ -49,8 +50,9 @@ Scan for syntax characters that are valid in Turtle/TriG but not in
 N-Triples: `;` `,` `(` `)` `[` `]` `{` `}` and the bare keyword `a`
 (rdf:type shorthand). Strings and IRIs are skipped to avoid false matches.
 
-If markers are found, check for TriG-specific patterns (GRAPH keyword or
-`{` outside strings) and return Turtle or TriG at Low confidence.
+If markers are found, check for TriG-specific patterns (case-insensitive
+GRAPH keyword or `{` outside strings) and return Turtle or TriG at Low
+confidence.
 
 ## Encoding Assumptions
 

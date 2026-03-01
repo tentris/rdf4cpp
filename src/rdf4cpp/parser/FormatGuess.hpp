@@ -50,6 +50,7 @@ namespace rdf4cpp::parser {
     /**
      * Guess the RDF serialization format by inspecting a prefix of the file content.
      * At least 512 bytes recommended, 4096 bytes ideal.
+     * Strips a leading UTF-8 BOM and skips whitespace and #-comment lines before sniffing.
      */
     [[nodiscard]] FormatGuess guess_format_from_content(std::string_view prefix) noexcept;
 
