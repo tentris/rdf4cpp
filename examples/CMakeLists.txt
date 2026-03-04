@@ -1,4 +1,4 @@
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 
 add_executable(graphs_and_datasets_example graphs_and_datasets.cpp)
 target_link_libraries(graphs_and_datasets_example PRIVATE
