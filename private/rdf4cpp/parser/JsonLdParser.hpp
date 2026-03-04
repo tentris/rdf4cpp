@@ -7,6 +7,7 @@
 #include <rdf4cpp/parser/IStreamQuadIterator.hpp>
 
 #include <vector>
+#include <generator>
 
 #include <simdjson.h>
 
@@ -92,7 +93,8 @@ namespace rdf4cpp::parser {
     struct IStreamQuadIterator::ImplJsonLd final : Impl {
     private:
         state_type *state_;
-        bool state_is_owned_ = false;
+        bool state_is_owned_;
+        std::string json_data_;
 
         static constexpr std::string_view keyword_base = "@base";
         static constexpr std::string_view keyword_container = "@container";
@@ -176,7 +178,7 @@ namespace rdf4cpp::parser {
             return std::tuple(c, r);
         }
 
-        static error_type make_error(ParsingError::Type t, std::string msg);
+        error_type make_error(ParsingError::Type t, std::string msg);
         nonstd::expected<json_ld::Context, error_type> parse_context(simdjson::ondemand::value json,
                                                                      json_ld::Context const &active_context,
                                                                      std::string_view base_iri,
@@ -201,7 +203,24 @@ namespace rdf4cpp::parser {
                         json_ld::TermDefinition const &active_property,
                         simdjson::ondemand::value value);
 
+        using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
+
+        result_generator parse();
+
+        std::ranges::iterator_t<result_generator> current_iter_;
     public:
+        [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
+        [[nodiscard]] uint64_t current_line() const noexcept override;
+        [[nodiscard]] uint64_t current_column() const noexcept override;
+
+        explicit ImplJsonLd(std::string json, state_type *initial_state = nullptr);
+        ImplJsonLd(void *stream,
+                        ReadFunc read,
+                        ErrorFunc error,
+                        EOFFunc eof,
+                        state_type *initial_state = nullptr);
+
+        ~ImplJsonLd() override;
     };
 }  // namespace rdf4cpp::parser
 
