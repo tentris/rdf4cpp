@@ -6,8 +6,8 @@
 #include <rdf4cpp/Quad.hpp>
 #include <rdf4cpp/parser/IStreamQuadIterator.hpp>
 
-#include <vector>
 #include <generator>
+#include <vector>
 
 #include <simdjson.h>
 
@@ -37,16 +37,16 @@ namespace rdf4cpp::parser {
             constexpr auto operator<=>(IRIMapping const &r) const noexcept = default;
         };
         struct TypedLiteralMapping {
-            simdjson::ondemand::value value;
-            std::string_view type;
+            std::string value;
+            std::string type;
         };
         struct LiteralMapping {
             std::string value;
             std::optional<std::string> language;
             BaseDirection direction;
         };
+        using ExpandedValue = std::variant<IRIMapping, LiteralMapping, TypedLiteralMapping, simdjson::ondemand::value>;
 
-        struct Context;
         struct TermDefinitionBase {
             std::string key;
             IRIMapping iri_mapping;
@@ -67,6 +67,15 @@ namespace rdf4cpp::parser {
             constexpr explicit TermDefinitionBase(std::string_view k)
                 : key{k} {
             }
+
+            [[nodiscard]] constexpr bool has_container_mapping(std::string_view m) const {
+                for (const auto& e : container_mapping) {
+                    if (m == e) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         };
         struct TermDefinition : TermDefinitionBase {
             bool is_protected = false;
@@ -83,11 +92,53 @@ namespace rdf4cpp::parser {
             std::optional<std::string> vocab = std::nullopt;
             std::optional<std::string> language = std::nullopt;
             BaseDirection base_direction = BaseDirection::None;
-            bool propagate = true;
+            Context const* previous_context = nullptr;
 
             TermDefinition *try_find_term(std::string_view key);
             [[nodiscard]] TermDefinition const *try_find_term(std::string_view key) const;
         };
+
+        struct Null {};
+        struct KeyPath {
+            std::vector<std::string> keys;
+        };
+        struct ExpandedMap {
+            struct Entry {
+                IRIMapping key;
+                KeyPath path;
+                std::vector<IRIMapping> keyword_values;
+                std::string active_property = "";
+                bool is_json_literal = false;
+                bool as_list = false;
+                bool as_graph = false;
+                bool is_reverse = false;
+                std::optional<BaseDirection> language_map = std::nullopt;
+
+                constexpr bool has_keyword_value(std::string_view key) {
+                    return std::ranges::any_of(keyword_values, [&](auto const& t) { return t.type == IRIMappingType::Keyword && t.data == key; });
+                }
+            };
+
+            std::vector<Entry> entries;
+            std::optional<Context> active_context = std::nullopt;
+
+            constexpr Entry* try_find_entry(IRIMapping const &key) {
+                auto i = std::ranges::find_if(entries, [&](auto const& t) { return t.key == key; });
+                if (i == entries.end()) {
+                    return nullptr;
+                }
+                return &*i;
+            }
+            constexpr Entry* try_find_keyword(std::string_view key) {
+                auto i = std::ranges::find_if(entries, [&](auto const& t)
+                    { return t.key.type == IRIMappingType::Keyword && t.key.data == key; });
+                if (i == entries.end()) {
+                    return nullptr;
+                }
+                return &*i;
+            }
+        };
+        using ExpandedLevel = std::variant<ExpandedMap, IRIMapping, LiteralMapping, TypedLiteralMapping, Null, simdjson::ondemand::value>;
     }  // namespace json_ld
 
     struct IStreamQuadIterator::ImplJsonLd final : Impl {
@@ -119,6 +170,11 @@ namespace rdf4cpp::parser {
         static constexpr std::string_view keyword_value = "@value";
         static constexpr std::string_view keyword_version = "@version";
         static constexpr std::string_view keyword_vocab = "@vocab";
+
+        // not treated as keyword in other places
+        static constexpr std::string_view keyword_default = "@default";
+
+        static constexpr std::string_view rdf_json_datatype = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
 
         static constexpr bool any_of(std::string_view v, std::initializer_list<std::string_view> l) {
             for (auto const x : l) {
@@ -163,6 +219,25 @@ namespace rdf4cpp::parser {
             return std::tuple(c, r);
         }
         template<typename T>
+        static auto try_get_field(simdjson::ondemand::object o, json_ld::KeyPath const &key) {
+            if (key.keys.empty()) {
+                if constexpr (std::same_as<T, simdjson::ondemand::object>) {
+                    return std::tuple(simdjson::SUCCESS, o);
+                }
+                else {
+                    return std::tuple(simdjson::INCORRECT_TYPE, T{});
+                }
+            }
+            simdjson::error_code c;
+            for (size_t i = 0; i < key.keys.size() - 1; ++i) {
+                std::tie(c, o) = try_get_field<simdjson::ondemand::object>(o, key.keys[i]);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                if (c != simdjson::SUCCESS) {
+                    return std::tuple(c, T{});
+                }
+            }
+            return try_get_field<T>(o, key.keys[key.keys.size() - 1]);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        }
+        template<typename T>
         static std::tuple<simdjson::error_code, std::optional<T>> try_get_optional_field(simdjson::ondemand::object o,
                                                                                          std::string_view key) {
             simdjson::ondemand::value v;
@@ -191,6 +266,13 @@ namespace rdf4cpp::parser {
                                                      bool is_protected = false,
                                                      bool override_protected = false);
 
+        nonstd::expected<json_ld::Context, error_type> parse_local_context(simdjson::padded_string_view json,
+                                                                     json_ld::Context const &active_context,
+                                                                     std::string_view base_iri,
+                                                                     bool override_protected = false,
+                                                                     bool propagate = true);
+
+
         nonstd::expected<json_ld::IRIMapping, error_type> iri_expansion(json_ld::Context const &active_context,
                                                                         std::optional<std::string_view> value,
                                                                         bool document_relative = false,
@@ -198,16 +280,32 @@ namespace rdf4cpp::parser {
                                                                         json_ld::Context *local_context = nullptr,
                                                                         std::optional<simdjson::ondemand::object> local_context_json
                                                                         = std::nullopt);
-        nonstd::expected<std::variant<json_ld::IRIMapping, json_ld::LiteralMapping, json_ld::TypedLiteralMapping, simdjson::ondemand::value>, error_type>
-        value_expansion(json_ld::Context const &active_conext,
-                        json_ld::TermDefinition const &active_property,
-                        simdjson::ondemand::value value);
+
+        nonstd::expected<json_ld::ExpandedValue, error_type> value_expansion(json_ld::Context const &active_conext,
+                                                                             std::string_view active_property,
+                                                                             simdjson::ondemand::value value);
+
+        nonstd::expected<json_ld::ExpandedLevel, error_type> expand_level(json_ld::Context const &active_context,
+                                                                          std::string_view active_property,
+                                                                          simdjson::ondemand::value element,
+                                                                          std::string_view base_iri,
+                                                                          bool frame_expansion = false,
+                                                                          bool ordered = false,
+                                                                          bool from_map = false);
+        std::optional<error_type> expand_level_nested_recursive(json_ld::ExpandedMap& result,
+                                                                simdjson::ondemand::object elem_obj,
+                                                                json_ld::Context const & active_ctx,
+                                                                json_ld::Context const & type_scoped_context,
+                                                                json_ld::KeyPath const &active_path,
+                                                                std::string_view active_property,
+                                                                std::optional<std::string> const & input_type);
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
 
         result_generator parse();
 
         std::ranges::iterator_t<result_generator> current_iter_;
+
     public:
         [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
         [[nodiscard]] uint64_t current_line() const noexcept override;
@@ -215,10 +313,10 @@ namespace rdf4cpp::parser {
 
         explicit ImplJsonLd(std::string json, state_type *initial_state = nullptr);
         ImplJsonLd(void *stream,
-                        ReadFunc read,
-                        ErrorFunc error,
-                        EOFFunc eof,
-                        state_type *initial_state = nullptr);
+                   ReadFunc read,
+                   ErrorFunc error,
+                   EOFFunc eof,
+                   state_type *initial_state = nullptr);
 
         ~ImplJsonLd() override;
     };
