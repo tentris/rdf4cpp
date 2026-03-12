@@ -108,6 +108,13 @@ private:
 
     std::unique_ptr<Impl> impl;
     std::optional<nonstd::expected<ok_type, error_type>> cur;
+
+    static std::unique_ptr<Impl> make_impl(void *stream,
+                                           ReadFunc read,
+                                           ErrorFunc error,
+                                           EOFFunc eof,
+                                           flags_type flags = ParsingFlags::none(),
+                                           state_type *state = nullptr);
 public:
     /**
      * Constructs a IStreamQuadIterator from a C-like io api. That is something similar to

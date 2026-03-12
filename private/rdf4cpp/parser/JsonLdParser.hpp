@@ -35,6 +35,10 @@ namespace rdf4cpp::parser {
             IRIMappingType type = IRIMappingType::None;
 
             constexpr auto operator<=>(IRIMapping const &r) const noexcept = default;
+
+            [[nodiscard]] constexpr bool is_keyword(std::string_view k) const {
+                return type == IRIMappingType::Keyword && data == k;
+            }
         };
         struct TypedLiteralMapping {
             std::string value;
@@ -146,6 +150,7 @@ namespace rdf4cpp::parser {
         state_type *state_;
         bool state_is_owned_;
         std::string json_data_;
+        uint64_t blank_node_index = 0;
 
         static constexpr std::string_view keyword_base = "@base";
         static constexpr std::string_view keyword_container = "@container";
@@ -254,6 +259,12 @@ namespace rdf4cpp::parser {
         }
 
         error_type make_error(ParsingError::Type t, std::string msg);
+        json_ld::IRIMapping make_new_bn();
+        nonstd::expected<IRI, error_type> make_iri(json_ld::IRIMapping const & m);
+        nonstd::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const & m);
+        nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object);
+        nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, Node object);
+
         nonstd::expected<json_ld::Context, error_type> parse_context(simdjson::ondemand::value json,
                                                                      json_ld::Context const &active_context,
                                                                      std::string_view base_iri,
@@ -282,25 +293,34 @@ namespace rdf4cpp::parser {
                                                                         = std::nullopt);
 
         nonstd::expected<json_ld::ExpandedValue, error_type> value_expansion(json_ld::Context const &active_conext,
-                                                                             std::string_view active_property,
+                                                                             json_ld::IRIMapping const &active_property,
                                                                              simdjson::ondemand::value value);
 
         nonstd::expected<json_ld::ExpandedLevel, error_type> expand_level(json_ld::Context const &active_context,
-                                                                          std::string_view active_property,
+                                                                          json_ld::IRIMapping const &active_property,
                                                                           simdjson::ondemand::value element,
                                                                           std::string_view base_iri,
                                                                           bool frame_expansion = false,
                                                                           bool ordered = false,
-                                                                          bool from_map = false);
+                                                                          bool from_map = false,
+                                                                          bool assume_no_scalar = false);
         std::optional<error_type> expand_level_nested_recursive(json_ld::ExpandedMap& result,
                                                                 simdjson::ondemand::object elem_obj,
                                                                 json_ld::Context const & active_ctx,
                                                                 json_ld::Context const & type_scoped_context,
                                                                 json_ld::KeyPath const &active_path,
-                                                                std::string_view active_property,
+                                                                json_ld::IRIMapping const &active_property,
                                                                 std::optional<std::string> const & input_type);
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
+
+        result_generator parse(simdjson::ondemand::value element,
+                               json_ld::Context const &active_ctx,
+                               std::string_view base_iri,
+                               bool assume_no_scalar = false,
+                               json_ld::IRIMapping const &active_graph = {std::string{keyword_default}, json_ld::IRIMappingType::Keyword},
+                               json_ld::IRIMapping const &active_subject = {},
+                               json_ld::IRIMapping const &active_property = {});
 
         result_generator parse();
 
