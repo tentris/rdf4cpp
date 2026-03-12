@@ -6,11 +6,13 @@
 #include <filesystem>
 #include <curl/curl.h>
 
+#include "parser_test_helpers.hpp"
+
 using namespace rdf4cpp;
 using namespace rdf4cpp::parser;
 
-void jsonld_test_positive([[maybe_unused]] std::string json_str, [[maybe_unused]] std::string nt_str, [[maybe_unused]] std::string_view base_iri) {
-
+void jsonld_test_positive(std::string json_str, std::string nt_str, std::string_view base_iri) {
+    parse_test_helpers::jsonld_test_positive(std::move(json_str), std::move(nt_str), base_iri, ParsingFlag::JsonLd, ParsingFlag::NQuads);
 }
 
 void jsonld_test_negative([[maybe_unused]] std::string json_str, [[maybe_unused]] std::string_view base_iri) {
@@ -43,12 +45,12 @@ std::string remote_test_file_to_str(std::string const &file_name) {
 
 TEST_CASE("test cases from rdf-tests") {
     // positive tests
-    // jsonld_test_positive(remote_test_file_to_str("0001-in.jsonld"), remote_test_file_to_str("0001-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0001");
-    // jsonld_test_positive(remote_test_file_to_str("0002-in.jsonld"), remote_test_file_to_str("0002-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0002");
-    // jsonld_test_positive(remote_test_file_to_str("0003-in.jsonld"), remote_test_file_to_str("0003-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0003");
-    // jsonld_test_positive(remote_test_file_to_str("0004-in.jsonld"), remote_test_file_to_str("0004-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0004");
-    // jsonld_test_positive(remote_test_file_to_str("0005-in.jsonld"), remote_test_file_to_str("0005-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0005");
-    // jsonld_test_positive(remote_test_file_to_str("0006-in.jsonld"), remote_test_file_to_str("0006-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0006");
+    jsonld_test_positive(remote_test_file_to_str("0001-in.jsonld"), remote_test_file_to_str("0001-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0001");
+    jsonld_test_positive(remote_test_file_to_str("0002-in.jsonld"), remote_test_file_to_str("0002-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0002");
+    jsonld_test_positive(remote_test_file_to_str("0003-in.jsonld"), remote_test_file_to_str("0003-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0003");
+    jsonld_test_positive(remote_test_file_to_str("0004-in.jsonld"), remote_test_file_to_str("0004-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0004");
+    jsonld_test_positive(remote_test_file_to_str("0005-in.jsonld"), remote_test_file_to_str("0005-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0005");
+    jsonld_test_positive(remote_test_file_to_str("0006-in.jsonld"), remote_test_file_to_str("0006-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0006");
     // jsonld_test_positive(remote_test_file_to_str("0007-in.jsonld"), remote_test_file_to_str("0007-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0007");
     // jsonld_test_positive(remote_test_file_to_str("0008-in.jsonld"), remote_test_file_to_str("0008-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0008");
     // jsonld_test_positive(remote_test_file_to_str("0009-in.jsonld"), remote_test_file_to_str("0009-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0009");

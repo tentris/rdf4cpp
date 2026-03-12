@@ -22,6 +22,7 @@ enum struct ParsingFlag : uint8_t {
     NQuads   = 0b10 << 4,
     TriG     = 0b11 << 4,
     RdfXml  = 0b100 << 4,
+    JsonLd  = 0b101 << 4,
 };
 constexpr uint8_t ParsingFlag_SyntaxMask = 0b111 << 4;
 
