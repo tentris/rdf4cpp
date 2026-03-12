@@ -880,7 +880,6 @@ namespace rdf4cpp::parser {
         // 6
         auto elem_object = static_cast<simdjson::ondemand::object>(element);
         // 7
-        auto ctx_to_propagate = [&]() { return active_ctx->previous_context != nullptr ? active_ctx->previous_context : active_ctx; };
         if (active_ctx->previous_context != nullptr && !from_map) {
             bool clear = true;
             for (auto e : elem_object) {
@@ -1050,8 +1049,39 @@ namespace rdf4cpp::parser {
             }
         }
         // 17
-
-
+        {
+            if (result.try_find_keyword(keyword_set) != nullptr || result.try_find_keyword(keyword_list) != nullptr) {
+                size_t expected_size = 1;
+                if (result.try_find_keyword(keyword_index) != nullptr) {
+                    expected_size  = 2;
+                }
+                if (result.entries.size() != expected_size) {
+                    return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid set or list object"));
+                }
+                auto* set = result.try_find_keyword(keyword_set);
+                if (set != nullptr) {
+                    auto [c, el] = try_get_field<simdjson::ondemand::value>(elem_object, set->path);
+                    if (c != simdjson::SUCCESS) {
+                        return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "set path not found?"));
+                    }
+                    return expand_level(active_context, active_property, el, base_iri, frame_expansion, ordered, from_map);
+                }
+            }
+        }
+        // 18
+        if (result.try_find_keyword(keyword_language) != nullptr && result.entries.size() == 1) {
+            return json_ld::Null{};
+        }
+        // 19
+        if (active_property.empty() || active_property == keyword_graph) {
+            if (result.entries.empty()) {
+                return json_ld::Null{};
+            }
+            if (result.entries.size() == 1 && (result.try_find_keyword(keyword_value) != nullptr || result.try_find_keyword(keyword_list) != nullptr|| result.try_find_keyword(keyword_id) != nullptr)) {
+                return json_ld::Null{};
+            }
+        }
+        // 20
         return result;
     }
     std::optional<IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::expand_level_nested_recursive(json_ld::ExpandedMap &result, simdjson::ondemand::object elem_obj, json_ld::Context const &active_ctx, json_ld::Context const & type_scoped_context, json_ld::KeyPath const &active_path, std::string_view active_property, std::optional<std::string> const & input_type) {
