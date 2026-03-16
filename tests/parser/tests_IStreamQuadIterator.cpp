@@ -4,6 +4,8 @@
 #include <rdf4cpp.hpp>
 #include <rdf4cpp/storage/reference_node_storage/SyncReferenceNodeStorage.hpp>
 
+#include <dice/template-library/dbg.hpp>
+
 #include <iostream>
 
 
@@ -746,6 +748,18 @@ TEST_SUITE("IStreamQuadIterator") {
         for (IStreamQuadIterator qit{iss}; qit != std::default_sentinel; ++qit) {
             std::cout << qit->error() << std::endl;
         }
+    }
+
+
+    TEST_CASE("NTriples relative IRI") {
+        std::istringstream iss{"<a> <b> <c> .\n"};
+        IStreamQuadIterator qit{iss, ParsingFlag::NTriples};
+
+        if (!qit->has_value()) {
+            DICE_DBG(qit->error());
+        }
+        CHECK_NE(qit, std::default_sentinel);
+        REQUIRE(qit->has_value());
     }
 
     TEST_CASE("absolute IRI with dots") {
