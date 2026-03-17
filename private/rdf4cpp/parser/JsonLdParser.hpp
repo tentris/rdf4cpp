@@ -324,6 +324,7 @@ namespace rdf4cpp::parser {
 
         result_generator parse();
 
+        result_generator active_generator_;
         std::ranges::iterator_t<result_generator> current_iter_;
 
     public:

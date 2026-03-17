@@ -1441,6 +1441,9 @@ namespace rdf4cpp::parser {
                     co_yield make_quad(active_graph, active_subject, active_property, id);
                 }
 
+                simdjson::ondemand::object obj = element;
+                obj.reset();
+
                 {
                     auto type_entry = map.try_find_keyword(keyword_type);
                     if (type_entry != nullptr) {
@@ -1452,7 +1455,7 @@ namespace rdf4cpp::parser {
                 {
                     auto graph_entry = map.try_find_keyword(keyword_graph);
                     if (graph_entry != nullptr) {
-                        auto [c, v] = try_get_field<simdjson::ondemand::value>(element, graph_entry->path);
+                        auto [c, v] = try_get_field<simdjson::ondemand::value>(obj, graph_entry->path);
                         if (c != simdjson::SUCCESS) {
                             co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find graph value?"));
                         }
@@ -1464,7 +1467,7 @@ namespace rdf4cpp::parser {
                 {
                     auto included_entry = map.try_find_keyword(keyword_included);
                     if (included_entry != nullptr) {
-                        auto [c, v] = try_get_field<simdjson::ondemand::value>(element, included_entry->path);
+                        auto [c, v] = try_get_field<simdjson::ondemand::value>(obj, included_entry->path);
                         if (c != simdjson::SUCCESS) {
                             co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find included value?"));
                         }
@@ -1476,7 +1479,7 @@ namespace rdf4cpp::parser {
 
                 for (const auto &e : map.entries) {
                     if (e.key.type != json_ld::IRIMappingType::Keyword) {
-                        auto [c, v] = try_get_field<simdjson::ondemand::value>(element, e.path);
+                        auto [c, v] = try_get_field<simdjson::ondemand::value>(obj, e.path);
                         if (c != simdjson::SUCCESS) {
                             co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find property value?"));
                         }
@@ -1492,7 +1495,12 @@ namespace rdf4cpp::parser {
     }
     IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::parse() {
         simdjson::ondemand::parser parser{};
-        simdjson::ondemand::document doc = parser.iterate(json_data_);
+        auto c = parser.allocate(json_data_.size() * 5);
+        if (c != simdjson::SUCCESS) {
+            co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "failed to allocate parser"));
+            co_return;
+        }
+        simdjson::ondemand::document doc = parser.iterate(simdjson::pad(json_data_));
         if (doc.is_scalar()) {
             co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "free floating scalar"));
             co_return;
@@ -1518,7 +1526,7 @@ namespace rdf4cpp::parser {
     }
     IStreamQuadIterator::ImplJsonLd::ImplJsonLd(std::string json, state_type *initial_state)
         : state_(initial_state == nullptr ? new state_type() : initial_state), state_is_owned_(initial_state == nullptr),
-        json_data_(std::move(json)), current_iter_(parse().begin()) {
+        json_data_(std::move(json)), active_generator_(parse()), current_iter_(active_generator_.begin()) {
     }
     IStreamQuadIterator::ImplJsonLd::ImplJsonLd(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof, state_type *initial_state) :
         ImplJsonLd([&]() {
