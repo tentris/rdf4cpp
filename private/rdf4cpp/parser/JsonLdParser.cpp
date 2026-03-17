@@ -1384,8 +1384,8 @@ namespace rdf4cpp::parser {
         if (element.type() == simdjson::ondemand::json_type::array) {
             for (simdjson::ondemand::value e : static_cast<simdjson::ondemand::array>(element)) {
                 co_yield std::ranges::elements_of(parse(e, active_ctx, base_iri, false, active_graph, active_subject, active_property));
-                co_return;
             }
+            co_return;
         }
         auto expanded = expand_level(active_ctx, active_property, element, base_iri, false, false, false, assume_no_scalar);
         if (!expanded.has_value()) {
