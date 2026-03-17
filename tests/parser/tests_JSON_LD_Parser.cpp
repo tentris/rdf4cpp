@@ -51,11 +51,11 @@ TEST_CASE("test cases from rdf-tests") {
     jsonld_test_positive(remote_test_file_to_str("0004-in.jsonld"), remote_test_file_to_str("0004-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0004");
     jsonld_test_positive(remote_test_file_to_str("0005-in.jsonld"), remote_test_file_to_str("0005-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0005");
     jsonld_test_positive(remote_test_file_to_str("0006-in.jsonld"), remote_test_file_to_str("0006-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0006");
-    // jsonld_test_positive(remote_test_file_to_str("0007-in.jsonld"), remote_test_file_to_str("0007-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0007");
-    // jsonld_test_positive(remote_test_file_to_str("0008-in.jsonld"), remote_test_file_to_str("0008-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0008");
-    // jsonld_test_positive(remote_test_file_to_str("0009-in.jsonld"), remote_test_file_to_str("0009-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0009");
-    // jsonld_test_positive(remote_test_file_to_str("0010-in.jsonld"), remote_test_file_to_str("0010-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0010");
-    // jsonld_test_positive(remote_test_file_to_str("0011-in.jsonld"), remote_test_file_to_str("0011-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0011");
+    jsonld_test_positive(remote_test_file_to_str("0007-in.jsonld"), remote_test_file_to_str("0007-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0007");
+    jsonld_test_positive(remote_test_file_to_str("0008-in.jsonld"), remote_test_file_to_str("0008-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0008");
+    jsonld_test_positive(remote_test_file_to_str("0009-in.jsonld"), remote_test_file_to_str("0009-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0009");
+    jsonld_test_positive(remote_test_file_to_str("0010-in.jsonld"), remote_test_file_to_str("0010-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0010");
+    jsonld_test_positive(remote_test_file_to_str("0011-in.jsonld"), remote_test_file_to_str("0011-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0011");
     // jsonld_test_positive(remote_test_file_to_str("0012-in.jsonld"), remote_test_file_to_str("0012-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0012");
     // jsonld_test_positive(remote_test_file_to_str("0013-in.jsonld"), remote_test_file_to_str("0013-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0013");
     // jsonld_test_positive(remote_test_file_to_str("0014-in.jsonld"), remote_test_file_to_str("0014-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0014");
