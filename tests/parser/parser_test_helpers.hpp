@@ -35,6 +35,9 @@ namespace rdf4cpp::parse_test_helpers {
 
         static constexpr auto num_blanks = [](query::QuadPattern const &p) {
             size_t n = 0;
+            if (p.graph().is_blank_node()) {
+                ++n;
+            }
             if (p.subject().is_blank_node()) {
                 ++n;
             }
@@ -53,6 +56,9 @@ namespace rdf4cpp::parse_test_helpers {
                 if (a_bl != b_bl) {
                     return std::less{}(a_bl, b_bl);
                 }
+                if (a.graph() != b.graph() && !a.graph().is_blank_node() && !b.graph().is_blank_node()) {
+                    return std::less{}(a.graph(), b.graph());
+                }
                 if (a.subject() != b.subject() && !a.subject().is_blank_node() && !b.subject().is_blank_node()) {
                     return std::less{}(a.subject(), b.subject());
                 }
@@ -61,6 +67,9 @@ namespace rdf4cpp::parse_test_helpers {
                 }
                 if (!a.object().is_blank_node() && !b.object().is_blank_node()) {
                     return std::less{}(a.object(), b.object());
+                }
+                if (a.graph() != b.graph()) {
+                    return std::less{}(a.graph(), b.graph());
                 }
                 if (a.subject() != b.subject()) {
                     return std::less{}(a.subject(), b.subject());
@@ -90,6 +99,7 @@ namespace rdf4cpp::parse_test_helpers {
         };
 
         for (size_t i = 0; i < truth_results.size(); ++i) {
+            check(check_results.at(i).graph(), truth_results.at(i).graph(), "graph");
             check(check_results.at(i).subject(), truth_results.at(i).subject(), "subject");
             check(check_results.at(i).predicate(), truth_results.at(i).predicate(), "predicate");
             check(check_results.at(i).object(), truth_results.at(i).object(), "object");
