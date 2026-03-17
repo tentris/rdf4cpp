@@ -286,8 +286,8 @@ namespace rdf4cpp::parser {
 
         nonstd::expected<json_ld::IRIMapping, error_type> iri_expansion(json_ld::Context const &active_context,
                                                                         std::optional<std::string_view> value,
-                                                                        bool document_relative = false,
-                                                                        bool vocab = false,
+                                                                        bool document_relative,
+                                                                        bool vocab,
                                                                         json_ld::Context *local_context = nullptr,
                                                                         std::optional<simdjson::ondemand::object> local_context_json
                                                                         = std::nullopt);

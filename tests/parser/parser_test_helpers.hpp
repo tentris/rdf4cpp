@@ -75,7 +75,8 @@ namespace rdf4cpp::parse_test_helpers {
         sort(truth_results);
 
         std::map<BlankNode, BlankNode> bn_map{};
-        auto check = [&bn_map](Node xml, Node nt) {
+        auto check = [&bn_map](Node xml, Node nt, std::string_view pos) {
+            CAPTURE(pos);
             if (nt.is_blank_node() && xml.is_blank_node()) {
                 auto i = bn_map.find(nt.as_blank_node());
                 if (i != bn_map.end()) {
@@ -89,9 +90,9 @@ namespace rdf4cpp::parse_test_helpers {
         };
 
         for (size_t i = 0; i < truth_results.size(); ++i) {
-            check(check_results.at(i).subject(), truth_results.at(i).subject());
-            check(check_results.at(i).predicate(), truth_results.at(i).predicate());
-            check(check_results.at(i).object(), truth_results.at(i).object());
+            check(check_results.at(i).subject(), truth_results.at(i).subject(), "subject");
+            check(check_results.at(i).predicate(), truth_results.at(i).predicate(), "predicate");
+            check(check_results.at(i).object(), truth_results.at(i).object(), "object");
         }
     }
 }  // namespace rdf4cpp::parse_test_helpers
