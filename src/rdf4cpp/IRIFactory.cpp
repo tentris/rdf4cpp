@@ -151,9 +151,11 @@ static std::string_view merge_path_with_base(IRIView::AllParts const &base, std:
     }
 
     r.reserve(std::bit_ceil(base.path.size() + path.size() + 1));
-    r.append(base.path);
-    remove_last_path_segment(r);
-    r.push_back('/');
+    if (base.path.find('/') != std::string_view::npos) {
+        r.append(base.path);
+        remove_last_path_segment(r);
+        r.push_back('/');
+    }
     r.append(path);
     return r;
 }

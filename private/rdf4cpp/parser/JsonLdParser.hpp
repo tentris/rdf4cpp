@@ -33,11 +33,23 @@ namespace rdf4cpp::parser {
         struct IRIMapping {
             std::string data;
             IRIMappingType type = IRIMappingType::None;
+            std::string search_key = "";
 
-            constexpr auto operator<=>(IRIMapping const &r) const noexcept = default;
+            constexpr auto operator<=>(IRIMapping const &r) const noexcept {
+                return std::tie(data, type) <=> std::tie(r.data, r.type);
+            }
+            constexpr bool operator==(IRIMapping const &r) const noexcept {
+                return (*this <=> r) == std::strong_ordering::equal;
+            }
 
             [[nodiscard]] constexpr bool is_keyword(std::string_view k) const {
                 return type == IRIMappingType::Keyword && data == k;
+            }
+            [[nodiscard]] constexpr std::string_view get_search_key() const {
+                if (search_key.empty()) {
+                    return data;
+                }
+                return search_key;
             }
         };
         struct TypedLiteralMapping {
@@ -180,6 +192,9 @@ namespace rdf4cpp::parser {
         static constexpr std::string_view keyword_default = "@default";
 
         static constexpr std::string_view rdf_json_datatype = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
+        static constexpr std::string_view iri_nil = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
+        static constexpr std::string_view iri_rest = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
+        static constexpr std::string_view iri_first = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
 
         static constexpr bool any_of(std::string_view v, std::initializer_list<std::string_view> l) {
             for (auto const x : l) {
@@ -317,10 +332,18 @@ namespace rdf4cpp::parser {
         result_generator parse(simdjson::ondemand::value element,
                                json_ld::Context const &active_ctx,
                                std::string_view base_iri,
-                               bool assume_no_scalar = false,
+                               bool is_top_level = false,
                                json_ld::IRIMapping const &active_graph = {std::string{keyword_default}, json_ld::IRIMappingType::Keyword},
                                json_ld::IRIMapping const &active_subject = {},
-                               json_ld::IRIMapping const &active_property = {});
+                               json_ld::IRIMapping const &active_property = {},
+                               bool is_reverse = false,
+                               std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out = nullptr);
+        result_generator parse_list(simdjson::ondemand::array ar,
+                               json_ld::Context const &active_ctx,
+                               std::string_view base_iri,
+                               json_ld::IRIMapping const &active_graph,
+                               json_ld::IRIMapping const &active_subject,
+                               json_ld::IRIMapping const &active_property);
 
         result_generator parse();
 
