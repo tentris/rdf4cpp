@@ -31,7 +31,19 @@ namespace rdf4cpp::parse_test_helpers {
         read_iter_to(check_iter, check_results);
         read_iter_to(truth_iter, truth_results);
 
-        REQUIRE(check_results.size() == truth_results.size());
+        if (check_results.size() != truth_results.size()) {
+            if (check_results.size() + truth_results.size() <= 100) {
+                std::cout << "expected:\n";
+                for (const auto& e : truth_results) {
+                    std::cout << e << "\n";
+                }
+                std::cout << "actual:\n";
+                for (const auto& e : check_results) {
+                    std::cout << e << "\n";
+                }
+            }
+            REQUIRE(check_results.size() == truth_results.size());
+        }
 
         static constexpr auto num_blanks = [](query::QuadPattern const &p) {
             size_t n = 0;
@@ -84,17 +96,17 @@ namespace rdf4cpp::parse_test_helpers {
         sort(truth_results);
 
         std::map<BlankNode, BlankNode> bn_map{};
-        auto check = [&bn_map](Node xml, Node nt, std::string_view pos) {
+        auto check = [&bn_map](Node to_check, Node expected, std::string_view pos) {
             CAPTURE(pos);
-            if (nt.is_blank_node() && xml.is_blank_node()) {
-                auto i = bn_map.find(nt.as_blank_node());
+            if (expected.is_blank_node() && to_check.is_blank_node()) {
+                auto i = bn_map.find(expected.as_blank_node());
                 if (i != bn_map.end()) {
-                    CHECK(xml.as_blank_node() == i->second.as_blank_node());
+                    CHECK(to_check.as_blank_node() == i->second.as_blank_node());
                 } else {
-                    bn_map[nt.as_blank_node()] = xml.as_blank_node();
+                    bn_map[expected.as_blank_node()] = to_check.as_blank_node();
                 }
             } else {
-                CHECK(xml == nt);
+                CHECK(to_check == expected);
             }
         };
 
