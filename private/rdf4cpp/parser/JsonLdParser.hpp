@@ -136,7 +136,8 @@ namespace rdf4cpp::parser {
             };
 
             std::vector<Entry> entries;
-            std::optional<Context> active_context = std::nullopt;
+            Context* active_context = nullptr;
+            std::vector<Context> context_storage;
 
             constexpr Entry* try_find_entry(IRIMapping const &key) {
                 auto i = std::ranges::find_if(entries, [&](auto const& t) { return t.key == key; });
@@ -280,15 +281,15 @@ namespace rdf4cpp::parser {
         nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object);
         nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, Node object);
 
-        nonstd::expected<json_ld::Context, error_type> parse_context(simdjson::ondemand::value json,
+        nonstd::expected<json_ld::Context, error_type> parse_context(simdjson::ondemand::value local_context,
                                                                      json_ld::Context const &active_context,
                                                                      std::string_view base_iri,
                                                                      bool override_protected = false,
                                                                      bool propagate = true);
-        std::optional<error_type> parse_context_term(simdjson::ondemand::object json,
-                                                     json_ld::Context &local,
+        std::optional<error_type> parse_context_term(simdjson::ondemand::object local_context,
+                                                     json_ld::Context &active_context,
                                                      json_ld::TermDefinition &term,
-                                                     json_ld::Context const &active_context,
+                                                     json_ld::Context const &parent_context,
                                                      bool is_protected = false,
                                                      bool override_protected = false);
 
