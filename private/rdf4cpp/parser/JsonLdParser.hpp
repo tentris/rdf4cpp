@@ -8,6 +8,7 @@
 
 #include <generator>
 #include <vector>
+#include <forward_list>
 
 #include <simdjson.h>
 
@@ -137,7 +138,7 @@ namespace rdf4cpp::parser {
 
             std::vector<Entry> entries;
             Context* active_context = nullptr;
-            std::vector<Context> context_storage;
+            std::forward_list<Context> context_storage; // moving the contained objects is not allowed
 
             constexpr Entry* try_find_entry(IRIMapping const &key) {
                 auto i = std::ranges::find_if(entries, [&](auto const& t) { return t.key == key; });
