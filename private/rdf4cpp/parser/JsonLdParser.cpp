@@ -1021,7 +1021,7 @@ namespace rdf4cpp::parser {
             if (!r.has_value()) {
                 return nonstd::unexpected(r.error());
             }
-            result.active_context = &result.context_storage.emplace_back(std::move(*r));
+            result.active_context = &result.context_storage.emplace_front(std::move(*r));
             active_ctx = result.active_context;
         }
         // 9
@@ -1035,7 +1035,7 @@ namespace rdf4cpp::parser {
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
                 }
-                result.active_context = &result.context_storage.emplace_back(std::move(*r));
+                result.active_context = &result.context_storage.emplace_front(std::move(*r));
                 active_ctx = result.active_context;
             }
         }
@@ -1065,7 +1065,7 @@ namespace rdf4cpp::parser {
                 if (!r.has_value()) {
                     return r.error();
                 }
-                result.active_context = &result.context_storage.emplace_back(std::move(*r));
+                result.active_context = &result.context_storage.emplace_front(std::move(*r));
                 active_ctx = result.active_context;
                 return std::nullopt;
             };
@@ -1084,12 +1084,17 @@ namespace rdf4cpp::parser {
                     else {
                         simdjson::ondemand::array a;
                         if (v.get(a) == simdjson::SUCCESS) {
+                            std::vector<std::string> t{};
                             for (auto e : a) {
                                 if (e.is_string()) {
-                                    auto err = handle_type(e.get_string());
-                                    if (err.has_value()) {
-                                        return nonstd::unexpected(*err);
-                                    }
+                                    t.emplace_back(e);
+                                }
+                            }
+                            std::ranges::sort(t);
+                            for (const auto& e : t) {
+                                auto err = handle_type(e);
+                                if (err.has_value()) {
+                                    return nonstd::unexpected(*err);
                                 }
                             }
                         }
