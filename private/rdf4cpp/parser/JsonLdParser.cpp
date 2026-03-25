@@ -300,6 +300,9 @@ namespace rdf4cpp::parser {
             handle_ctx(o); // 4
         }
         else {
+            if (!propagate && result->previous_context == nullptr) {
+                result->previous_context = &active_context;
+            }
             simdjson::ondemand::array a{};
             if (local_context.get(a) != simdjson::SUCCESS) {
                 result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, " invalid local context")};
@@ -695,7 +698,7 @@ namespace rdf4cpp::parser {
                 }
             }
             { // 21
-                auto [c, v] = try_get_field<simdjson::ondemand::object>(ob, keyword_context);
+                auto [c, v] = try_get_field<simdjson::ondemand::value>(ob, keyword_context);
                 if (c != simdjson::NO_SUCH_FIELD) {
                     if (c != simdjson::SUCCESS) {
                         return make_error(ParsingError::Type::BadSyntax, "invalid scoped context");
@@ -1029,14 +1032,25 @@ namespace rdf4cpp::parser {
         // 7
         if (active_ctx->previous_context != nullptr && !from_map) {
             bool clear = true;
+            bool has_id = false;
+            bool any_other = false;
             for (auto e : elem_object) {
                 auto x = iri_expansion(*active_ctx, e.escaped_key(), false, true);
-                if (x.has_value() && x->type == json_ld::IRIMappingType::Keyword && any_of(x->data, {keyword_value, keyword_id})) {
+                if (x.has_value() && x->is_keyword(keyword_value)) {
                     clear = false;
                     break;
                 }
+                if (x.has_value() && x->is_keyword(keyword_id)) {
+                    has_id = true;
+                }
+                else {
+                    any_other = true;
+                }
             }
             elem_object.reset();
+            if (has_id && !any_other) {
+                clear = false;
+            }
             if (clear) {
                 active_ctx = active_ctx->previous_context;
             }
