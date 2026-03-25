@@ -119,6 +119,16 @@ namespace rdf4cpp::parser {
         struct KeyPath {
             std::vector<std::string> keys;
         };
+        struct ContainerData {
+            std::string_view index_key;
+            TermDefinition const *term_definition;
+            Context const * active_context;
+            Context const * map_context;
+            IRIMapping expanded_index;
+            std::optional<ExpandedValue> reexpanded_index;
+            IRIMapping expanded_index_key;
+            IRIMapping index;
+        };
         struct ExpandedMap {
             struct Entry {
                 IRIMapping key;
@@ -130,9 +140,16 @@ namespace rdf4cpp::parser {
                 bool as_graph = false;
                 bool is_reverse = false;
                 std::optional<BaseDirection> language_map = std::nullopt;
+                std::optional<ContainerData> container_data = std::nullopt;
+                std::optional<ExpandedValue> pre_expanded_value = std::nullopt;
+                Context const *active_context = nullptr;
 
                 constexpr bool has_keyword_value(std::string_view key) {
                     return std::ranges::any_of(keyword_values, [&](auto const& t) { return t.type == IRIMappingType::Keyword && t.data == key; });
+                }
+
+                [[nodiscard]] constexpr ContainerData const * container() const {
+                    return container_data.has_value() ? &*container_data : nullptr;
                 }
             };
 
@@ -312,6 +329,9 @@ namespace rdf4cpp::parser {
         nonstd::expected<json_ld::ExpandedValue, error_type> value_expansion(json_ld::Context const &active_conext,
                                                                              json_ld::IRIMapping const &active_property,
                                                                              simdjson::ondemand::value value);
+        nonstd::expected<json_ld::ExpandedValue, error_type> value_expansion(json_ld::Context const &active_conext,
+                                                                             std::string_view active_property,
+                                                                             std::string_view value);
 
         nonstd::expected<json_ld::ExpandedLevel, error_type> expand_level(json_ld::Context const &active_context,
                                                                           json_ld::IRIMapping const &active_property,
@@ -320,14 +340,18 @@ namespace rdf4cpp::parser {
                                                                           bool frame_expansion = false,
                                                                           bool ordered = false,
                                                                           bool from_map = false,
-                                                                          bool assume_no_scalar = false);
+                                                                          bool assume_no_scalar = false,
+                                                                          json_ld::ContainerData const *container_data = nullptr);
         std::optional<error_type> expand_level_nested_recursive(json_ld::ExpandedMap& result,
                                                                 simdjson::ondemand::object elem_obj,
                                                                 json_ld::Context const & active_ctx,
                                                                 json_ld::Context const & type_scoped_context,
                                                                 json_ld::KeyPath const &active_path,
                                                                 json_ld::IRIMapping const &active_property,
-                                                                std::optional<std::string> const & input_type);
+                                                                std::optional<std::string> const & input_type,
+                                                                json_ld::ContainerData const *container_data);
+        static std::optional<error_type> expand_transform_container(json_ld::ExpandedMap &result,
+                                                             json_ld::ContainerData const *container_data);
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
 
@@ -339,7 +363,8 @@ namespace rdf4cpp::parser {
                                json_ld::IRIMapping const &active_subject = {},
                                json_ld::IRIMapping const &active_property = {},
                                bool is_reverse = false,
-                               std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out = nullptr);
+                               std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out = nullptr,
+                               json_ld::ContainerData const *container_data = nullptr);
         result_generator parse_list(simdjson::ondemand::array ar,
                                json_ld::Context const &active_ctx,
                                std::string_view base_iri,
