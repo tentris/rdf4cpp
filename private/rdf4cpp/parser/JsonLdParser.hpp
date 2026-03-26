@@ -14,6 +14,13 @@
 
 namespace rdf4cpp::parser {
     namespace json_ld {
+        struct Null {
+            constexpr auto operator<=>(const Null &) const noexcept = default;
+        };
+        struct NotSet {
+            constexpr auto operator<=>(const NotSet &) const = default;
+        };
+
         enum class BaseDirection : uint8_t {
             None,
             Ltr,
@@ -63,6 +70,31 @@ namespace rdf4cpp::parser {
             BaseDirection direction;
         };
         using ExpandedValue = std::variant<IRIMapping, LiteralMapping, TypedLiteralMapping, simdjson::ondemand::value>;
+        struct LanguageMapping : std::variant<NotSet, Null, std::string> {
+            using Base = std::variant<NotSet, Null, std::string>;
+
+            using Base::Base;
+            using Base::operator=;
+            constexpr auto operator<=>(const LanguageMapping &) const = default;
+
+            constexpr LanguageMapping const &operator||(LanguageMapping const & other) const noexcept {
+                if (std::holds_alternative<NotSet>(*this)) {
+                    return other;
+                }
+                return *this;
+            }
+
+            [[nodiscard]] constexpr std::optional<std::string> output() const noexcept {
+                return std::visit([]<typename T>(const T& e) -> std::optional<std::string> {
+                    if constexpr (std::same_as<T, std::string>) {
+                        return e;
+                    }
+                    else {
+                        return std::nullopt;
+                    }
+                }, *this);
+            }
+        };
 
         struct TermDefinitionBase {
             std::string key;
@@ -74,7 +106,7 @@ namespace rdf4cpp::parser {
             std::optional<std::string> context;
             std::vector<std::string> container_mapping;
             std::optional<std::string> index_mapping;
-            std::optional<std::string> language_mapping;
+            LanguageMapping language_mapping = NotSet{};
             std::optional<std::string> nest_value;
             std::optional<std::string> type_mapping;
             BaseDirection direction_mapping = BaseDirection::None;
@@ -107,7 +139,7 @@ namespace rdf4cpp::parser {
             std::vector<TermDefinition> terms{};  // TODO map? one of the term members as key
             std::string base_iri;
             std::optional<std::string> vocab = std::nullopt;
-            std::optional<std::string> language = std::nullopt;
+            LanguageMapping language = NotSet{};
             BaseDirection base_direction = BaseDirection::None;
             Context const* previous_context = nullptr;
 
@@ -115,7 +147,6 @@ namespace rdf4cpp::parser {
             [[nodiscard]] TermDefinition const *try_find_term(std::string_view key) const;
         };
 
-        struct Null {};
         struct KeyPath {
             std::vector<std::string> keys;
         };

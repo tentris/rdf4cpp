@@ -164,10 +164,10 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     //jsonld_test_positive(remote_test_file_to_str("c031-in.jsonld"), remote_test_file_to_str("c031-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc031");
     //jsonld_test_positive(remote_test_file_to_str("c034-in.jsonld"), remote_test_file_to_str("c034-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc034");
     jsonld_test_positive(remote_test_file_to_str("c035-in.jsonld"), remote_test_file_to_str("c035-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc035");
-    // jsonld_test_positive(remote_test_file_to_str("di01-in.jsonld"), remote_test_file_to_str("di01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi01");
-    // jsonld_test_positive(remote_test_file_to_str("di02-in.jsonld"), remote_test_file_to_str("di02-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi02");
-    // jsonld_test_positive(remote_test_file_to_str("di03-in.jsonld"), remote_test_file_to_str("di03-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi03");
-    // jsonld_test_positive(remote_test_file_to_str("di04-in.jsonld"), remote_test_file_to_str("di04-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi04");
+    jsonld_test_positive(remote_test_file_to_str("di01-in.jsonld"), remote_test_file_to_str("di01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi01");
+    jsonld_test_positive(remote_test_file_to_str("di02-in.jsonld"), remote_test_file_to_str("di02-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi02");
+    jsonld_test_positive(remote_test_file_to_str("di03-in.jsonld"), remote_test_file_to_str("di03-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi03");
+    jsonld_test_positive(remote_test_file_to_str("di04-in.jsonld"), remote_test_file_to_str("di04-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi04");
     // jsonld_test_positive(remote_test_file_to_str("di05-in.jsonld"), remote_test_file_to_str("di05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi05");
     // jsonld_test_positive(remote_test_file_to_str("di06-in.jsonld"), remote_test_file_to_str("di06-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi06");
     // jsonld_test_positive(remote_test_file_to_str("di07-in.jsonld"), remote_test_file_to_str("di07-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi07");

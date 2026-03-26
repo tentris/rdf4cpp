@@ -222,10 +222,10 @@ namespace rdf4cpp::parser {
                         return true;
                     }
                     if (!v.has_value()) {
-                        result->language = std::nullopt;
+                        result->language = json_ld::Null{};
                     }
                     else {
-                        result->language = *v;
+                        result->language = std::string(*v);
                     }
                 }
             }
@@ -714,7 +714,12 @@ namespace rdf4cpp::parser {
                     if (c != simdjson::SUCCESS) {
                         return make_error(ParsingError::Type::BadSyntax, "invalid language mapping");
                     }
-                    term.language_mapping = v;
+                    if (v.has_value()) {
+                        term.language_mapping = std::string(*v);
+                    }
+                    else {
+                        term.language_mapping = json_ld::Null{};
+                    }
                 }
             }
             if (!has_type) { // 23
@@ -923,9 +928,10 @@ namespace rdf4cpp::parser {
         }
         // 5
         if (value.is_string()) {
+            const auto& l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
             return json_ld::LiteralMapping{
                 std::string(static_cast<std::string_view>(value.get_string())),
-                active_term != nullptr && active_term->language_mapping.has_value() ? active_term->language_mapping : active_conext.language,
+                l.output(),
                 active_term != nullptr && active_term->direction_mapping != json_ld::BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
             };
         }
@@ -972,9 +978,10 @@ namespace rdf4cpp::parser {
             return json_ld::TypedLiteralMapping{std::string{value}, *active_term->type_mapping};
         }
         // 5 (condition always true)
+        const auto& l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
         return json_ld::LiteralMapping{
             std::string(value),
-            active_term != nullptr && active_term->language_mapping.has_value() ? active_term->language_mapping : active_conext.language,
+            l.output(),
             active_term != nullptr && active_term->direction_mapping != json_ld::BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
         };
         // rest unreachable
@@ -1422,7 +1429,7 @@ namespace rdf4cpp::parser {
                 expanded_value.is_json_literal = true;
             }
             // 13.7
-            else if (term_definition != nullptr && term_definition->has_container_mapping(keyword_language)) {
+            else if (term_definition != nullptr && term_definition->has_container_mapping(keyword_language) && v.type() == simdjson::ondemand::json_type::object) {
                 expanded_value.path = active_path;
                 expanded_value.path.keys.emplace_back(k);
                 expanded_value.language_map = active_ctx.base_direction;
@@ -1780,6 +1787,42 @@ namespace rdf4cpp::parser {
                                     }
                                 }
                                 co_yield std::ranges::elements_of(parse(v, *context, base_iri, false, graph, {}, {}, false, nullptr, e.container()));
+                            }
+                            else if (e.language_map.has_value()) {
+                                if (v.type() != simdjson::ondemand::json_type::object) {
+                                    co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "not a map?"));
+                                    co_return;
+                                }
+                                for (auto kv : simdjson::ondemand::object{v}) {
+                                    std::string_view lang = kv.unescaped_key();
+                                    simdjson::ondemand::value val = kv.value();
+                                    auto make = [&](simdjson::ondemand::value str) -> nonstd::expected<ok_type, error_type> {
+                                        std::string_view string;
+                                        if (str.get(string) != simdjson::SUCCESS) {
+                                            return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid language map value"));
+                                        }
+                                        auto l = lang != keyword_none ? Literal::make_lang_tagged(string, lang) : Literal::make_simple(string);
+                                        return make_quad(active_graph, id, e.key, l);
+                                    };
+                                    if (val.type() == simdjson::ondemand::json_type::array) {
+                                        for (simdjson::ondemand::value str : simdjson::ondemand::array{val}) {
+                                            auto r = make(str);
+                                            auto exit = !r.has_value();
+                                            co_yield r;
+                                            if (exit) {
+                                                co_return;
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        auto r = make(val);
+                                        auto exit = !r.has_value();
+                                        co_yield r;
+                                        if (exit) {
+                                            co_return;
+                                        }
+                                    }
+                                }
                             }
                             else {
                                 co_yield std::ranges::elements_of(parse(v, *context, base_iri, false, active_graph, id, e.key, e.is_reverse, nullptr, e.container()));

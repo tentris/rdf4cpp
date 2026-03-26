@@ -48,35 +48,72 @@ namespace rdf4cpp::parse_test_helpers {
             return n;
         };
         static constexpr auto sort = [](std::vector<query::QuadPattern> &v) {
-            std::sort(v.begin(), v.end(), [](query::QuadPattern const &a, query::QuadPattern const &b) {
+            static constexpr size_t not_found = std::numeric_limits<size_t>::max();
+            std::vector<Node> bn_indices{};
+            auto get_ind = [&](Node n) {
+                for (size_t i = 0; i < bn_indices.size(); ++i) {
+                    if (bn_indices[i] == n) { // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                        return i;
+                    }
+                }
+                return not_found;
+            };
+            auto comp = [&](Node a, Node b) {
+                if (a.is_blank_node() && b.is_blank_node()) {
+                    auto ai = get_ind(a);
+                    auto bi = get_ind(b);
+                    if (ai != not_found && bi != not_found) {
+                        return std::less{}(ai, bi);
+                    }
+                }
+                return std::less{}(a, b);
+            };
+            auto sort = [&](query::QuadPattern const &a, query::QuadPattern const &b) {
                 auto a_bl = num_blanks(a);
                 auto b_bl = num_blanks(b);
                 if (a_bl != b_bl) {
                     return std::less{}(a_bl, b_bl);
                 }
                 if (a.graph() != b.graph() && !a.graph().is_blank_node() && !b.graph().is_blank_node()) {
-                    return std::less{}(a.graph(), b.graph());
+                    return comp(a.graph(), b.graph());
                 }
                 if (a.subject() != b.subject() && !a.subject().is_blank_node() && !b.subject().is_blank_node()) {
-                    return std::less{}(a.subject(), b.subject());
+                    return comp(a.subject(), b.subject());
                 }
                 if (a.predicate() != b.predicate() && !a.predicate().is_blank_node() && !b.predicate().is_blank_node()) {
-                    return std::less{}(a.predicate(), b.predicate());
+                    return comp(a.predicate(), b.predicate());
                 }
-                if (!a.object().is_blank_node() && !b.object().is_blank_node()) {
-                    return std::less{}(a.object(), b.object());
+                if (a.object() != b.object() && !a.object().is_blank_node() && !b.object().is_blank_node()) {
+                    return comp(a.object(), b.object());
                 }
                 if (a.graph() != b.graph()) {
-                    return std::less{}(a.graph(), b.graph());
+                    return comp(a.graph(), b.graph());
                 }
                 if (a.subject() != b.subject()) {
-                    return std::less{}(a.subject(), b.subject());
+                    return comp(a.subject(), b.subject());
                 }
                 if (a.predicate() != b.predicate()) {
-                    return std::less{}(a.predicate(), b.predicate());
+                    return comp(a.predicate(), b.predicate());
                 }
-                return std::less{}(a.object(), b.object());
-            });
+                return comp(a.object(), b.object());
+            };
+            std::ranges::sort(v, sort);
+
+            auto add = [&](Node n) {
+                if (!n.is_blank_node()) {
+                    return;
+                }
+                if (get_ind(n) == not_found) {
+                    bn_indices.emplace_back(n);
+                }
+            };
+            for (const auto& e : v) {
+                add(e.graph());
+                add(e.subject());
+                add(e.predicate());
+                add(e.object());
+            }
+            std::ranges::sort(v, sort);
         };
         sort(check_results);
         sort(truth_results);
