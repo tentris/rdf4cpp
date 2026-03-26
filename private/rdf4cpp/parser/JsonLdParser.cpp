@@ -789,6 +789,9 @@ namespace rdf4cpp::parser {
     nonstd::expected<json_ld::Context, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::parse_local_context(simdjson::padded_string_view json, json_ld::Context const &active_context, std::string_view base_iri, bool override_protected, bool propagate) {
         simdjson::ondemand::parser parser{};
         simdjson::ondemand::document doc = parser.iterate(json);
+        if (doc.is_scalar()) {
+            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, doc.is_string() ? "remote context not supported" : "context free floating scalar")};
+        }
         return parse_context(doc, active_context, base_iri, override_protected, propagate);
     }
     nonstd::expected<json_ld::IRIMapping, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::iri_expansion(json_ld::Context const &active_context, std::optional<std::string_view> value, bool document_relative, bool vocab, json_ld::Context *local_context, std::optional<simdjson::ondemand::object> local_context_json) {
@@ -1529,7 +1532,7 @@ namespace rdf4cpp::parser {
             // 13.12
             if (term_definition != nullptr && term_definition->has_container_mapping(keyword_graph)
                 && !term_definition->has_container_mapping(keyword_id) && !term_definition->has_container_mapping(keyword_index)) {
-                expanded_value.as_graph = false;
+                expanded_value.as_graph = true;
             }
             // 13.13
             if (term_definition != nullptr && term_definition->is_reverse_property) {
@@ -1766,7 +1769,21 @@ namespace rdf4cpp::parser {
                             co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find property value?"));
                         }
                         else {
-                            co_yield std::ranges::elements_of(parse(v, *context, base_iri, false, active_graph, id, e.key, e.is_reverse, nullptr, e.container()));
+                            if (e.as_graph) {
+                                auto graph = make_new_bn();
+                                if (id.type != json_ld::IRIMappingType::None && e.key.type != json_ld::IRIMappingType::None) {
+                                    if (is_reverse) {
+                                        co_yield make_quad(active_graph, graph, e.key, id);
+                                    }
+                                    else {
+                                        co_yield make_quad(active_graph, id, e.key, graph);
+                                    }
+                                }
+                                co_yield std::ranges::elements_of(parse(v, *context, base_iri, false, graph, {}, {}, false, nullptr, e.container()));
+                            }
+                            else {
+                                co_yield std::ranges::elements_of(parse(v, *context, base_iri, false, active_graph, id, e.key, e.is_reverse, nullptr, e.container()));
+                            }
                         }
                     }
                 }

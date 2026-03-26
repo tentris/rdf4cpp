@@ -31,20 +31,6 @@ namespace rdf4cpp::parse_test_helpers {
         read_iter_to(check_iter, check_results);
         read_iter_to(truth_iter, truth_results);
 
-        if (check_results.size() != truth_results.size()) {
-            if (check_results.size() + truth_results.size() <= 100) {
-                std::cout << "expected:\n";
-                for (const auto& e : truth_results) {
-                    std::cout << e << "\n";
-                }
-                std::cout << "actual:\n";
-                for (const auto& e : check_results) {
-                    std::cout << e << "\n";
-                }
-            }
-            REQUIRE(check_results.size() == truth_results.size());
-        }
-
         static constexpr auto num_blanks = [](query::QuadPattern const &p) {
             size_t n = 0;
             if (p.graph().is_blank_node()) {
@@ -94,6 +80,23 @@ namespace rdf4cpp::parse_test_helpers {
         };
         sort(check_results);
         sort(truth_results);
+
+        std::string capture = "too big";
+        if (check_results.size() + truth_results.size() <= 100) {
+            capture.clear();
+            writer::StringWriter w{capture};
+            writer::write_str("expected:\n", w);
+            for (const auto& e : truth_results) {
+                CHECK(Quad{e.graph(), e.subject(), e.predicate(), e.object()}.serialize_nquads(w));
+            }
+            writer::write_str("actual:\n", w);
+            for (const auto& e : check_results) {
+                CHECK(Quad{e.graph(), e.subject(), e.predicate(), e.object()}.serialize_nquads(w));
+            }
+            w.finalize();
+        }
+        CAPTURE(capture);
+        REQUIRE(check_results.size() == truth_results.size());
 
         std::map<BlankNode, BlankNode> bn_map{};
         auto check = [&bn_map](Node to_check, Node expected, std::string_view pos) {
