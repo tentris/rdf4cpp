@@ -204,7 +204,7 @@ namespace rdf4cpp::parser {
                 return &*i;
             }
         };
-        using ExpandedLevel = std::variant<ExpandedMap, IRIMapping, LiteralMapping, TypedLiteralMapping, Null, simdjson::ondemand::value>;
+        using ExpandedLevel = std::variant<ExpandedMap, IRIMapping, LiteralMapping, TypedLiteralMapping, Null, simdjson::ondemand::value, simdjson::ondemand::array>;
     }  // namespace json_ld
 
     struct IStreamQuadIterator::ImplJsonLd final : Impl {
@@ -380,9 +380,11 @@ namespace rdf4cpp::parser {
                                                                 json_ld::KeyPath const &active_path,
                                                                 json_ld::IRIMapping const &active_property,
                                                                 std::optional<std::string> const & input_type,
-                                                                json_ld::ContainerData const *container_data);
+                                                                json_ld::ContainerData const *container_data,
+                                                                bool reverse);
         static std::optional<error_type> expand_transform_container(json_ld::ExpandedMap &result,
                                                              json_ld::ContainerData const *container_data);
+        bool is_list_object(simdjson::ondemand::value v, json_ld::Context const & active_context);
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
 
@@ -396,12 +398,22 @@ namespace rdf4cpp::parser {
                                bool is_reverse = false,
                                std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out = nullptr,
                                json_ld::ContainerData const *container_data = nullptr);
-        result_generator parse_list(simdjson::ondemand::array ar,
+        result_generator parse_list(simdjson::ondemand::value ar,
                                json_ld::Context const &active_ctx,
                                std::string_view base_iri,
                                json_ld::IRIMapping const &active_graph,
                                json_ld::IRIMapping const &active_subject,
                                json_ld::IRIMapping const &active_property);
+        result_generator parse_list_element(simdjson::ondemand::value v,
+                                            json_ld::Context const &active_ctx,
+                                            std::string_view base_iri,
+                                            json_ld::IRIMapping const &active_graph,
+                                            json_ld::IRIMapping const &active_property,
+                                            json_ld::IRIMapping & current_bn,
+                                            json_ld::IRIMapping const &first,
+                                            json_ld::IRIMapping const &rest,
+                                            json_ld::IRIMapping const *&curr_sub,
+                                            json_ld::IRIMapping const *&curr_pred);
 
         result_generator parse();
 
