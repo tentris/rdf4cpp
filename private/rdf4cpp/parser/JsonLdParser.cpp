@@ -411,9 +411,9 @@ namespace rdf4cpp::parser {
                 term.iri_mapping = {};
             }
             else {
-                auto ex = iri_expansion(active_context, v, false, true, &active_context, local_context);
+                auto ex = iri_expansion(active_context, v, false, true, &active_context, local_context, v == term.key ? &term : nullptr);
                 if (!ex.has_value()) {
-                    return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping (@id)");
+                    return ex.error();
                 }
                 if (ex->data == keyword_context && ex->type == json_ld::IRIMappingType::Keyword) {
                     return make_error(ParsingError::Type::BadSyntax, "invalid keyword alias");
@@ -811,7 +811,7 @@ namespace rdf4cpp::parser {
         }
         return parse_context(doc, active_context, base_iri, override_protected, propagate);
     }
-    nonstd::expected<json_ld::IRIMapping, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::iri_expansion(json_ld::Context const &active_context, std::optional<std::string_view> value, bool document_relative, bool vocab, json_ld::Context *local_context, std::optional<simdjson::ondemand::object> local_context_json) {
+    nonstd::expected<json_ld::IRIMapping, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::iri_expansion(json_ld::Context const &active_context, std::optional<std::string_view> value, bool document_relative, bool vocab, json_ld::Context *local_context, std::optional<simdjson::ondemand::object> local_context_json, json_ld::TermDefinition const *ignore_local) {
         // https://www.w3.org/TR/json-ld11-api/#iri-expansion
         // 1
         if (!value.has_value()) {
@@ -827,7 +827,7 @@ namespace rdf4cpp::parser {
         // 3
         if (local_context != nullptr) {
             auto i = local_context->try_find_term(*value);
-            if (i != nullptr && i->parse_state != json_ld::ParseState::Done) {
+            if (i != nullptr && i->parse_state != json_ld::ParseState::Done && i != ignore_local) {
                 auto e = parse_context_term(local_context_json.value(), *local_context, *i, active_context);
                 if (e.has_value()) {
                     return nonstd::make_unexpected(*e);
@@ -836,11 +836,11 @@ namespace rdf4cpp::parser {
         }
         // 4
         auto* in_active = active_context.try_find_term(*value);
-        if (in_active != nullptr && in_active->iri_mapping.type == json_ld::IRIMappingType::Keyword) {
+        if (in_active != nullptr && in_active->iri_mapping.type == json_ld::IRIMappingType::Keyword && in_active != ignore_local) {
             return json_ld::IRIMapping{in_active->iri_mapping.data, in_active->iri_mapping.type, std::string{*value}};
         }
         // 5
-        if (vocab && in_active != nullptr) {
+        if (vocab && in_active != nullptr && in_active != ignore_local) {
             return json_ld::IRIMapping{in_active->iri_mapping.data, in_active->iri_mapping.type, std::string{*value}};
         }
         // 6
@@ -1516,11 +1516,12 @@ namespace rdf4cpp::parser {
                         return expanded_index.error();
                     }
 
-                    expanded_value.path = active_path;
-                    expanded_value.path.keys.emplace_back(k);
-                    expanded_value.path.keys.emplace_back(index);
-                    expanded_value.active_property = index;
-                    expanded_value.container_data = {
+                    auto ex = expanded_value;
+                    ex.path = active_path;
+                    ex.path.keys.emplace_back(k);
+                    ex.path.keys.emplace_back(index);
+                    ex.active_property = k;
+                    ex.container_data = {
                         index_key,
                         term_definition,
                         &active_ctx,
@@ -1530,32 +1531,41 @@ namespace rdf4cpp::parser {
                         json_ld::IRIMapping{},
                         json_ld::IRIMapping{},
                     };
-                    expanded_value.active_context = map_context;
+                    ex.active_context = map_context;
                     if (term_definition->has_container_mapping(keyword_graph)) {
-                        expanded_value.as_graph = true;
+                        ex.as_graph = true;
                     }
                     if (term_definition->has_container_mapping(keyword_index) &&
                         index_key != keyword_index &&
-                        !expanded_value.container_data->expanded_index.is_keyword(keyword_none)) {
+                        !ex.container_data->expanded_index.is_keyword(keyword_none)) {
                         auto reexpanded_index = value_expansion(active_ctx, index_key, index);
                         if (!reexpanded_index.has_value()) {
                             return reexpanded_index.error();
                         }
-                        expanded_value.container_data->reexpanded_index = std::move(*reexpanded_index);
+                        ex.container_data->reexpanded_index = std::move(*reexpanded_index);
                         auto expanded_index_key = iri_expansion(active_ctx, index_key, false, true);
                         if (!reexpanded_index.has_value()) {
                             return reexpanded_index.error();
                         }
-                        expanded_value.container_data->expanded_index_key = std::move(*expanded_index_key);
+                        ex.container_data->expanded_index_key = std::move(*expanded_index_key);
                     }
                     if (term_definition->has_container_mapping(keyword_id)) {
                         auto id = iri_expansion(active_ctx, index, true, false);
                         if (!id.has_value()) {
                             return id.error();
                         }
-                        expanded_value.container_data->index = std::move(*id);
+                        ex.container_data->index = std::move(*id);
+                    }
+                    // 13.13
+                    if (term_definition != nullptr && term_definition->is_reverse_property) {
+                        ex.is_reverse = !reverse;
+                    }
+                    if (!ex.path.keys.empty() || !ex.keyword_values.empty()) {
+                        ex.key = *expanded_property;
+                        result.entries.emplace_back(std::move(ex));
                     }
                 }
+                continue;
             }
             // 13.10
             else if (v.is_null()) {
