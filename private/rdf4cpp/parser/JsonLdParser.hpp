@@ -355,7 +355,8 @@ namespace rdf4cpp::parser {
                                                                         bool vocab,
                                                                         json_ld::Context *local_context = nullptr,
                                                                         std::optional<simdjson::ondemand::object> local_context_json
-                                                                        = std::nullopt);
+                                                                        = std::nullopt,
+                                                                        json_ld::TermDefinition const *ignore_local = nullptr);
 
         nonstd::expected<json_ld::ExpandedValue, error_type> value_expansion(json_ld::Context const &active_conext,
                                                                              json_ld::IRIMapping const &active_property,
