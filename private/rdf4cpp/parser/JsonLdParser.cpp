@@ -1491,6 +1491,7 @@ namespace rdf4cpp::parser {
 
                 for (auto kw : simdjson::ondemand::object{v}) {
                     std::string_view index = kw.unescaped_key();
+                    simdjson::ondemand::value w = kw.value();
 
                     json_ld::Context const * map_context = nullptr;
                     if (term_definition->has_container_mapping(keyword_id) || term_definition->has_container_mapping(keyword_type)) {
@@ -1532,7 +1533,7 @@ namespace rdf4cpp::parser {
                         json_ld::IRIMapping{},
                     };
                     ex.active_context = map_context;
-                    if (term_definition->has_container_mapping(keyword_graph)) {
+                    if (term_definition->has_container_mapping(keyword_graph) && !is_graph_object(w, active_ctx)) {
                         ex.as_graph = true;
                     }
                     if (term_definition->has_container_mapping(keyword_index) &&
@@ -1554,7 +1555,13 @@ namespace rdf4cpp::parser {
                         if (!id.has_value()) {
                             return id.error();
                         }
-                        ex.container_data->index = std::move(*id);
+                        if (ex.as_graph) {
+                            ex.as_graph = false;
+                            ex.as_named_graph = std::move(*id);
+                        }
+                        else {
+                            ex.container_data->index = std::move(*id);
+                        }
                     }
                     // 13.13
                     if (term_definition != nullptr && term_definition->is_reverse_property) {
@@ -1588,7 +1595,11 @@ namespace rdf4cpp::parser {
             // 13.12
             if (term_definition != nullptr && term_definition->has_container_mapping(keyword_graph)
                 && !term_definition->has_container_mapping(keyword_id) && !term_definition->has_container_mapping(keyword_index)) {
-                expanded_value.as_graph = true;
+                if (v.type() == simdjson::ondemand::json_type::array) {
+                    expanded_value.as_multiple_graphs = true;
+                } else {
+                    expanded_value.as_graph = true;
+                }
             }
             // 13.13
             if (term_definition != nullptr && term_definition->is_reverse_property) {
@@ -1614,7 +1625,7 @@ namespace rdf4cpp::parser {
                    && !container_data->expanded_index.is_keyword(keyword_none)) {
             // index keyword is ignored
         } else if (container_data->term_definition->has_container_mapping(keyword_id) && result.try_find_keyword(keyword_id) == nullptr
-                   && !container_data->expanded_index.is_keyword(keyword_none)) {
+                   && !container_data->expanded_index.is_keyword(keyword_none) && container_data->index.type != json_ld::IRIMappingType::None) {
             auto &e = result.entries.emplace_back(json_ld::IRIMapping{std::string{keyword_id}, json_ld::IRIMappingType::Keyword}, json_ld::KeyPath{});
             e.keyword_values.emplace_back(container_data->index);
         } else if (container_data->term_definition->has_container_mapping(keyword_type) && !container_data->expanded_index.is_keyword(keyword_none)) {
@@ -1653,7 +1664,45 @@ namespace rdf4cpp::parser {
                 return false;
             }
         }
-        return true;
+        return list;
+    }
+    bool IStreamQuadIterator::ImplJsonLd::is_graph_object(simdjson::ondemand::value v, json_ld::Context const &active_context) {
+        if (v.type() != simdjson::ondemand::json_type::object) {
+            return false;
+        }
+        bool graph = false;
+        bool index = false;
+        bool id = false;
+        auto ob = static_cast<simdjson::ondemand::object>(v);
+        for (auto kv : ob) {
+            std::string_view k = kv.unescaped_key();
+            auto expanded_property = iri_expansion(active_context, k, false, true);
+            if (!expanded_property.has_value()) {
+                return false;
+            }
+            if (expanded_property->is_keyword(keyword_graph)) {
+                if (graph) {
+                    return false;
+                }
+                graph = true;
+            }
+            else if (expanded_property->is_keyword(keyword_index)) {
+                if (index) {
+                    return false;
+                }
+                index = true;
+            }
+            else if (expanded_property->is_keyword(keyword_index)) {
+                if (id) {
+                    return false;
+                }
+                id = true;
+            }
+            else {
+                return false;
+            }
+        }
+        return graph;
     }
     IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::parse(simdjson::ondemand::value element,
                                                                                              json_ld::Context const &active_ctx,
@@ -1871,8 +1920,27 @@ namespace rdf4cpp::parser {
                             co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find property value?"));
                         }
                         else {
-                            if (e.as_graph) {
-                                auto graph = make_new_bn();
+                            if (e.as_multiple_graphs) {
+                                simdjson::ondemand::array ar;
+                                if (v.get(ar) != simdjson::SUCCESS) {
+                                    co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "multigraph not array?"));
+                                    co_return;
+                                }
+                                for (simdjson::ondemand::value ae : ar) {
+                                    auto graph = make_new_bn();
+                                    if (id.type != json_ld::IRIMappingType::None && e.key.type != json_ld::IRIMappingType::None) {
+                                        if (is_reverse) {
+                                            co_yield make_quad(active_graph, graph, e.key, id);
+                                        }
+                                        else {
+                                            co_yield make_quad(active_graph, id, e.key, graph);
+                                        }
+                                    }
+                                    co_yield std::ranges::elements_of(parse(ae, *context, base_iri, false, graph, {}, {}, false, nullptr, e.container()));
+                                }
+                            }
+                            else if (e.as_graph || e.as_named_graph.has_value()) {
+                                auto graph = e.as_named_graph.has_value() ? *e.as_named_graph : make_new_bn();
                                 if (id.type != json_ld::IRIMappingType::None && e.key.type != json_ld::IRIMappingType::None) {
                                     if (is_reverse) {
                                         co_yield make_quad(active_graph, graph, e.key, id);

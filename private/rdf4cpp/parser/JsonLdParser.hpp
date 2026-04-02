@@ -170,6 +170,8 @@ namespace rdf4cpp::parser {
                 bool as_list = false;
                 bool as_graph = false;
                 bool is_reverse = false;
+                bool as_multiple_graphs = false;
+                std::optional<IRIMapping> as_named_graph = std::nullopt;
                 std::optional<BaseDirection> language_map = std::nullopt;
                 std::optional<ContainerData> container_data = std::nullopt;
                 std::optional<ExpandedValue> pre_expanded_value = std::nullopt;
@@ -386,6 +388,7 @@ namespace rdf4cpp::parser {
         static std::optional<error_type> expand_transform_container(json_ld::ExpandedMap &result,
                                                              json_ld::ContainerData const *container_data);
         bool is_list_object(simdjson::ondemand::value v, json_ld::Context const & active_context);
+        bool is_graph_object(simdjson::ondemand::value v, json_ld::Context const & active_context);
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
 
