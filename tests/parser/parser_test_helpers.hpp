@@ -4,7 +4,7 @@
 #include <rdf4cpp.hpp>
 
 namespace rdf4cpp::parse_test_helpers {
-    inline void jsonld_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags) {  // TODO move test logic to shared with xml
+    inline void jsonld_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, bool deduplicate = false) {  // TODO move test logic to shared with xml
         using namespace rdf4cpp::parser;
 
         CAPTURE(base_iri);
@@ -19,17 +19,24 @@ namespace rdf4cpp::parse_test_helpers {
         IStreamQuadIterator truth_iter{truth_stream, truth_flags};
         std::vector<query::QuadPattern> truth_results;
 
-        static constexpr auto read_iter_to = [](IStreamQuadIterator &i, std::vector<query::QuadPattern> &r) {
-            while (i != std::default_sentinel) {
+        static constexpr auto read_iter_to = [](IStreamQuadIterator &i, std::vector<query::QuadPattern> &r, bool dedup) {
+            for (;i != std::default_sentinel; ++i) {
                 if (!i->has_value()) {
                     FAIL(i->error().message);
                 }
-                r.emplace_back(i->value());
-                ++i;
+                auto& val = i->value();
+                if (dedup) {
+                    if (std::ranges::any_of(r, [&](const auto& x) {
+                        return x.graph().eq(val.graph()) && x.subject().eq(val.subject()) && x.predicate().eq(val.predicate()) && x.object().eq(val.object());
+                    })) {
+                        continue;
+                    }
+                }
+                r.emplace_back(val);
             }
         };
-        read_iter_to(check_iter, check_results);
-        read_iter_to(truth_iter, truth_results);
+        read_iter_to(check_iter, check_results, deduplicate);
+        read_iter_to(truth_iter, truth_results, false);
 
         static constexpr auto num_blanks = [](query::QuadPattern const &p) {
             size_t n = 0;
