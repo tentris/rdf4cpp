@@ -148,7 +148,7 @@ namespace rdf4cpp::parser {
         };
 
         struct KeyPath {
-            std::vector<std::string> keys;
+            std::vector<std::variant<std::string, size_t>> keys;
         };
         struct ContainerData {
             std::string_view index_key;
@@ -291,6 +291,13 @@ namespace rdf4cpp::parser {
             return std::tuple(c, r);
         }
         template<typename T>
+        static auto try_get_field(simdjson::ondemand::array a, size_t key) {
+            T r{};
+            a.reset();
+            auto c = a.at(key).get(r);
+            return std::tuple(c, r);
+        }
+        template<typename T>
         static auto try_get_field(simdjson::ondemand::object o, json_ld::KeyPath const &key) {
             if (key.keys.empty()) {
                 if constexpr (std::same_as<T, simdjson::ondemand::object>) {
@@ -301,13 +308,37 @@ namespace rdf4cpp::parser {
                 }
             }
             simdjson::error_code c;
+            std::variant<simdjson::ondemand::array, simdjson::ondemand::object> e = o;
             for (size_t i = 0; i < key.keys.size() - 1; ++i) {
-                std::tie(c, o) = try_get_field<simdjson::ondemand::object>(o, key.keys[i]);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                const auto& next_key = key.keys[i + 1];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                const auto& current_key = key.keys[i];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                if (std::holds_alternative<size_t>(next_key)) {
+                    if (std::holds_alternative<size_t>(current_key)) {
+                        std::tie(c, e) = try_get_field<simdjson::ondemand::array>(std::get<simdjson::ondemand::array>(e), std::get<size_t>(current_key));
+                    }
+                    else {
+                        std::tie(c, e) = try_get_field<simdjson::ondemand::array>(std::get<simdjson::ondemand::object>(e), std::get<std::string>(current_key));
+                    }
+                }
+                else {
+                    if (std::holds_alternative<size_t>(current_key)) {
+                        std::tie(c, e) = try_get_field<simdjson::ondemand::object>(std::get<simdjson::ondemand::array>(e), std::get<size_t>(current_key));
+                    }
+                    else {
+                        std::tie(c, e) = try_get_field<simdjson::ondemand::object>(std::get<simdjson::ondemand::object>(e), std::get<std::string>(current_key));
+                    }
+                }
                 if (c != simdjson::SUCCESS) {
                     return std::tuple(c, T{});
                 }
             }
-            return try_get_field<T>(o, key.keys[key.keys.size() - 1]);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+            const auto& current_key = key.keys[key.keys.size() - 1];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+            if (std::holds_alternative<size_t>(current_key)) {
+                return try_get_field<T>(std::get<simdjson::ondemand::array>(e), std::get<size_t>(current_key));
+            }
+            else {
+                return try_get_field<T>(std::get<simdjson::ondemand::object>(e), std::get<std::string>(current_key));
+            }
         }
         template<typename T>
         static std::tuple<simdjson::error_code, std::optional<T>> try_get_optional_field(simdjson::ondemand::object o,
@@ -408,18 +439,26 @@ namespace rdf4cpp::parser {
                                json_ld::IRIMapping const &active_graph,
                                json_ld::IRIMapping const &active_subject,
                                json_ld::IRIMapping const &active_property);
-        result_generator parse_list_element(simdjson::ondemand::value v,
-                                            json_ld::Context const &active_ctx,
-                                            std::string_view base_iri,
-                                            json_ld::IRIMapping const &active_graph,
-                                            json_ld::IRIMapping const &active_property,
-                                            json_ld::IRIMapping & current_bn,
-                                            json_ld::IRIMapping const &first,
-                                            json_ld::IRIMapping const &rest,
-                                            json_ld::IRIMapping const *&curr_sub,
-                                            json_ld::IRIMapping const *&curr_pred);
 
         result_generator parse();
+
+        // if passed in value is an array, iterates over its content
+        // otherwise iterates over [value]
+        struct ValueArrayIter {
+        private:
+            simdjson::ondemand::array a_{};
+            std::variant<std::monostate, simdjson::ondemand::value, simdjson::ondemand::array_iterator> current_;
+            size_t current_index_ = 0;
+
+        public:
+            explicit ValueArrayIter(simdjson::ondemand::value v);
+            simdjson::ondemand::value operator*();
+            ValueArrayIter& operator++();
+            bool operator==(std::default_sentinel_t);
+            ValueArrayIter& begin();
+            std::default_sentinel_t end();
+            void push_index(json_ld::KeyPath& p);
+        };
 
         result_generator active_generator_;
         std::ranges::iterator_t<result_generator> current_iter_;
