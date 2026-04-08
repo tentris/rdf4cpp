@@ -7,26 +7,32 @@ namespace rdf4cpp::parse_test_helpers {
     inline void jsonld_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, bool deduplicate = false) {  // TODO move test logic to shared with xml
         using namespace rdf4cpp::parser;
 
+        struct Quad {
+            query::QuadPattern quad;
+            size_t similar_count = 0;
+        };
+
         CAPTURE(base_iri);
 
         IStreamQuadIterator::state_type state{};
         CHECK(state.iri_factory.set_base(base_iri) == IRIFactoryError::Ok);
         std::stringstream check_stream{std::move(check_str)};
         IStreamQuadIterator check_iter{check_stream, check_flags, &state};
-        std::vector<query::QuadPattern> check_results;
+        std::vector<Quad> check_results;
 
         std::stringstream truth_stream{std::move(truth_str)};
         IStreamQuadIterator truth_iter{truth_stream, truth_flags};
-        std::vector<query::QuadPattern> truth_results;
+        std::vector<Quad> truth_results;
 
-        static constexpr auto read_iter_to = [](IStreamQuadIterator &i, std::vector<query::QuadPattern> &r, bool dedup) {
+        static constexpr auto read_iter_to = [](IStreamQuadIterator &i, std::vector<Quad> &r, bool dedup) {
             for (;i != std::default_sentinel; ++i) {
                 if (!i->has_value()) {
                     FAIL(i->error().message);
                 }
                 auto& val = i->value();
                 if (dedup) {
-                    if (std::ranges::any_of(r, [&](const auto& x) {
+                    if (std::ranges::any_of(r, [&](const auto& y) {
+                        const auto& x = y.quad;
                         return x.graph().eq(val.graph()) && x.subject().eq(val.subject()) && x.predicate().eq(val.predicate()) && x.object().eq(val.object());
                     })) {
                         continue;
@@ -54,7 +60,27 @@ namespace rdf4cpp::parse_test_helpers {
             }
             return n;
         };
-        static constexpr auto sort = [](std::vector<query::QuadPattern> &v) {
+        static constexpr auto count_sim = [&](query::QuadPattern const &p, std::vector<Quad> const & v) {
+            size_t n = 0;
+            for (const auto& i : v) {
+                size_t sim = 0;
+                for (size_t e = 0; e < p.size(); ++e) {
+                    const auto& pe = p[e]; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                    const auto& ie = i.quad[e]; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                    if (!pe.is_blank_node() && !ie.is_blank_node() && pe == ie) {
+                        ++sim;
+                    }
+                }
+                if (sim >= 2) {
+                    ++n;
+                }
+            }
+            return n;
+        };
+        static constexpr auto sort = [](std::vector<Quad> &v) {
+            for (auto& e : v) {
+                e.similar_count = count_sim(e.quad, v);
+            }
             static constexpr size_t not_found = std::numeric_limits<size_t>::max();
             std::vector<Node> bn_indices{};
             auto get_ind = [&](Node n) {
@@ -75,7 +101,14 @@ namespace rdf4cpp::parse_test_helpers {
                 }
                 return std::less{}(a, b);
             };
-            auto sort = [&](query::QuadPattern const &a, query::QuadPattern const &b) {
+            auto compare = [&](Quad const &aq,Quad const &bq) {
+                auto a_dup = aq.similar_count;
+                auto b_dup = bq.similar_count;
+                if (a_dup != b_dup) {
+                    return std::less{}(a_dup, b_dup);
+                }
+                const auto& a = aq.quad;
+                const auto& b = bq.quad;
                 auto a_bl = num_blanks(a);
                 auto b_bl = num_blanks(b);
                 if (a_bl != b_bl) {
@@ -104,7 +137,7 @@ namespace rdf4cpp::parse_test_helpers {
                 }
                 return comp(a.object(), b.object());
             };
-            std::ranges::sort(v, sort);
+            std::ranges::sort(v, compare);
 
             auto add = [&](Node n) {
                 if (!n.is_blank_node()) {
@@ -115,12 +148,12 @@ namespace rdf4cpp::parse_test_helpers {
                 }
             };
             for (const auto& e : v) {
-                add(e.graph());
-                add(e.subject());
-                add(e.predicate());
-                add(e.object());
+                add(e.quad.graph());
+                add(e.quad.subject());
+                add(e.quad.predicate());
+                add(e.quad.object());
             }
-            std::ranges::sort(v, sort);
+            std::ranges::sort(v, compare);
         };
         sort(check_results);
         sort(truth_results);
@@ -131,11 +164,11 @@ namespace rdf4cpp::parse_test_helpers {
             writer::StringWriter w{capture};
             writer::write_str("expected:\n", w);
             for (const auto& e : truth_results) {
-                CHECK(Quad{e.graph(), e.subject(), e.predicate(), e.object()}.serialize_nquads(w));
+                CHECK(rdf4cpp::Quad{e.quad.graph(), e.quad.subject(), e.quad.predicate(), e.quad.object()}.serialize_nquads(w));
             }
             writer::write_str("actual:\n", w);
             for (const auto& e : check_results) {
-                CHECK(Quad{e.graph(), e.subject(), e.predicate(), e.object()}.serialize_nquads(w));
+                CHECK(rdf4cpp::Quad{e.quad.graph(), e.quad.subject(), e.quad.predicate(), e.quad.object()}.serialize_nquads(w));
             }
             w.finalize();
         }
@@ -158,10 +191,10 @@ namespace rdf4cpp::parse_test_helpers {
         };
 
         for (size_t i = 0; i < truth_results.size(); ++i) {
-            check(check_results.at(i).graph(), truth_results.at(i).graph(), "graph");
-            check(check_results.at(i).subject(), truth_results.at(i).subject(), "subject");
-            check(check_results.at(i).predicate(), truth_results.at(i).predicate(), "predicate");
-            check(check_results.at(i).object(), truth_results.at(i).object(), "object");
+            check(check_results.at(i).quad.graph(), truth_results.at(i).quad.graph(), "graph");
+            check(check_results.at(i).quad.subject(), truth_results.at(i).quad.subject(), "subject");
+            check(check_results.at(i).quad.predicate(), truth_results.at(i).quad.predicate(), "predicate");
+            check(check_results.at(i).quad.object(), truth_results.at(i).quad.object(), "object");
         }
     }
 }  // namespace rdf4cpp::parse_test_helpers
