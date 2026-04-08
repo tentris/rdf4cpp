@@ -13,6 +13,38 @@
 #include <simdjson.h>
 
 namespace rdf4cpp::parser {
+    static constexpr std::string_view keyword_base = "@base";
+    static constexpr std::string_view keyword_container = "@container";
+    static constexpr std::string_view keyword_context = "@context";
+    static constexpr std::string_view keyword_direction = "@direction";
+    static constexpr std::string_view keyword_graph = "@graph";
+    static constexpr std::string_view keyword_id = "@id";
+    static constexpr std::string_view keyword_import = "@import";
+    static constexpr std::string_view keyword_included = "@included";
+    static constexpr std::string_view keyword_index = "@index";
+    static constexpr std::string_view keyword_json = "@json";
+    static constexpr std::string_view keyword_language = "@language";
+    static constexpr std::string_view keyword_list = "@list";
+    static constexpr std::string_view keyword_nest = "@nest";
+    static constexpr std::string_view keyword_none = "@none";
+    static constexpr std::string_view keyword_prefix = "@prefix";
+    static constexpr std::string_view keyword_propagate = "@propagate";
+    static constexpr std::string_view keyword_protected = "@protected";
+    static constexpr std::string_view keyword_reverse = "@reverse";
+    static constexpr std::string_view keyword_set = "@set";
+    static constexpr std::string_view keyword_type = "@type";
+    static constexpr std::string_view keyword_value = "@value";
+    static constexpr std::string_view keyword_version = "@version";
+    static constexpr std::string_view keyword_vocab = "@vocab";
+
+    // not treated as keyword in other places
+    static constexpr std::string_view keyword_default = "@default";
+
+    static constexpr std::string_view rdf_json_datatype = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
+    static constexpr std::string_view iri_nil = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
+    static constexpr std::string_view iri_rest = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
+    static constexpr std::string_view iri_first = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
+
     namespace json_ld {
         struct Null {
             constexpr auto operator<=>(const Null &) const noexcept = default;
@@ -207,7 +239,28 @@ namespace rdf4cpp::parser {
             }
         };
         using ExpandedLevel = std::variant<ExpandedMap, IRIMapping, LiteralMapping, TypedLiteralMapping, Null, simdjson::ondemand::value, simdjson::ondemand::array>;
+
+        struct StringifyResult {
+            std::string value;
+            std::string_view datatype;
+        };
     }  // namespace json_ld
+
+    namespace params {
+        struct ParseParams {
+            simdjson::ondemand::value element;
+            json_ld::Context const &active_ctx;
+            std::string_view base_iri;
+            json_ld::IRIMapping const &active_graph = {std::string{keyword_default}, json_ld::IRIMappingType::Keyword};
+            json_ld::IRIMapping const &active_subject = {};
+            json_ld::IRIMapping const &active_property = {};
+            std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out = nullptr;
+            json_ld::ContainerData const *container_data = nullptr;
+            bool is_top_level = false;
+            bool is_reverse = false;
+            bool is_json_literal = false;
+        };
+    }
 
     struct IStreamQuadIterator::ImplJsonLd final : Impl {
     private:
@@ -215,38 +268,6 @@ namespace rdf4cpp::parser {
         bool state_is_owned_;
         std::string json_data_;
         uint64_t blank_node_index = 0;
-
-        static constexpr std::string_view keyword_base = "@base";
-        static constexpr std::string_view keyword_container = "@container";
-        static constexpr std::string_view keyword_context = "@context";
-        static constexpr std::string_view keyword_direction = "@direction";
-        static constexpr std::string_view keyword_graph = "@graph";
-        static constexpr std::string_view keyword_id = "@id";
-        static constexpr std::string_view keyword_import = "@import";
-        static constexpr std::string_view keyword_included = "@included";
-        static constexpr std::string_view keyword_index = "@index";
-        static constexpr std::string_view keyword_json = "@json";
-        static constexpr std::string_view keyword_language = "@language";
-        static constexpr std::string_view keyword_list = "@list";
-        static constexpr std::string_view keyword_nest = "@nest";
-        static constexpr std::string_view keyword_none = "@none";
-        static constexpr std::string_view keyword_prefix = "@prefix";
-        static constexpr std::string_view keyword_propagate = "@propagate";
-        static constexpr std::string_view keyword_protected = "@protected";
-        static constexpr std::string_view keyword_reverse = "@reverse";
-        static constexpr std::string_view keyword_set = "@set";
-        static constexpr std::string_view keyword_type = "@type";
-        static constexpr std::string_view keyword_value = "@value";
-        static constexpr std::string_view keyword_version = "@version";
-        static constexpr std::string_view keyword_vocab = "@vocab";
-
-        // not treated as keyword in other places
-        static constexpr std::string_view keyword_default = "@default";
-
-        static constexpr std::string_view rdf_json_datatype = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
-        static constexpr std::string_view iri_nil = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
-        static constexpr std::string_view iri_rest = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
-        static constexpr std::string_view iri_first = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
 
         static constexpr bool any_of(std::string_view v, std::initializer_list<std::string_view> l) {
             for (auto const x : l) {
@@ -397,6 +418,8 @@ namespace rdf4cpp::parser {
         nonstd::expected<json_ld::ExpandedValue, error_type> value_expansion(json_ld::Context const &active_conext,
                                                                              std::string_view active_property,
                                                                              std::string_view value);
+        static json_ld::StringifyResult stringify(simdjson::ondemand::value v, bool normalize, bool force_double = false, bool escape_string = false);
+        static json_ld::TypedLiteralMapping to_json_literal(simdjson::ondemand::value v);
 
         nonstd::expected<json_ld::ExpandedLevel, error_type> expand_level(json_ld::Context const &active_context,
                                                                           json_ld::IRIMapping const &active_property,
@@ -406,6 +429,7 @@ namespace rdf4cpp::parser {
                                                                           bool ordered = false,
                                                                           bool from_map = false,
                                                                           bool assume_no_scalar = false,
+                                                                          bool is_json_literal = false,
                                                                           json_ld::ContainerData const *container_data = nullptr);
         std::optional<error_type> expand_level_nested_recursive(json_ld::ExpandedMap& result,
                                                                 simdjson::ondemand::object elem_obj,
@@ -423,22 +447,15 @@ namespace rdf4cpp::parser {
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
 
-        result_generator parse(simdjson::ondemand::value element,
-                               json_ld::Context const &active_ctx,
-                               std::string_view base_iri,
-                               bool is_top_level = false,
-                               json_ld::IRIMapping const &active_graph = {std::string{keyword_default}, json_ld::IRIMappingType::Keyword},
-                               json_ld::IRIMapping const &active_subject = {},
-                               json_ld::IRIMapping const &active_property = {},
-                               bool is_reverse = false,
-                               std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out = nullptr,
-                               json_ld::ContainerData const *container_data = nullptr);
+        result_generator parse(params::ParseParams& p);
         result_generator parse_list(simdjson::ondemand::value ar,
                                json_ld::Context const &active_ctx,
                                std::string_view base_iri,
                                json_ld::IRIMapping const &active_graph,
                                json_ld::IRIMapping const &active_subject,
-                               json_ld::IRIMapping const &active_property);
+                               json_ld::IRIMapping const &active_property,
+                               std::variant<std::monostate, json_ld::IRIMapping, Literal>* obj_out,
+                               bool recursive_list);
 
         result_generator parse();
 
