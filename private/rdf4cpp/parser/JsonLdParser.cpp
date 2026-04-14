@@ -1947,6 +1947,8 @@ namespace rdf4cpp::parser {
                             .active_ctx = *context,
                             .base_iri = p.base_iri,
                             .active_graph = id,
+                            .active_subject = {},
+                            .active_property = {},
                         };
                         co_yield std::ranges::elements_of(parse(pa));
                     }
@@ -1971,6 +1973,8 @@ namespace rdf4cpp::parser {
                                 .active_ctx = *context,
                                 .base_iri = p.base_iri,
                                 .active_graph = p.active_graph,
+                                .active_subject = {},
+                                .active_property = {},
                                 .is_json_literal = e.is_json_literal,
                             };
                             co_yield std::ranges::elements_of(parse(pa));
@@ -2057,6 +2061,8 @@ namespace rdf4cpp::parser {
                                         .active_ctx = *context,
                                         .base_iri = p.base_iri,
                                         .active_graph = graph,
+                                        .active_subject = {},
+                                        .active_property = {},
                                         .is_json_literal = e.is_json_literal,
                                     };
                                     co_yield std::ranges::elements_of(parse(pa));
@@ -2077,6 +2083,8 @@ namespace rdf4cpp::parser {
                                     .active_ctx = *context,
                                     .base_iri = p.base_iri,
                                     .active_graph = graph,
+                                    .active_subject = {},
+                                    .active_property = {},
                                     .is_json_literal = e.is_json_literal,
                                 };
                                 co_yield std::ranges::elements_of(parse(pa));
@@ -2156,6 +2164,7 @@ namespace rdf4cpp::parser {
                         .active_ctx = active_ctx,
                         .base_iri = base_iri,
                         .active_graph = active_graph,
+                        .active_subject = {},
                         .active_property = active_property,
                         .obj_out = &curr_obj,
                     };
@@ -2209,6 +2218,9 @@ namespace rdf4cpp::parser {
             .element = doc,
             .active_ctx = ctx,
             .base_iri = ctx.base_iri,
+            .active_graph = {std::string{keyword_default}, json_ld::IRIMappingType::Keyword},
+            .active_subject = {},
+            .active_property = {},
             .is_top_level = true,
         };
         co_yield std::ranges::elements_of(parse(p));

@@ -243,9 +243,9 @@ namespace rdf4cpp::parser {
             simdjson::ondemand::value element;
             json_ld::Context const &active_ctx;
             std::string_view base_iri;
-            json_ld::IRIMapping const &active_graph = {std::string{keyword_default}, json_ld::IRIMappingType::Keyword};
-            json_ld::IRIMapping const &active_subject = {};
-            json_ld::IRIMapping const &active_property = {};
+            json_ld::IRIMapping const &active_graph;
+            json_ld::IRIMapping const &active_subject;
+            json_ld::IRIMapping const &active_property;
             std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out = nullptr;
             bool is_top_level = false;
             bool is_reverse = false;
