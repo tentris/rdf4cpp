@@ -370,6 +370,7 @@ namespace rdf4cpp::parser {
 
         error_type make_error(ParsingError::Type t, std::string msg);
         json_ld::IRIMapping make_new_bn();
+        nonstd::expected<IRI, error_type> make_iri(std::string_view i);
         nonstd::expected<IRI, error_type> make_iri(json_ld::IRIMapping const & m);
         nonstd::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const & m);
         nonstd::expected<Literal, error_type> make_literal(json_ld::LiteralMapping const & t);

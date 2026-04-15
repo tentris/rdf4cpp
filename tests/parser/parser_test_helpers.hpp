@@ -27,7 +27,8 @@ namespace rdf4cpp::parse_test_helpers {
         static constexpr auto read_iter_to = [](IStreamQuadIterator &i, std::vector<Quad> &r, bool dedup) {
             for (;i != std::default_sentinel; ++i) {
                 if (!i->has_value()) {
-                    FAIL(i->error().message);
+                    FAIL_CHECK(i->error().message);
+                    return true;
                 }
                 auto& val = i->value();
                 if (dedup) {
@@ -40,9 +41,14 @@ namespace rdf4cpp::parse_test_helpers {
                 }
                 r.emplace_back(val);
             }
+            return false;
         };
-        read_iter_to(check_iter, check_results, deduplicate);
-        read_iter_to(truth_iter, truth_results, false);
+        if (read_iter_to(check_iter, check_results, deduplicate)) {
+            return;
+        }
+        if (read_iter_to(truth_iter, truth_results, false)) {
+            return;
+        }
 
         static constexpr auto num_blanks = [](query::QuadPattern const &p) {
             size_t n = 0;
@@ -158,22 +164,28 @@ namespace rdf4cpp::parse_test_helpers {
         sort(check_results);
         sort(truth_results);
 
-        std::string capture = "too big";
+        std::string expected = "too big";
+        std::string actual = "too big";
         if (check_results.size() + truth_results.size() <= 100) {
-            capture.clear();
-            writer::StringWriter w{capture};
-            writer::write_str("expected:\n", w);
-            for (const auto& e : truth_results) {
-                CHECK(rdf4cpp::Quad{e.quad.graph(), e.quad.subject(), e.quad.predicate(), e.quad.object()}.serialize_nquads(w));
-            }
-            writer::write_str("actual:\n", w);
-            for (const auto& e : check_results) {
-                CHECK(rdf4cpp::Quad{e.quad.graph(), e.quad.subject(), e.quad.predicate(), e.quad.object()}.serialize_nquads(w));
-            }
-            w.finalize();
+            expected = writer::StringWriter::oneshot([&](auto& w) {
+                for (const auto& e : truth_results) {
+                    CHECK(rdf4cpp::Quad{e.quad.graph(), e.quad.subject(), e.quad.predicate(), e.quad.object()}.serialize_nquads(w));
+                }
+                return true;
+            });
+            actual = writer::StringWriter::oneshot([&](auto& w) {
+                for (const auto& e : check_results) {
+                    CHECK(rdf4cpp::Quad{e.quad.graph(), e.quad.subject(), e.quad.predicate(), e.quad.object()}.serialize_nquads(w));
+                }
+                return true;
+            });
         }
-        CAPTURE(capture);
-        REQUIRE(check_results.size() == truth_results.size());
+        CAPTURE(expected);
+        CAPTURE(actual);
+        CHECK(check_results.size() == truth_results.size());
+        if (check_results.size() != truth_results.size()) {
+            return;
+        }
 
         std::map<BlankNode, BlankNode> bn_map{};
         auto check = [&bn_map](Node to_check, Node expected, std::string_view pos) {
