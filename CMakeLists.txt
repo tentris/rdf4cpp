@@ -163,6 +163,7 @@ add_library(rdf4cpp
         private/rdf4cpp/parser/XMLStates/XMLParserTypedLiteralPredicateState.cpp
         private/rdf4cpp/parser/XMLStates/XMLParserXMLLiteralState.cpp
         private/rdf4cpp/parser/JsonLdParser.cpp
+        private/rdf4cpp/parser/JsonLdParserTypes.cpp
         private/rdf4cpp/regex/RegexImpl.cpp
         private/rdf4cpp/regex/RegexReplacerImpl.cpp
         ${serd_source_files}
