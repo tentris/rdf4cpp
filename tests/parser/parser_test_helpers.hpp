@@ -4,7 +4,8 @@
 #include <rdf4cpp.hpp>
 
 namespace rdf4cpp::parse_test_helpers {
-    inline void jsonld_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, bool deduplicate = false) {  // TODO move test logic to shared with xml
+    // TODO move graph comparison out of tests
+    inline void jsonld_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, bool deduplicate = false) {
         using namespace rdf4cpp::parser;
 
         struct Quad {
@@ -208,6 +209,26 @@ namespace rdf4cpp::parse_test_helpers {
             check(check_results.at(i).quad.predicate(), truth_results.at(i).quad.predicate(), "predicate");
             check(check_results.at(i).quad.object(), truth_results.at(i).quad.object(), "object");
         }
+    }
+
+    inline void parser_test_negative(std::string check_str, std::string_view base_iri, parser::ParsingFlags flags) {
+        using namespace rdf4cpp::parser;
+
+        CAPTURE(base_iri);
+
+        std::stringstream xml{std::move(check_str)};
+        IStreamQuadIterator xml_iter{xml, flags};
+
+        bool had_error = false;
+        while (xml_iter != std::default_sentinel) {
+            if (xml_iter->has_value()) {
+                ++xml_iter;
+                continue;
+            }
+            had_error = true;
+            ++xml_iter;
+        }
+        CHECK(had_error);
     }
 }  // namespace rdf4cpp::parse_test_helpers
 

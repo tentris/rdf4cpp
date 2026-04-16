@@ -2,7 +2,6 @@
 #include <doctest/doctest.h>
 #include <rdf4cpp.hpp>
 
-#include <iostream>
 #include <filesystem>
 #include <curl/curl.h>
 
@@ -15,8 +14,8 @@ void jsonld_test_positive(std::string json_str, std::string nt_str, std::string_
     parse_test_helpers::jsonld_test_positive(std::move(json_str), std::move(nt_str), base_iri, ParsingFlag::JsonLd, ParsingFlag::NQuads, dedup);
 }
 
-void jsonld_test_negative([[maybe_unused]] std::string json_str, [[maybe_unused]] std::string_view base_iri) {
-
+void jsonld_test_negative(std::string json_str, std::string_view base_iri) {
+    parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, ParsingFlag::JsonLd);
 }
 
 // adopted from https://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c/9786295#9786295
@@ -202,7 +201,8 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e023-in.jsonld"), remote_test_file_to_str("e023-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te023");
     jsonld_test_positive(remote_test_file_to_str("e024-in.jsonld"), remote_test_file_to_str("e024-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te024");
     jsonld_test_positive(remote_test_file_to_str("e025-in.jsonld"), remote_test_file_to_str("e025-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te025");
-    jsonld_test_positive(remote_test_file_to_str("e026-in.jsonld"), remote_test_file_to_str("e026-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te026");
+    // this is the same as er43 (a negative test)?
+    // jsonld_test_positive(remote_test_file_to_str("e026-in.jsonld"), remote_test_file_to_str("e026-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te026");
     jsonld_test_positive(remote_test_file_to_str("e027-in.jsonld"), remote_test_file_to_str("e027-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te027", true);
     jsonld_test_positive(remote_test_file_to_str("e028-in.jsonld"), remote_test_file_to_str("e028-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/stream-toRdf/te028");
     jsonld_test_positive(remote_test_file_to_str("e029-in.jsonld"), remote_test_file_to_str("e029-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/stream-toRdf/e029-in.jsonld");
@@ -247,7 +247,8 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e068-in.jsonld"), remote_test_file_to_str("e068-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te068");
     jsonld_test_positive(remote_test_file_to_str("e069-in.jsonld"), remote_test_file_to_str("e069-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te069");
     jsonld_test_positive(remote_test_file_to_str("e070-in.jsonld"), remote_test_file_to_str("e070-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te070");
-    jsonld_test_positive(remote_test_file_to_str("e071-in.jsonld"), remote_test_file_to_str("e071-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te071");
+    // same as er44 (negative test)
+    // jsonld_test_positive(remote_test_file_to_str("e071-in.jsonld"), remote_test_file_to_str("e071-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te071");
     jsonld_test_positive(remote_test_file_to_str("e072-in.jsonld"), remote_test_file_to_str("e072-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te072");
     jsonld_test_positive(remote_test_file_to_str("e073-in.jsonld"), remote_test_file_to_str("e073-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te073");
     jsonld_test_positive(remote_test_file_to_str("e074-in.jsonld"), remote_test_file_to_str("e074-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te074");
@@ -449,100 +450,101 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // jsonld_test_positive(remote_test_file_to_str("wf05-in.jsonld"), remote_test_file_to_str("wf05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/twf05");
     // jsonld_test_positive(remote_test_file_to_str("wf07-in.jsonld"), remote_test_file_to_str("wf07-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/twf07");
     // negative tests
+    //as far as i can tell, this contains no errors
     // jsonld_test_negative(remote_test_file_to_str("c029-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc029");
-    // jsonld_test_negative(remote_test_file_to_str("c030-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc030");
-    // jsonld_test_negative(remote_test_file_to_str("c032-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc032");
-    // jsonld_test_negative(remote_test_file_to_str("c033-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc033");
-    // jsonld_test_negative(remote_test_file_to_str("di08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tdi08");
-    // jsonld_test_negative(remote_test_file_to_str("e115-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te115");
-    // jsonld_test_negative(remote_test_file_to_str("e116-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te116");
-    // jsonld_test_negative(remote_test_file_to_str("e123-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te123");
-    // jsonld_test_negative(remote_test_file_to_str("ec01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tec01");
-    // jsonld_test_negative(remote_test_file_to_str("ec02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tec02");
-    // jsonld_test_negative(remote_test_file_to_str("em01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tem01");
-    // jsonld_test_negative(remote_test_file_to_str("en01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten01");
-    // jsonld_test_negative(remote_test_file_to_str("en02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten02");
-    // jsonld_test_negative(remote_test_file_to_str("en03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten03");
-    // jsonld_test_negative(remote_test_file_to_str("en04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten04");
-    // jsonld_test_negative(remote_test_file_to_str("en05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten05");
-    // jsonld_test_negative(remote_test_file_to_str("en06-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten06");
-    // jsonld_test_negative(remote_test_file_to_str("ep02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tep02");
-    // jsonld_test_negative(remote_test_file_to_str("ep03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tep03");
-    // jsonld_test_negative(remote_test_file_to_str("er01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter01");
-    // jsonld_test_negative(remote_test_file_to_str("er02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter02");
-    // jsonld_test_negative(remote_test_file_to_str("er03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter03");
-    // jsonld_test_negative(remote_test_file_to_str("er04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter04");
-    // jsonld_test_negative(remote_test_file_to_str("er05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter05");
-    // jsonld_test_negative(remote_test_file_to_str("er06-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter06");
-    // jsonld_test_negative(remote_test_file_to_str("er07-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter07");
-    // jsonld_test_negative(remote_test_file_to_str("er08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter08");
-    // jsonld_test_negative(remote_test_file_to_str("er09-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter09");
-    // jsonld_test_negative(remote_test_file_to_str("er10-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter10");
-    // jsonld_test_negative(remote_test_file_to_str("er11-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter11");
-    // jsonld_test_negative(remote_test_file_to_str("er12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter12");
-    // jsonld_test_negative(remote_test_file_to_str("er13-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter13");
-    // jsonld_test_negative(remote_test_file_to_str("er14-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter14");
-    // jsonld_test_negative(remote_test_file_to_str("er15-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter15");
-    // jsonld_test_negative(remote_test_file_to_str("er17-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter17");
-    // jsonld_test_negative(remote_test_file_to_str("er18-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter18");
-    // jsonld_test_negative(remote_test_file_to_str("er19-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter19");
-    // jsonld_test_negative(remote_test_file_to_str("er20-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter20");
+    jsonld_test_negative(remote_test_file_to_str("c030-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc030");
+    jsonld_test_negative(remote_test_file_to_str("c032-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc032");
+    jsonld_test_negative(remote_test_file_to_str("c033-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc033");
+    jsonld_test_negative(remote_test_file_to_str("di08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tdi08");
+    //jsonld_test_negative(remote_test_file_to_str("e115-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te115");
+    //jsonld_test_negative(remote_test_file_to_str("e116-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te116");
+    jsonld_test_negative(remote_test_file_to_str("e123-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te123");
+    jsonld_test_negative(remote_test_file_to_str("ec01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tec01");
+    jsonld_test_negative(remote_test_file_to_str("ec02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tec02");
+    jsonld_test_negative(remote_test_file_to_str("em01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tem01");
+    jsonld_test_negative(remote_test_file_to_str("en01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten01");
+    jsonld_test_negative(remote_test_file_to_str("en02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten02");
+    jsonld_test_negative(remote_test_file_to_str("en03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten03");
+    jsonld_test_negative(remote_test_file_to_str("en04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten04");
+    jsonld_test_negative(remote_test_file_to_str("en05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten05");
+    jsonld_test_negative(remote_test_file_to_str("en06-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten06");
+    //jsonld_test_negative(remote_test_file_to_str("ep02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tep02");
+    jsonld_test_negative(remote_test_file_to_str("ep03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tep03");
+    jsonld_test_negative(remote_test_file_to_str("er01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter01");
+    jsonld_test_negative(remote_test_file_to_str("er02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter02");
+    jsonld_test_negative(remote_test_file_to_str("er03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter03");
+    jsonld_test_negative(remote_test_file_to_str("er04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter04");
+    jsonld_test_negative(remote_test_file_to_str("er05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter05");
+    jsonld_test_negative(remote_test_file_to_str("er06-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter06");
+    jsonld_test_negative(remote_test_file_to_str("er07-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter07");
+    jsonld_test_negative(remote_test_file_to_str("er08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter08");
+    jsonld_test_negative(remote_test_file_to_str("er09-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter09");
+    jsonld_test_negative(remote_test_file_to_str("er10-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter10");
+    jsonld_test_negative(remote_test_file_to_str("er11-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter11");
+    jsonld_test_negative(remote_test_file_to_str("er12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter12");
+    jsonld_test_negative(remote_test_file_to_str("er13-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter13");
+    jsonld_test_negative(remote_test_file_to_str("er14-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter14");
+    jsonld_test_negative(remote_test_file_to_str("er15-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter15");
+    jsonld_test_negative(remote_test_file_to_str("er17-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter17");
+    jsonld_test_negative(remote_test_file_to_str("er18-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter18");
+    jsonld_test_negative(remote_test_file_to_str("er19-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter19");
+    jsonld_test_negative(remote_test_file_to_str("er20-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter20");
     // jsonld_test_negative(remote_test_file_to_str("er21-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter21");
-    // jsonld_test_negative(remote_test_file_to_str("er22-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter22");
-    // jsonld_test_negative(remote_test_file_to_str("er23-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter23");
+    jsonld_test_negative(remote_test_file_to_str("er22-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter22");
+    jsonld_test_negative(remote_test_file_to_str("er23-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter23");
     // jsonld_test_negative(remote_test_file_to_str("er24-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter24");
-    // jsonld_test_negative(remote_test_file_to_str("er25-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter25");
-    // jsonld_test_negative(remote_test_file_to_str("er26-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter26");
-    // jsonld_test_negative(remote_test_file_to_str("er27-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter27");
-    // jsonld_test_negative(remote_test_file_to_str("er28-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter28");
-    // jsonld_test_negative(remote_test_file_to_str("er29-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter29");
-    // jsonld_test_negative(remote_test_file_to_str("er30-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter30");
-    // jsonld_test_negative(remote_test_file_to_str("er31-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter31");
+    jsonld_test_negative(remote_test_file_to_str("er25-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter25");
+    jsonld_test_negative(remote_test_file_to_str("er26-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter26");
+    jsonld_test_negative(remote_test_file_to_str("er27-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter27");
+    jsonld_test_negative(remote_test_file_to_str("er28-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter28");
+    jsonld_test_negative(remote_test_file_to_str("er29-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter29");
+    jsonld_test_negative(remote_test_file_to_str("er30-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter30");
+    jsonld_test_negative(remote_test_file_to_str("er31-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter31");
     // jsonld_test_negative(remote_test_file_to_str("er32-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter32");
-    // jsonld_test_negative(remote_test_file_to_str("er33-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter33");
-    // jsonld_test_negative(remote_test_file_to_str("er34-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter34");
-    // jsonld_test_negative(remote_test_file_to_str("er35-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter35");
-    // jsonld_test_negative(remote_test_file_to_str("er36-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter36");
-    // jsonld_test_negative(remote_test_file_to_str("er37-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter37");
-    // jsonld_test_negative(remote_test_file_to_str("er38-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter38");
-    // jsonld_test_negative(remote_test_file_to_str("er39-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter39");
-    // jsonld_test_negative(remote_test_file_to_str("er40-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter40");
-    // jsonld_test_negative(remote_test_file_to_str("er41-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter41");
+    jsonld_test_negative(remote_test_file_to_str("er33-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter33");
+    jsonld_test_negative(remote_test_file_to_str("er34-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter34");
+    jsonld_test_negative(remote_test_file_to_str("er35-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter35");
+    jsonld_test_negative(remote_test_file_to_str("er36-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter36");
+    jsonld_test_negative(remote_test_file_to_str("er37-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter37");
+    jsonld_test_negative(remote_test_file_to_str("er38-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter38");
+    jsonld_test_negative(remote_test_file_to_str("er39-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter39");
+    jsonld_test_negative(remote_test_file_to_str("er40-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter40");
+    jsonld_test_negative(remote_test_file_to_str("er41-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter41");
     // jsonld_test_negative(remote_test_file_to_str("er42-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter42");
-    // jsonld_test_negative(remote_test_file_to_str("er43-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter43");
-    // jsonld_test_negative(remote_test_file_to_str("er44-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter44");
-    // jsonld_test_negative(remote_test_file_to_str("er48-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter48");
-    // jsonld_test_negative(remote_test_file_to_str("er49-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter49");
-    // jsonld_test_negative(remote_test_file_to_str("er50-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter50");
-    // jsonld_test_negative(remote_test_file_to_str("er51-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter51");
-    // jsonld_test_negative(remote_test_file_to_str("er52-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter52");
-    // jsonld_test_negative(remote_test_file_to_str("er53-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter53");
-    // jsonld_test_negative(remote_test_file_to_str("in07-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tin07");
-    // jsonld_test_negative(remote_test_file_to_str("in08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tin08");
-    // jsonld_test_negative(remote_test_file_to_str("in09-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tin09");
-    // jsonld_test_negative(remote_test_file_to_str("m020-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tm020");
-    // jsonld_test_negative(remote_test_file_to_str("pi01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi01");
-    // jsonld_test_negative(remote_test_file_to_str("pi02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi02");
-    // jsonld_test_negative(remote_test_file_to_str("pi03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi03");
-    // jsonld_test_negative(remote_test_file_to_str("pi04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi04");
-    // jsonld_test_negative(remote_test_file_to_str("pi05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi05");
-    // jsonld_test_negative(remote_test_file_to_str("pr01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr01");
-    // jsonld_test_negative(remote_test_file_to_str("pr03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr03");
-    // jsonld_test_negative(remote_test_file_to_str("pr04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr04");
-    // jsonld_test_negative(remote_test_file_to_str("pr05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr05");
-    // jsonld_test_negative(remote_test_file_to_str("pr08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr08");
-    // jsonld_test_negative(remote_test_file_to_str("pr09-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr09");
-    // jsonld_test_negative(remote_test_file_to_str("pr11-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr11");
-    // jsonld_test_negative(remote_test_file_to_str("pr12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr12");
-    // jsonld_test_negative(remote_test_file_to_str("pr17-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr17");
-    // jsonld_test_negative(remote_test_file_to_str("pr18-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr18");
-    // jsonld_test_negative(remote_test_file_to_str("pr20-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr20");
-    // jsonld_test_negative(remote_test_file_to_str("pr21-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr21");
-    // jsonld_test_negative(remote_test_file_to_str("pr26-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr26");
-    // jsonld_test_negative(remote_test_file_to_str("pr28-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr28");
-    // jsonld_test_negative(remote_test_file_to_str("pr31-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr31");
-    // jsonld_test_negative(remote_test_file_to_str("pr32-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr32");
-    // jsonld_test_negative(remote_test_file_to_str("pr33-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr33");
+    jsonld_test_negative(remote_test_file_to_str("er43-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter43");
+    jsonld_test_negative(remote_test_file_to_str("er44-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter44");
+    jsonld_test_negative(remote_test_file_to_str("er48-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter48");
+    jsonld_test_negative(remote_test_file_to_str("er49-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter49");
+    jsonld_test_negative(remote_test_file_to_str("er50-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter50");
+    jsonld_test_negative(remote_test_file_to_str("er51-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter51");
+    jsonld_test_negative(remote_test_file_to_str("er52-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter52");
+    jsonld_test_negative(remote_test_file_to_str("er53-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter53");
+    jsonld_test_negative(remote_test_file_to_str("in07-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tin07");
+    jsonld_test_negative(remote_test_file_to_str("in08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tin08");
+    jsonld_test_negative(remote_test_file_to_str("in09-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tin09");
+    jsonld_test_negative(remote_test_file_to_str("m020-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tm020");
+    jsonld_test_negative(remote_test_file_to_str("pi01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi01");
+    jsonld_test_negative(remote_test_file_to_str("pi02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi02");
+    jsonld_test_negative(remote_test_file_to_str("pi03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi03");
+    jsonld_test_negative(remote_test_file_to_str("pi04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi04");
+    jsonld_test_negative(remote_test_file_to_str("pi05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpi05");
+    jsonld_test_negative(remote_test_file_to_str("pr01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr01");
+    jsonld_test_negative(remote_test_file_to_str("pr03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr03");
+    jsonld_test_negative(remote_test_file_to_str("pr04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr04");
+    jsonld_test_negative(remote_test_file_to_str("pr05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr05");
+    jsonld_test_negative(remote_test_file_to_str("pr08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr08");
+    jsonld_test_negative(remote_test_file_to_str("pr09-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr09");
+    jsonld_test_negative(remote_test_file_to_str("pr11-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr11");
+    jsonld_test_negative(remote_test_file_to_str("pr12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr12");
+    jsonld_test_negative(remote_test_file_to_str("pr17-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr17");
+    jsonld_test_negative(remote_test_file_to_str("pr18-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr18");
+    jsonld_test_negative(remote_test_file_to_str("pr20-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr20");
+    jsonld_test_negative(remote_test_file_to_str("pr21-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr21");
+    jsonld_test_negative(remote_test_file_to_str("pr26-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr26");
+    jsonld_test_negative(remote_test_file_to_str("pr28-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr28");
+    jsonld_test_negative(remote_test_file_to_str("pr31-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr31");
+    jsonld_test_negative(remote_test_file_to_str("pr32-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr32");
+    jsonld_test_negative(remote_test_file_to_str("pr33-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr33");
     // jsonld_test_negative(remote_test_file_to_str("se01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse01");
     // jsonld_test_negative(remote_test_file_to_str("se02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse02");
     // jsonld_test_negative(remote_test_file_to_str("se03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse03");
@@ -552,12 +554,12 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // jsonld_test_negative(remote_test_file_to_str("se07-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse07");
     // jsonld_test_negative(remote_test_file_to_str("se08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse08");
     // jsonld_test_negative(remote_test_file_to_str("se09-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse09");
-    // jsonld_test_negative(remote_test_file_to_str("so01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso01");
-    // jsonld_test_negative(remote_test_file_to_str("so02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso02");
-    // jsonld_test_negative(remote_test_file_to_str("so03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso03");
-    // jsonld_test_negative(remote_test_file_to_str("so07-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso07");
-    // jsonld_test_negative(remote_test_file_to_str("so10-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso10");
-    // jsonld_test_negative(remote_test_file_to_str("so12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso12");
-    // jsonld_test_negative(remote_test_file_to_str("so13-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso13");
+    jsonld_test_negative(remote_test_file_to_str("so01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso01");
+    jsonld_test_negative(remote_test_file_to_str("so02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso02");
+    jsonld_test_negative(remote_test_file_to_str("so03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso03");
+    jsonld_test_negative(remote_test_file_to_str("so07-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso07");
+    jsonld_test_negative(remote_test_file_to_str("so10-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso10");
+    jsonld_test_negative(remote_test_file_to_str("so12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso12");
+    jsonld_test_negative(remote_test_file_to_str("so13-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso13");
     // jsonld_test_negative(remote_test_file_to_str("tn01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ttn01");
 }
