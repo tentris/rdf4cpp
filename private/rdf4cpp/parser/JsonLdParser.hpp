@@ -160,6 +160,7 @@ namespace rdf4cpp::parser {
         };
         struct TermDefinition : TermDefinitionBase {
             bool is_protected = false;
+            bool needs_context_check = false;
             ParseState parse_state = ParseState::NotStarted;
 
             constexpr explicit TermDefinition(std::string_view k)
@@ -250,6 +251,7 @@ namespace rdf4cpp::parser {
             bool is_top_level = false;
             bool is_reverse = false;
             bool is_json_literal = false;
+            bool is_included = false;
         };
     }
 
@@ -387,6 +389,8 @@ namespace rdf4cpp::parser {
                                                      json_ld::Context &active_context,
                                                      json_ld::TermDefinition &term,
                                                      json_ld::Context const &parent_context,
+                                                     std::vector<json_ld::TermDefinition> const & previous_terms,
+                                                     std::string_view base_iri,
                                                      bool is_protected = false,
                                                      bool override_protected = false);
 
@@ -404,7 +408,8 @@ namespace rdf4cpp::parser {
                                                                         json_ld::Context *local_context = nullptr,
                                                                         std::optional<simdjson::ondemand::object> local_context_json
                                                                         = std::nullopt,
-                                                                        json_ld::TermDefinition const *ignore_local = nullptr);
+                                                                        json_ld::TermDefinition const *ignore_local = nullptr,
+                                                                        std::vector<json_ld::TermDefinition> const * previous_terms = nullptr);
 
         nonstd::expected<json_ld::ExpandedValue, error_type> value_expansion(json_ld::Context const &active_conext,
                                                                              json_ld::IRIMapping const &active_property,
@@ -433,7 +438,8 @@ namespace rdf4cpp::parser {
                                                                 json_ld::IRIMapping const &active_property,
                                                                 std::optional<std::string> const & input_type,
                                                                 std::string_view base_iri,
-                                                                bool reverse);
+                                                                bool reverse,
+                                                                bool value_is_error);
         bool is_list_object(simdjson::ondemand::value v, json_ld::Context const & active_context);
         bool is_graph_object(simdjson::ondemand::value v, json_ld::Context const & active_context, std::optional<simdjson::ondemand::object>& obj_out);
 
@@ -459,10 +465,12 @@ namespace rdf4cpp::parser {
             simdjson::ondemand::array a_{};
             std::variant<std::monostate, simdjson::ondemand::value, simdjson::ondemand::array_iterator> current_;
             size_t current_index_ = 0;
+            simdjson::ondemand::value cache;
 
         public:
             explicit ValueArrayIter(simdjson::ondemand::value v);
-            simdjson::ondemand::value operator*();
+            simdjson::ondemand::value& operator*();
+            simdjson::ondemand::value* operator->();
             ValueArrayIter& operator++();
             bool operator==(std::default_sentinel_t);
             ValueArrayIter& begin();

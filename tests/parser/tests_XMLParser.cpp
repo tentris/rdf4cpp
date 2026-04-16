@@ -147,22 +147,7 @@ void xml_test_positive(std::string xml_str, std::string nt_str, std::string_view
 }
 
 void xml_test_negative(std::string xml_str, std::string_view base_iri) {
-    CAPTURE(base_iri);
-
-
-    std::stringstream xml{std::move(xml_str)};
-    IStreamQuadIterator xml_iter{xml, ParsingFlag::RdfXml};
-
-    bool had_error = false;
-    while (xml_iter != std::default_sentinel) {
-        if (xml_iter->has_value()) {
-            ++xml_iter;
-            continue;
-        }
-        had_error = true;
-        ++xml_iter;
-    }
-    CHECK(had_error == true);
+    parse_test_helpers::parser_test_negative(std::move(xml_str), base_iri, ParsingFlag::RdfXml);
 }
 
 
