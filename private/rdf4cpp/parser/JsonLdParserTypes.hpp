@@ -1,6 +1,9 @@
 #ifndef RDF4CPP_JSONLDPARSERTYPES_HPP
 #define RDF4CPP_JSONLDPARSERTYPES_HPP
 
+#include "rdf4cpp/parser/ParsingError.hpp"
+
+
 #include <rdf4cpp/parser/JsonLdParserPath.hpp>
 
 #include <forward_list>
@@ -275,6 +278,28 @@ namespace rdf4cpp::parser {
             std::string value;
             std::string_view datatype;
         };
+
+        // if passed in value is an array, iterates over its content
+        // otherwise iterates over [value]
+        struct ValueArrayIter {
+        private:
+            simdjson::ondemand::array a_{};
+            std::variant<std::monostate, simdjson::ondemand::value, simdjson::ondemand::array_iterator> current_;
+            size_t current_index_ = 0;
+            simdjson::ondemand::value cache_;
+
+        public:
+            explicit ValueArrayIter(simdjson::ondemand::value v);
+            simdjson::ondemand::value& operator*();
+            simdjson::ondemand::value* operator->();
+            ValueArrayIter& operator++();
+            bool operator==(std::default_sentinel_t);
+            ValueArrayIter& begin();
+            std::default_sentinel_t end();
+            void push_index(json_ld::KeyPath& p);
+        };
+
+        [[nodiscard]] ParsingError make_error(ParsingError::Type t, std::string msg);
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser
 

@@ -1,13 +1,6 @@
 #include "JsonLdParser.hpp"
 
 namespace rdf4cpp::parser {
-    IStreamQuadIterator::error_type IStreamQuadIterator::ImplJsonLd::make_error(ParsingError::Type t, std::string msg) const {
-        return error_type{
-            t,
-            current_line(), current_column(),
-            std::move(msg),
-        };
-    }
     json_ld::IRIMapping IStreamQuadIterator::ImplJsonLd::make_new_bn() {
         return {
             std::format("bn_{}", blank_node_index_++),
@@ -18,14 +11,13 @@ namespace rdf4cpp::parser {
         auto r = state_->iri_factory.create_and_validate(i, state_->node_storage);
         if (r.has_value()) {
             return *r;
-        }
-        else {
-            return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, std::format("{}", r.error())));
+        } else {
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadIri, std::format("{}", r.error())));
         }
     }
     nonstd::expected<IRI, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_iri(json_ld::IRIMapping const &m) {
         if (m.type != json_ld::IRIMappingType::IRI) {
-            return nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "invalid type"));
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid type"));
         }
         return make_iri(m.data);
     }
@@ -46,9 +38,8 @@ namespace rdf4cpp::parser {
                 return Literal::make_lang_tagged(t.value, *t.language);
             }
             return Literal::make_simple(t.value);
-        }
-        catch (const InvalidNode& e) {
-            return nonstd::make_unexpected(make_error(ParsingError::Type::BadLiteral, e.what()));
+        } catch (InvalidNode const &e) {
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadLiteral, e.what()));
         }
     }
     nonstd::expected<Literal, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_literal(json_ld::TypedLiteralMapping const &t) {
@@ -58,9 +49,8 @@ namespace rdf4cpp::parser {
                 return nonstd::unexpected(dt.error());
             }
             return Literal::make_typed(t.value, *dt, state_->node_storage);
-        }
-        catch (const InvalidNode& e) {
-            return nonstd::make_unexpected(make_error(ParsingError::Type::BadLiteral, e.what()));
+        } catch (InvalidNode const &e) {
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadLiteral, e.what()));
         }
     }
     nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object) {
@@ -68,8 +58,7 @@ namespace rdf4cpp::parser {
         auto r = make_bn_or_iri(object);
         if (r.has_value()) {
             o = *r;
-        }
-        else {
+        } else {
             return nonstd::make_unexpected(r.error());
         }
         return make_quad(graph, subject, predicate, o);
@@ -82,15 +71,13 @@ namespace rdf4cpp::parser {
         if (graph.type != json_ld::IRIMappingType::None) {
             if (graph.type == json_ld::IRIMappingType::Keyword) {
                 if (graph.data != keyword_default) {
-                    return nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "found keyword as graph"));
+                    return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "found keyword as graph"));
                 }
-            }
-            else {
+            } else {
                 auto r = make_bn_or_iri(graph);
                 if (r.has_value()) {
                     g = *r;
-                }
-                else {
+                } else {
                     return nonstd::make_unexpected(r.error());
                 }
             }
@@ -99,21 +86,18 @@ namespace rdf4cpp::parser {
             auto r = make_bn_or_iri(subject);
             if (r.has_value()) {
                 s = *r;
-            }
-            else {
+            } else {
                 return nonstd::make_unexpected(r.error());
             }
         }
         {
             if (predicate.type == json_ld::IRIMappingType::Keyword && predicate.data == keyword_type) {
                 p = IRI::rdf_type(state_->node_storage);
-            }
-            else {
+            } else {
                 auto r = make_iri(predicate);
                 if (r.has_value()) {
                     p = *r;
-                }
-                else {
+                } else {
                     return nonstd::make_unexpected(r.error());
                 }
             }
@@ -121,1796 +105,7 @@ namespace rdf4cpp::parser {
 
         return Quad{g, s, p, object};
     }
-    nonstd::expected<json_ld::Context, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::parse_context(simdjson::ondemand::value local_context, json_ld::Context const &active_context, std::string_view base_iri, bool override_protected, bool propagate) {
-        // https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
-        // 1
-        nonstd::expected<json_ld::Context, error_type> result{active_context};
-        for (auto& t : result->terms) {
-            t.needs_context_check = false;
-        }
-
-        auto handle_ctx = [&](simdjson::ondemand::object o) {
-            { // 5.5
-                auto [c, v] = try_get_field<double>(o, keyword_version);
-                if (c != simdjson::NO_SUCH_FIELD && (c != simdjson::SUCCESS || v != 1.1)) {
-                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @version value")};
-                    return true;
-                }
-            }
-            { // 5.6
-                auto [c, v] = try_get_field<std::string_view>(o, keyword_import);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, c != simdjson::SUCCESS ? "invalid @import value " : "import context not supported")};
-                    return true;
-                }
-            }
-            { // 5.7
-                auto [c, v] = try_get_optional_field<std::string_view>(o, keyword_base);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
-                        return true;
-                    }
-                    if (!v.has_value()) {
-                        result->base_iri = "";
-                    }
-                    else {
-                        if (IRIView{*v}.is_relative()) {
-                            if (state_->iri_factory.set_base(result->base_iri) != IRIFactoryError::Ok) {
-                                result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
-                                return true;
-                            }
-                            auto r = state_->iri_factory.from_maybe_relative_as_string(*v);
-                            if (r.has_value()) {
-                                result->base_iri = *r;
-                            }
-                            else {
-                                result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
-                                return true;
-                            }
-                        }
-                        else {
-                            if (IRIView{*v}.quick_validate() == IRIFactoryError::Ok) {
-                                result->base_iri = *v;
-                            }
-                            else {
-                                result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-            std::vector<json_ld::TermDefinition> previous_terms{};
-            { // 5.12/5.13 part 1
-                o.reset();
-                for (auto x : o) {
-                    std::string_view key = x.escaped_key();
-                    if (any_of(key, {keyword_base, keyword_direction, keyword_import, keyword_language, keyword_propagate, keyword_protected,
-                        keyword_version, keyword_vocab})) {
-                        continue;
-                    }
-                    auto i = std::ranges::find_if(result->terms, [&](const auto& t) { return t.key == key; });
-                    if (i == result->terms.end()) {
-                        result->terms.emplace_back(key);
-                    }
-                    else {
-                        previous_terms.emplace_back(std::move(*i));
-                        *i = json_ld::TermDefinition{key};
-                    }
-                }
-            }
-            { // 5.8
-                auto [c, v] = try_get_optional_field<std::string_view>(o, keyword_vocab);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid vocab mapping")};
-                        return true;
-                    }
-                    if (!v.has_value()) {
-                        result->vocab = std::nullopt;
-                    }
-                    else {
-                        params::ParseContextIRIExpansionParams p_ctx{
-                            .active_context = *result,
-                            .local_context = o,
-                            .previous_terms = previous_terms,
-                        };
-                        auto r = iri_expansion(result.value(), v, true, true, nullptr, &p_ctx);
-                        if (!r.has_value() || r->type != json_ld::IRIMappingType::IRI) { // technically blank node is only deprecated, not removed
-                            result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid vocab mapping")};
-                            return true;
-                        }
-                        result->vocab = std::move(r->data);
-                    }
-                }
-            }
-            { // 5.9
-                auto [c, v] = try_get_optional_field<std::string_view>(o, keyword_language);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid default language")};
-                        return true;
-                    }
-                    if (!v.has_value()) {
-                        result->language = json_ld::Null{};
-                    }
-                    else {
-                        result->language = std::string(*v);
-                    }
-                }
-            }
-            { // 5.10
-                auto [c, v] = try_get_optional_field<std::string_view>(o, keyword_direction);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base direction")};
-                        return true;
-                    }
-                    if (!v.has_value()) {
-                        result->base_direction = json_ld::BaseDirection::None;
-                    }
-                    else {
-                        if (*v == "ltr") {
-                            result->base_direction = json_ld::BaseDirection::Ltr;
-                        }
-                        else if (*v == "rtl") {
-                            result->base_direction = json_ld::BaseDirection::Rtl;
-                        }
-                        else {
-                            result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base direction")};
-                            return true;
-                        }
-                    }
-                }
-            }
-            { // 5.11
-                auto [c, v] = try_get_field<bool>(o, keyword_propagate);
-                if (c != simdjson::NO_SUCH_FIELD && c != simdjson::SUCCESS) {
-                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @propagate value")};
-                    return true;
-                }
-                // setting field earlier
-            }
-            { // 5.13
-                auto [c, prot] = try_get_field<bool>(o, keyword_protected);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @protected value")};
-                        return true;
-                    }
-                }
-                else {
-                    prot = false;
-                }
-
-                for (auto &term : result->terms) {
-                    auto e = parse_context_term({
-                        .local_context = o,
-                        .active_context = *result,
-                        .term = term,
-                        .previous_terms = previous_terms,
-                        .base_iri = base_iri,
-                        .is_protected = prot,
-                        .override_protected = override_protected,
-                    });
-                    if (e.has_value()) {
-                        result = nonstd::unexpected{e.value()};
-                        return true;
-                    }
-                }
-            }
-            return false;
-        };
-
-        if (local_context.type() == simdjson::ondemand::json_type::object) {
-            // 2 & 3
-            simdjson::ondemand::object const o = local_context.get_object();
-            auto [c, prop] = try_get_field<bool>(o, keyword_propagate);
-            bool p = propagate;
-            if (c == simdjson::SUCCESS) {
-                p = prop;
-            }
-            if (!p && result->previous_context == nullptr) {
-                result->previous_context = &active_context;
-            }
-            //error handling later
-
-            handle_ctx(o); // 4
-        }
-        else if (local_context.is_scalar() && local_context.is_null()) {
-            for (const auto &t : active_context.terms) {
-                if (t.is_protected) {
-                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification")};
-                    return result;
-                }
-            }
-            result = json_ld::Context{
-                .base_iri{base_iri},
-            };
-            return result;
-        }
-        else {
-            if (!propagate && result->previous_context == nullptr) {
-                result->previous_context = &active_context;
-            }
-            simdjson::ondemand::array a{};
-            if (local_context.get(a) != simdjson::SUCCESS) {
-                result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid local context")};
-                return result;
-            }
-            for (auto v : a) {
-                switch (v.type()) {
-                    case simdjson::ondemand::json_type::null: // 5.1
-                        v.is_null();
-                        if (!override_protected) {
-                            for (const auto &t : active_context.terms) {
-                                if (t.is_protected) {
-                                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification")};
-                                    return result;
-                                }
-                            }
-                        }
-                        result = json_ld::Context{
-                            .base_iri{base_iri},
-                        };
-                        break;
-                    case simdjson::ondemand::json_type::object: // 5.4
-                        if (handle_ctx(v.get_object()))
-                            return result;
-                        break;
-                    case simdjson::ondemand::json_type::string: // 5.2
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
-                        return result;
-                    default: // 5.3
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid local context")};
-                        return result;
-                }
-            }
-        }
-
-        // check scoped context for errors, moved here from create_term
-        if (result.has_value()) {
-            for (const auto &t : result->terms) {
-                if (t.needs_context_check && t.context.has_value()) {
-                    auto lc = parse_local_context(simdjson::padded_string_view{*t.context}, *result, base_iri, true);
-                    if (!lc.has_value()) {
-                        return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, std::format("invalid scoped context ({})", lc.error().message)));
-                    }
-                }
-            }
-        }
-
-        return result;
-    }
-    std::optional<IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::parse_context_term(params::ParseContextTermParams p) {
-        // https://www.w3.org/TR/json-ld11-api/#create-term-definition
-        // 1
-        if (p.term.parse_state == json_ld::ParseState::Done) {
-            return std::nullopt;
-        }
-        if (p.term.parse_state == json_ld::ParseState::InProgress) {
-            return make_error(ParsingError::Type::BadSyntax, "cyclic IRI mapping");
-        }
-
-        // 2
-        if (p.term.key.empty()) {
-            return make_error(ParsingError::Type::BadSyntax, "invalid term definition (empty term)");
-        }
-        p.term.parse_state = json_ld::ParseState::InProgress;
-
-        // 3
-        auto [value_ec, value] = try_get_field<simdjson::ondemand::value>(p.local_context, p.term.key);
-        if (value_ec != simdjson::SUCCESS) {
-            return make_error(ParsingError::Type::BadSyntax, "unknown key?"); // should not happen
-        }
-
-        // 6 (out of order, because type gets handled differently)
-        json_ld::TermDefinition const *previous_definition = nullptr;
-        {
-            auto i = std::ranges::find_if(p.previous_terms, [&](json_ld::TermDefinition const & t) {
-                return t.key == p.term.key;
-            });
-            if (i != p.previous_terms.end()) {
-                previous_definition = &*i;
-            }
-        }
-
-        auto check_protected = [&]() -> std::optional<error_type> {
-            if (!p.override_protected && previous_definition != nullptr && previous_definition->is_protected) {
-                if (static_cast<const json_ld::TermDefinitionBase&>(p.term) != static_cast<const json_ld::TermDefinitionBase&>(*previous_definition)) {
-                    return make_error(ParsingError::Type::BadSyntax, "protected term redefinition");
-                }
-                p.term = *previous_definition;
-            }
-            return std::nullopt;
-        };
-
-        // 4
-        if (p.term.key == keyword_type) {
-            p.term.is_protected = p.is_protected;
-            simdjson::ondemand::object ob;
-            if (value.get(ob) != simdjson::SUCCESS) {
-                return make_error(ParsingError::Type::BadSyntax, "keyword redefinition (@type mapped to non-map)");
-            }
-            bool any = false;
-            for (auto t : ob) {
-                std::string_view const k = t.escaped_key();
-                if (k == keyword_container) {
-                    std::string_view v;
-                    if (t.value().get(v) != simdjson::SUCCESS || v != keyword_set) {
-                        return make_error(ParsingError::Type::BadSyntax, "keyword redefinition (@type invalid @container)");
-                    }
-                    p.term.container_mapping.emplace_back(keyword_set);
-                    any = true;
-                }
-                else if (k == keyword_protected) {
-                    bool v;
-                    if (t.value().get(v) != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "keyword redefinition (@type invalid @protected)");
-                    }
-                    p.term.is_protected = v;
-                    any = true;
-                }
-                else {
-                    return make_error(ParsingError::Type::BadSyntax, std::format("keyword redefinition (@type invalid entry: {})", k));
-                }
-            }
-            if (!any) {
-                return make_error(ParsingError::Type::BadSyntax, "keyword redefinition (empty @type)");
-            }
-            p.term.parse_state = json_ld::ParseState::Done;
-            return check_protected();
-        }
-
-        // 5
-        if (is_keyword(p.term.key)) {
-            return make_error(ParsingError::Type::BadSyntax, std::format("keyword redefinition ({})", p.term.key));
-        }
-
-        auto handle_id = [&](std::optional<std::string_view> v) -> std::optional<error_type> {
-            if (!v.has_value()) {
-                p.term.iri_mapping = {};
-            }
-            else {
-                params::ParseContextIRIExpansionParams p_ctx{
-                    .active_context = p.active_context,
-                    .local_context = p.local_context,
-                    .previous_terms = p.previous_terms,
-                };
-                auto ex = iri_expansion(p.active_context, v, false, true, v == p.term.key ? &p.term : nullptr, &p_ctx);
-                if (!ex.has_value()) {
-                    return ex.error();
-                }
-                if (ex->type != json_ld::IRIMappingType::IRI && ex->type != json_ld::IRIMappingType::BlankNode && ex->type != json_ld::IRIMappingType::Keyword) {
-                    return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping (@id not IRI, bn or keyword)");
-                }
-                if (ex->is_keyword(keyword_context)) {
-                    return make_error(ParsingError::Type::BadSyntax, "invalid keyword alias (to @context)");
-                }
-                p.term.iri_mapping = *ex;
-
-                bool const has_slash = p.term.key.find('/') != std::string::npos;
-                std::string_view colon_check_part = p.term.key;
-                colon_check_part = colon_check_part.substr(0, colon_check_part.length() - 2);
-                if (!colon_check_part.empty()) {
-                    colon_check_part = colon_check_part.substr(1);
-                }
-                bool const has_colon = colon_check_part.find(':') != std::string_view::npos;
-                if (has_colon || has_slash) {
-                    p.term.parse_state = json_ld::ParseState::Done;
-                    params::ParseContextIRIExpansionParams p_ctx2{
-                        .active_context = p.active_context,
-                        .local_context = p.local_context,
-                        .previous_terms = p.previous_terms,
-                    };
-                    if (iri_expansion(p.active_context, p.term.key, false, true, &p.term, &p_ctx2) != p.term.iri_mapping) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping (@id)");
-                    }
-                }
-                else if (p.term.is_simple) {
-                    bool const iri = !p.term.iri_mapping.data.empty() && p.term.iri_mapping.type == json_ld::IRIMappingType::IRI &&
-                        std::string_view(":/?#[]@").find(p.term.iri_mapping.data.at(p.term.iri_mapping.data.length()-1)) != std::string::npos;
-                    if (iri || p.term.iri_mapping.type == json_ld::IRIMappingType::BlankNode) {
-                        p.term.is_prefix = true;
-                    }
-                }
-            }
-            return std::nullopt;
-        };
-
-        bool skip_object = false;
-        // 7
-        if (value.is_null()) {
-            p.term.is_protected = p.is_protected;
-            auto e = handle_id(std::nullopt);
-            if (e.has_value())
-                return e;
-            skip_object = true;
-        }
-
-        // 8
-        if (value.is_string()) {
-            p.term.is_simple = true;
-            p.term.is_protected = p.is_protected;
-            auto e = handle_id(static_cast<std::string_view>(value));
-            if (e.has_value())
-                return e;
-            skip_object = true;
-        }
-
-        if (!skip_object) {
-            // 9
-            simdjson::ondemand::object ob;
-            if (value.get(ob) != simdjson::SUCCESS) {
-                return make_error(ParsingError::Type::BadSyntax, "invalid term definition (value not null, string or map)");
-            }
-
-            // 10
-            p.term.is_simple = false;
-            p.term.is_protected = p.is_protected;
-
-            { // 11
-                auto [c, v] = try_get_field<bool>(ob, keyword_protected);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @protected value");
-                    }
-                    p.term.is_protected = v;
-                }
-            }
-
-            bool has_type = false;
-            { // 12
-                auto [c, v] = try_get_field<std::string_view>(ob, keyword_type);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid type mapping");
-                    }params::ParseContextIRIExpansionParams p_ctx{
-                        .active_context = p.active_context,
-                        .local_context = p.local_context,
-                        .previous_terms = p.previous_terms,
-                    };
-                    auto type = iri_expansion(p.active_context, v, false, true, nullptr, &p_ctx);
-                    if (!type.has_value()) {
-                        return type.error();
-                    }
-                    if (type->type != json_ld::IRIMappingType::Keyword && type->type != json_ld::IRIMappingType::IRI) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid type mapping (not IRI or keyword)");
-                    }
-                    if (type->type == json_ld::IRIMappingType::Keyword && !any_of(v, {keyword_json, keyword_none, keyword_id, keyword_vocab})) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid type mapping (invalid keyword)");
-                    }
-                    p.term.type_mapping = std::move(type->data);
-                    has_type = true;
-                }
-            }
-
-            { // 13
-                auto [c, v] = try_get_field<std::string_view>(ob, keyword_reverse);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping (@reverse)");
-                    }
-                    auto [nc, va] = try_get_field<simdjson::ondemand::value>(ob, keyword_id);
-                    if (nc != simdjson::NO_SUCH_FIELD) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid reverse property (contains id)");
-                    }
-                    std::tie(nc, va) = try_get_field<simdjson::ondemand::value>(ob, keyword_nest);
-                    if (nc != simdjson::NO_SUCH_FIELD) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid reverse property (contains nest)");
-                    }
-
-                    params::ParseContextIRIExpansionParams p_ctx{
-                        .active_context = p.active_context,
-                        .local_context = p.local_context,
-                        .previous_terms = p.previous_terms,
-                    };
-                    auto r = iri_expansion(p.active_context, v, false, true, nullptr, &p_ctx);
-                    if (!r.has_value()) {
-                        return r.error();
-                    }
-                    if (r->type != json_ld::IRIMappingType::IRI && r->type != json_ld::IRIMappingType::BlankNode) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping (in @reverse)");
-                    }
-                    p.term.iri_mapping = *r;
-
-
-                    auto [c_cont, v_cont] = try_get_field<simdjson::ondemand::value>(ob, keyword_container);
-                    if (c_cont != simdjson::NO_SUCH_FIELD) {
-                        if (c_cont != simdjson::SUCCESS) {
-                            return make_error(ParsingError::Type::BadSyntax, "invalid reverse property");
-                        }
-                        if (v_cont.is_null()) {
-                            p.term.container_mapping.clear();
-                        }
-                        else {
-                            std::string_view cont;
-                            if (v_cont.get(cont) != simdjson::SUCCESS) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid reverse property");
-                            }
-                            if (!any_of(cont, {keyword_set, keyword_index})) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid reverse property");
-                            }
-                            p.term.container_mapping.clear();
-                            p.term.container_mapping.emplace_back(cont);
-                        }
-                    }
-
-                    // TODO double check protected
-                    p.term.is_reverse_property = true;
-                    p.term.parse_state = json_ld::ParseState::Done;
-                    return std::nullopt;
-                }
-            }
-            { // 14
-                auto [c, v] = try_get_optional_field<std::string_view>(ob, keyword_id);
-                if (c != simdjson::NO_SUCH_FIELD && v != p.term.key) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping (@id)");
-                    }
-                    auto e = handle_id(v);
-                    if (e.has_value()) {
-                        return e;
-                    }
-                }
-                else {
-                    { // 15
-                        auto const colon_pos = std::string_view(p.term.key).substr(1).find(':');
-                        if (colon_pos != std::string_view::npos) {
-                            auto prefix = std::string_view(p.term.key).substr(0, colon_pos+1);
-                            auto other_term = p.active_context.try_find_term(prefix);
-                            if (other_term != nullptr) {
-                                auto rec = parse_context_term({
-                                    .local_context = p.local_context,
-                                    .active_context = p.active_context,
-                                    .term = *other_term,
-                                    .previous_terms = p.previous_terms,
-                                    .base_iri = p.base_iri,
-                                    .is_protected = p.is_protected,
-                                    .override_protected = p.override_protected,
-                                });
-                                if (rec.has_value()) {
-                                    return rec;
-                                }
-                                p.term.iri_mapping = other_term->iri_mapping;
-                                p.term.iri_mapping.data.append(std::string_view(p.term.key).substr(colon_pos + 2));
-                            }
-                            else {
-                                p.term.iri_mapping.data = p.term.key;
-                                p.term.iri_mapping.type = std::string_view(p.term.key).substr(2) == "_:" ? json_ld::IRIMappingType::BlankNode : json_ld::IRIMappingType::IRI;
-                            }
-                        }
-                        // 16
-                        else if (std::string_view(p.term.key).find('/') != std::string_view::npos) {
-                            params::ParseContextIRIExpansionParams p_ctx{
-                                .active_context = p.active_context,
-                                .local_context = p.local_context,
-                                .previous_terms = p.previous_terms,
-                            };
-                            auto m = iri_expansion(p.active_context, p.term.key, false, true, nullptr, &p_ctx);
-                            if (!m.has_value()) {
-                                return m.error();
-                            }
-                            if (m->type != json_ld::IRIMappingType::IRI) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping");
-                            }
-                            p.term.iri_mapping = *m;
-                        }
-                        // 17
-                        else if (p.term.key == keyword_type) {
-                            p.term.iri_mapping.data = keyword_type;
-                            p.term.iri_mapping.type = json_ld::IRIMappingType::Keyword;
-                        }
-                        // 18
-                        else if (p.active_context.vocab.has_value()) {
-                            p.term.iri_mapping.data = *p.active_context.vocab;
-                            p.term.iri_mapping.data.append(p.term.key);
-                            p.term.iri_mapping.type = json_ld::IRIMappingType::IRI;
-                        }
-                        else {
-                            return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping (no mapping available)");
-                        }
-                    }
-                }
-            }
-            auto container_contains = [&](std::string_view x) {
-                return std::ranges::find(p.term.container_mapping, x) != p.term.container_mapping.end();
-            };
-            { // 19
-                auto [c, v] = try_get_field<simdjson::ondemand::value>(ob, keyword_container);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    auto is_valid_keyword = [](std::string_view v) {
-                        return any_of(v, {keyword_graph, keyword_id, keyword_index, keyword_language, keyword_list, keyword_set, keyword_type});
-                    };
-                    if (v.is_string()) {
-                        auto d = static_cast<std::string_view>(v);
-                        if (!is_valid_keyword(d)) {
-                            return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
-                        }
-                        p.term.container_mapping.clear();
-                        p.term.container_mapping.emplace_back(d);
-                    }
-                    else {
-                        simdjson::ondemand::array a;
-                        if (v.get(a) != simdjson::SUCCESS) {
-                            return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
-                        }
-                        p.term.container_mapping.clear();
-                        for (auto w : a) {
-                            std::string_view x;
-                            if (w.get(x) != simdjson::SUCCESS) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
-                            }
-                            if (!is_valid_keyword(x)) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
-                            }
-                            p.term.container_mapping.emplace_back(x);
-                        }
-                    }
-                    if (p.term.container_mapping.empty()) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
-                    }
-                    if (p.term.container_mapping.size() > 1) {
-                        auto only = [&](std::initializer_list<std::string_view> x) {
-                            for (std::string_view const d : p.term.container_mapping) { // NOLINT(*-use-anyofallof)
-                                if (!any_of(d, x)) {
-                                    return false;
-                                }
-                            }
-                            return true;
-                        };
-                        bool graph = container_contains(keyword_graph);
-                        if (graph) {
-                            auto id = container_contains(keyword_id);
-                            auto index = container_contains(keyword_index);
-                            if (index == id) { // xor
-                                graph = false;
-                            }
-                            else {
-                                graph = only({keyword_graph, keyword_id, keyword_index, keyword_set});
-                            }
-                        }
-                        bool set = container_contains(keyword_set);
-                        if (set) {
-                            set = only({keyword_set, keyword_index, keyword_graph, keyword_id, keyword_type, keyword_language});
-                        }
-                        if (!set && !graph) {
-                            return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
-                        }
-                    }
-                    if (container_contains(keyword_type)) {
-                        if (!p.term.type_mapping.has_value()) {
-                            p.term.type_mapping = keyword_id;
-                        }
-                        if (p.term.type_mapping != keyword_id && p.term.type_mapping != keyword_vocab) {
-                            return make_error(ParsingError::Type::BadSyntax, "invalid type mapping");
-                        }
-                    }
-                }
-            }
-            { // 20
-                auto [c, v] = try_get_field<std::string_view>(ob, keyword_index);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid term definition");
-                    }
-                    if (!container_contains(keyword_index)) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid term definition");
-                    }
-                    params::ParseContextIRIExpansionParams p_ctx{
-                        .active_context = p.active_context,
-                        .local_context = p.local_context,
-                        .previous_terms = p.previous_terms,
-                    };
-                    auto r = iri_expansion(p.active_context, v, false, true, nullptr, &p_ctx);
-                    if (!r.has_value()) {
-                        return r.error();
-                    }
-                    if (r->type != json_ld::IRIMappingType::IRI) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid term definition");
-                    }
-                    p.term.index_mapping = std::move(*r);
-                }
-            }
-            { // 21
-                auto [c, v] = try_get_field<simdjson::ondemand::value>(ob, keyword_context);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid scoped context");
-                    }
-                    auto t = *v.type();
-                    if (t == simdjson::ondemand::json_type::string) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid scoped context, remote");
-                    }
-                    p.term.context = std::string{static_cast<std::string_view>(v.raw_json())};
-                    if (t != simdjson::ondemand::json_type::array && t != simdjson::ondemand::json_type::object) {
-                        p.term.context = std::format("[{}]", *p.term.context);
-                    }
-                    simdjson::pad(*p.term.context);
-                    // check moved to end of context processing
-                    p.term.needs_context_check = true;
-                }
-            }
-            if (!has_type) { // 22
-                auto [c, v] = try_get_optional_field<std::string_view>(ob, keyword_language);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid language mapping");
-                    }
-                    if (v.has_value()) {
-                        p.term.language_mapping = std::string(*v);
-                    }
-                    else {
-                        p.term.language_mapping = json_ld::Null{};
-                    }
-                }
-            }
-            if (!has_type) { // 23
-                auto [c, v] = try_get_optional_field<std::string_view>(ob, keyword_direction);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid base direction");
-                    }
-                    if (!v.has_value()) {
-                        p.term.direction_mapping = json_ld::BaseDirection::None;
-                    }
-                    else if (*v == "ltr") {
-                        p.term.direction_mapping = json_ld::BaseDirection::Ltr;
-                    }
-                    else if (*v == "rtl") {
-                        p.term.direction_mapping = json_ld::BaseDirection::Rtl;
-                    }
-                    else {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid base direction");
-                    }
-                }
-            }
-            { // 24
-                auto [c, v] = try_get_field<std::string_view>(ob, keyword_nest);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @nest value");
-                    }
-                    if (is_keyword(v) && v != keyword_nest) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @nest value");
-                    }
-                    p.term.nest_value = v;
-                }
-            }
-            { // 25
-                auto [c, v] = try_get_field<bool>(ob, keyword_prefix);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @prefix value");
-                    }
-                    if (p.term.key.find_first_of("/:") != std::string::npos) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid term definition");
-                    }
-                    p.term.is_prefix = v;
-                    if (v && p.term.iri_mapping.type == json_ld::IRIMappingType::Keyword) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid term definition");
-                    }
-                }
-            }
-            { // 26
-                ob.reset();
-                for (auto e : ob) {
-                    if (!any_of(e.escaped_key(), {keyword_id, keyword_reverse, keyword_container, keyword_context, keyword_direction,
-                        keyword_index, keyword_language, keyword_nest, keyword_prefix, keyword_protected, keyword_type})) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid term definition");
-                    }
-                }
-            }
-        }
-        { // 27
-            auto e = check_protected();
-            if (e.has_value()) {
-                return e;
-            }
-        }
-        // 28
-        p.term.parse_state = json_ld::ParseState::Done;
-        return std::nullopt;
-    }
-    nonstd::expected<json_ld::Context, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::parse_local_context(simdjson::padded_string_view json, json_ld::Context const &active_context, std::string_view base_iri, bool override_protected, bool propagate) {
-        simdjson::ondemand::parser parser{};
-        simdjson::ondemand::document doc = parser.iterate(json);
-        if (doc.is_scalar()) {
-            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, doc.is_string() ? "remote context not supported" : "context free floating scalar")};
-        }
-        return parse_context(doc, active_context, base_iri, override_protected, propagate);
-    }
-    nonstd::expected<json_ld::IRIMapping, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::iri_expansion(json_ld::Context const &active_context,
-                                                                                                                          std::optional<std::string_view> value,
-                                                                                                                          bool document_relative,
-                                                                                                                          bool vocab,
-                                                                                                                          json_ld::TermDefinition const *ignore_local,
-                                                                                                                          params::ParseContextIRIExpansionParams *parse_ctx) {
-        // https://www.w3.org/TR/json-ld11-api/#iri-expansion
-        // 1
-        if (!value.has_value()) {
-            return json_ld::IRIMapping{};
-        }
-        if (is_keyword(*value)) {
-            return json_ld::IRIMapping{std::string{*value}, json_ld::IRIMappingType::Keyword};
-        }
-        // 2
-        if (looks_like_keyword(*value)) {
-            return json_ld::IRIMapping{};
-        }
-        // 3
-        if (parse_ctx != nullptr) {
-            auto i = parse_ctx->active_context.try_find_term(*value);
-            if (i != nullptr && i->parse_state != json_ld::ParseState::Done && i != ignore_local) {
-                auto e = parse_context_term({
-                    .local_context = parse_ctx->local_context,
-                    .active_context = parse_ctx->active_context,
-                    .term = *i,
-                    .previous_terms = parse_ctx->previous_terms,
-                    .base_iri = "",
-                });
-                if (e.has_value()) {
-                    return nonstd::make_unexpected(*e);
-                }
-            }
-        }
-        // 4
-        auto* in_active = active_context.try_find_term(*value);
-        if (in_active != nullptr && in_active->iri_mapping.type == json_ld::IRIMappingType::Keyword && in_active != ignore_local) {
-            return json_ld::IRIMapping{in_active->iri_mapping.data, in_active->iri_mapping.type, std::string{*value}};
-        }
-        // 5
-        if (vocab && in_active != nullptr && in_active != ignore_local) {
-            return json_ld::IRIMapping{in_active->iri_mapping.data, in_active->iri_mapping.type, std::string{*value}};
-        }
-        // 6
-        {
-            auto i = value->find(':');
-            if (i != std::string_view::npos && i > 0) {
-                auto pre = value->substr(0, i);
-                auto post = value->substr(i + 1);
-                if (pre == "_") {
-                    return json_ld::IRIMapping{std::format("bn_n{}", post), json_ld::IRIMappingType::BlankNode};
-                }
-                if (post.starts_with("//")) {
-                    return json_ld::IRIMapping{std::string(*value), json_ld::IRIMappingType::IRI};
-                }
-                if (parse_ctx != nullptr) {
-                    auto term = parse_ctx->active_context.try_find_term(pre);
-                    if (term != nullptr && term->parse_state != json_ld::ParseState::Done) {
-                        auto e = parse_context_term({
-                            .local_context = parse_ctx->local_context,
-                            .active_context = parse_ctx->active_context,
-                            .term = *term,
-                            .previous_terms = parse_ctx->previous_terms,
-                            .base_iri = "",
-                        });
-                        if (e.has_value()) {
-                            return nonstd::make_unexpected(*e);
-                        }
-                    }
-                }
-                auto term = active_context.try_find_term(pre);
-                if (term != nullptr && term->iri_mapping.type != json_ld::IRIMappingType::None && term->is_prefix) {
-                    std::string v = term->iri_mapping.data;
-                    v.append(post);
-                    return json_ld::IRIMapping{std::move(v), json_ld::IRIMappingType::IRI, std::string{*value}};
-                }
-                if (IRIView(*value).quick_validate() == IRIFactoryError::Ok) {
-                    return json_ld::IRIMapping{std::string(*value), json_ld::IRIMappingType::IRI};
-                }
-            }
-        }
-        // 7
-        if (vocab && active_context.vocab.has_value()) {
-            std::string v = *active_context.vocab;
-            v.append(*value);
-            return json_ld::IRIMapping{std::move(v), json_ld::IRIMappingType::IRI};
-        }
-        // 8
-        if (document_relative) {
-            if (active_context.base_iri.empty()) {
-                return json_ld::IRIMapping{std::string(""), json_ld::IRIMappingType::None};
-            }
-            if (state_->iri_factory.set_base(active_context.base_iri) != IRIFactoryError::Ok) {
-                return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, "invalid base iri"));
-            }
-            auto r = state_->iri_factory.from_maybe_relative_as_string(*value);
-            if (r.has_value()) {
-                return json_ld::IRIMapping{std::string(*r), json_ld::IRIMappingType::IRI};
-            }
-            else {
-                return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid relative iri: {}", r.error())));
-            }
-        }
-        // 9
-        // no keyword, bn or valid iri, would have passed any further check
-        return json_ld::IRIMapping{std::string(""), json_ld::IRIMappingType::None};
-    }
-    nonstd::expected<json_ld::ExpandedValue, IStreamQuadIterator::error_type>
-    IStreamQuadIterator::ImplJsonLd::value_expansion(json_ld::Context const &active_conext,
-                                                     json_ld::IRIMapping const &active_property,
-                                                     simdjson::ondemand::value value) {
-        // https://www.w3.org/TR/json-ld11-api/#value-expansion
-        json_ld::TermDefinition const *active_term = active_conext.try_find_term(active_property.get_search_key());
-
-        // 1
-        if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_id && value.is_string()) {
-            return iri_expansion(active_conext, value.get_string(), true, false);
-        }
-        // 2
-        if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_vocab && value.is_string()) {
-            return iri_expansion(active_conext, value.get_string(), true, true);
-        }
-        // 4
-        if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_json) {
-            return to_json_literal(value);
-        }
-        if (active_term != nullptr && active_term->type_mapping.has_value() && !any_of(*active_term->type_mapping, {keyword_id, keyword_vocab, keyword_none})) {
-            auto t = *value.type();
-            if (t != simdjson::ondemand::json_type::number && t != simdjson::ondemand::json_type::boolean && t != simdjson::ondemand::json_type::string) {
-                return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid type for literal")};
-            }
-            return json_ld::TypedLiteralMapping{stringify(value, true, std::string_view(*active_term->type_mapping) == datatypes::registry::xsd_double).value, *active_term->type_mapping};
-        }
-        // 5
-        if (value.is_string()) {
-            const auto& l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
-            return json_ld::LiteralMapping{
-                std::string(static_cast<std::string_view>(value.get_string())),
-                l.output(),
-                active_term != nullptr && active_term->direction_mapping != json_ld::BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
-            };
-        }
-        // https://www.w3.org/TR/json-ld11-api/#object-to-rdf-conversion
-        // 9
-        if (value.type() == simdjson::ondemand::json_type::boolean || value.type() == simdjson::ondemand::json_type::number) {
-            auto [v, t] = stringify(value, true);
-            return json_ld::TypedLiteralMapping{
-                std::move(v),
-                std::string(t)
-            };
-        }
-        return value;
-    }
-    nonstd::expected<json_ld::ExpandedValue, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::value_expansion(json_ld::Context const &active_conext,
-                                                                                                                               json_ld::IRIMapping const &active_property,
-                                                                                                                               std::string_view value) {
-        // https://www.w3.org/TR/json-ld11-api/#value-expansion
-        json_ld::TermDefinition const *active_term = active_conext.try_find_term(active_property.get_search_key());
-
-        // 1
-        if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_id) {
-            return iri_expansion(active_conext, value, true, false);
-        }
-        // 2
-        if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_vocab) {
-            return iri_expansion(active_conext, value, true, true);
-        }
-        // 4
-        if (active_term != nullptr && active_term->type_mapping.has_value() && !any_of(*active_term->type_mapping, {keyword_id, keyword_vocab, keyword_none})) {
-            return json_ld::TypedLiteralMapping{std::string{value}, *active_term->type_mapping};
-        }
-        // 5 (condition always true)
-        const auto& l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
-        return json_ld::LiteralMapping{
-            std::string(value),
-            l.output(),
-            active_term != nullptr && active_term->direction_mapping != json_ld::BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
-        };
-        // rest unreachable
-    }
-    json_ld::StringifyResult IStreamQuadIterator::ImplJsonLd::stringify(simdjson::ondemand::value v, bool normalize, bool force_double, bool escape_string) {
-        auto t = *v.type();
-        if (t == simdjson::ondemand::json_type::boolean) {
-            return {std::string{v.get_bool() ? "true" : "false"}, datatypes::registry::xsd_boolean};
-        }
-        if (t == simdjson::ondemand::json_type::number) {
-            auto str = v.raw_json_token();
-            while (str.ends_with('\n') || str.ends_with(',') || str.ends_with(' ') || str.ends_with('\t')) {
-                str = str.substr(0, str.length()-1);
-            }
-            auto d = datatypes::registry::util::from_chars<double, "">(str);
-            if (!normalize && d == 0.0) {
-                return {"0", datatypes::registry::xsd_integer};
-            }
-            if (std::floor(d) != d || std::abs(d) >= 1.0e21 || force_double) {
-                if (normalize) {
-                    return {writer::StringWriter::oneshot([&](writer::StringWriter& w) {
-                        return datatypes::registry::util::to_chars_canonical(d, w);
-                    }), datatypes::registry::xsd_double};
-                }
-                return {std::string(str), datatypes::registry::xsd_double};
-            }
-            if (normalize) {
-                return {writer::StringWriter::oneshot([&](writer::StringWriter& w) {
-                    return datatypes::registry::util::to_chars_canonical(static_cast<int64_t>(d), w);
-                }), datatypes::registry::xsd_integer};
-            }
-            return {std::string(str), datatypes::registry::xsd_integer};
-        }
-        if (t == simdjson::ondemand::json_type::string) {
-            auto s = *v.get_string();
-            return {escape_string ? std::format("\"{}\"", s) : std::string{s}, datatypes::registry::xsd_string};
-        }
-        if (v.is_null()) {
-            return {std::string{"null"}, ""};
-        }
-        auto str = *v.raw_json();
-        while (str.ends_with('\n') || str.ends_with(',') || str.ends_with(' ') || str.ends_with('\t')) {
-            str = str.substr(0, str.length()-1);
-        }
-        return {std::string{str}, ""};
-    }
-    json_ld::TypedLiteralMapping IStreamQuadIterator::ImplJsonLd::to_json_literal(simdjson::ondemand::value v) {
-        return json_ld::TypedLiteralMapping{stringify(v, false, false, true).value, std::string{rdf_json_datatype}};
-    }
-    nonstd::expected<json_ld::ExpandedLevel, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::expand_level(json_ld::Context const &active_context,
-                                                                                                                            json_ld::IRIMapping const &active_property,
-                                                                                                                            simdjson::ondemand::value element,
-                                                                                                                            std::string_view base_iri,
-                                                                                                                            bool frame_expansion,
-                                                                                                                            bool ordered,
-                                                                                                                            bool from_map,
-                                                                                                                            bool assume_no_scalar,
-                                                                                                                            bool is_json_literal,
-                                                                                                                            std::optional<simdjson::ondemand::object> element_obj) {
-        if (is_json_literal) {
-            return to_json_literal(element);
-        }
-
-        // https://www.w3.org/TR/json-ld11-api/#expansion-algorithm
-        // 1
-        if (!assume_no_scalar && !element_obj.has_value() && element.is_null()) {
-            return json_ld::Null{};
-        }
-        // 2
-        if (active_property.is_keyword(keyword_default)) {
-            frame_expansion = false;
-        }
-        // 3
-        json_ld::TermDefinition const *active_term = active_context.try_find_term(active_property.get_search_key());
-        auto property_scoped_context = active_term != nullptr && active_term->context.has_value() ? &*active_term->context : nullptr;
-        auto* active_ctx = &active_context;
-        auto* active_ctx_for_local = &active_context;
-        // 4
-        if (!element_obj.has_value() && element.is_scalar()) {
-            if (active_property.type == json_ld::IRIMappingType::None || active_property.is_keyword(keyword_graph)) {
-                return json_ld::Null{};
-            }
-            std::optional<json_ld::Context> ctx = std::nullopt;
-            if (property_scoped_context != nullptr) {
-                auto r = parse_local_context(simdjson::padded_string_view{*property_scoped_context}, active_context, active_term->base_iri.has_value() ? *active_term->base_iri : base_iri);
-                if (!r.has_value()) {
-                    return nonstd::unexpected(r.error());
-                }
-                ctx = std::move(*r);
-                active_ctx = &*ctx;
-            }
-            // no need to keep the context alive
-            auto v = value_expansion(*active_ctx, active_property, element);
-            if (v.has_value()) {
-                return std::visit([&]<typename T>(T &&t) -> nonstd::expected<json_ld::ExpandedLevel, error_type> {
-                    if constexpr (std::same_as<T, json_ld::IRIMapping>) {
-                        json_ld::ExpandedMap result{};
-                        auto& e = result.entries.emplace_back(json_ld::IRIMapping{std::string{keyword_id}, json_ld::IRIMappingType::Keyword});
-                        e.keyword_values.emplace_back(std::forward<T>(t));
-                        result.expanded_from_no_map = true;
-                        return json_ld::ExpandedLevel{result};
-                    }
-                    else {
-                        return json_ld::ExpandedLevel{std::forward<T>(t)};
-                    }
-                }, std::move(*v));
-            }
-            return nonstd::unexpected{std::move(v.error())};
-        }
-        // 5
-        if (element.type() == simdjson::ondemand::json_type::array) {
-            return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "unexpected array in expand?")); // TODO?
-        }
-        // 6
-        auto elem_object = element_obj.has_value() ? *element_obj : static_cast<simdjson::ondemand::object>(element);
-        // 7
-        if (active_ctx->previous_context != nullptr && !from_map) {
-            bool clear = true;
-            bool has_id = false;
-            bool any_other = false;
-            for (auto e : elem_object) {
-                auto x = iri_expansion(*active_ctx, e.escaped_key(), false, true);
-                if (x.has_value() && x->is_keyword(keyword_value)) {
-                    clear = false;
-                    break;
-                }
-                if (x.has_value() && x->is_keyword(keyword_id)) {
-                    has_id = true;
-                }
-                else {
-                    any_other = true;
-                }
-            }
-            elem_object.reset();
-            if (has_id && !any_other) {
-                clear = false;
-            }
-            if (clear) {
-                active_ctx = active_ctx->previous_context;
-            }
-        }
-        // 8
-        json_ld::ExpandedMap result{};
-        if (property_scoped_context != nullptr) {
-            auto r = parse_local_context(simdjson::padded_string_view{*property_scoped_context}, *active_ctx_for_local, active_term->base_iri.has_value() ? *active_term->base_iri : base_iri, true);
-            if (!r.has_value()) {
-                return nonstd::unexpected(r.error());
-            }
-            result.active_context = &result.context_storage.emplace_front(std::move(*r));
-            active_ctx = result.active_context;
-        }
-        // 9
-        {
-            auto [c, v] = try_get_field<simdjson::ondemand::value>(elem_object, keyword_context);
-            if (c != simdjson::NO_SUCH_FIELD) {
-                if (c != simdjson::SUCCESS) {
-                    return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid context"));
-                }
-                auto r = parse_context(v, *active_ctx, base_iri);
-                if (!r.has_value()) {
-                    return nonstd::unexpected(r.error());
-                }
-                result.active_context = &result.context_storage.emplace_front(std::move(*r));
-                active_ctx = result.active_context;
-            }
-        }
-        // 10
-        auto* type_scoped_ctx = active_ctx;
-        // 11
-        std::optional<std::string> input_type = std::nullopt;
-        {
-            std::vector<std::string> types{};
-            elem_object.reset();
-            for (auto kv : elem_object) {
-                std::string_view k = kv.unescaped_key();
-                auto ex = iri_expansion(*active_ctx, k, false, true);
-                if (ex.has_value() && ex->type == json_ld::IRIMappingType::Keyword && ex->data == keyword_type) {
-                    types.emplace_back(k);
-                }
-            }
-            std::ranges::sort(types);
-            elem_object.reset();
-
-            auto handle_type = [&](std::string_view v) -> std::optional<error_type> {
-                if (!input_type.has_value()) {
-                    auto ex = iri_expansion(*active_ctx, v, false, true);
-                    if (ex.has_value() && ex->type != json_ld::IRIMappingType::None) {
-                        input_type = std::move(ex->data);
-                    }
-                }
-                auto* term = type_scoped_ctx->try_find_term(v);
-                if (term == nullptr || !term->context.has_value()) {
-                    return std::nullopt;
-                }
-                auto r = parse_local_context(simdjson::padded_string_view{*term->context}, *active_ctx, base_iri, false, false);
-                if (!r.has_value()) {
-                    return r.error();
-                }
-                result.active_context = &result.context_storage.emplace_front(std::move(*r));
-                active_ctx = result.active_context;
-                return std::nullopt;
-            };
-            for (std::string_view const k : types) {
-                auto [c, v] = try_get_field<simdjson::ondemand::value>(elem_object, k);
-                if (c == simdjson::SUCCESS) {
-                    if (v.is_string()) {
-                        auto e = handle_type(v.get_string());
-                        if (e.has_value()) {
-                            return nonstd::unexpected(*e);
-                        }
-                    }
-                    else {
-                        simdjson::ondemand::array a;
-                        if (v.get(a) == simdjson::SUCCESS) {
-                            std::vector<std::string> t{};
-                            for (auto e : a) {
-                                if (e.is_string()) {
-                                    t.emplace_back(e);
-                                }
-                            }
-                            std::ranges::sort(t);
-                            for (const auto& e : t) {
-                                auto err = handle_type(e);
-                                if (err.has_value()) {
-                                    return nonstd::unexpected(*err);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // 12 + 13 + 14
-        {
-            elem_object.reset();
-            auto r = expand_level_nested_recursive(result, elem_object, *active_ctx, *type_scoped_ctx, {}, active_property, input_type, base_iri, false, false);
-            if (r.has_value()) {
-                return nonstd::unexpected(*r);
-            }
-        }
-
-        // 15
-        elem_object.reset();
-        {
-            auto* val = result.try_find_keyword(keyword_value);
-            if (val != nullptr) {
-                for (const auto& e : result.entries) {
-                    if (e.key.type != json_ld::IRIMappingType::Keyword
-                        || !any_of(e.key.data, {keyword_direction, keyword_index, keyword_language, keyword_type, keyword_value})) {
-                        return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid value object (invalid keyword)"));
-                    }
-                }
-                auto* type = result.try_find_keyword(keyword_type);
-                auto* lang = result.try_find_keyword(keyword_language);
-                auto* dir = result.try_find_keyword(keyword_direction);
-                if (type != nullptr && (lang != nullptr || dir != nullptr)) {
-                    return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid value object (type and language or direction)"));
-                }
-                auto [c, val_obj] = try_get_field<simdjson::ondemand::value>(elem_object, val->path);
-                if (c != simdjson::SUCCESS) {
-                    return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid value object (val not found)"));
-                }
-                if (type != nullptr && (type->is_json_literal || type->has_keyword_value(keyword_json))) {
-                    return to_json_literal(val_obj);
-                }
-                if (val_obj.is_null()) {
-                    return json_ld::Null{};
-                }
-                if (lang != nullptr) {
-                    if (val_obj.is_string()) {
-                        auto [ec, lang_obj] = try_get_field<std::string_view>(elem_object, lang->path);
-                        if (ec != simdjson::SUCCESS) {
-                            return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid language-tagged value"));
-                        }
-                        json_ld::BaseDirection d = json_ld::BaseDirection::None;
-                        if (dir != nullptr && dir->keyword_values.size() == 1) {
-                            auto& s = dir->keyword_values[0].data; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                            if (s == "ltr") {
-                                d = json_ld::BaseDirection::Ltr;
-                            }
-                            else if (s == "rtl") {
-                                d = json_ld::BaseDirection::Rtl;
-                            }
-                        }
-                        return json_ld::LiteralMapping{
-                            std::string{std::string_view{val_obj.get_string()}},
-                            std::string{lang_obj},
-                            d,
-                        };
-                    }
-                    return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid language-tagged value"));
-                }
-                bool fd = false;
-                if (type != nullptr) {
-                    if (type->keyword_values.size() != 1 || type->keyword_values[0].type != json_ld::IRIMappingType::IRI) { // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                        return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid typed value"));
-                    }
-                    if (type->keyword_values[0].data == std::string_view(datatypes::registry::xsd_double)) { // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                        fd = true;
-                    }
-                }
-                auto [s, t] = stringify(val_obj, true, fd, false);
-                if (type != nullptr) {
-                    return json_ld::TypedLiteralMapping{
-                        std::move(s),
-                        std::move(type->keyword_values[0].data), // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                    };
-                }
-                if (!t.empty()) {
-                    return json_ld::TypedLiteralMapping{
-                        std::move(s),
-                        std::string(t),
-                    };
-                }
-                return json_ld::LiteralMapping{
-                    std::move(s),
-                    std::nullopt,
-                    json_ld::BaseDirection::None,
-                };
-            }
-        }
-        // 17
-        {
-            if (result.try_find_keyword(keyword_set) != nullptr || result.try_find_keyword(keyword_list) != nullptr) {
-                size_t expected_size = 1;
-                if (result.try_find_keyword(keyword_index) != nullptr) {
-                    expected_size  = 2;
-                }
-                if (result.entries.size() != expected_size) {
-                    return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid set or list object"));
-                }
-                auto* set = result.try_find_keyword(keyword_set);
-                if (set != nullptr) {
-                    auto [c, el] = try_get_field<simdjson::ondemand::value>(elem_object, set->path);
-                    if (c != simdjson::SUCCESS) {
-                        return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "set path not found?"));
-                    }
-                    if (el.type() == simdjson::ondemand::json_type::array) {
-                        return static_cast<simdjson::ondemand::array>(el);
-                    }
-                    return expand_level(active_context, active_property, el, base_iri, frame_expansion, ordered, from_map);
-                }
-            }
-        }
-        // 18
-        if (result.try_find_keyword(keyword_language) != nullptr && result.entries.size() == 1) {
-            return json_ld::Null{};
-        }
-        // 19
-        if (active_property.type == json_ld::IRIMappingType::None || active_property.is_keyword(keyword_graph)) {
-            if (result.entries.empty()) {
-                return json_ld::Null{};
-            }
-            if (result.entries.size() == 1 && (result.try_find_keyword(keyword_value) != nullptr || result.try_find_keyword(keyword_list) != nullptr|| result.try_find_keyword(keyword_id) != nullptr)) {
-                return json_ld::Null{};
-            }
-        }
-        // 20
-        return result;
-    }
-    std::optional<IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::expand_level_nested_recursive(json_ld::ExpandedMap &result,
-                                                                                                                  simdjson::ondemand::object elem_obj,
-                                                                                                                  json_ld::Context const &active_ctx,
-                                                                                                                  json_ld::Context const &type_scoped_context,
-                                                                                                                  json_ld::KeyPath const &active_path,
-                                                                                                                  json_ld::IRIMapping const &active_property,
-                                                                                                                  std::optional<std::string> const &input_type,
-                                                                                                                  std::string_view base_iri,
-                                                                                                                  bool reverse,
-                                                                                                                  bool value_is_error) {
-        for (auto kv : elem_obj) {
-            // 13.1
-            std::string_view k = kv.unescaped_key();
-            simdjson::ondemand::value v = *kv.value();
-            if (k == keyword_context) {
-                continue;
-            }
-            // 13.2
-            auto expanded_property = iri_expansion(active_ctx, k, false, true);
-            if (!expanded_property.has_value()) {
-                return expanded_property.error();
-            }
-            // 13.3
-            if (expanded_property->type == json_ld::IRIMappingType::None
-                || !(expanded_property->type == json_ld::IRIMappingType::Keyword
-                || expanded_property->data.find(':') != std::string::npos)) {
-                continue;
-            }
-            // 13.4
-            if (expanded_property->type == json_ld::IRIMappingType::Keyword) {
-                // 13.4.1
-                if (active_property.is_keyword(keyword_reverse)) {
-                    return make_error(ParsingError::Type::BadSyntax, "invalid reverse property map (expanding map)");
-                }
-                // 13.4.2
-                auto existing_entry = result.try_find_entry(*expanded_property);
-                {
-                    if (existing_entry != nullptr && !any_of(expanded_property->data, {keyword_type, keyword_included})) {
-                        return make_error(ParsingError::Type::BadSyntax, "colliding keywords");
-                    }
-                }
-                // 13.4.3
-                json_ld::ExpandedMapEntry expanded_value{};
-                expanded_value.is_reverse = reverse;
-                if (expanded_property->data == keyword_id) {
-                    if (!v.is_string()) { // TODO double check frame expansion
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @id value");
-                    }
-                    auto r = iri_expansion(active_ctx, static_cast<std::string_view>(v), true, false);
-                    if (!r.has_value()) {
-                        return r.error();
-                    }
-                    expanded_value.keyword_values.emplace_back(std::move(*r));
-                }
-                // 13.4.4
-                else if (expanded_property->data == keyword_type) {
-                    auto& ent = existing_entry == nullptr ? expanded_value : *existing_entry;
-                    if (v.is_string()) {
-                        auto r = iri_expansion(type_scoped_context, static_cast<std::string_view>(v), true, true);
-                        if (!r.has_value()) {
-                            return r.error();
-                        }
-                        ent.keyword_values.emplace_back(std::move(*r));
-                    }
-                    else if (v.type() == simdjson::ondemand::json_type::array) {
-                        for (auto e : static_cast<simdjson::ondemand::array>(v)) {
-                            auto r = iri_expansion(type_scoped_context, e, true, true);
-                            if (!r.has_value()) {
-                                return r.error();
-                            }
-                            ent.keyword_values.emplace_back(std::move(*r));
-                        }
-                    }
-                    else {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid type value");
-                    }
-                }
-                // 13.4.5
-                else if (expanded_property->data == keyword_graph) {
-                    expanded_value.path = active_path;
-                    expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                    expanded_value.active_property = keyword_graph;
-                }
-                // 13.4.6
-                else if (expanded_property->data == keyword_included) {
-                    expanded_value.path = active_path;
-                    expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                }
-                // 13.4.7
-                else if (expanded_property->data == keyword_value) {
-                    if (value_is_error) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @nest value (contains @value)");
-                    }
-                    if (input_type == keyword_json || v.is_scalar()) {
-                        expanded_value.path = active_path;
-                        expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                        expanded_value.is_json_literal = input_type == keyword_json;
-                    }
-                    else {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid value object value");
-                    }
-                }
-                // 13.4.8
-                else if (expanded_property->data == keyword_language) {
-                    if (!v.is_string()) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
-                    }
-                    expanded_value.path = active_path;
-                    expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                }
-                // 13.4.9
-                else if (expanded_property->data == keyword_direction) {
-                    if (!v.is_string()) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
-                    }
-                    auto s = static_cast<std::string_view>(v);
-                    if (s != "ltr" && s != "rtl") {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
-                    }
-                    expanded_value.keyword_values.emplace_back(std::string{s}, json_ld::IRIMappingType::None);
-                }
-                // 13.4.10
-                else if (expanded_property->data == keyword_index) {
-                    if (!v.is_string()) {
-                        return make_error(ParsingError::Type::BadSyntax, " invalid @index value");
-                    }
-                    expanded_value.path = active_path;
-                    expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                }
-                // 13.4.11
-                else if (expanded_property->data == keyword_list) {
-                    if (active_property.type == json_ld::IRIMappingType::None || active_property.is_keyword(keyword_graph)) {
-                        continue;
-                    }
-                    expanded_value.path = active_path;
-                    expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                }
-                // 13.4.12
-                else if (expanded_property->data == keyword_set) {
-                    expanded_value.path = active_path;
-                    expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                }
-                // 13.4.13
-                else if (expanded_property->data == keyword_reverse) {
-                    simdjson::ondemand::object v_obj;
-                    if (v.get(v_obj) != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @reverse value (not a object)");
-                    }
-                    json_ld::KeyPath p = active_path;
-                    p.keys.emplace_back(std::in_place_type<std::string>, k);
-                    auto e = expand_level_nested_recursive(result, v_obj, active_ctx, type_scoped_context, p, active_property, input_type, base_iri, !reverse, true);
-                    if (e.has_value()) {
-                        return e;
-                    }
-                }
-                // 13.4.14 + 14
-                else if (expanded_property->data == keyword_nest) {
-                    for (ValueArrayIter iter{v}; iter != iter.end(); ++iter) {
-                        simdjson::ondemand::object iter_obj;
-                        if (iter->get(iter_obj) != simdjson::SUCCESS) {
-                            return make_error(ParsingError::Type::BadSyntax, "invalid @nest value (not a object)");
-                        }
-                        json_ld::KeyPath p = active_path;
-                        p.keys.emplace_back(std::in_place_type<std::string>, k);
-                        iter.push_index(p);
-                        auto e = expand_level_nested_recursive(result, iter_obj, active_ctx, type_scoped_context, p, active_property, input_type, base_iri, reverse, true);
-                        if (e.has_value()) {
-                            return e;
-                        }
-                    }
-                }
-                // 13.4.16
-                if (!expanded_value.path.keys.empty() || !expanded_value.keyword_values.empty()) {
-                    expanded_value.key = std::move(*expanded_property);
-                    result.entries.emplace_back(std::move(expanded_value));
-                }
-                continue;
-            }
-            // 13.5
-            auto* term_definition = active_ctx.try_find_term(expanded_property->get_search_key());
-            // 13.6
-            json_ld::ExpandedMapEntry expanded_value{};
-            expanded_value.is_reverse = reverse;
-            if (term_definition != nullptr && term_definition->type_mapping == keyword_json) {
-                expanded_value.path = active_path;
-                expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                expanded_value.is_json_literal = true;
-            }
-            // 13.7
-            else if (term_definition != nullptr && term_definition->has_container_mapping(keyword_language) && v.type() == simdjson::ondemand::json_type::object) {
-                expanded_value.path = active_path;
-                expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                expanded_value.language_map = active_ctx.base_direction;
-                if (term_definition != nullptr && term_definition->direction_mapping != json_ld::BaseDirection::None) {
-                    expanded_value.language_map = term_definition->direction_mapping;
-                }
-            }
-            // 13.8
-            else if (term_definition != nullptr && (term_definition->has_container_mapping(keyword_index)
-                || term_definition->has_container_mapping(keyword_type) || term_definition->has_container_mapping(keyword_id))
-                && v.type() == simdjson::ondemand::json_type::object) {
-
-                // 13.8.2
-                json_ld::IRIMapping index_key {std::string{keyword_index}, json_ld::IRIMappingType::Keyword};
-                {
-                    auto* t = active_ctx.try_find_term(k);
-                    if (t != nullptr && t->index_mapping.type != json_ld::IRIMappingType::None) {
-                        index_key = t->index_mapping;
-                    }
-                }
-
-                // 13.8.3
-                for (auto kw : simdjson::ondemand::object{v}) {
-                    std::string_view index = kw.unescaped_key();
-                    auto w = *kw.value();
-
-                    json_ld::Context const * map_context = nullptr;
-                    // 13.8.3.1
-                    if (term_definition->has_container_mapping(keyword_id) || term_definition->has_container_mapping(keyword_type)) {
-                        map_context = active_ctx.previous_context;
-                    }
-                    // 13.8.3.1&3
-                    if (map_context == nullptr) {
-                        map_context = &active_ctx;
-                    }
-
-                    // 13.8.3.2
-                    if (term_definition->has_container_mapping(keyword_type)) {
-                        auto* index_term = map_context->try_find_term(index);
-                        if (index_term != nullptr && index_term->context.has_value()) {
-                            auto r = parse_local_context(simdjson::padded_string_view{*index_term->context}, *map_context, index_term->base_iri.value_or(""));
-                            if (!r.has_value()) {
-                                return r.error();
-                            }
-                            map_context = &result.context_storage.emplace_front(std::move(*r));
-                        }
-                    }
-
-                    // 13.8.3.4
-                    auto expanded_index = iri_expansion(active_ctx, index, false, true);
-                    if (!expanded_index.has_value()) {
-                        return expanded_index.error();
-                    }
-
-                    // 13.8.3.7
-                    for (ValueArrayIter iter{w}; iter != iter.end(); ++iter) {
-                        auto index_value = *iter;
-                        auto ex = expanded_value;
-                        ex.active_property = k;
-                        ex.active_context = map_context;
-                        json_ld::ExpandedMap* next_lvl = nullptr;
-                        std::optional<simdjson::ondemand::object> index_value_obj = std::nullopt;
-                        // 13.8.3.7.1
-                        if (term_definition->has_container_mapping(keyword_graph) && !is_graph_object(index_value, active_ctx, index_value_obj)) {
-                            ex.next_level_pre_expanded = json_ld::ExpandedMap{};
-                            next_lvl = &std::get<json_ld::ExpandedMap>(*ex.next_level_pre_expanded);
-                            auto& ge = next_lvl->entries.emplace_back(json_ld::IRIMapping{std::string{keyword_graph}, json_ld::IRIMappingType::Keyword});
-
-                            ex.path = active_path;
-                            ex.path.keys.emplace_back(std::in_place_type<std::string>, k);
-
-                            ge.path.keys.emplace_back(std::in_place_type<std::string>, index);
-                            iter.push_index(ge.path);
-                        }
-                        else {
-                            auto nl = expand_level(*map_context, *expanded_property, index_value, base_iri, false, false, true, false, false, index_value_obj);
-                            if (!nl.has_value()) {
-                                return nl.error();
-                            }
-                            ex.next_level_pre_expanded = std::move(*nl);
-                            if (std::holds_alternative<json_ld::ExpandedMap>(*ex.next_level_pre_expanded)) {
-                                next_lvl = &std::get<json_ld::ExpandedMap>(*ex.next_level_pre_expanded);
-                            }
-
-                            ex.path = active_path;
-                            ex.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                            ex.path.keys.emplace_back(std::in_place_type<std::string>, index);
-                            iter.push_index(ex.path);
-                        }
-                        auto has_keyword = [&](std::string_view kwo) {
-                            return next_lvl != nullptr && next_lvl->try_find_keyword(kwo) != nullptr;
-                        };
-                        // 13.8.3.7.2
-                        if (term_definition->has_container_mapping(keyword_index) &&
-                            !index_key.is_keyword(keyword_index) &&
-                            !expanded_index->is_keyword(keyword_none)) {
-                            auto reexpanded_index = value_expansion(active_ctx, index_key, index);
-                            if (!reexpanded_index.has_value()) {
-                                return reexpanded_index.error();
-                            }
-                            auto expanded_index_key = iri_expansion(active_ctx, index_key.data, false, true);
-                            if (!expanded_index_key.has_value()) {
-                                return expanded_index_key.error();
-                            }
-                            if (next_lvl == nullptr) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid index)");
-                            }
-                            auto& e = next_lvl->entries.emplace_back(std::move(*expanded_index_key));
-                            e.pre_expanded_value = std::move(*reexpanded_index);
-                        }
-                        // 13.8.3.7.3
-                        else if (term_definition->has_container_mapping(keyword_index) && !has_keyword(keyword_index)
-                            && !expanded_index->is_keyword(keyword_none)) {
-                            // skipped, @index is ignored
-                        }
-                        // 13.8.3.7.4
-                        else if (term_definition->has_container_mapping(keyword_id) && !has_keyword(keyword_id)
-                            && !expanded_index->is_keyword(keyword_none)) {
-                            auto id = iri_expansion(active_ctx, index, true, false);
-                            if (!id.has_value()) {
-                                return id.error();
-                            }
-                            if (next_lvl == nullptr) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid id)");
-                            }
-                            auto& e = next_lvl->entries.emplace_back(json_ld::IRIMapping{std::string{keyword_id}, json_ld::IRIMappingType::Keyword});
-                            e.keyword_values.emplace_back(std::move(*id));
-                        }
-                        // 13.8.3.7.5
-                        else if (term_definition->has_container_mapping(keyword_type) && !expanded_index->is_keyword(keyword_none)) {
-                            if (next_lvl == nullptr) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid type)");
-                            }
-                            auto& e = next_lvl->entries.emplace_back(json_ld::IRIMapping{std::string{keyword_type}, json_ld::IRIMappingType::Keyword});
-                            e.keyword_values.emplace_back(*expanded_index);
-                        }
-                        // 13.13
-                        if (term_definition != nullptr && term_definition->is_reverse_property) {
-                            ex.is_reverse = !reverse;
-                        }
-                        if (!ex.path.keys.empty() || !ex.keyword_values.empty()) {
-                            ex.key = *expanded_property;
-                            result.entries.emplace_back(std::move(ex));
-                        }
-                    }
-                }
-                continue;
-            }
-            // 13.10
-            else if (v.is_null()) {
-                continue;
-            }
-            // 13.9
-            else {
-                expanded_value.path = active_path;
-                expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                expanded_value.active_property = k;
-            }
-            // 13.10
-            if (expanded_value.path.keys.empty() && expanded_value.keyword_values.empty()) {
-                continue;
-            }
-            // 13.11
-            if (term_definition != nullptr && term_definition->has_container_mapping(keyword_list) && !is_list_object(v, active_ctx)) {
-                expanded_value.as_list = true;
-            }
-            // 13.12
-            if (term_definition != nullptr && term_definition->has_container_mapping(keyword_graph)
-                && !term_definition->has_container_mapping(keyword_id) && !term_definition->has_container_mapping(keyword_index)) {
-                if (v.type() == simdjson::ondemand::json_type::array) {
-                    expanded_value.as_multiple_graphs = true;
-                } else {
-                    expanded_value.as_graph = true;
-                }
-            }
-            // 13.13
-            if (term_definition != nullptr && term_definition->is_reverse_property) {
-                expanded_value.is_reverse = !reverse;
-            }
-            if (!expanded_value.path.keys.empty() || !expanded_value.keyword_values.empty()) {
-                expanded_value.key = std::move(*expanded_property);
-                result.entries.emplace_back(std::move(expanded_value));
-            }
-        }
-
-        return std::nullopt;
-    }
-    bool IStreamQuadIterator::ImplJsonLd::is_list_object(simdjson::ondemand::value v, json_ld::Context const &active_context) {
-        if (v.type() != simdjson::ondemand::json_type::object) {
-            return false;
-        }
-        bool list = false;
-        bool index = false;
-        auto ob = static_cast<simdjson::ondemand::object>(v);
-        for (auto kv : ob) {
-            std::string_view k = kv.unescaped_key();
-            auto expanded_property = iri_expansion(active_context, k, false, true);
-            if (!expanded_property.has_value()) {
-                return false;
-            }
-            if (expanded_property->is_keyword(keyword_list)) {
-                if (list) {
-                    return false;
-                }
-                list = true;
-            }
-            else if (expanded_property->is_keyword(keyword_index)) {
-                if (index) {
-                    return false;
-                }
-                index = true;
-            }
-            else {
-                return false;
-            }
-        }
-        return list;
-    }
-    bool IStreamQuadIterator::ImplJsonLd::is_graph_object(simdjson::ondemand::value v, json_ld::Context const &active_context, std::optional<simdjson::ondemand::object>& obj_out) {
-        if (v.type() != simdjson::ondemand::json_type::object) {
-            return false;
-        }
-        bool graph = false;
-        bool index = false;
-        bool id = false;
-        auto ob = static_cast<simdjson::ondemand::object>(v);
-        obj_out = ob;
-        for (auto kv : ob) {
-            std::string_view k = kv.unescaped_key();
-            auto expanded_property = iri_expansion(active_context, k, false, true);
-            if (!expanded_property.has_value()) {
-                ob.reset();
-                return false;
-            }
-            if (expanded_property->is_keyword(keyword_graph)) {
-                if (graph) {
-                    ob.reset();
-                    return false;
-                }
-                graph = true;
-            }
-            else if (expanded_property->is_keyword(keyword_index)) {
-                if (index) {
-                    ob.reset();
-                    return false;
-                }
-                index = true;
-            }
-            else if (expanded_property->is_keyword(keyword_index)) {
-                if (id) {
-                    ob.reset();
-                    return false;
-                }
-                id = true;
-            }
-            else {
-                ob.reset();
-                return false;
-            }
-        }
-        ob.reset();
-        return graph;
-    }
-    IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::parse(params::ParseParams& p) {
+    IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::parse(params::ParseParams &p) {
         if (p.obj_out != nullptr) {
             *p.obj_out = std::monostate{};
         }
@@ -1925,7 +120,14 @@ namespace rdf4cpp::parser {
             }
             co_return;
         }
-        auto expanded = expand_level(p.active_ctx, p.active_property, p.element, p.base_iri, false, false, false, p.is_top_level, p.is_json_literal);
+        auto expanded = expand_parser_.expand_level({
+            .active_context = p.active_ctx,
+            .active_property = p.active_property,
+            .element = p.element,
+            .base_iri = p.base_iri,
+            .assume_no_scalar = p.is_top_level,
+            .is_json_literal = p.is_json_literal,
+        });
         if (!expanded.has_value()) {
             co_yield nonstd::unexpected(expanded.error());
             co_return;
@@ -1935,7 +137,7 @@ namespace rdf4cpp::parser {
     IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::parse(params::ParseParams &p, json_ld::ExpandedLevel &expanded) {
         if (std::holds_alternative<json_ld::Null>(expanded)) {
             if (p.is_included) {
-                co_yield nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "invalid @included value"));
+                co_yield nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid @included value"));
                 co_return;
             }
             co_return;
@@ -1952,13 +154,13 @@ namespace rdf4cpp::parser {
 
         // 4
         if (std::holds_alternative<json_ld::LiteralMapping>(expanded)) {
-            auto& t = std::get<json_ld::LiteralMapping>(expanded);
+            auto &t = std::get<json_ld::LiteralMapping>(expanded);
             if (p.is_included) {
-                co_yield nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "invalid @included value"));
+                co_yield nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid @included value"));
                 co_return;
             }
             if (p.is_reverse) {
-                co_yield nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "invalid reverse property value"));
+                co_yield nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid reverse property value"));
                 co_return;
             }
             auto l = make_literal(t);
@@ -1975,13 +177,13 @@ namespace rdf4cpp::parser {
             co_return;
         }
         if (std::holds_alternative<json_ld::TypedLiteralMapping>(expanded)) {
-            auto& t = std::get<json_ld::TypedLiteralMapping>(expanded);
+            auto &t = std::get<json_ld::TypedLiteralMapping>(expanded);
             if (p.is_included) {
-                co_yield nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "invalid @included value"));
+                co_yield nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid @included value"));
                 co_return;
             }
             if (p.is_reverse) {
-                co_yield nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "invalid reverse property value"));
+                co_yield nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid reverse property value"));
                 co_return;
             }
             auto l = make_literal(t);
@@ -1999,8 +201,8 @@ namespace rdf4cpp::parser {
         }
 
         if (std::holds_alternative<json_ld::ExpandedMap>(expanded)) {
-            auto& map = std::get<json_ld::ExpandedMap>(expanded);
-            const auto& ctx = map.active_context == nullptr ? p.active_ctx : *map.active_context;
+            auto &map = std::get<json_ld::ExpandedMap>(expanded);
+            auto const &ctx = map.active_context == nullptr ? p.active_ctx : *map.active_context;
 
             simdjson::ondemand::object obj;
             if (!map.expanded_from_no_map) {
@@ -2013,7 +215,7 @@ namespace rdf4cpp::parser {
                 auto graph = map.try_find_keyword(keyword_graph);
                 if (graph != nullptr) {
                     bool no_context = true;
-                    for (const auto& e : map.entries) {
+                    for (auto const &e : map.entries) {
                         if (e.key.type != json_ld::IRIMappingType::Keyword || !any_of(e.key.data, {keyword_graph, keyword_context})) {
                             no_context = false;
                             break;
@@ -2022,9 +224,8 @@ namespace rdf4cpp::parser {
                     if (no_context) {
                         auto [c, v] = try_get_field<simdjson::ondemand::value>(obj, graph->path);
                         if (c != simdjson::SUCCESS) {
-                            co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find graph value?"));
-                        }
-                        else {
+                            co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "could not find graph value?"));
+                        } else {
                             params::ParseParams pa{
                                 .element = v,
                                 .active_ctx = ctx,
@@ -2041,18 +242,17 @@ namespace rdf4cpp::parser {
                 }
             }
 
-            if (!map.expanded_from_no_map) { // 5
+            if (!map.expanded_from_no_map) {  // 5
                 auto list = map.try_find_keyword(keyword_list);
                 if (list != nullptr) {
                     if (p.is_reverse) {
-                        co_yield nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "invalid reverse property value"));
+                        co_yield nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid reverse property value"));
                         co_return;
                     }
                     auto [c, ar] = try_get_field<simdjson::ondemand::value>(obj, list->path);
                     if (c != simdjson::SUCCESS) {
-                        co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find list value?"));
-                    }
-                    else {
+                        co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "could not find list value?"));
+                    } else {
                         co_yield std::ranges::elements_of(parse_list(ar, ctx, p.base_iri, p.active_graph, p.active_subject, p.active_property, p.obj_out, false));
                     }
                     co_return;
@@ -2064,7 +264,7 @@ namespace rdf4cpp::parser {
                 json_ld::IRIMapping id{};
                 auto id_entry = map.try_find_keyword(keyword_id);
                 if (id_entry != nullptr && !id_entry->keyword_values.empty()) {
-                    id = std::move(id_entry->keyword_values[0]); // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                    id = std::move(id_entry->keyword_values[0]);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
                     if (id.type == json_ld::IRIMappingType::None) {
                         co_return;
                     }
@@ -2075,16 +275,15 @@ namespace rdf4cpp::parser {
                 if (p.active_subject.type != json_ld::IRIMappingType::None && p.active_property.type != json_ld::IRIMappingType::None) {
                     if (p.is_reverse) {
                         co_yield make_quad(p.active_graph, id, p.active_property, p.active_subject);
-                    }
-                    else {
+                    } else {
                         co_yield make_quad(p.active_graph, p.active_subject, p.active_property, id);
                     }
                 }
 
                 {
-                    for (const auto& type_entry : map.entries) {
+                    for (auto const &type_entry : map.entries) {
                         if (type_entry.key.is_keyword(keyword_type)) {
-                            for (const auto &e : type_entry.keyword_values) {
+                            for (auto const &e : type_entry.keyword_values) {
                                 if (e.type != json_ld::IRIMappingType::None) {
                                     co_yield make_quad(p.active_graph, id, type_entry.key, e);
                                 }
@@ -2093,12 +292,12 @@ namespace rdf4cpp::parser {
                     }
                 }
 
-                if (!map.expanded_from_no_map){
+                if (!map.expanded_from_no_map) {
                     auto graph_entry = map.try_find_keyword(keyword_graph);
                     if (graph_entry != nullptr) {
                         auto [c, v] = try_get_field<simdjson::ondemand::value>(obj, graph_entry->path);
                         if (c != simdjson::SUCCESS) {
-                            co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find graph value?"));
+                            co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "could not find graph value?"));
                             co_return;
                         }
                         auto const *context = graph_entry->active_context;
@@ -2124,9 +323,8 @@ namespace rdf4cpp::parser {
                         }
                         auto [c, v] = try_get_field<simdjson::ondemand::value>(obj, e.path);
                         if (c != simdjson::SUCCESS) {
-                            co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find included value?"));
-                        }
-                        else {
+                            co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "could not find included value?"));
+                        } else {
                             auto const *context = e.active_context;
                             if (context == nullptr) {
                                 context = &ctx;
@@ -2143,16 +341,15 @@ namespace rdf4cpp::parser {
                             };
                             co_yield std::ranges::elements_of(parse(pa));
                         }
-                    }
-                    else if (e.key.type != json_ld::IRIMappingType::Keyword) {
+                    } else if (e.key.type != json_ld::IRIMappingType::Keyword) {
                         auto const *context = e.active_context;
                         if (context == nullptr) {
                             context = &ctx;
                         }
                         if (e.pre_expanded_value.has_value()) {
-                            auto& val = *e.pre_expanded_value;
+                            auto &val = *e.pre_expanded_value;
                             if (std::holds_alternative<json_ld::LiteralMapping>(val)) {
-                                auto& t = std::get<json_ld::LiteralMapping>(val);
+                                auto &t = std::get<json_ld::LiteralMapping>(val);
                                 auto l = make_literal(t);
                                 if (!l.has_value()) {
                                     co_yield nonstd::make_unexpected(l.error());
@@ -2161,9 +358,8 @@ namespace rdf4cpp::parser {
                                 if (id.type != json_ld::IRIMappingType::None && e.key.type != json_ld::IRIMappingType::None) {
                                     co_yield make_quad(p.active_graph, id, e.key, *l);
                                 }
-                            }
-                            else if (std::holds_alternative<json_ld::TypedLiteralMapping>(val)) {
-                                auto& t = std::get<json_ld::TypedLiteralMapping>(val);
+                            } else if (std::holds_alternative<json_ld::TypedLiteralMapping>(val)) {
+                                auto &t = std::get<json_ld::TypedLiteralMapping>(val);
                                 auto l = make_literal(t);
                                 if (!l.has_value()) {
                                     co_yield nonstd::make_unexpected(l.error());
@@ -2172,14 +368,12 @@ namespace rdf4cpp::parser {
                                 if (id.type != json_ld::IRIMappingType::None && e.key.type != json_ld::IRIMappingType::None) {
                                     co_yield make_quad(p.active_graph, id, e.key, *l);
                                 }
-                            }
-                            else if (std::holds_alternative<json_ld::IRIMapping>(val)) {
-                                auto& o = std::get<json_ld::IRIMapping>(val);
+                            } else if (std::holds_alternative<json_ld::IRIMapping>(val)) {
+                                auto &o = std::get<json_ld::IRIMapping>(val);
                                 if (id.type != json_ld::IRIMappingType::None && e.key.type != json_ld::IRIMappingType::None) {
                                     if (p.is_reverse) {
                                         co_yield make_quad(p.active_graph, o, e.key, id);
-                                    }
-                                    else {
+                                    } else {
                                         co_yield make_quad(p.active_graph, id, e.key, o);
                                     }
                                 }
@@ -2191,27 +385,25 @@ namespace rdf4cpp::parser {
                         }
                         if (e.as_list) {
                             if (p.is_reverse) {
-                                co_yield nonstd::make_unexpected(make_error(ParsingError::Type::BadSyntax, "invalid reverse property value"));
+                                co_yield nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid reverse property value"));
                                 co_return;
                             }
                             auto [c, v] = try_get_field<simdjson::ondemand::value>(obj, e.path);
                             if (c != simdjson::SUCCESS) {
-                                co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find property value?"));
-                            }
-                            else {
-                                co_yield std::ranges::elements_of(parse_list(v, *context, p. base_iri, p.active_graph, id, e.key, p.obj_out, true));
+                                co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "could not find property value?"));
+                            } else {
+                                co_yield std::ranges::elements_of(parse_list(v, *context, p.base_iri, p.active_graph, id, e.key, p.obj_out, true));
                             }
                             continue;
                         }
                         auto [c, v] = try_get_field<simdjson::ondemand::value>(obj, e.path);
                         if (c != simdjson::SUCCESS) {
-                            co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "could not find property value?"));
-                        }
-                        else {
+                            co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "could not find property value?"));
+                        } else {
                             if (e.as_multiple_graphs) {
                                 simdjson::ondemand::array ar;
                                 if (v.get(ar) != simdjson::SUCCESS) {
-                                    co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "multigraph not array?"));
+                                    co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "multigraph not array?"));
                                     co_return;
                                 }
                                 for (auto ae : ar) {
@@ -2219,8 +411,7 @@ namespace rdf4cpp::parser {
                                     if (id.type != json_ld::IRIMappingType::None && e.key.type != json_ld::IRIMappingType::None) {
                                         if (p.is_reverse) {
                                             co_yield make_quad(p.active_graph, graph, e.key, id);
-                                        }
-                                        else {
+                                        } else {
                                             co_yield make_quad(p.active_graph, id, e.key, graph);
                                         }
                                     }
@@ -2235,14 +426,12 @@ namespace rdf4cpp::parser {
                                     };
                                     co_yield std::ranges::elements_of(parse(pa));
                                 }
-                            }
-                            else if (e.as_graph || e.as_named_graph.has_value()) {
+                            } else if (e.as_graph || e.as_named_graph.has_value()) {
                                 auto graph = e.as_named_graph.has_value() ? *e.as_named_graph : make_new_bn();
                                 if (id.type != json_ld::IRIMappingType::None && e.key.type != json_ld::IRIMappingType::None) {
                                     if (p.is_reverse) {
                                         co_yield make_quad(p.active_graph, graph, e.key, id);
-                                    }
-                                    else {
+                                    } else {
                                         co_yield make_quad(p.active_graph, id, e.key, graph);
                                     }
                                 }
@@ -2256,27 +445,25 @@ namespace rdf4cpp::parser {
                                     .is_json_literal = e.is_json_literal,
                                 };
                                 co_yield std::ranges::elements_of(parse(pa));
-                            }
-                            else if (e.language_map.has_value()) {
+                            } else if (e.language_map.has_value()) {
                                 if (v.type() != simdjson::ondemand::json_type::object) {
-                                    co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "not a map?"));
+                                    co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "not a map?"));
                                     co_return;
                                 }
                                 for (auto kv : simdjson::ondemand::object{v}) {
                                     std::string_view const lang = kv.unescaped_key();
-                                    for (auto str : ValueArrayIter{*kv.value()}) {
+                                    for (auto str : json_ld::ValueArrayIter{*kv.value()}) {
                                         std::string_view string;
                                         if (str.get(string) != simdjson::SUCCESS) {
-                                            co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid language map value"));
+                                            co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "invalid language map value"));
                                             co_return;
                                         }
-                                        auto expanded_lang = iri_expansion(*context, lang, false, true);
+                                        auto expanded_lang = expand_parser_.context_parser.iri_expansion(*context, lang, false, true);
                                         auto l = expanded_lang.has_value() && expanded_lang->is_keyword(keyword_none) ? Literal::make_simple(string) : Literal::make_lang_tagged(string, lang);
                                         co_yield make_quad(p.active_graph, id, e.key, l);
                                     }
                                 }
-                            }
-                            else {
+                            } else {
                                 params::ParseParams pa{
                                     .element = v,
                                     .active_ctx = *context,
@@ -2289,8 +476,7 @@ namespace rdf4cpp::parser {
                                 };
                                 if (e.next_level_pre_expanded.has_value()) {
                                     co_yield std::ranges::elements_of(parse(pa, *e.next_level_pre_expanded));
-                                }
-                                else {
+                                } else {
                                     co_yield std::ranges::elements_of(parse(pa));
                                 }
                             }
@@ -2320,13 +506,12 @@ namespace rdf4cpp::parser {
         json_ld::IRIMapping const nil{std::string{iri_nil}, json_ld::IRIMappingType::IRI};
         json_ld::IRIMapping const *curr_sub = &active_subject;
         json_ld::IRIMapping const *curr_pred = &active_property;
-        for (auto v : ValueArrayIter{ar}) {
+        for (auto v : json_ld::ValueArrayIter{ar}) {
             std::variant<std::monostate, json_ld::IRIMapping, Literal> curr_obj{};
             {
                 if (recursive_list && *v.type() == simdjson::ondemand::json_type::array) {
                     co_yield std::ranges::elements_of(parse_list(v, active_ctx, base_iri, active_graph, {}, active_property, &curr_obj, true));
-                }
-                else {
+                } else {
                     params::ParseParams c{
                         .element = v,
                         .active_ctx = active_ctx,
@@ -2352,8 +537,7 @@ namespace rdf4cpp::parser {
             }
             if (std::holds_alternative<json_ld::IRIMapping>(curr_obj)) {
                 co_yield make_quad(active_graph, next_bn, first, std::get<json_ld::IRIMapping>(curr_obj));
-            }
-            else if (std::holds_alternative<Literal>(curr_obj)) {
+            } else if (std::holds_alternative<Literal>(curr_obj)) {
                 co_yield make_quad(active_graph, next_bn, first, std::get<Literal>(curr_obj));
             }
             current_bn = std::move(next_bn);
@@ -2372,12 +556,12 @@ namespace rdf4cpp::parser {
         simdjson::ondemand::parser parser{};
         auto c = parser.allocate(json_data_.size() * 5);
         if (c != simdjson::SUCCESS) {
-            co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "failed to allocate parser"));
+            co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "failed to allocate parser"));
             co_return;
         }
         simdjson::ondemand::document doc = parser.iterate(simdjson::pad(json_data_));
         if (doc.is_scalar()) {
-            co_yield nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "free floating scalar"));
+            co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "free floating scalar"));
             co_return;
         }
         json_ld::Context ctx{};
@@ -2394,70 +578,6 @@ namespace rdf4cpp::parser {
         co_yield std::ranges::elements_of(parse(p));
         co_return;
     }
-    IStreamQuadIterator::ImplJsonLd::ValueArrayIter::ValueArrayIter(simdjson::ondemand::value v) {
-        if (v.type() == simdjson::ondemand::json_type::array) {
-            a_ = v;
-            current_ = a_.begin();
-        }
-        else {
-            current_ = v;
-        }
-    }
-    simdjson::ondemand::value& IStreamQuadIterator::ImplJsonLd::ValueArrayIter::operator*() {
-        cache = std::visit([]<typename T>(T & t) -> simdjson::ondemand::value {
-            if constexpr (std::same_as<T, simdjson::ondemand::value>) {
-                return t;
-            }
-            else if constexpr (std::same_as<T, simdjson::ondemand::array_iterator>) {
-                return *t;
-            }
-            else {
-                return {};
-            }
-        }, current_);
-        return cache;
-    }
-    simdjson::ondemand::value* IStreamQuadIterator::ImplJsonLd::ValueArrayIter::operator->() {
-        return &**this;
-    }
-    IStreamQuadIterator::ImplJsonLd::ValueArrayIter &IStreamQuadIterator::ImplJsonLd::ValueArrayIter::operator++() {
-        std::visit([&]<typename T>(T & t) {
-            if constexpr (std::same_as<T, simdjson::ondemand::value>) {
-                current_ = std::monostate{};
-            }
-            else if constexpr (std::same_as<T, simdjson::ondemand::array_iterator>) {
-                ++t;
-                ++current_index_;
-            }
-        }, current_);
-        return *this;
-    }
-    bool IStreamQuadIterator::ImplJsonLd::ValueArrayIter::operator==(std::default_sentinel_t) {
-        return std::visit([&]<typename T>(T & t) -> bool {
-            if constexpr (std::same_as<T, simdjson::ondemand::value>) {
-                return false;
-            }
-            else if constexpr (std::same_as<T, simdjson::ondemand::array_iterator>) {
-                return t == a_.end();
-            }
-            else {
-                return true;
-            }
-        }, current_);
-    }
-    IStreamQuadIterator::ImplJsonLd::ValueArrayIter &IStreamQuadIterator::ImplJsonLd::ValueArrayIter::begin() {
-        return *this;
-    }
-    std::default_sentinel_t IStreamQuadIterator::ImplJsonLd::ValueArrayIter::end() {
-        return std::default_sentinel;
-    }
-    void IStreamQuadIterator::ImplJsonLd::ValueArrayIter::push_index(json_ld::KeyPath &p) {
-        return std::visit([&]<typename T>(T &) {
-            if constexpr (std::same_as<T, simdjson::ondemand::array_iterator>) {
-                p.keys.emplace_back(current_index_);
-            }
-        }, current_);
-    }
     std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type>> IStreamQuadIterator::ImplJsonLd::next() {
         if (current_iter_ == std::default_sentinel) {
             return std::nullopt;
@@ -2467,27 +587,32 @@ namespace rdf4cpp::parser {
         return r;
     }
     uint64_t IStreamQuadIterator::ImplJsonLd::current_line() const noexcept {
-        return 0; // TODO
+        return 0;
     }
     uint64_t IStreamQuadIterator::ImplJsonLd::current_column() const noexcept {
-        return 0; // TODO
+        return 0;
     }
     IStreamQuadIterator::ImplJsonLd::ImplJsonLd(std::string json, state_type *initial_state)
-        : state_(initial_state == nullptr ? new state_type() : initial_state), state_is_owned_(initial_state == nullptr),
-        json_data_(std::move(json)), active_generator_(parse()), current_iter_(active_generator_.begin()) {
+        : state_(initial_state == nullptr ? new state_type() : initial_state),
+          state_is_owned_(initial_state == nullptr),
+          json_data_(std::move(json)),
+          expand_parser_(state_->iri_factory),
+          active_generator_(parse()),
+          current_iter_(active_generator_.begin()) {
     }
-    IStreamQuadIterator::ImplJsonLd::ImplJsonLd(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof, state_type *initial_state) :
-        ImplJsonLd([&]() {
-            std::string r{};
-            while (error(stream) == 0 && eof(stream) == 0) {
-                static constexpr size_t s = 1024;
-                auto i = r.size();
-                r.append(s, '\0');
-                auto n = read(&r[i], 1, s, stream); // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                r.resize(i + n);
-            }
-            return r;
-        }(), initial_state){
+    IStreamQuadIterator::ImplJsonLd::ImplJsonLd(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof, state_type *initial_state)
+        : ImplJsonLd([&]() {
+              std::string r{};
+              while (error(stream) == 0 && eof(stream) == 0) {
+                  static constexpr size_t s = 1024;
+                  auto i = r.size();
+                  r.append(s, '\0');
+                  auto n = read(&r[i], 1, s, stream);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                  r.resize(i + n);
+              }
+              return r;
+          }(),
+                     initial_state) {
     }
     IStreamQuadIterator::ImplJsonLd::~ImplJsonLd() {
         if (state_is_owned_) {
