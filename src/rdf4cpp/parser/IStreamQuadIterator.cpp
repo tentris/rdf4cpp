@@ -58,7 +58,7 @@ std::unique_ptr<IStreamQuadIterator::Impl> IStreamQuadIterator::make_impl(void *
         return std::make_unique<ImplXML>(stream, read, error, eof, state);
     }
     else if (syntax == ParsingFlag::JsonLd) {
-        return std::make_unique<ImplJsonLd>(stream, read, error, eof, state);
+        return std::make_unique<ImplJsonLd>(stream, read, error, eof, flags, state);
     }
     else {
         return std::make_unique<ImplSerd>(stream, read, error, flags, state);

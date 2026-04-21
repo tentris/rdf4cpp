@@ -345,11 +345,15 @@ namespace rdf4cpp::parser::json_ld {
                 if (val_obj.is_null()) {
                     return Null{};
                 }
-                if (lang != nullptr) {
+                if (lang != nullptr || dir != nullptr) {
                     if (val_obj.is_string()) {
-                        auto [ec, lang_obj] = try_get_field<std::string_view>(elem_object, lang->path);
-                        if (ec != simdjson::SUCCESS) {
-                            return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid language-tagged value"));
+                        std::optional<std::string> lang_obj = std::nullopt;
+                        if (lang != nullptr) {
+                            auto [ec, l] = try_get_field<std::string_view>(elem_object, lang->path);
+                            if (ec != simdjson::SUCCESS) {
+                                return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid language-tagged value"));
+                            }
+                            lang_obj = std::string(l);
                         }
                         BaseDirection d = BaseDirection::None;
                         if (dir != nullptr && dir->keyword_values.size() == 1) {
@@ -362,7 +366,7 @@ namespace rdf4cpp::parser::json_ld {
                         }
                         return LiteralMapping{
                             std::string{std::string_view{val_obj.get_string()}},
-                            std::string{lang_obj},
+                            std::move(lang_obj),
                             d,
                         };
                     }

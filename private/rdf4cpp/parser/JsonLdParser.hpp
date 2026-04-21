@@ -14,6 +14,12 @@
 #include <simdjson.h>
 
 namespace rdf4cpp::parser {
+    namespace json_ld {
+        struct DirectionLiteralResult {
+            Node object;
+            std::optional<std::array<Quad, 3>> extra_quads = std::nullopt;
+        };
+    }
     namespace params {
         struct ParseParams {
             simdjson::ondemand::value element;
@@ -22,7 +28,7 @@ namespace rdf4cpp::parser {
             json_ld::IRIMapping const &active_graph;     // NOLINT(*-avoid-const-or-ref-data-members)
             json_ld::IRIMapping const &active_subject;   // NOLINT(*-avoid-const-or-ref-data-members)
             json_ld::IRIMapping const &active_property;  // NOLINT(*-avoid-const-or-ref-data-members)
-            std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out = nullptr;
+            std::variant<std::monostate, json_ld::IRIMapping, Node> *obj_out = nullptr;
             bool is_top_level = false;
             bool is_reverse = false;
             bool is_json_literal = false;
@@ -37,6 +43,7 @@ namespace rdf4cpp::parser {
         std::string json_data_;
         uint64_t blank_node_index_ = 0;
         json_ld::ExpandParser expand_parser_;
+        ParsingFlag direction_;
 
         static constexpr bool any_of(std::string_view v, std::initializer_list<std::string_view> l) {
             for (auto const x : l) {
@@ -51,7 +58,7 @@ namespace rdf4cpp::parser {
         nonstd::expected<IRI, error_type> make_iri(std::string_view i);
         nonstd::expected<IRI, error_type> make_iri(json_ld::IRIMapping const &m);
         nonstd::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const &m);
-        static nonstd::expected<Literal, error_type> make_literal(json_ld::LiteralMapping const &t);
+        nonstd::expected<json_ld::DirectionLiteralResult, error_type> make_literal(json_ld::LiteralMapping const &t, json_ld::IRIMapping const &graph);
         nonstd::expected<Literal, error_type> make_literal(json_ld::TypedLiteralMapping const &t);
         nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object);
         nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, Node object);
@@ -66,7 +73,7 @@ namespace rdf4cpp::parser {
                                     json_ld::IRIMapping const &active_graph,
                                     json_ld::IRIMapping const &active_subject,
                                     json_ld::IRIMapping const &active_property,
-                                    std::variant<std::monostate, json_ld::IRIMapping, Literal> *obj_out,
+                                    std::variant<std::monostate, json_ld::IRIMapping, Node> *obj_out,
                                     bool recursive_list);
 
         result_generator parse();
@@ -79,11 +86,12 @@ namespace rdf4cpp::parser {
         [[nodiscard]] uint64_t current_line() const noexcept override;
         [[nodiscard]] uint64_t current_column() const noexcept override;
 
-        explicit ImplJsonLd(std::string json, state_type *initial_state = nullptr);
+        explicit ImplJsonLd(std::string json, ParsingFlags flags, state_type *initial_state = nullptr);
         ImplJsonLd(void *stream,
                    ReadFunc read,
                    ErrorFunc error,
                    EOFFunc eof,
+                   ParsingFlags flags,
                    state_type *initial_state = nullptr);
 
         ~ImplJsonLd() override;
