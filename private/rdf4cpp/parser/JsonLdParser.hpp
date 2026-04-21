@@ -19,7 +19,7 @@ namespace rdf4cpp::parser {
             Node object;
             std::optional<std::array<Quad, 3>> extra_quads = std::nullopt;
         };
-    }
+    }  // namespace json_ld
     namespace params {
         struct ParseParams {
             simdjson::ondemand::value element;
@@ -34,6 +34,16 @@ namespace rdf4cpp::parser {
             bool is_json_literal = false;
             bool is_included = false;
         };
+        struct ParseListParams {
+            simdjson::ondemand::value ar;
+            json_ld::Context const &active_ctx;  // NOLINT(*-avoid-const-or-ref-data-members)
+            std::string_view base_iri;
+            json_ld::IRIMapping const &active_graph;     // NOLINT(*-avoid-const-or-ref-data-members)
+            json_ld::IRIMapping const &active_subject;   // NOLINT(*-avoid-const-or-ref-data-members)
+            json_ld::IRIMapping const &active_property;  // NOLINT(*-avoid-const-or-ref-data-members)
+            std::variant<std::monostate, json_ld::IRIMapping, Node> *obj_out;
+            bool recursive_list;
+        };
     }  // namespace params
 
     struct IStreamQuadIterator::ImplJsonLd final : Impl {
@@ -44,15 +54,6 @@ namespace rdf4cpp::parser {
         uint64_t blank_node_index_ = 0;
         json_ld::ExpandParser expand_parser_;
         ParsingFlag direction_;
-
-        static constexpr bool any_of(std::string_view v, std::initializer_list<std::string_view> l) {
-            for (auto const x : l) {
-                if (v == x) {
-                    return true;
-                }
-            }
-            return false;
-        }
 
         json_ld::IRIMapping make_new_bn();
         nonstd::expected<IRI, error_type> make_iri(std::string_view i);
@@ -65,16 +66,9 @@ namespace rdf4cpp::parser {
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
 
-        result_generator parse(params::ParseParams &p);
-        result_generator parse(params::ParseParams &p, json_ld::ExpandedLevel &expanded);
-        result_generator parse_list(simdjson::ondemand::value ar,
-                                    json_ld::Context const &active_ctx,
-                                    std::string_view base_iri,
-                                    json_ld::IRIMapping const &active_graph,
-                                    json_ld::IRIMapping const &active_subject,
-                                    json_ld::IRIMapping const &active_property,
-                                    std::variant<std::monostate, json_ld::IRIMapping, Node> *obj_out,
-                                    bool recursive_list);
+        result_generator parse(params::ParseParams p);
+        result_generator parse(params::ParseParams p, json_ld::ExpandedLevel &expanded);
+        result_generator parse_list(params::ParseListParams p);
 
         result_generator parse();
 
