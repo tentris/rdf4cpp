@@ -11,7 +11,7 @@ namespace rdf4cpp::parser {
  * If none is used, Turtle is the default.
  * If more than one is used accidentally at the same time, TriG is likely the result (even if it does never get specified).
  */
-enum struct ParsingFlag : uint8_t {
+enum struct ParsingFlag : uint16_t {
     Lax              = 1 << 0,
     NoParsePrefix    = 1 << 1,
     KeepBlankNodeIds = 1 << 2,
@@ -23,15 +23,20 @@ enum struct ParsingFlag : uint8_t {
     TriG     = 0b11 << 4,
     RdfXml  = 0b100 << 4,
     JsonLd  = 0b101 << 4,
+
+    JsonLdDirectionNone = 0b00 << 7,
+    JsonLdDirectionI18n = 0b01 << 7,
+    JsonLdDirectionCompound = 0b10 << 7,
 };
-constexpr uint8_t ParsingFlag_SyntaxMask = 0b111 << 4;
+constexpr uint16_t ParsingFlag_SyntaxMask = 0b111 << 4;
+constexpr uint16_t ParsingFlag_JsonLdDirectionMask = 0b11 << 7;
 
 struct ParsingFlags {
 private:
     using flag_u_type = std::underlying_type_t<ParsingFlag>;
     flag_u_type flags;
 
-    constexpr ParsingFlags(uint8_t const flags) noexcept : flags{flags} {}
+    constexpr ParsingFlags(uint16_t const flags) noexcept : flags{flags} {}
 
 public:
     constexpr ParsingFlags(ParsingFlag const flag) noexcept
@@ -71,6 +76,13 @@ public:
      */
     [[nodiscard]] constexpr ParsingFlag get_syntax() const noexcept {
         return static_cast<ParsingFlag>(flags & static_cast<flag_u_type>(ParsingFlag_SyntaxMask));
+    }
+
+    /**
+     * @return the JsonLD direction ParsingFlag contained in this ParsingFlags. (None if not specified)
+     */
+    [[nodiscard]] constexpr ParsingFlag get_direction() const noexcept {
+        return static_cast<ParsingFlag>(flags & static_cast<flag_u_type>(ParsingFlag_JsonLdDirectionMask));
     }
 
     [[nodiscard]] constexpr bool syntax_allows_prefixes() const noexcept {
