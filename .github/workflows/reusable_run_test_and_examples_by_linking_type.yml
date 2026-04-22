@@ -146,6 +146,15 @@ jobs:
           cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
           ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
 
+      - name: Cache parser tests
+        id: cache-parser
+        uses: actions/cache@v4
+        with:
+          path: |
+            build_dir/tests/xml_test_cache
+            build_dir/tests/jsonld_test_cache
+          key: parser_test
+
       - name: Build Tests & Examples
         working-directory: build_dir
         run: cmake --build . --parallel $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
@@ -159,7 +168,7 @@ jobs:
           COVERALLS_REPO_TOKEN: ${{ secrets.coverall-token }}
         if: inputs.with-coverage
         run: |
-          gcovr --gcov-executable gcov-13 --coveralls --filter 'src/' -o coverage.json -r ./
+          gcovr --gcov-executable gcov-14 --coveralls --filter 'src/' -o coverage.json -r ./
           curl -F "json_file=@coverage.json" https://coveralls.io/api/v1/jobs
 
       - name: Run examples
