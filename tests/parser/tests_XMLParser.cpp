@@ -2,10 +2,6 @@
 #include <doctest/doctest.h>
 #include <rdf4cpp.hpp>
 
-#include <iostream>
-#include <filesystem>
-#include <curl/curl.h>
-
 #include "parser_test_helpers.hpp"
 
 using namespace rdf4cpp;
@@ -143,36 +139,15 @@ TEST_CASE("sanity test") {
 }
 
 void xml_test_positive(std::string xml_str, std::string nt_str, std::string_view base_iri) {
-    parse_test_helpers::jsonld_test_positive(std::move(xml_str), std::move(nt_str), base_iri, ParsingFlag::RdfXml, ParsingFlag::NTriples);
+    parse_test_helpers::parser_test_positive(std::move(xml_str), std::move(nt_str), base_iri, ParsingFlag::RdfXml, ParsingFlag::NTriples);
 }
 
 void xml_test_negative(std::string xml_str, std::string_view base_iri) {
     parse_test_helpers::parser_test_negative(std::move(xml_str), base_iri, ParsingFlag::RdfXml);
 }
 
-
-// adopted from https://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c/9786295#9786295
-static size_t write_callback(void const *contents, size_t size, size_t nmemb, void *userp) {
-    static_cast<std::string *>(userp)->append(static_cast<char const *>(contents), size * nmemb);
-    return size * nmemb;
-}
-
-std::string remote_test_file_to_str(std::string const &file_name) {
-    CURL *curl = nullptr;
-    CURLcode curl_res;
-    auto const url = std::format("https://raw.githubusercontent.com/w3c/rdf-tests/refs/heads/main/rdf/rdf11/rdf-xml/{}", file_name);
-    std::string file_contents_as_str;
-    curl = curl_easy_init();
-    if(curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file_contents_as_str);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // for https
-        curl_res = curl_easy_perform(curl);
-        curl_easy_cleanup(curl);
-    }
-    REQUIRE_EQ(curl_res, CURLE_OK);
-    return file_contents_as_str;
+std::string remote_test_file_to_str(std::string_view file_name) {
+    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, "https://raw.githubusercontent.com/w3c/rdf-tests/refs/heads/main/rdf/rdf11/rdf-xml", "./xml_test_cache");
 }
 
 TEST_CASE("test cases from rdf-tests") {

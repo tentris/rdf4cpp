@@ -3,15 +3,12 @@
 
 #include <rdf4cpp.hpp>
 
-namespace rdf4cpp::parse_test_helpers {
-    // TODO move graph comparison out of tests
-    inline void jsonld_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, bool deduplicate = false) {
-        using namespace rdf4cpp::parser;
+#include <filesystem>
+#include <curl/curl.h>
 
-        struct Quad {
-            query::QuadPattern quad;
-            size_t similar_count = 0;
-        };
+namespace rdf4cpp::parse_test_helpers {
+    inline void parser_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, bool deduplicate = false) {
+        using namespace rdf4cpp::parser;
 
         CAPTURE(base_iri);
 
@@ -33,8 +30,7 @@ namespace rdf4cpp::parse_test_helpers {
                 }
                 auto& val = i->value();
                 if (dedup) {
-                    if (std::ranges::any_of(r, [&](const auto& y) {
-                        const auto& x = y.quad;
+                    if (std::ranges::any_of(r, [&](const auto& x) {
                         return x.graph().eq(val.graph()) && x.subject().eq(val.subject()) && x.predicate().eq(val.predicate()) && x.object().eq(val.object());
                     })) {
                         continue;
@@ -51,132 +47,18 @@ namespace rdf4cpp::parse_test_helpers {
             return;
         }
 
-        static constexpr auto num_blanks = [](query::QuadPattern const &p) {
-            size_t n = 0;
-            if (p.graph().is_blank_node()) {
-                ++n;
-            }
-            if (p.subject().is_blank_node()) {
-                ++n;
-            }
-            if (p.predicate().is_blank_node()) {
-                ++n;
-            }
-            if (p.object().is_blank_node()) {
-                ++n;
-            }
-            return n;
-        };
-        static constexpr auto count_sim = [&](query::QuadPattern const &p, std::vector<Quad> const & v) {
-            size_t n = 0;
-            for (const auto& i : v) {
-                size_t sim = 0;
-                for (size_t e = 0; e < p.size(); ++e) {
-                    const auto& pe = p[e]; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                    const auto& ie = i.quad[e]; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                    if (!pe.is_blank_node() && !ie.is_blank_node() && pe == ie) {
-                        ++sim;
-                    }
-                }
-                if (sim >= 2) {
-                    ++n;
-                }
-            }
-            return n;
-        };
-        static constexpr auto sort = [](std::vector<Quad> &v) {
-            for (auto& e : v) {
-                e.similar_count = count_sim(e.quad, v);
-            }
-            static constexpr size_t not_found = std::numeric_limits<size_t>::max();
-            std::vector<Node> bn_indices{};
-            auto get_ind = [&](Node n) {
-                for (size_t i = 0; i < bn_indices.size(); ++i) {
-                    if (bn_indices[i] == n) { // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                        return i;
-                    }
-                }
-                return not_found;
-            };
-            auto comp = [&](Node a, Node b) {
-                if (a.is_blank_node() && b.is_blank_node()) {
-                    auto ai = get_ind(a);
-                    auto bi = get_ind(b);
-                    if (ai != not_found && bi != not_found) {
-                        return std::less{}(ai, bi);
-                    }
-                }
-                return std::less{}(a, b);
-            };
-            auto compare = [&](Quad const &aq,Quad const &bq) {
-                auto a_dup = aq.similar_count;
-                auto b_dup = bq.similar_count;
-                if (a_dup != b_dup) {
-                    return std::less{}(a_dup, b_dup);
-                }
-                const auto& a = aq.quad;
-                const auto& b = bq.quad;
-                auto a_bl = num_blanks(a);
-                auto b_bl = num_blanks(b);
-                if (a_bl != b_bl) {
-                    return std::less{}(a_bl, b_bl);
-                }
-                if (a.graph() != b.graph() && !a.graph().is_blank_node() && !b.graph().is_blank_node()) {
-                    return comp(a.graph(), b.graph());
-                }
-                if (a.subject() != b.subject() && !a.subject().is_blank_node() && !b.subject().is_blank_node()) {
-                    return comp(a.subject(), b.subject());
-                }
-                if (a.predicate() != b.predicate() && !a.predicate().is_blank_node() && !b.predicate().is_blank_node()) {
-                    return comp(a.predicate(), b.predicate());
-                }
-                if (a.object() != b.object() && !a.object().is_blank_node() && !b.object().is_blank_node()) {
-                    return comp(a.object(), b.object());
-                }
-                if (a.graph() != b.graph()) {
-                    return comp(a.graph(), b.graph());
-                }
-                if (a.subject() != b.subject()) {
-                    return comp(a.subject(), b.subject());
-                }
-                if (a.predicate() != b.predicate()) {
-                    return comp(a.predicate(), b.predicate());
-                }
-                return comp(a.object(), b.object());
-            };
-            std::ranges::sort(v, compare);
-
-            auto add = [&](Node n) {
-                if (!n.is_blank_node()) {
-                    return;
-                }
-                if (get_ind(n) == not_found) {
-                    bn_indices.emplace_back(n);
-                }
-            };
-            for (const auto& e : v) {
-                add(e.quad.graph());
-                add(e.quad.subject());
-                add(e.quad.predicate());
-                add(e.quad.object());
-            }
-            std::ranges::sort(v, compare);
-        };
-        sort(check_results);
-        sort(truth_results);
-
         std::string expected = "too big";
         std::string actual = "too big";
         if (check_results.size() + truth_results.size() <= 100) {
             expected = writer::StringWriter::oneshot([&](auto& w) {
                 for (const auto& e : truth_results) {
-                    CHECK(rdf4cpp::Quad{e.quad.graph(), e.quad.subject(), e.quad.predicate(), e.quad.object()}.serialize_nquads(w));
+                    CHECK(rdf4cpp::Quad{e.graph(), e.subject(), e.predicate(), e.object()}.serialize_nquads(w));
                 }
                 return true;
             });
             actual = writer::StringWriter::oneshot([&](auto& w) {
                 for (const auto& e : check_results) {
-                    CHECK(rdf4cpp::Quad{e.quad.graph(), e.quad.subject(), e.quad.predicate(), e.quad.object()}.serialize_nquads(w));
+                    CHECK(rdf4cpp::Quad{e.graph(), e.subject(), e.predicate(), e.object()}.serialize_nquads(w));
                 }
                 return true;
             });
@@ -188,26 +70,11 @@ namespace rdf4cpp::parse_test_helpers {
             return;
         }
 
-        std::map<BlankNode, BlankNode> bn_map{};
-        auto check = [&bn_map](Node to_check, Node expected, std::string_view pos) {
-            CAPTURE(pos);
-            if (expected.is_blank_node() && to_check.is_blank_node()) {
-                auto i = bn_map.find(expected.as_blank_node());
-                if (i != bn_map.end()) {
-                    CHECK(to_check.as_blank_node() == i->second.as_blank_node());
-                } else {
-                    bn_map[expected.as_blank_node()] = to_check.as_blank_node();
-                }
-            } else {
-                CHECK(to_check == expected);
-            }
-        };
-
-        for (size_t i = 0; i < truth_results.size(); ++i) {
-            check(check_results.at(i).quad.graph(), truth_results.at(i).quad.graph(), "graph");
-            check(check_results.at(i).quad.subject(), truth_results.at(i).quad.subject(), "subject");
-            check(check_results.at(i).quad.predicate(), truth_results.at(i).quad.predicate(), "predicate");
-            check(check_results.at(i).quad.object(), truth_results.at(i).quad.object(), "object");
+        auto cmp = try_compare_graphs_fast<Quad>(check_results, truth_results);
+        if (!cmp.has_value()) {
+            CAPTURE(cmp.error().first);
+            CAPTURE(cmp.error().second);
+            FAIL_CHECK("graph comparison failed");
         }
     }
 
@@ -229,6 +96,41 @@ namespace rdf4cpp::parse_test_helpers {
             ++xml_iter;
         }
         CHECK(had_error);
+    }
+
+    // adopted from https://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c/9786295#9786295
+    inline size_t write_callback(void const *contents, size_t size, size_t nmemb, void *userp) {
+        static_cast<std::string *>(userp)->append(static_cast<char const *>(contents), size * nmemb);
+        return size * nmemb;
+    }
+
+    std::string inline parser_test_remote_test_file_to_str(std::string_view file_name, std::string_view base_url, std::string_view cache_file) {
+        if (!std::filesystem::exists(cache_file)) { // this ends up in the cmake folder, next to the executable
+            std::filesystem::create_directories(cache_file);
+        }
+        auto cache = std::filesystem::path(cache_file) / file_name;
+        if (std::filesystem::exists(cache)) {
+            std::ifstream ifs(cache);
+            return std::string{std::istreambuf_iterator{ifs}, {}};
+        }
+        CURL *curl = nullptr;
+        CURLcode curl_res;
+        auto const url = std::format("{}/{}", base_url, file_name);
+        std::string file_contents_as_str;
+        curl = curl_easy_init();
+        if(curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file_contents_as_str);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // for https
+            curl_res = curl_easy_perform(curl);
+            curl_easy_cleanup(curl);
+        }
+        REQUIRE_EQ(curl_res, CURLE_OK);
+        std::filesystem::create_directories(cache.parent_path());
+        std::ofstream ofs(cache);
+        ofs << file_contents_as_str;
+        return file_contents_as_str;
     }
 }  // namespace rdf4cpp::parse_test_helpers
 
