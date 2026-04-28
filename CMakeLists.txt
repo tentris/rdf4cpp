@@ -16,7 +16,7 @@ endif ()
 # find packages
 find_package(expected-lite REQUIRED)
 find_package(Boost REQUIRED)
-find_package(re2 REQUIRED)
+find_package(PCRE2 REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(uni-algo REQUIRED)
 find_package(highway REQUIRED)
@@ -186,7 +186,7 @@ target_link_libraries(rdf4cpp
         dice-sparse-map::dice-sparse-map
         dice-template-library::dice-template-library
         PRIVATE
-        re2::re2
+        pcre2::pcre2
         OpenSSL::Crypto
         uni-algo::uni-algo
         highway::highway

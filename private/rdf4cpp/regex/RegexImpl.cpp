@@ -2,71 +2,52 @@
 
 namespace rdf4cpp::regex {
 
-namespace detail {
-
-/**
- * Translates the regex flags of rdf4cpp's public interface to RE2 Options.
- *
- * @param flags the rdf4cpp flags to translate
- * @return the translated RE2 Options
- */
-static re2::RE2::Options translate_flags(Regex::flag_type const flags) {
-    re2::RE2::Options o;
-    o.set_log_errors(false);
-    o.set_dot_nl(flags.contains(RegexFlag::DotAll));
-    o.set_case_sensitive(!flags.contains(RegexFlag::CaseInsensitive));
-    o.set_literal(flags.contains(RegexFlag::Literal));
-
-    return o;
-}
-
-static re2::RE2 build_regex(std::string_view regex, Regex::flag_type flags) {
-    auto opt = translate_flags(flags);
-    if (!flags.contains(RegexFlag::Multiline) && !flags.contains(RegexFlag::RemoveWhitespace)) {
-        return {regex, opt};
-    }
-    // https://www.w3.org/TR/xpath-functions/#flags
-    // re2 does not support x
-    // and m needs to be passed as re2 flag (Options::set_one_line is ignored, if Options::posix_syntax == false)
-    std::string x{};
-    x.reserve(regex.size()+4);
-    if (flags.contains(RegexFlag::Multiline)) {
-        x.append("(?m)");
-    }
-    if (flags.contains(RegexFlag::RemoveWhitespace)) {
-        uint64_t classes = 0;
-        char prev = '\0';
-        for (char const c : regex) {
-            if (c == '[' && prev != '\\') {
-                ++classes;
-            } else if (c == ']' && prev != '\\') {
-                --classes;
-            } else if (classes == 0 && (c == '\t' || c == '\r' || c == '\n' || c == ' ')) {
-                continue;
-            }
-            x.append(1, c);
-            prev = c;
-        }
-    } else {
-        x.append(regex);
-    }
-    return {x, opt};
-}
-
-} // namespace detail
-
-Regex::Impl::Impl(std::string_view const regex, Regex::flag_type const flags) : regex{detail::build_regex(regex, flags)}, flags{flags} {
-    if (!this->regex.ok()) {
-        throw RegexError{"Failed to compile regex: " + this->regex.error()};
-    }
+Regex::Impl::Impl(std::string_view const regex, flag_type const flags) : compiled_regex{make_code(regex, flags, 0)}, flags{flags} {
 }
 
 bool Regex::Impl::regex_match(std::string_view const str) const noexcept {
-    return RE2::FullMatch(str, this->regex);
+    auto m = get_match_data();
+    return pcre2_match_8(compiled_regex.get(), reinterpret_cast<PCRE2_SPTR8>(str.data()), str.size(), 0, PCRE2_ANCHORED | PCRE2_ENDANCHORED, m.get(), nullptr) >= 0;
 }
 
 bool Regex::Impl::regex_search(std::string_view const str) const noexcept {
-    return RE2::PartialMatch(str, this->regex);
+    auto m = get_match_data();
+    return pcre2_match_8(compiled_regex.get(), reinterpret_cast<PCRE2_SPTR8>(str.data()), str.size(), 0, 0, m.get(), nullptr) >= 0;
+}
+
+Regex::Impl::match_data_ptr Regex::Impl::get_match_data() const noexcept {
+    return match_data_ptr{pcre2_match_data_create_from_pattern_8(compiled_regex.get(), nullptr)};
+}
+Regex::Impl::code_ptr Regex::Impl::make_code(std::string_view regex, flag_type flags, int extra_flags) {
+    int error_code = 0;
+    size_t err_off = 0;
+    int f = PCRE2_UTF | extra_flags;
+    if (flags.contains(RegexFlag::DotAll)) {
+        f |= PCRE2_DOTALL;
+    }
+    if (flags.contains(RegexFlag::CaseInsensitive)) {
+        f |= PCRE2_CASELESS;
+    }
+    if (flags.contains(RegexFlag::Literal)) {
+        f |= PCRE2_LITERAL;
+    }
+    else {
+        f |= PCRE2_UCP;
+    }
+    if (flags.contains(RegexFlag::Multiline)) {
+        f |= PCRE2_MULTILINE;
+    }
+    if (flags.contains(RegexFlag::RemoveWhitespace)) {
+        f |= PCRE2_EXTENDED;
+    }
+    decltype(compiled_regex) r{pcre2_compile_8(reinterpret_cast<PCRE2_SPTR8>(regex.data()), regex.size(), f, &error_code, &err_off, nullptr)};
+    if (r == nullptr) {
+        std::string msg;
+        msg.resize(120);
+        msg.resize(pcre2_get_error_message_8(error_code, reinterpret_cast<PCRE2_UCHAR8 *>(msg.data()), msg.size()));
+        throw RegexError{"Failed to compile regex: " + msg};
+    }
+    return r;
 }
 
 }  //namespace rdf4cpp::regex

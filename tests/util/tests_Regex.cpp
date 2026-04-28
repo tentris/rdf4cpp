@@ -87,8 +87,8 @@ TEST_SUITE("regex") {
         CHECK(!Regex{"[a-c]"}.regex_match("d"));
         CHECK(!Regex{"[^a-c]"}.regex_match("a"));
         CHECK(Regex{"[^a-c]"}.regex_match("d"));
-        // CHECK(!Regex{"[^abc-e]"}.regex_match("e"));
-        // CHECK(Regex{"[^abc-e]"}.regex_match("d"));
+        // CHECK(!Regex{"[^abc-[e]]"}.regex_match("e"));
+        // CHECK(Regex{"[^abc-[e]]"}.regex_match("d"));
 
 
         CHECK(Regex{"\\p{Lu}"}.regex_match("A"));
@@ -161,9 +161,9 @@ TEST_SUITE("regex") {
 
         CHECK(Regex{"(abc)"}.regex_match("abc"));
         CHECK(Regex{"(?:abc)"}.regex_match("abc"));
-        // CHECK(Regex{"(.)bc\\1"}.regex_match("abca"));
-        // CHECK(Regex{"(.)bc\\1"}.regex_match("xbcx"));
-        // CHECK(!Regex{"(.)bc\\1"}.regex_match("abcx"));
+        CHECK(Regex{"(.)bc\\1"}.regex_match("abca"));
+        CHECK(Regex{"(.)bc\\1"}.regex_match("xbcx"));
+        CHECK(!Regex{"(.)bc\\1"}.regex_match("abcx"));
 
         CHECK(Regex{".", RegexFlag::DotAll}.regex_match("\n"));
         CHECK(Regex{"^a$", RegexFlag::Multiline}.regex_search("a\nxyz"));
@@ -175,15 +175,18 @@ TEST_SUITE("regex") {
         std::string d = "a_a_x";
         Regex{"a"}.make_replacer("b").regex_replace(d);
         CHECK(d == "b_b_x");
-        Regex{"_(\\w)"}.make_replacer("-$0$1").regex_replace(d);
-        CHECK(d == "b-_bb-_xx");
+        Regex{"_(\\w)"}.make_replacer(R"(-$0$1\$\\)").regex_replace(d);
+        CHECK(d == "b-_bb$\\-_xx$\\");
     }
 
     TEST_CASE("replacement translation") {
         Regex const r{"[0-9]"};
 
         SUBCASE("no escape") {
-            CHECK_THROWS((void) r.make_replacer("$"));
+            {
+                std::string s = "";
+                CHECK_THROWS(r.make_replacer("$").regex_replace(s));
+            }
 
             {
                 std::string s = "Hello 99 World";
