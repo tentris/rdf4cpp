@@ -12,6 +12,7 @@ enum struct RegexFlag : uint8_t {
     Literal = 1 << 2,
     Multiline = 1 << 3,
     RemoveWhitespace = 1 << 4,
+    Optimize = 1 << 5,
 };
 
 struct RegexFlags {
