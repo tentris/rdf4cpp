@@ -8,9 +8,16 @@
 
 namespace rdf4cpp::regex {
     struct Regex::Impl {
-        using code_ptr = std::unique_ptr<pcre2_code_8, decltype([](pcre2_code_8 *c) {
-                                             pcre2_code_free_8(c);
-                                         })>;
+        // workaround for gcc-14 bug, erroneously warns on unsing a lambda here
+        // see https://github.com/NVIDIA/stdexec/issues/1143
+        template<auto f>
+        struct CallFree {
+            void operator()(auto* c) {
+                f(c);
+            }
+        };
+
+        using code_ptr = std::unique_ptr<pcre2_code_8, CallFree<pcre2_code_free_8>>;
         code_ptr match;
         code_ptr search;
         Regex::flag_type flags;
@@ -20,9 +27,7 @@ namespace rdf4cpp::regex {
         [[nodiscard]] bool regex_search(std::string_view str) const noexcept;
 
     private:
-        using match_data_ptr = std::unique_ptr<pcre2_match_data_8, decltype([](pcre2_match_data_8 *c) {
-                                                   pcre2_match_data_free_8(c);
-                                               })>;
+        using match_data_ptr = std::unique_ptr<pcre2_match_data_8, CallFree<pcre2_match_data_free_8>>;
         [[nodiscard]] static bool apply(pcre2_code_8 &c, std::string_view str) noexcept;
 
         static code_ptr make_code(std::string_view regex, flag_type flags, int extra_flags);
