@@ -6,17 +6,21 @@ namespace rdf4cpp::regex {
         : Impl{make(regex, flags)} {
     }
 
-    bool Regex::Impl::regex_match(std::string_view const str) const noexcept {
+    TriBool Regex::Impl::regex_match(std::string_view const str) const noexcept {
         return apply(*match, str);
     }
 
-    bool Regex::Impl::regex_search(std::string_view const str) const noexcept {
+    TriBool Regex::Impl::regex_search(std::string_view const str) const noexcept {
         return apply(*search, str);
     }
 
-    bool Regex::Impl::apply(pcre2_code_8 &c, std::string_view str) noexcept {
+    TriBool Regex::Impl::apply(pcre2_code_8 &c, std::string_view str) noexcept {
         match_data_ptr const m{pcre2_match_data_create_from_pattern_8(&c, nullptr)};
-        return pcre2_match_8(&c, reinterpret_cast<PCRE2_SPTR8>(str.data()), str.size(), 0, 0, m.get(), nullptr) >= 0;
+        auto ec =  pcre2_match_8(&c, reinterpret_cast<PCRE2_SPTR8>(str.data()), str.size(), 0, 0, m.get(), nullptr);
+        if (ec == PCRE2_ERROR_NOMATCH) {
+            return TriBool::False;
+        }
+        return ec >= 0 ? TriBool::True : TriBool::Err;
     }
 
     Regex::Impl::code_ptr Regex::Impl::make_code(std::string_view regex, flag_type flags, int extra_flags) {

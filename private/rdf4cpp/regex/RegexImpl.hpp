@@ -23,12 +23,12 @@ namespace rdf4cpp::regex {
         Regex::flag_type flags;
 
         Impl(std::string_view regex, flag_type flags);
-        [[nodiscard]] bool regex_match(std::string_view str) const noexcept;
-        [[nodiscard]] bool regex_search(std::string_view str) const noexcept;
+        [[nodiscard]] TriBool regex_match(std::string_view str) const noexcept;
+        [[nodiscard]] TriBool regex_search(std::string_view str) const noexcept;
 
     private:
         using match_data_ptr = std::unique_ptr<pcre2_match_data_8, CallFree<pcre2_match_data_free_8>>;
-        [[nodiscard]] static bool apply(pcre2_code_8 &c, std::string_view str) noexcept;
+        [[nodiscard]] static TriBool apply(pcre2_code_8 &c, std::string_view str) noexcept;
 
         static code_ptr make_code(std::string_view regex, flag_type flags, int extra_flags);
         static std::string remove_whitespace(std::string_view str);

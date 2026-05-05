@@ -5,174 +5,192 @@
 
 using namespace rdf4cpp::regex;
 
+namespace rdf4cpp {
+    std::ostream &operator<<(std::ostream &os, TriBool value) {
+        if (value == TriBool::Err) {
+            os << "Err";
+        }
+        else if (value == TriBool::True) {
+            os << "true";
+        }
+        else {
+            os << "false";
+        }
+        return os;
+    }
+}
+
 TEST_SUITE("regex") {
     void syntax_extra_flag(RegexFlags f) {
-        CHECK(Regex{"abc", f}.regex_match("abc"));
-        CHECK(!Regex{"abc", f}.regex_match("_abc"));
-        CHECK(!Regex{"abc", f}.regex_match("abc_"));
+        CHECK(Regex{"abc", f}.regex_match("abc") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"abc", f}.regex_match("_abc") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"abc", f}.regex_match("abc_") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"a|b", f}.regex_match("a"));
-        CHECK(Regex{"a|b", f}.regex_match("b"));
-        CHECK(!Regex{"a|b", f}.regex_match("c"));
+        CHECK(Regex{"a|b", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a|b", f}.regex_match("b") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a|b", f}.regex_match("c") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"a?", f}.regex_match("a"));
-        CHECK(Regex{"a?", f}.regex_match(""));
-        CHECK(!Regex{"a?", f}.regex_match("aa"));
+        CHECK(Regex{"a?", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a?", f}.regex_match("") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a?", f}.regex_match("aa") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"a*", f}.regex_match("a"));
-        CHECK(Regex{"a*", f}.regex_match("aaaa"));
-        CHECK(Regex{"a*", f}.regex_match(""));
-        CHECK(!Regex{"a*", f}.regex_match("b"));
+        CHECK(Regex{"a*", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a*", f}.regex_match("aaaa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a*", f}.regex_match("") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a*", f}.regex_match("b") == rdf4cpp::TriBool::False);
 
-        CHECK(!Regex{"a+", f}.regex_match(""));
-        CHECK(Regex{"a+", f}.regex_match("a"));
-        CHECK(Regex{"a+", f}.regex_match("aaaaa"));
-        CHECK(!Regex{"a+", f}.regex_match("b"));
+        CHECK(Regex{"a+", f}.regex_match("") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a+", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a+", f}.regex_match("aaaaa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a+", f}.regex_match("b") == rdf4cpp::TriBool::False);
 
-        CHECK(!Regex{"a{2,5}", f}.regex_match("a"));
-        CHECK(Regex{"a{2,5}", f}.regex_match("aa"));
-        CHECK(Regex{"a{2,5}", f}.regex_match("aaaaa"));
-        CHECK(!Regex{"a{2,5}", f}.regex_match("aaaaaa"));
-        CHECK(!Regex{"a{2,5}", f}.regex_match("bbb"));
+        CHECK(Regex{"a{2,5}", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2,5}", f}.regex_match("aa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2,5}", f}.regex_match("aaaaa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2,5}", f}.regex_match("aaaaaa") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2,5}", f}.regex_match("bbb") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"a{2}", f}.regex_match("aa"));
-        CHECK(!Regex{"a{2}", f}.regex_match("aaa"));
-        CHECK(!Regex{"a{2}", f}.regex_match("aaaa"));
-        CHECK(!Regex{"a{2}", f}.regex_match("b"));
+        CHECK(Regex{"a{2}", f}.regex_match("aa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2}", f}.regex_match("aaa") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2}", f}.regex_match("aaaa") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2}", f}.regex_match("b") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"a{2,}", f}.regex_match("aa"));
-        CHECK(Regex{"a{2,}", f}.regex_match("aaa"));
-        CHECK(!Regex{"a{2,}", f}.regex_match("a"));
-        CHECK(!Regex{"a{2,}", f}.regex_match("b"));
+        CHECK(Regex{"a{2,}", f}.regex_match("aa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2,}", f}.regex_match("aaa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2,}", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2,}", f}.regex_match("b") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"a{0,2}", f}.regex_match("aa"));
-        CHECK(!Regex{"a{0,2}", f}.regex_match("aaa"));
-        CHECK(Regex{"a{0,2}", f}.regex_match("a"));
-        CHECK(!Regex{"a{0,2}", f}.regex_match("b"));
+        CHECK(Regex{"a{0,2}", f}.regex_match("aa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{0,2}", f}.regex_match("aaa") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{0,2}", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{0,2}", f}.regex_match("b") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"a{0,0}", f}.regex_match(""));
-        CHECK(!Regex{"a{0,0}", f}.regex_match("a"));
+        CHECK(Regex{"a{0,0}", f}.regex_match("") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{0,0}", f}.regex_match("a") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"\\.\\\\\\?\\*\\+\\{\\}\\(\\)\\[\\]\\|\\-\\^\\n\\r\\t", f}.regex_match(".\\?*+{}()[]|-^\n\r\t"));
-        CHECK(!Regex{"\\.", f}.regex_match("a"));
-        CHECK(!Regex{"\\\\", f}.regex_match("a"));
-        CHECK(!Regex{"\\?", f}.regex_match("a"));
-        CHECK(!Regex{"\\*", f}.regex_match("a"));
-        CHECK(!Regex{"\\+", f}.regex_match("a"));
-        CHECK(!Regex{"\\{", f}.regex_match("a"));
-        CHECK(!Regex{"\\}", f}.regex_match("a"));
-        CHECK(!Regex{"\\(", f}.regex_match("a"));
-        CHECK(!Regex{"\\[", f}.regex_match("a"));
-        CHECK(!Regex{"\\]", f}.regex_match("a"));
-        CHECK(!Regex{"\\|", f}.regex_match("a"));
-        CHECK(!Regex{"\\-", f}.regex_match("a"));
-        CHECK(!Regex{"\\^", f}.regex_match("a"));
-        CHECK(!Regex{"\\n", f}.regex_match("a"));
-        CHECK(!Regex{"\\r", f}.regex_match("a"));
-        CHECK(!Regex{"\\t", f}.regex_match("a"));
+        CHECK(Regex{"\\.\\\\\\?\\*\\+\\{\\}\\(\\)\\[\\]\\|\\-\\^\\n\\r\\t", f}.regex_match(".\\?*+{}()[]|-^\n\r\t") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"\\.", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\\\", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\?", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\*", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\+", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\{", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\}", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\(", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\[", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\]", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\|", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\-", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\^", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\n", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\r", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\t", f}.regex_match("a") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{"(abc)", f}.regex_match("abc"));
-        CHECK(!Regex{"(abc)", f}.regex_match("adc"));
+        CHECK(Regex{"(abc)", f}.regex_match("abc") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"(abc)", f}.regex_match("adc") == rdf4cpp::TriBool::False);
 
 
-        CHECK(Regex{"[abc]", f}.regex_match("a"));
-        CHECK(Regex{"[abc]", f}.regex_match("b"));
-        CHECK(Regex{"[abc]", f}.regex_match("c"));
-        CHECK(!Regex{"[abc]", f}.regex_match("d"));
-        CHECK(!Regex{"[^abc]", f}.regex_match("a"));
-        CHECK(Regex{"[^abc]", f}.regex_match("d"));
-        CHECK(Regex{"[a-c]", f}.regex_match("a"));
-        CHECK(Regex{"[a-c]", f}.regex_match("b"));
-        CHECK(Regex{"[a-c]", f}.regex_match("c"));
-        CHECK(!Regex{"[a-c]", f}.regex_match("d"));
-        CHECK(!Regex{"[^a-c]", f}.regex_match("a"));
-        CHECK(Regex{"[^a-c]", f}.regex_match("d"));
+        CHECK(Regex{"[abc]", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"[abc]", f}.regex_match("b") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"[abc]", f}.regex_match("c") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"[abc]", f}.regex_match("d") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"[^abc]", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"[^abc]", f}.regex_match("d") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"[a-c]", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"[a-c]", f}.regex_match("b") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"[a-c]", f}.regex_match("c") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"[a-c]", f}.regex_match("d") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"[^a-c]", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"[^a-c]", f}.regex_match("d") == rdf4cpp::TriBool::True);
         // CHECK(!Regex{"[^abc-[e]]", f}.regex_match("e"));
         // CHECK(Regex{"[^abc-[e]]", f}.regex_match("d"));
 
 
-        CHECK(Regex{"\\p{Lu}", f}.regex_match("A"));
-        CHECK(Regex{"\\p{Lu}", f}.regex_match("Ä"));
-        CHECK(!Regex{"\\p{Lu}", f}.regex_match("a"));
-        CHECK(!Regex{"\\p{Lu}", f}.regex_match("ä"));
-        CHECK(!Regex{"\\p{Lu}", f}.regex_match("5"));
+        CHECK(Regex{"\\p{Lu}", f}.regex_match("A") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"\\p{Lu}", f}.regex_match("Ä") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"\\p{Lu}", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\p{Lu}", f}.regex_match("ä") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\p{Lu}", f}.regex_match("5") == rdf4cpp::TriBool::False);
 
         // CHECK(Regex{"\\p{IsBasicLatin}", f}.regex_match("5"));
         // CHECK(!Regex{"\\p{IsBasicLatin}", f}.regex_match("ü"));
 
-        CHECK(Regex{".", f}.regex_match("5"));
-        CHECK(!Regex{".", f}.regex_match("\n"));
-        CHECK(Regex{"\\s", f}.regex_match(" "));
-        CHECK(!Regex{"\\s", f}.regex_match("a"));
-        CHECK(Regex{"\\S", f}.regex_match("a"));
+        CHECK(Regex{".", f}.regex_match("5") == rdf4cpp::TriBool::True);
+        CHECK(Regex{".", f}.regex_match("\n") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\s", f}.regex_match(" ") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"\\s", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\S", f}.regex_match("a") == rdf4cpp::TriBool::True);
         // CHECK(Regex{"\\c", f}.regex_match("a"));
         // CHECK(!Regex{"\\c", f}.regex_match("<"));
         // CHECK(Regex{"\\C", f}.regex_match("<"));
-        CHECK(Regex{"\\d", f}.regex_match("5"));
-        CHECK(!Regex{"\\d", f}.regex_match("a"));
-        CHECK(Regex{"\\D", f}.regex_match("a"));
-        CHECK(Regex{"\\w\\w", f}.regex_match("a5"));
-        CHECK(!Regex{"\\w", f}.regex_match("-"));
-        CHECK(Regex{"\\W", f}.regex_match("-"));
+        CHECK(Regex{"\\d", f}.regex_match("5") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"\\d", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\D", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"\\w\\w", f}.regex_match("a5") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"\\w", f}.regex_match("-") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"\\W", f}.regex_match("-") == rdf4cpp::TriBool::True);
 
-        CHECK(Regex{"a", f}.regex_search("_a_"));
-        CHECK(!Regex{"^a", f}.regex_search("_a"));
-        CHECK(!Regex{"a$", f}.regex_search("a_"));
-
-
-        CHECK(Regex{"a??", f}.regex_match("a"));
-        CHECK(Regex{"a??", f}.regex_match(""));
-        CHECK(!Regex{"a??", f}.regex_match("aa"));
-
-        CHECK(Regex{"a*?", f}.regex_match("a"));
-        CHECK(Regex{"a*?", f}.regex_match("aaaa"));
-        CHECK(Regex{"a*?", f}.regex_match(""));
-        CHECK(!Regex{"a*?", f}.regex_match("b"));
-
-        CHECK(!Regex{"a+?", f}.regex_match(""));
-        CHECK(Regex{"a+?", f}.regex_match("a"));
-        CHECK(Regex{"a+?", f}.regex_match("aaaaa"));
-        CHECK(!Regex{"a+?", f}.regex_match("b"));
-
-        CHECK(!Regex{"a{2,5}?", f}.regex_match("a"));
-        CHECK(Regex{"a{2,5}?", f}.regex_match("aa"));
-        CHECK(Regex{"a{2,5}?", f}.regex_match("aaaaa"));
-        CHECK(!Regex{"a{2,5}?", f}.regex_match("aaaaaa"));
-        CHECK(!Regex{"a{2,5}?", f}.regex_match("bbb"));
-
-        CHECK(Regex{"a{2}?", f}.regex_match("aa"));
-        CHECK(!Regex{"a{2}?", f}.regex_match("aaa"));
-        CHECK(!Regex{"a{2}?", f}.regex_match("aaaa"));
-        CHECK(!Regex{"a{2}ß", f}.regex_match("b"));
-
-        CHECK(Regex{"a{2,}?", f}.regex_match("aa"));
-        CHECK(Regex{"a{2,}?", f}.regex_match("aaa"));
-        CHECK(!Regex{"a{2,}?", f}.regex_match("a"));
-        CHECK(!Regex{"a{2,}?", f}.regex_match("b"));
-
-        CHECK(Regex{"a{0,2}?", f}.regex_match("aa"));
-        CHECK(!Regex{"a{0,2}?", f}.regex_match("aaa"));
-        CHECK(Regex{"a{0,2}?", f}.regex_match("a"));
-        CHECK(!Regex{"a{0,2}?", f}.regex_match("b"));
-
-        CHECK(Regex{"a{0,0}?", f}.regex_match(""));
-        CHECK(!Regex{"a{0,0}?", f}.regex_match("a"));
+        CHECK(Regex{"a", f}.regex_search("_a_") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"^a", f}.regex_search("_a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a$", f}.regex_search("a_") == rdf4cpp::TriBool::False);
 
 
-        CHECK(Regex{"(abc)", f}.regex_match("abc"));
-        CHECK(Regex{"(?:abc)", f}.regex_match("abc"));
-        CHECK(Regex{"(.)bc\\1", f}.regex_match("abca"));
-        CHECK(Regex{"(.)bc\\1", f}.regex_match("xbcx"));
-        CHECK(!Regex{"(.)bc\\1", f}.regex_match("abcx"));
+        CHECK(Regex{"a??", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a??", f}.regex_match("") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a??", f}.regex_match("aa") == rdf4cpp::TriBool::False);
 
-        CHECK(Regex{".", f | RegexFlag::DotAll}.regex_match("\n"));
-        CHECK(Regex{"^a$", f | RegexFlag::Multiline}.regex_search("a\nxyz"));
-        CHECK(Regex{"abc", f | RegexFlag::CaseInsensitive}.regex_match("ABC"));
-        CHECK(Regex{"a b c", f | RegexFlag::RemoveWhitespace}.regex_match("abc"));
-        CHECK(Regex{"a\\ sb", f | RegexFlag::RemoveWhitespace}.regex_match("a b"));
-        CHECK(Regex{"a\\ [b", f | RegexFlag::RemoveWhitespace}.regex_match("a[b"));
-        CHECK(Regex{".+", f | RegexFlag::Literal}.regex_match(".+"));
-        CHECK(!Regex{".", f | RegexFlag::Literal}.regex_match("a"));
+        CHECK(Regex{"a*?", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a*?", f}.regex_match("aaaa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a*?", f}.regex_match("") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a*?", f}.regex_match("b") == rdf4cpp::TriBool::False);
+
+        CHECK(Regex{"a+?", f}.regex_match("") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a+?", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a+?", f}.regex_match("aaaaa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a+?", f}.regex_match("b") == rdf4cpp::TriBool::False);
+
+        CHECK(Regex{"a{2,5}?", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2,5}?", f}.regex_match("aa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2,5}?", f}.regex_match("aaaaa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2,5}?", f}.regex_match("aaaaaa") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2,5}?", f}.regex_match("bbb") == rdf4cpp::TriBool::False);
+
+        CHECK(Regex{"a{2}?", f}.regex_match("aa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2}?", f}.regex_match("aaa") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2}?", f}.regex_match("aaaa") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2}?", f}.regex_match("b") == rdf4cpp::TriBool::False);
+
+        CHECK(Regex{"a{2,}?", f}.regex_match("aa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2,}?", f}.regex_match("aaa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{2,}?", f}.regex_match("a") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{2,}?", f}.regex_match("b") == rdf4cpp::TriBool::False);
+
+        CHECK(Regex{"a{0,2}?", f}.regex_match("aa") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{0,2}?", f}.regex_match("aaa") == rdf4cpp::TriBool::False);
+        CHECK(Regex{"a{0,2}?", f}.regex_match("a") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{0,2}?", f}.regex_match("b") == rdf4cpp::TriBool::False);
+
+        CHECK(Regex{"a{0,0}?", f}.regex_match("") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a{0,0}?", f}.regex_match("a") == rdf4cpp::TriBool::False);
+
+
+        CHECK(Regex{"(abc)", f}.regex_match("abc") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"(?:abc)", f}.regex_match("abc") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"(.)bc\\1", f}.regex_match("abca") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"(.)bc\\1", f}.regex_match("xbcx") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"(.)bc\\1", f}.regex_match("abcx") == rdf4cpp::TriBool::False);
+
+        CHECK(Regex{".", f | RegexFlag::DotAll}.regex_match("\n") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"^a$", f | RegexFlag::Multiline}.regex_search("a\nxyz") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"abc", f | RegexFlag::CaseInsensitive}.regex_match("ABC") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a b c", f | RegexFlag::RemoveWhitespace}.regex_match("abc") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a\\ sb", f | RegexFlag::RemoveWhitespace}.regex_match("a b") == rdf4cpp::TriBool::True);
+        CHECK(Regex{"a\\ [b", f | RegexFlag::RemoveWhitespace}.regex_match("a[b") == rdf4cpp::TriBool::True);
+        CHECK(Regex{".+", f | RegexFlag::Literal}.regex_match(".+") == rdf4cpp::TriBool::True);
+        CHECK(Regex{".", f | RegexFlag::Literal}.regex_match("a") == rdf4cpp::TriBool::False);
+
+        // infinite recursion
+        CHECK(Regex{"a?(?R)?z", f}.regex_search("azz") == rdf4cpp::TriBool::Err);
 
         std::string d = "a_a_x";
         Regex{"a", f}.make_replacer("b").regex_replace(d);

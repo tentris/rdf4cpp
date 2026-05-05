@@ -7,6 +7,7 @@
 #include <rdf4cpp/regex/RegexError.hpp>
 #include <rdf4cpp/regex/RegexFlags.hpp>
 #include <rdf4cpp/regex/RegexReplacer.hpp>
+#include <rdf4cpp/TriBool.hpp>
 
 namespace rdf4cpp::regex {
 
@@ -45,7 +46,7 @@ public:
      * assert(!r.regex_search("123456789a"));
      * @endcode
      */
-    [[nodiscard]] bool regex_match(std::string_view str) const noexcept;
+    [[nodiscard]] TriBool regex_match(std::string_view str) const noexcept;
 
     /**
      * Similar to std::regex_search. Tries to match this regex against a subsequence
@@ -60,7 +61,7 @@ public:
      * assert(r.regex_search("abracadabra"));
      * @endcode
      */
-    [[nodiscard]] bool regex_search(std::string_view str) const noexcept;
+    [[nodiscard]] TriBool regex_search(std::string_view str) const noexcept;
 
     /**
      * Constructs a regex replacer for this regex by possibly compiling
