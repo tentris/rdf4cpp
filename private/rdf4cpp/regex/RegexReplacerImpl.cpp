@@ -43,13 +43,13 @@ namespace rdf4cpp::regex {
         std::string r{};
         r.resize(str.size() * 2);
         size_t outsize = 0;
-        int opt = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | PCRE2_SUBSTITUTE_GLOBAL;
+        int opt = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | PCRE2_SUBSTITUTE_GLOBAL | PCRE2_NO_UTF_CHECK;
         if (regex->flags.contains(RegexFlag::Literal)) {
             opt |= PCRE2_SUBSTITUTE_LITERAL;
         }
         auto rep = [&] {
             outsize = r.size();
-            return pcre2_substitute_8(regex->search.get(), reinterpret_cast<PCRE2_SPTR8>(str.data()), str.size(), 0, opt, nullptr, nullptr, reinterpret_cast<PCRE2_SPTR8>(rewrite.data()), rewrite.size(), reinterpret_cast<PCRE2_UCHAR8 *>(r.data()), &outsize);
+            return pcre2_substitute_8(regex->search.get(), reinterpret_cast<PCRE2_SPTR8>(str.data()), str.size(), 0, opt, nullptr, &Regex::Impl::get_match_context(), reinterpret_cast<PCRE2_SPTR8>(rewrite.data()), rewrite.size(), reinterpret_cast<PCRE2_UCHAR8 *>(r.data()), &outsize);
         };
         auto e = rep();
         if (e == PCRE2_ERROR_NOMEMORY) {

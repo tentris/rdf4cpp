@@ -25,6 +25,7 @@ namespace rdf4cpp::regex {
         Impl(std::string_view regex, flag_type flags);
         [[nodiscard]] TriBool regex_match(std::string_view str) const noexcept;
         [[nodiscard]] TriBool regex_search(std::string_view str) const noexcept;
+        [[nodiscard]] static pcre2_match_context_8& get_match_context();
 
     private:
         using match_data_ptr = std::unique_ptr<pcre2_match_data_8, CallFree<pcre2_match_data_free_8>>;

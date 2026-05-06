@@ -24,8 +24,7 @@ public:
      * used to insert text matching corresponding parenthesized group
      * from the pattern. $0 in "rewrite" refers to the entire matching
      *
-     * @param str the string to replace all matches with
-     * @warning behaviour is undefined if this replacer lives longer than the regex it was created from
+     * @param str the string to replace all matches with, assumed to be valid UTF-8
      *
      * @example
      * @code

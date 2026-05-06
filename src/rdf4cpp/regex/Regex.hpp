@@ -25,9 +25,9 @@ private:
 public:
     /**
      * Tries to compile a regex.
-     * The syntax follows google's RE2 library.
+     * The syntax follows the PCRE2 library.
      *
-     * @param regex the regex to compile
+     * @param regex the regex to compile, assumed to be valid UTF-8
      * @param flags flags to configure the regex behaviour
      * @throws RegexError if the regex compilation was not successful
      */
@@ -37,7 +37,7 @@ public:
      * Similar to std::regex_match. Tries to match this regex against the
      * whole string.
      *
-     * @param str the string to match against
+     * @param str the string to match against, assumed to be valid UTF-8
      * @return true if the regex matched the whole string, false otherwise
      *
      * @example
@@ -52,7 +52,7 @@ public:
      * Similar to std::regex_search. Tries to match this regex against a subsequence
      * of str.
      *
-     * @param str the string to match against
+     * @param str the string to match against, assumed to be valid UTF-8
      * @return true if the regex matched any substring in str, false otherwise
      *
      * @example
@@ -67,9 +67,8 @@ public:
      * Constructs a regex replacer for this regex by possibly compiling
      * the rewrite string.
      *
-     * @param rewrite the string to replace all matches with
+     * @param rewrite the string to replace all matches with, assumed to be valid UTF-8
      * @throws RegexError if an invalid rewrite string is encountered
-     * @warning behaviour is undefined if the replacer lives longer than the regex it was created from
      *
      * @example
      * @code
