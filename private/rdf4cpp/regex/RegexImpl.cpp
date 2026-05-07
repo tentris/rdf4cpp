@@ -1,5 +1,7 @@
 #include "RegexImpl.hpp"
 
+#include <uni_algo/conv.h>
+
 namespace rdf4cpp::regex {
 
     Regex::Impl::Impl(std::string_view const regex, flag_type const flags)
@@ -27,6 +29,7 @@ namespace rdf4cpp::regex {
     }
 
     TriBool Regex::Impl::apply(pcre2_code_8 &c, std::string_view str) noexcept {
+        assert(una::is_valid_utf8(str));
         match_data_ptr const m{pcre2_match_data_create_from_pattern_8(&c, nullptr)};
         auto ec =  pcre2_match_8(&c, reinterpret_cast<PCRE2_SPTR8>(str.data()), str.size(), 0, PCRE2_NO_UTF_CHECK, m.get(), &get_match_context());
         if (ec == PCRE2_ERROR_NOMATCH) {
@@ -46,6 +49,7 @@ namespace rdf4cpp::regex {
             return r;
         }();
 
+        assert(una::is_valid_utf8(regex));
         int error_code = 0;
         size_t err_off = 0;
         int f = PCRE2_UTF | PCRE2_NO_UTF_CHECK | extra_flags;

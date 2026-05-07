@@ -1,6 +1,7 @@
 #include "RegexReplacerImpl.hpp"
 
 #include <rdf4cpp/Assert.hpp>
+#include <uni_algo/conv.h>
 
 namespace rdf4cpp::regex {
     std::string RegexReplacer::Impl::translate_rewrite(std::string_view const s) {
@@ -37,9 +38,11 @@ namespace rdf4cpp::regex {
           rewrite{this->regex->flags.contains(RegexFlag::Literal)
                       ? rewrite
                       : translate_rewrite(rewrite)} {
+        assert(una::is_valid_utf8(rewrite));
     }
 
     void RegexReplacer::Impl::regex_replace(std::string &str) const {
+        assert(una::is_valid_utf8(str));
         std::string r{};
         r.resize(str.size() * 2);
         size_t outsize = 0;
