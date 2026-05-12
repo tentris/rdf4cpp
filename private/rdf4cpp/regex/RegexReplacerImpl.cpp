@@ -4,19 +4,19 @@
 #include <uni_algo/conv.h>
 
 namespace rdf4cpp::regex {
-    std::string RegexReplacer::Impl::translate_rewrite(std::string_view const s) {
+    static std::string translate_rewrite(std::string_view const s) {
         std::string res{s};
 
         auto pos = res.find_first_of("$\\");
         while (pos < res.size()) {
-            if (res[pos] == '\\') {  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                if (res.size() <= pos) {
-                    throw RegexError{"invalid escape sequence in replacement string"};
+            if (res[pos] == '\\') {
+                if (res.size() <= pos + 1) {
+                    throw RegexError{"incomplete escape sequence in replacement string"};
                 }
-                if (res.at(pos + 1) == '$') {
-                    res[pos] = '$';  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                if (res[pos + 1] == '$') {
+                    res[pos] = '$';
                     ++pos;
-                } else if (res.at(pos + 1) == '\\') {
+                } else if (res[pos + 1] == '\\') {
                     res.erase(pos, 1);
                 } else {
                     throw RegexError{"incomplete escape sequence in replacement string"};

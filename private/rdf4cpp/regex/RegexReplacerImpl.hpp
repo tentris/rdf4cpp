@@ -12,9 +12,6 @@ namespace rdf4cpp::regex {
 
         Impl(std::shared_ptr<Regex::Impl const> regex, std::string_view rewrite);
         void regex_replace(std::string &str) const;
-
-    private:
-        static std::string translate_rewrite(std::string_view s);
     };
 
 }  //namespace rdf4cpp::regex

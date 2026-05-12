@@ -8,6 +8,7 @@
 
 namespace rdf4cpp::regex {
     struct Regex::Impl {
+    private:
         // workaround for gcc-14 bug, erroneously warns on unsing a lambda here
         // see https://github.com/NVIDIA/stdexec/issues/1143
         template<auto f>
@@ -18,6 +19,8 @@ namespace rdf4cpp::regex {
         };
 
         using code_ptr = std::unique_ptr<pcre2_code_8, CallFree<pcre2_code_free_8>>;
+
+    public:
         code_ptr match;
         code_ptr search;
         Regex::flag_type flags;
@@ -34,7 +37,7 @@ namespace rdf4cpp::regex {
         static code_ptr make_code(std::string_view regex, flag_type flags, int extra_flags);
         static std::string remove_whitespace(std::string_view str);
         static Impl make(std::string_view regex, flag_type flags);
-        Impl(code_ptr m, code_ptr s, flag_type f);
+        Impl(code_ptr match, code_ptr search, flag_type flags);
     };
 }  //namespace rdf4cpp::regex
 

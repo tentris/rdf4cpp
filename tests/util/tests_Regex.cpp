@@ -197,6 +197,8 @@ TEST_SUITE("regex") {
         CHECK(d == "b_b_x");
         Regex{"_(\\w)", f}.make_replacer(R"(-$0$1\$\\)").regex_replace(d);
         CHECK(d == "b-_bb$\\-_xx$\\");
+
+        CHECK_THROWS_WITH_AS(static_cast<void>(Regex{"a", f}.make_replacer("\\")), "incomplete escape sequence in replacement string", RegexError);
     }
     TEST_CASE("basic syntax") {
         SUBCASE("normal") {

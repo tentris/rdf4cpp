@@ -114,10 +114,10 @@ namespace rdf4cpp::regex {
         auto s = make_code(regex, flags, 0);
         return {std::move(m), std::move(s), flags};
     }
-    Regex::Impl::Impl(code_ptr m, code_ptr s, flag_type f)
-        : match(std::move(m)),
-          search(std::move(s)),
-          flags(f) {
+    Regex::Impl::Impl(code_ptr match, code_ptr search, flag_type flags)
+        : match(std::move(match)),
+          search(std::move(search)),
+          flags(flags) {
     }
 
 }  //namespace rdf4cpp::regex
