@@ -56,14 +56,12 @@ namespace rdf4cpp::regex {
         };
         auto e = rep();
         if (e == PCRE2_ERROR_NOMEMORY) {
+            // PCRE2_SUBSTITUTE_OVERFLOW_LENGTH tells PCRE2 to write the required size (excluding terminating 0) to outsize, if the buffer is too small
             r.resize(outsize + 1);
             e = rep();
         }
         if (e < 0) {
-            std::string msg;
-            msg.resize(120);
-            msg.resize(pcre2_get_error_message_8(e, reinterpret_cast<PCRE2_UCHAR8 *>(msg.data()), msg.size()));
-            throw RegexError{"replacement error: " + msg};
+            throw RegexError{"replacement error: " + Regex::Impl::translate_error_code(e)};
         }
         r.resize(outsize);
         str = std::move(r);

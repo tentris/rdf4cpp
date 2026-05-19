@@ -27,6 +27,12 @@ namespace rdf4cpp::regex {
         }();
         return *match_ctx;
     }
+    std::string Regex::Impl::translate_error_code(int error_code) {
+        std::string msg;
+        msg.resize(120); // https://pcre2project.github.io/pcre2/doc/pcre2api/#geterrormessage says 120 chars is enough for any error message
+        msg.resize(pcre2_get_error_message_8(error_code, reinterpret_cast<PCRE2_UCHAR8 *>(msg.data()), msg.size()));
+        return msg;
+    }
 
     TriBool Regex::Impl::apply(pcre2_code_8 &c, std::string_view str) noexcept {
         assert(una::is_valid_utf8(str));
@@ -69,18 +75,12 @@ namespace rdf4cpp::regex {
         }
         code_ptr r{pcre2_compile_8(reinterpret_cast<PCRE2_SPTR8>(regex.data()), regex.size(), f, &error_code, &err_off, compile_ctx.get())};
         if (r == nullptr) {
-            std::string msg;
-            msg.resize(120);
-            msg.resize(pcre2_get_error_message_8(error_code, reinterpret_cast<PCRE2_UCHAR8 *>(msg.data()), msg.size()));
-            throw RegexError{"Failed to compile regex: " + msg};
+            throw RegexError{"Failed to compile regex: " + translate_error_code(error_code)};
         }
         if (flags.contains(RegexFlag::Optimize)) {
             error_code = pcre2_jit_compile_8(r.get(), 0);
             if (error_code != 0) {
-                std::string msg;
-                msg.resize(120);
-                msg.resize(pcre2_get_error_message_8(error_code, reinterpret_cast<PCRE2_UCHAR8 *>(msg.data()), msg.size()));
-                throw RegexError{"Failed to compile jit regex: " + msg};
+                throw RegexError{"Failed to compile jit regex: " + translate_error_code(error_code)};
             }
         }
         return r;
