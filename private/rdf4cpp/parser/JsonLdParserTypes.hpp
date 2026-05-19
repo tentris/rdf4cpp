@@ -42,9 +42,6 @@ namespace rdf4cpp::parser {
     static constexpr std::string_view keyword_default = "@default";
 
     static constexpr std::string_view rdf_json_datatype = "http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON";
-    static constexpr std::string_view iri_nil = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
-    static constexpr std::string_view iri_rest = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
-    static constexpr std::string_view iri_first = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
     // ReSharper restore CppEvaluationInternalFailure
 
     static constexpr bool is_keyword(std::string_view v) {
@@ -106,6 +103,10 @@ namespace rdf4cpp::parser {
             BlankNode,
             Keyword,
         };
+        /**
+         * result of the https://www.w3.org/TR/json-ld11-api/#iri-expansion algorythm.
+         * contrary to its name, not necessarily a IRI.
+         */
         struct IRIMapping {
             std::string data;
             IRIMappingType type = IRIMappingType::None;
@@ -142,6 +143,10 @@ namespace rdf4cpp::parser {
         // result of the value expansion function
         using ExpandedValue = std::variant<IRIMapping, LiteralMapping, TypedLiteralMapping, simdjson::ondemand::value>;
 
+        /**
+         * Null is used for no language tag (raw xsd:string)
+         * NotSet is used to indicate no value, use the next value from the hierarchy.
+         */
         struct LanguageMapping : std::variant<NotSet, Null, std::string> {
             using Base = std::variant<NotSet, Null, std::string>;
 
@@ -163,8 +168,7 @@ namespace rdf4cpp::parser {
                     } else {
                         return std::nullopt;
                     }
-                },
-                                  *this);
+                }, *this);
             }
         };
 
@@ -296,6 +300,8 @@ namespace rdf4cpp::parser {
             bool operator==(std::default_sentinel_t);
             ValueArrayIter& begin();
             std::default_sentinel_t end();
+            // if this is iterating over an array, add its key to the path (so a path pointing at the array now points at the current object).
+            // otherwise do nothing (as the key path is already pointing directly at the object).
             void push_index(json_ld::KeyPath& p);
         };
 

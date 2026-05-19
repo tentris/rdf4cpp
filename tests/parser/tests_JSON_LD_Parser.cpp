@@ -19,7 +19,7 @@ std::string remote_test_file_to_str(std::string_view file_name) {
     return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, "https://raw.githubusercontent.com/w3c/json-ld-streaming/refs/heads/main/tests/stream-toRdf", "./jsonld_test_cache");
 }
 
-TEST_CASE("test cases from rdf-tests") {
+TEST_CASE("test cases from json-ld-streaming") {
     // positive tests
     jsonld_test_positive(remote_test_file_to_str("0001-in.jsonld"), remote_test_file_to_str("0001-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0001");
     jsonld_test_positive(remote_test_file_to_str("0002-in.jsonld"), remote_test_file_to_str("0002-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0002");

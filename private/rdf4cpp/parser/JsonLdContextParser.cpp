@@ -135,10 +135,9 @@ namespace rdf4cpp::parser::json_ld {
                     if (!v.has_value()) {
                         result->base_direction = BaseDirection::None;
                     } else {
-                        if (*v == "ltr") {
-                            result->base_direction = BaseDirection::Ltr;
-                        } else if (*v == "rtl") {
-                            result->base_direction = BaseDirection::Rtl;
+                        auto bd = try_parse_base_direction(*v);
+                        if (bd.has_value()) {
+                            result->base_direction = *bd;
                         } else {
                             result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base direction")};
                             return true;
@@ -730,12 +729,13 @@ namespace rdf4cpp::parser::json_ld {
                     }
                     if (!v.has_value()) {
                         p.term.direction_mapping = BaseDirection::None;
-                    } else if (*v == "ltr") {
-                        p.term.direction_mapping = BaseDirection::Ltr;
-                    } else if (*v == "rtl") {
-                        p.term.direction_mapping = BaseDirection::Rtl;
                     } else {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid base direction");
+                        auto bd = try_parse_base_direction(*v);
+                        if (bd.has_value()) {
+                            p.term.direction_mapping = *bd;
+                        } else {
+                            return make_error(ParsingError::Type::BadSyntax, "invalid base direction");
+                        }
                     }
                 }
             }

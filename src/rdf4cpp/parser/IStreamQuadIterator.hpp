@@ -14,6 +14,13 @@
 #include <rdf4cpp/IRIFactory.hpp>
 
 namespace rdf4cpp::parser {
+    namespace list_iris {
+        // ReSharper disable CppEvaluationInternalFailure
+        static constexpr std::string_view iri_nil = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
+        static constexpr std::string_view iri_rest = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
+        static constexpr std::string_view iri_first = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
+        // ReSharper restore CppEvaluationInternalFailure
+    }
 
 /**
  * Identical semantics to fread.

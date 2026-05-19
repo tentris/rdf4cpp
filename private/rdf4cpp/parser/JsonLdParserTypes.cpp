@@ -7,11 +7,12 @@ namespace rdf4cpp::parser {
         if (d == "ltr") {
             return BaseDirection::Ltr;
         }
-        if (d == "trl") {
+        if (d == "rtl") {
             return BaseDirection::Rtl;
         }
         return std::nullopt;
     }
+
     json_ld::TermDefinition *json_ld::Context::try_find_term(std::string_view key) {
         auto i = std::ranges::find_if(terms, [&](auto const &t) {
             return t.key == key;
@@ -21,6 +22,7 @@ namespace rdf4cpp::parser {
         }
         return &*i;
     }
+
     json_ld::TermDefinition const *json_ld::Context::try_find_term(std::string_view key) const {
         auto i = std::ranges::find_if(terms, [&](auto const &t) {
             return t.key == key;
@@ -30,6 +32,7 @@ namespace rdf4cpp::parser {
         }
         return &*i;
     }
+
     bool looks_like_keyword(std::string_view v) {
         if (v.size() <= 1) {
             return false;
@@ -40,6 +43,7 @@ namespace rdf4cpp::parser {
         static constexpr util::char_matcher_detail::ASCIIAlphaMatcher m{};
         return rdf4cpp::util::char_matcher_detail::match<m, una::views::utf8>(v.substr(1));
     }
+
     namespace json_ld {
         ValueArrayIter::ValueArrayIter(simdjson::ondemand::value v) {
             if (v.type() == simdjson::ondemand::json_type::array) {
@@ -49,6 +53,7 @@ namespace rdf4cpp::parser {
                 current_ = v;
             }
         }
+
         simdjson::ondemand::value &ValueArrayIter::operator*() {
             cache_ = std::visit([]<typename T>(T &t) -> simdjson::ondemand::value {
                 if constexpr (std::same_as<T, simdjson::ondemand::value>) {
@@ -58,13 +63,14 @@ namespace rdf4cpp::parser {
                 } else {
                     return {};
                 }
-            },
-                                current_);
+            }, current_);
             return cache_;
         }
+
         simdjson::ondemand::value *ValueArrayIter::operator->() {
             return &**this;
         }
+
         ValueArrayIter &ValueArrayIter::operator++() {
             std::visit([&]<typename T>(T &t) {
                 if constexpr (std::same_as<T, simdjson::ondemand::value>) {
@@ -73,10 +79,10 @@ namespace rdf4cpp::parser {
                     ++t;
                     ++current_index_;
                 }
-            },
-                       current_);
+            }, current_);
             return *this;
         }
+
         bool ValueArrayIter::operator==(std::default_sentinel_t) {
             return std::visit([&]<typename T>(T &t) -> bool {
                 if constexpr (std::same_as<T, simdjson::ondemand::value>) {
@@ -86,23 +92,25 @@ namespace rdf4cpp::parser {
                 } else {
                     return true;
                 }
-            },
-                              current_);
+            }, current_);
         }
+
         ValueArrayIter &ValueArrayIter::begin() {
             return *this;
         }
+
         std::default_sentinel_t ValueArrayIter::end() {
             return std::default_sentinel;
         }
+
         void ValueArrayIter::push_index(json_ld::KeyPath &p) {
             return std::visit([&]<typename T>(T &) {
                 if constexpr (std::same_as<T, simdjson::ondemand::array_iterator>) {
                     p.keys.emplace_back(current_index_);
                 }
-            },
-                              current_);
+            }, current_);
         }
+
         ParsingError make_error(ParsingError::Type t, std::string msg) {
             return ParsingError{
                 t,

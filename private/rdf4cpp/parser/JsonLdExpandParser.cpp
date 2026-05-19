@@ -358,10 +358,9 @@ namespace rdf4cpp::parser::json_ld {
                         BaseDirection d = BaseDirection::None;
                         if (dir != nullptr && dir->keyword_values.size() == 1) {
                             auto &s = dir->keyword_values[0].data;  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                            if (s == "ltr") {
-                                d = BaseDirection::Ltr;
-                            } else if (s == "rtl") {
-                                d = BaseDirection::Rtl;
+                            auto bd = try_parse_base_direction(s);
+                            if (bd.has_value()) {
+                                d = *bd;
                             }
                         }
                         return LiteralMapping{
