@@ -583,9 +583,9 @@ namespace rdf4cpp::parser {
     }
     IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::parse_list(params::ParseListParams p) {
         json_ld::IRIMapping current_bn{};
-        json_ld::IRIMapping const first{std::string{iri_first}, json_ld::IRIMappingType::IRI};
-        json_ld::IRIMapping const rest{std::string{iri_rest}, json_ld::IRIMappingType::IRI};
-        json_ld::IRIMapping const nil{std::string{iri_nil}, json_ld::IRIMappingType::IRI};
+        json_ld::IRIMapping const first{std::string{list_iris::iri_first}, json_ld::IRIMappingType::IRI};
+        json_ld::IRIMapping const rest{std::string{list_iris::iri_rest}, json_ld::IRIMappingType::IRI};
+        json_ld::IRIMapping const nil{std::string{list_iris::iri_nil}, json_ld::IRIMappingType::IRI};
         json_ld::IRIMapping const *curr_sub = &p.active_subject;
         json_ld::IRIMapping const *curr_pred = &p.active_property;
         for (auto v : json_ld::ValueArrayIter{p.ar}) {
