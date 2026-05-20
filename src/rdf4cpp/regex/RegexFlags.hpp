@@ -12,6 +12,8 @@ enum struct RegexFlag : uint8_t {
     Literal = 1 << 2,
     Multiline = 1 << 3,
     RemoveWhitespace = 1 << 4,
+    // enables extra optimization during the parse process (currently JIT-compiling), leading to an increase in regex compile time, but faster matching & replacing
+    Optimize = 1 << 5,
 };
 
 struct RegexFlags {

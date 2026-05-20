@@ -1,95 +1,70 @@
 #include "RegexReplacerImpl.hpp"
 
-#include <cassert>
-#include <cctype>
-#include <sstream>
-
 #include <rdf4cpp/Assert.hpp>
+#include <uni_algo/conv.h>
 
 namespace rdf4cpp::regex {
+    static std::string translate_rewrite(std::string_view const s) {
+        std::string res{s};
 
-namespace detail {
-
-/**
- * Replaces the character at "pos" with '\'.
- *
- * @param s string to replace "pos" in
- * @param pos position to replace
- * @throws RegexError if the substring s.substr(pos, 2) is an invalid group reference
- */
-static void replace(std::string &s, size_t pos) {
-    RDF4CPP_ASSERT(s[pos] == '$');
-    s[pos] = '\\';
-
-    if (pos == s.size() - 1 || !std::isdigit(s[pos + 1])) {
-        std::ostringstream oss;
-        oss << "Illegal group reference at: " << pos;
-
-        throw RegexError{oss.str()};
-    }
-}
-
-/**
- * Translates a given libpcre rewrite-string into
- * the equivalent RE2 rewrite-string.
- *
- * Find all occurrences of '$' for each one:
- * check if it is escaped and if it is not translate it into the
- * equivalent construct in the RE2 replacement syntax
- *
- * @param s rewrite string in libpcre syntax
- * @return rewrite string in RE2 syntax
- */
-static std::string translate_rewrite(std::string_view const s) {
-    std::string res{s};
-
-    auto pos = res.find_first_of('$');
-    while (pos != std::string_view::npos) {
-        if (pos == 0) {
-            // is at start, cannot be escaped => replace
-            replace(res, 0);
-        } else {
-            // find start of potential backslash sequence preceding the '$'
-            size_t const end = pos;
-            size_t before_start = end - 1;
-            while (before_start != std::string_view::npos && res[before_start] == '\\') {
-                --before_start;
+        auto pos = res.find_first_of("$\\");
+        while (pos < res.size()) {
+            if (res[pos] == '\\') {
+                if (res.size() <= pos + 1) {
+                    throw RegexError{"incomplete escape sequence in replacement string"};
+                }
+                if (res[pos + 1] == '$') {
+                    res[pos] = '$';
+                    ++pos;
+                } else if (res[pos + 1] == '\\') {
+                    res.erase(pos, 1);
+                } else {
+                    throw RegexError{"incomplete escape sequence in replacement string"};
+                }
+            } else {  // == '$
+                if (pos + 1 == res.size()) {
+                    throw RegexError{"invalid capture sequence in replacement string"};
+                }
             }
 
-            if (size_t const count = end - (before_start + 1); count % 2 == 0) {
-                // even number of '\' preceding '$' => not escaped => replace
-                replace(res, pos);
-            } else {
-                // uneven number of '\' preceding '$' => escaped => remove escape char as RE2 does not require to escape '$'
-                res.erase(pos - 1, 1);
-                pos -= 1;
-            }
+            pos = res.find_first_of("$\\", pos + 1);
         }
 
-        pos = res.find_first_of('$', pos + 1);
+        return res;
     }
 
-    return res;
-}
-
-} // namespace detail
-
-RegexReplacer::Impl::Impl(std::shared_ptr<Regex::Impl const> regex, std::string_view const rewrite) : regex{std::move(regex)},
-                                                                                                      rewrite{this->regex->flags.contains(RegexFlag::Literal)
-                                                                                                      ? rewrite
-                                                                                                      : detail::translate_rewrite(rewrite)} {
-    std::string err{};
-    if (!this->regex->regex.CheckRewriteString(this->rewrite, &err)) {
-        throw RegexError(err);
+    RegexReplacer::Impl::Impl(std::shared_ptr<Regex::Impl const> regex, std::string_view const rewrite)
+        : regex{std::move(regex)},
+          rewrite{this->regex->flags.contains(RegexFlag::Literal)
+                      ? rewrite
+                      : translate_rewrite(rewrite)} {
+        assert(una::is_valid_utf8(rewrite));
     }
-    if (this->regex->regex_match("")) {
-        throw RegexError("replace matches empty string");
-    }
-}
 
-void RegexReplacer::Impl::regex_replace(std::string &str) const {
-    RE2::GlobalReplace(&str, this->regex->regex, this->rewrite);
-}
+    void RegexReplacer::Impl::regex_replace(std::string &str) const {
+        assert(una::is_valid_utf8(str));
+        std::string r{};
+        r.resize(str.size() * 2);
+        size_t outsize = 0;
+        int opt = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | PCRE2_SUBSTITUTE_GLOBAL | PCRE2_NO_UTF_CHECK;
+        if (regex->flags.contains(RegexFlag::Literal)) {
+            opt |= PCRE2_SUBSTITUTE_LITERAL;
+        }
+        auto rep = [&] {
+            outsize = r.size();
+            return pcre2_substitute_8(regex->search.get(), reinterpret_cast<PCRE2_SPTR8>(str.data()), str.size(), 0, opt, nullptr, &Regex::Impl::get_match_context(), reinterpret_cast<PCRE2_SPTR8>(rewrite.data()), rewrite.size(), reinterpret_cast<PCRE2_UCHAR8 *>(r.data()), &outsize);
+        };
+        auto e = rep();
+        if (e == PCRE2_ERROR_NOMEMORY) {
+            // PCRE2_SUBSTITUTE_OVERFLOW_LENGTH tells PCRE2 to write the required size (excluding terminating 0) to outsize, if the buffer is too small
+            r.resize(outsize + 1);
+            e = rep();
+        }
+        if (e < 0) {
+            throw RegexError{"replacement error: " + Regex::Impl::translate_error_code(e)};
+        }
+        r.resize(outsize);
+        str = std::move(r);
+    }
 
 }  // namespace rdf4cpp::regex
-

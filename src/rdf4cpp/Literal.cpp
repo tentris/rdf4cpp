@@ -2012,7 +2012,11 @@ Literal Literal::regex_replace(regex::RegexReplacer const &replacer, storage::Dy
     }
 
     auto lf = this->lexical_form().into_owned();
-    replacer.regex_replace(lf);
+    try {
+        replacer.regex_replace(lf);
+    } catch (std::runtime_error const &) {
+        return Literal{};
+    }
 
     return Literal::make_string_like_copy_lang_tag(lf, *this, select_node_storage(node_storage));
 }
@@ -2022,31 +2026,11 @@ Literal Literal::regex_replace(Literal const &pattern, Literal const &replacemen
         return Literal{};
     }
 
-    auto const re = [&]() noexcept -> std::optional<regex::Regex> {
-        try {
-            return pattern.make_regex(flags);
-        } catch (std::runtime_error const &) {
-            return std::nullopt;
-        }
-    }();
-
-    if (!re.has_value()) {
+    try {
+        return this->regex_replace(pattern.make_regex(flags).make_replacer(replacement.lexical_form()), node_storage);
+    } catch (std::runtime_error const &) {
         return Literal{};
     }
-
-    auto const repl = [&]() noexcept -> std::optional<regex::RegexReplacer> {
-        try {
-            return re->make_replacer(replacement.lexical_form());
-        } catch (std::runtime_error const &) {
-            return std::nullopt;
-        }
-    }();
-
-    if (!repl.has_value()) {
-        return Literal{};
-    }
-
-    return this->regex_replace(*repl, node_storage);
 }
 
 TriBool Literal::contains(std::string_view const needle) const noexcept {

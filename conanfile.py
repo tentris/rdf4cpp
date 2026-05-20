@@ -32,7 +32,7 @@ class Recipe(ConanFile):
     def requirements(self):
         self.requires("boost/1.86.0", transitive_headers=True, libs=False)
         self.requires("expected-lite/0.8.0", transitive_headers=True)
-        self.requires("re2/20230301") # using latest version that does not require abseil
+        self.requires("pcre2/10.44", options={"support_jit": True})
         self.requires("openssl/3.3.2")
         self.requires("uni-algo/1.2.0")
         self.requires("highway/1.2.0")
