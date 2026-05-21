@@ -21,6 +21,12 @@ namespace rdf4cpp::parser {
         };
     }  // namespace json_ld
     namespace params {
+        // result of this parsing step for use in lists
+        // Node => parsed literal (might be a bn in case of compound literals)
+        // IRIMapping => IRI or bn
+        // monostate => nothing (empty, or not mapped to json-ld triples)
+        using ListObjOut = std::variant<std::monostate, json_ld::IRIMapping, Node>;
+
         struct ParseParams {
             simdjson::ondemand::value element;
             json_ld::Context const &active_ctx;  // NOLINT(*-avoid-const-or-ref-data-members)
@@ -28,7 +34,7 @@ namespace rdf4cpp::parser {
             json_ld::IRIMapping const &active_graph;     // NOLINT(*-avoid-const-or-ref-data-members)
             json_ld::IRIMapping const &active_subject;   // NOLINT(*-avoid-const-or-ref-data-members)
             json_ld::IRIMapping const &active_property;  // NOLINT(*-avoid-const-or-ref-data-members)
-            std::variant<std::monostate, json_ld::IRIMapping, Node> *obj_out = nullptr;
+            ListObjOut *obj_out = nullptr;
             bool is_top_level = false;
             bool is_reverse = false;
             bool is_json_literal = false;
@@ -56,11 +62,11 @@ namespace rdf4cpp::parser {
         ParsingFlag direction_;
 
         json_ld::IRIMapping make_new_bn();
-        nonstd::expected<IRI, error_type> make_iri(std::string_view i);
-        nonstd::expected<IRI, error_type> make_iri(json_ld::IRIMapping const &m);
-        nonstd::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const &m);
-        nonstd::expected<json_ld::DirectionLiteralResult, error_type> make_literal(json_ld::LiteralMapping const &t, json_ld::IRIMapping const &graph);
-        nonstd::expected<Literal, error_type> make_literal(json_ld::TypedLiteralMapping const &t);
+        nonstd::expected<IRI, error_type> make_iri(std::string_view iri);
+        nonstd::expected<IRI, error_type> make_iri(json_ld::IRIMapping const &iri);
+        nonstd::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const &mapping);
+        nonstd::expected<json_ld::DirectionLiteralResult, error_type> make_literal(json_ld::StringLikeLiteralMapping const &lit, json_ld::IRIMapping const &graph);
+        nonstd::expected<Literal, error_type> make_literal(json_ld::TypedLiteralMapping const &lit);
         nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object);
         nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, Node object);
 
