@@ -33,7 +33,7 @@ namespace rdf4cpp::parser::json_ld {
         // 5
         if (value.is_string()) {
             auto const &l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
-            return LiteralMapping{
+            return StringLikeLiteralMapping{
                 std::string(static_cast<std::string_view>(value.get_string())),
                 l.output(),
                 active_term != nullptr && active_term->direction_mapping != BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
@@ -72,7 +72,7 @@ namespace rdf4cpp::parser::json_ld {
         }
         // 5 (condition always true)
         auto const &l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
-        return LiteralMapping{
+        return StringLikeLiteralMapping{
             std::string(value),
             l.output(),
             active_term != nullptr && active_term->direction_mapping != BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
@@ -363,7 +363,7 @@ namespace rdf4cpp::parser::json_ld {
                                 d = *bd;
                             }
                         }
-                        return LiteralMapping{
+                        return StringLikeLiteralMapping{
                             std::string{std::string_view{val_obj.get_string()}},
                             std::move(lang_obj),
                             d,
@@ -393,7 +393,7 @@ namespace rdf4cpp::parser::json_ld {
                         std::string(t),
                     };
                 }
-                return LiteralMapping{
+                return StringLikeLiteralMapping{
                     std::move(s),
                     std::nullopt,
                     BaseDirection::None,

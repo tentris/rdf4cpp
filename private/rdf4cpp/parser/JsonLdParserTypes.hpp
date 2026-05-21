@@ -134,14 +134,14 @@ namespace rdf4cpp::parser {
             std::string value;
             std::string type;
         };
-        struct LiteralMapping {
+        struct StringLikeLiteralMapping {
             std::string value;
             std::optional<std::string> language;
             BaseDirection direction;
         };
 
         // result of the value expansion function
-        using ExpandedValue = std::variant<IRIMapping, LiteralMapping, TypedLiteralMapping, simdjson::ondemand::value>;
+        using ExpandedValue = std::variant<IRIMapping, StringLikeLiteralMapping, TypedLiteralMapping, simdjson::ondemand::value>;
 
         /**
          * Null is used for no language tag (raw xsd:string)
@@ -226,14 +226,18 @@ namespace rdf4cpp::parser {
         struct ExpandedMap {
             std::vector<ExpandedMapEntry> entries;
             Context *active_context = nullptr;
-            std::forward_list<Context> context_storage;  // moving the contained objects is not allowed
+            // moving the contained objects is not allowed
+            std::forward_list<Context> context_storage;
+            // if set, this map was expanded from something that is not a map (example: a string being converted to a map containing only an @id entry)
+            // therefore parse may not cast the input element to an object
+            // if set, only entries consisting of keyword_values may be in this map
             bool expanded_from_no_map = false;
 
             constexpr ExpandedMapEntry *try_find_entry(IRIMapping const &key);
             constexpr ExpandedMapEntry *try_find_keyword(std::string_view key);
         };
         // result of the expand level function
-        using ExpandedLevel = std::variant<ExpandedMap, LiteralMapping, TypedLiteralMapping, Null, simdjson::ondemand::value, simdjson::ondemand::array>;
+        using ExpandedLevel = std::variant<ExpandedMap, StringLikeLiteralMapping, TypedLiteralMapping, Null, simdjson::ondemand::value, simdjson::ondemand::array>;
 
 
         struct ExpandedMapEntry {
