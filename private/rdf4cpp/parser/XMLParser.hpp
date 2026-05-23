@@ -32,6 +32,10 @@ namespace rdf4cpp::parser {
         // see https://github.com/NVIDIA/stdexec/issues/1143
         struct XmlParserCtxtDtorLambda {
             void operator()(xmlParserCtxt *c) const {
+                if (c != nullptr && c->myDoc != nullptr) {
+                    xmlFreeDoc(c->myDoc);
+                    c->myDoc = nullptr;
+                }
                 xmlFreeParserCtxt(c);
             }
         };
