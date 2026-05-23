@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         config:
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             compiler: gcc-13
       fail-fast: false
     name: ${{ matrix.config.compiler }}, ${{ matrix.config.os }}

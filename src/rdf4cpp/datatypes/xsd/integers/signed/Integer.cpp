@@ -3,30 +3,46 @@
 #include <stdexcept>
 
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_integer>::cpp_type capabilities::Default<xsd_integer>::from_string(std::string_view s) {
-    if (s.starts_with('+')) {
-        s.remove_prefix(1);
-    }
+    return util::from_chars<cpp_type, identifier>(s);
+}
 
-    if (auto const pos = s.find_first_not_of('0'); pos != std::string::npos) {
-        s.remove_prefix(pos);
-    }
-
-    try {
-        return cpp_type{s};
-    } catch (std::runtime_error const &e) {
-        throw InvalidNode{std::format("{} parsing error: {}", identifier, e.what())};
-    }
+template<>
+bool capabilities::Default<xsd_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
+    return rdf4cpp::util::to_chars_canonical(value, writer);
 }
 
 template<>
 bool capabilities::Logical<xsd_integer>::effective_boolean_value(cpp_type const &value) noexcept {
     return value != 0;
+}
+
+template<>
+nonstd::expected<capabilities::Numeric<xsd_integer>::add_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    // https://www.w3.org/TR/xpath-functions/#op.numeric
+    // needs overflow protection
+    cpp_type r;
+    if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
+        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
+    return r;
+}
+
+template<>
+nonstd::expected<capabilities::Numeric<xsd_integer>::sub_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    // https://www.w3.org/TR/xpath-functions/#op.numeric
+    // needs overflow protection
+    cpp_type r;
+    if (rdf4cpp::util::detail::sub_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
+        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
+    return r;
 }
 
 template<>
@@ -41,8 +57,32 @@ nonstd::expected<capabilities::Numeric<xsd_integer>::div_result_cpp_type, Dynami
 }
 
 template<>
+nonstd::expected<capabilities::Numeric<xsd_integer>::mul_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    // https://www.w3.org/TR/xpath-functions/#op.numeric
+    // decimal needs overflow protection
+    cpp_type r;
+    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
+        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
+    return r;
+}
+
+template<>
+nonstd::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::neg(cpp_type const &operand) noexcept {
+    cpp_type r;
+    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(operand, cpp_type{-1}, r)) {
+        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
+    return r;
+}
+
+template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::abs(cpp_type const &operand) noexcept {
-    return boost::multiprecision::abs(operand);
+    if (operand >= 0) {
+        return operand;
+    } else {
+        return neg(operand);
+    }
 }
 
 template<>

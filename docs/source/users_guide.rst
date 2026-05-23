@@ -36,6 +36,31 @@ You can find all supported Datatypes here:
  * :ref:`namespace_rdf4cpp__datatypes__rdf`: RDF datatypes (LangString).
  * :ref:`namespace_rdf4cpp__datatypes__owl`: OWL datatypes.
 
+
+Limits for Datatypes
+++++++++++++++++++++
+By default, unlimited precision datatypes are limited in accordance with https://www.w3.org/TR/xmlschema11-2/#partial-implementation .
+
+For :code:`http://www.w3.org/2001/XMLSchema#integer`
+(and the related: :code:`http://www.w3.org/2001/XMLSchema#nonNegativeInteger`
+:code:`http://www.w3.org/2001/XMLSchema#positiveInteger` :code:`http://www.w3.org/2001/XMLSchema#nonPositiveInteger`
+:code:`http://www.w3.org/2001/XMLSchema#negativeInteger`) this limit is a signed 128-bit integer
+with the usual range of :code:`[-2^127,2^127-1]`
+
+And :code:`http://www.w3.org/2001/XMLSchema#decimal` is composed of the following parts: :code:`i/10^k`,
+where :code:`i` is a signed 128-bit integer (:code:`[-2^127,2^127-1]`) and :code:`k` is an unsigned 64-bit integer (:code:`[0,2^64]`).
+ss
+For :code:`http://www.w3.org/2001/XMLSchema#dateTime` (and all derived types) there are 2 limits:
+
+* represented as a time point with nanosecond precision with a 128-bit signed integer
+* the year part alone in a 64-bit signed integer
+
+Both limits are enough to cover both the current best theories of the big bang and the projected heat death of the universe.
+
+For :code:`http://www.w3.org/2001/XMLSchema#duration` (and all derived types), both parts have a separate signed 64-bit integer
+and with it its associated limits. The seconds part of the duration supports nanosecond precision.
+
+
 Parsing Files
 -------------
 

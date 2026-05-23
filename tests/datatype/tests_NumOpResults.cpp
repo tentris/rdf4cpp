@@ -26,7 +26,7 @@ TEST_SUITE("numeric op results") {
 
             Decimal::cpp_type const zero{0};
             Decimal::cpp_type const one{1};
-            Decimal::cpp_type const two{2};
+            Decimal::cpp_type const three{3};
             Decimal::cpp_type const min{std::numeric_limits<Decimal::cpp_type>::min()};
             Decimal::cpp_type const max{std::numeric_limits<Decimal::cpp_type>::max()};
             Decimal::cpp_type const big_number{"100000000000"};
@@ -34,8 +34,10 @@ TEST_SUITE("numeric op results") {
             // "If the number of digits in the mathematical result exceeds the number of digits
             // that the implementation retains for that operation, the result is truncated or rounded in an ·implementation-defined· manner."
             if (max != 0) {  // if max == 0 -> unlimited
-                CHECK(Decimal::add(max, one) == max);
-                CHECK(Decimal::sub(max, -one) == max);
+                auto r = Decimal::div(one, three);
+                CHECK(r.has_value());
+                CHECK(r.value() > zero);
+                CHECK(r.value() < one);
             }
 
             // "For xs:decimal operations, overflow behavior must raise a dynamic error [err:FOAR0002]."
@@ -47,11 +49,14 @@ TEST_SUITE("numeric op results") {
             }
 
             // "On underflow, 0.0 must be returned."
+            /*
+             * XPath (and by extension SPARQL) do not define underflow themselves.
+             * But from how they use it, (see https://www.w3.org/TR/xpath-functions/#op.numeric ) it seems, they understand it the same as it is used in IEEE floats.
+             * And for these ( https://ieeemilestones.ethw.org/w/images/5/54/Handbook_Floating_Point_Chapter_3.pdf page 31)
+             * underflow occurs if the absolute of the result is not 0 but smaller than the smallest representable value.
+             */
             if (min != 0) {  // if min == 0 -> unlimited
-                CHECK(Decimal::sub(min, min) == zero);
-                CHECK(Decimal::div(min, two) == zero);
-                CHECK(Decimal::div(min, big_number) == zero);
-                CHECK(Decimal::mul(min, one / two) == zero);
+                CHECK(Decimal::div(one, max) == zero);
             }
 
             // https://www.w3.org/TR/xpath-functions/#func-numeric-divide

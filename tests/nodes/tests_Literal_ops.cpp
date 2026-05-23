@@ -160,8 +160,8 @@ TEST_CASE("Literal - logical ops") {
 
 TEST_CASE("Literal - numeric ops") {
     // simple promotion test cases
-    GENERATE_BINOP_TESTCASE(Float, 42.f, +, Decimal, rdf4cpp::BigDecimal{120.0}, Float, 162.f);
-    GENERATE_BINOP_TESTCASE(Decimal, rdf4cpp::BigDecimal{2.f}, *, Float, 120.0, Float, 240.f);
+    GENERATE_BINOP_TESTCASE(Float, 42.f, +, Decimal, rdf4cpp::Decimal128{120.0}, Float, 162.f);
+    GENERATE_BINOP_TESTCASE(Decimal, rdf4cpp::Decimal128{2.f}, *, Float, 120.0, Float, 240.f);
     GENERATE_BINOP_TESTCASE(Integer, 100, -, Float, 1.f, Float, 99.f);
     GENERATE_BINOP_TESTCASE(Float, 100.f, /, Integer, 2, Float, 50.f);
 
@@ -173,9 +173,9 @@ TEST_CASE("Literal - numeric ops") {
     GENERATE_BINOP_TESTCASE(Integer, 1, +, Integer , 2, Integer, 3);
     GENERATE_BINOP_TESTCASE(Integer, 12, -, Integer, 1, Integer, 11);
     GENERATE_BINOP_TESTCASE(Integer, 3, *, Integer, 6, Integer, 18);
-    GENERATE_BINOP_TESTCASE(Integer, 12, /, Integer, 4, Decimal, rdf4cpp::BigDecimal{3.0});
+    GENERATE_BINOP_TESTCASE(Integer, 12, /, Integer, 4, Decimal, rdf4cpp::Decimal128{3.0});
     GENERATE_BINOP_TESTCASE(Int, 1, +, Integer, 3, Integer, 4);
-    GENERATE_BINOP_TESTCASE(Int, 1, +, Decimal, rdf4cpp::BigDecimal{2}, Decimal, rdf4cpp::BigDecimal{3});
+    GENERATE_BINOP_TESTCASE(Int, 1, +, Decimal, rdf4cpp::Decimal128{2}, Decimal, rdf4cpp::Decimal128{3});
     GENERATE_UNOP_TESTCASE(Integer, 1, +, Integer, 1);
     GENERATE_UNOP_TESTCASE(Integer, 1, -, Integer, -1);
 

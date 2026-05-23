@@ -114,6 +114,26 @@ cd build_dir
 sudo make install
 ```
 
+### Limits for Datatypes
+By default, unlimited precision datatypes are limited in accordance with https://www.w3.org/TR/xmlschema11-2/#partial-implementation .
+
+For `http://www.w3.org/2001/XMLSchema#integer`
+(and the related: `http://www.w3.org/2001/XMLSchema#nonNegativeInteger`
+`http://www.w3.org/2001/XMLSchema#positiveInteger` `http://www.w3.org/2001/XMLSchema#nonPositiveInteger`
+`http://www.w3.org/2001/XMLSchema#negativeInteger`) this limit is a signed 128-bit integer
+with the usual range of `[-2^127,2^127-1]`
+
+And `http://www.w3.org/2001/XMLSchema#decimal` is composed of the following parts: `i/10^k`,
+where `i` is a signed 128-bit integer (`[-2^127,2^127-1]`) and `k` is an unsigned 64-bit integer (`[0,2^64]`).
+
+For `http://www.w3.org/2001/XMLSchema#dateTime` (and all derived types) there are 2 limits:
+- represented as a time point with nanosecond precision with a 128-bit signed integer
+- the year part alone in a 64-bit signed integer
+Both limits are enough to cover both the current best theories of the big bang and the projected heat death of the universe.
+
+For `http://www.w3.org/2001/XMLSchema#duration` (and all derived types), both parts have a separate signed 64-bit integer
+and with it its associated limits. The seconds part of the duration supports nanosecond precision.
+
 ### Additional CMake config options:
 
 - `-DBUILD_EXAMPLES=ON/OFF [default: OFF]`: Build the examples.
@@ -122,11 +142,11 @@ sudo make install
 
 
 ## Supported Platforms
-- **Linux distributions (x86-64, AArch64)** (e.g. Ubuntu>=24.04, Fedora>=41, etc.) with:
-    - GCC>=14 (libstdc++>=14; used with both GCC and Clang)
-    - Clang>=19
-    - glibc 2.35+ or musl 1.2.4+
-- **macOS (ARM64)**: macOS Sonoma (14)+ with GCC>=14 (via Homebrew)
+- **Linux distributions (x86-64, aarch64)** (e.g. Ubuntu>=24.04, Fedora>=41, etc.) with:
+    - gcc>=14 (libstdc++>=14; used with both GCC and Clang)
+    - clang>=19* (on aarch64 clang>=20 is required)
+    - glibc>=2.35 or musl>=1.2.4
+- **macOS (aarch64)**: macOS Sonoma (>=14) with GCC>=14 (via Homebrew)
 
 ## Stability
 

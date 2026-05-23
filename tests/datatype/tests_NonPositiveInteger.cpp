@@ -6,6 +6,7 @@
 using namespace rdf4cpp;
 
 TEST_CASE("Datatype NonPositiveInteger") {
+    CHECK(storage::default_node_storage.has_specialized_storage_for(datatypes::xsd::NonPositiveInteger::fixed_id));
 
     constexpr auto correct_type_iri_cstr = "http://www.w3.org/2001/XMLSchema#nonPositiveInteger";
 

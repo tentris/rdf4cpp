@@ -31,8 +31,7 @@ bool capabilities::Default<xsd_decimal>::serialize_simplified_string(cpp_type co
     cpp_type v = value;
     v.normalize();
     if (v.get_exponent() == 0) {
-        auto const s = static_cast<boost::multiprecision::cpp_int>(v).str();
-        return writer::write_str(s, writer);
+        return rdf4cpp::util::to_chars_canonical(v.get_unscaled_value(), writer);
     } else {
         auto const s = static_cast<std::string>(v);
         return writer::write_str(s, writer);
@@ -71,7 +70,7 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::div_result_cpp_type, Dynami
         return nonstd::make_unexpected(DynamicError::DivideByZero);
     }
 
-    auto r = lhs.div_checked(rhs, 1000);
+    auto r = lhs.div_checked(rhs, cpp_type::default_max_scale_increase);
     if (r.has_value())
         return r.value();
     else
@@ -110,17 +109,17 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, Dynami
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::round(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::RoundingMode::Round);
+    return operand.round(rdf4cpp::util::RoundingMode::Round);
 }
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::floor_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::floor(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::RoundingMode::Floor);
+    return operand.round(rdf4cpp::util::RoundingMode::Floor);
 }
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::ceil(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::RoundingMode::Ceil);
+    return operand.round(rdf4cpp::util::RoundingMode::Ceil);
 }
 
 template<>
@@ -150,8 +149,8 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_decim
 
     cpp_type::normalize(big_unscaled_value, exponent);
 
-    auto const unscaled_value = static_cast<int64_t>(big_unscaled_value);
-    if (big_unscaled_value != unscaled_value) {
+    int64_t unscaled_value;
+    if (rdf4cpp::util::detail::cast_checked<rdf4cpp::util::detail::OverflowMode::Checked>(big_unscaled_value, unscaled_value)) {
         // unscaled value > 64 bit, cannot fit
         return std::nullopt;
     }

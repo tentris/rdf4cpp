@@ -15,9 +15,11 @@ TEST_CASE("integer capabilities") {
     static_assert(datatypes::xsd::Integer::subtype_rank == 1);
     static_assert(datatypes::ComparableLiteralDatatype<datatypes::xsd::Integer>);
     static_assert(datatypes::FixedIdLiteralDatatype<datatypes::xsd::Integer>);
+    static_assert(std::numeric_limits<datatypes::xsd::Integer::cpp_type>::digits10 > 16);
 }
 
 TEST_CASE("Datatype Integer") {
+    CHECK(storage::default_node_storage.has_specialized_storage_for(datatypes::xsd::Integer::fixed_id));
 
     constexpr auto correct_type_iri_cstr = "http://www.w3.org/2001/XMLSchema#integer";
 
@@ -73,7 +75,7 @@ TEST_CASE("Datatype Integer") {
     // suppress warnings regarding attribute ‘nodiscard’
     Literal no_discard_dummy;
 
-    CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("a23dg", type_iri), "http://www.w3.org/2001/XMLSchema#integer parsing error: Unexpected character encountered in input.", InvalidNode);
+    CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("a23dg", type_iri), doctest::Contains("http://www.w3.org/2001/XMLSchema#integer parsing error: "), InvalidNode);
     CHECK_THROWS(no_discard_dummy = Literal::make_typed("2.2e-308", type_iri));
 }
 
@@ -99,7 +101,7 @@ TEST_CASE("integer inlining") {
     }
 
     SUBCASE("too large") {
-        auto lit = Literal::make_typed_from_value<xsd::Integer>(xsd::Integer::cpp_type{"9999999999999999999999"});
+        auto lit = Literal::make_typed<xsd::Integer>("9999999999999999999999");
         CHECK(!lit.backend_handle().is_inlined());
     }
 }

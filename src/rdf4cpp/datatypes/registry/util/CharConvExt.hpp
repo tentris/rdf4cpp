@@ -10,6 +10,8 @@
 #include <format>
 
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/util/Int128.hpp>
+#include <rdf4cpp/util/boost_int.hpp>
 #include <rdf4cpp/Assert.hpp>
 
 namespace rdf4cpp::datatypes::registry::util {
@@ -85,6 +87,75 @@ F from_chars(std::string_view s) {
         throw rdf4cpp::InvalidNode{std::format("{} parsing error: found {}, invalid for datatype", datatype, *res.ptr)};
     }
 
+    return value;
+}
+
+template<rdf4cpp::util::detail::BoostNumber F, ConstexprString datatype>
+F from_chars(std::string_view s) {
+    if (s.starts_with('+')) {
+        s.remove_prefix(1);
+    }
+    if (auto const pos = s.find_first_not_of('0'); pos != std::string::npos) {
+        s.remove_prefix(pos);
+    }
+
+    try {
+        return F{s};
+    }
+    catch (std::runtime_error const &e) {
+        throw InvalidNode{std::format("{} parsing error: {}", datatype, e.what())};
+    }
+}
+
+template<typename F, ConstexprString datatype>
+requires std::same_as<F, __int128>
+F from_chars(std::string_view s) {
+    static constexpr __int128 max_pow10 = []() {
+        auto n = std::numeric_limits<uint64_t>::digits10;
+        __int128 d = 1;
+        for (int i = 0; i < n; ++i) {
+            d = d * 10;
+        }
+        return d;
+    }();
+    static_assert(max_pow10 == 10'000'000'000'000'000'000ull);
+
+    bool neg = false;
+    if (s.starts_with('+')) {
+        s.remove_prefix(1);
+    }
+    else if(s.starts_with('-')) {
+        neg = true;
+        s.remove_prefix(1);
+    }
+
+    __int128 value = 0;
+    int i = 0;
+    while (!s.empty()) {
+        std::string_view p;
+        if (s.size() <= std::numeric_limits<uint64_t>::digits10) {
+            p = s;
+            s = "";
+        }
+        else {
+            const size_t pos = s.size() - std::numeric_limits<uint64_t>::digits10;
+            p = s.substr(pos);
+            s = s.substr(0, pos);
+        }
+        __int128 value2 = from_chars<uint64_t, datatype>(p);
+        if (neg) {
+            value2 = -value2;
+        }
+        for (int j = 0; j < i; ++j) {
+            if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value2, max_pow10, value2)) [[unlikely]] {
+                throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
+            }
+        }
+        if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(value, value2, value)) [[unlikely]] {
+            throw rdf4cpp::InvalidNode{std::format("{} parsing error: overflow", datatype)};
+        }
+        ++i;
+    }
     return value;
 }
 

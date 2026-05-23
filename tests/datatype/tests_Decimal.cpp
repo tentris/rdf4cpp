@@ -18,6 +18,7 @@ TEST_CASE("decimal capabilities") {
 }
 
 TEST_CASE("Datatype Decimal") {
+    CHECK(storage::default_node_storage.has_specialized_storage_for(datatypes::xsd::Decimal::fixed_id));
 
     constexpr auto correct_type_iri_cstr = "http://www.w3.org/2001/XMLSchema#decimal";
 
@@ -65,10 +66,6 @@ TEST_CASE("Datatype Decimal") {
     auto lit8 = Literal::make_typed("1.00", type_iri);
     CHECK(lit8.value<datatypes::xsd::Decimal>() == value);
     CHECK(lit8.lexical_form() == rdf_dbl_1_0);
-
-    value = type{std::numeric_limits<double>::max()};
-    auto lit9 = Literal::make_typed(to_string(value), type_iri);
-    CHECK(lit9.value<datatypes::xsd::Decimal>() == value);
 
     value = type{"3.111"};
     auto lit10 = Literal::make_typed_from_value<datatypes::xsd::Decimal>(value);
@@ -185,7 +182,7 @@ TEST_CASE("decimal inlining sanity check") {
 
     SUBCASE("limits") {
         SUBCASE("unscaled value") {
-            boost::multiprecision::cpp_int const very_big_value{"99999999999999999999999999999999999999999999999"};
+            auto const very_big_value = std::numeric_limits<rdf4cpp::Int128>::max();
             CHECK_GT(very_big_value, std::numeric_limits<int64_t>::max());
 
             // way over the limit
@@ -217,7 +214,7 @@ TEST_CASE("decimal inlining sanity check") {
         }
 
         SUBCASE("exponent") {
-            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{boost::multiprecision::cpp_int{5}, 1U << 10});
+            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{rdf4cpp::Int128{5}, 1U << 10});
             CHECK(!l.is_inlined());
             CHECK(l.value<Decimal>() == Decimal::cpp_type(5, 1U << 10));
         }
