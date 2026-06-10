@@ -892,8 +892,8 @@ namespace rdf4cpp::parser::json_ld {
             }
         }
         // 9
-        // no keyword, bn or valid iri, would have passed any further check
-        // => not possible to result in a valid Node, ignore it
+        // no keyword, bn or valid iri, would have passed any above check
+        // => caller would ignore it anyway => return empty
         return IRIMapping{std::string(""), IRIMappingType::None};
     }
 }  // namespace rdf4cpp::parser::json_ld
