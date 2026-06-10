@@ -659,7 +659,7 @@ namespace rdf4cpp::parser::json_ld {
                 expanded_value.is_json_literal = true;
             }
             // 13.7
-            else if (term_definition != nullptr && term_definition->has_container_mapping(keyword_language) && v.type() == simdjson::ondemand::json_type::object) {
+            else if (term_definition != nullptr && term_definition->has_container_mapping(ContainerMapping::Language) && v.type() == simdjson::ondemand::json_type::object) {
                 expanded_value.path = p.active_path;
                 expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
                 expanded_value.language_map = p.active_ctx.base_direction;
@@ -668,7 +668,7 @@ namespace rdf4cpp::parser::json_ld {
                 }
             }
             // 13.8
-            else if (term_definition != nullptr && (term_definition->has_container_mapping(keyword_index) || term_definition->has_container_mapping(keyword_type) || term_definition->has_container_mapping(keyword_id))
+            else if (term_definition != nullptr && (term_definition->has_container_mapping(ContainerMapping::Index) || term_definition->has_container_mapping(ContainerMapping::Type) || term_definition->has_container_mapping(ContainerMapping::Id))
                      && v.type() == simdjson::ondemand::json_type::object) {
 
                 // 13.8.2
@@ -687,7 +687,7 @@ namespace rdf4cpp::parser::json_ld {
 
                     Context const *map_context = nullptr;
                     // 13.8.3.1
-                    if (term_definition->has_container_mapping(keyword_id) || term_definition->has_container_mapping(keyword_type)) {
+                    if (term_definition->has_container_mapping(ContainerMapping::Id) || term_definition->has_container_mapping(ContainerMapping::Type)) {
                         map_context = p.active_ctx.previous_context;
                     }
                     // 13.8.3.1&3
@@ -696,7 +696,7 @@ namespace rdf4cpp::parser::json_ld {
                     }
 
                     // 13.8.3.2
-                    if (term_definition->has_container_mapping(keyword_type)) {
+                    if (term_definition->has_container_mapping(ContainerMapping::Type)) {
                         auto *index_term = map_context->try_find_term(index);
                         if (index_term != nullptr && index_term->context.has_value()) {
                             auto r = context_parser.parse_local_context(simdjson::padded_string_view{*index_term->context}, {
@@ -725,7 +725,7 @@ namespace rdf4cpp::parser::json_ld {
                         ExpandedMap *next_lvl = nullptr;
                         std::optional<simdjson::ondemand::object> index_value_obj = std::nullopt;
                         // 13.8.3.7.1
-                        if (term_definition->has_container_mapping(keyword_graph) && !is_graph_object(index_value, p.active_ctx, index_value_obj)) {
+                        if (term_definition->has_container_mapping(ContainerMapping::Graph) && !is_graph_object(index_value, p.active_ctx, index_value_obj)) {
                             ex.next_level_pre_expanded = ExpandedMap{};
                             next_lvl = &std::get<ExpandedMap>(*ex.next_level_pre_expanded);
                             auto &ge = next_lvl->entries.emplace_back(IRIMapping{std::string{keyword_graph}, IRIMappingType::Keyword});
@@ -761,7 +761,7 @@ namespace rdf4cpp::parser::json_ld {
                             return next_lvl != nullptr && next_lvl->try_find_keyword(kwo) != nullptr;
                         };
                         // 13.8.3.7.2
-                        if (term_definition->has_container_mapping(keyword_index) && !index_key.is_keyword(keyword_index) && !expanded_index->is_keyword(keyword_none)) {
+                        if (term_definition->has_container_mapping(ContainerMapping::Index) && !index_key.is_keyword(keyword_index) && !expanded_index->is_keyword(keyword_none)) {
                             auto reexpanded_index = value_expansion(p.active_ctx, index_key, index);
                             if (!reexpanded_index.has_value()) {
                                 return reexpanded_index.error();
@@ -777,12 +777,12 @@ namespace rdf4cpp::parser::json_ld {
                             e.pre_expanded_value = std::move(*reexpanded_index);
                         }
                         // 13.8.3.7.3
-                        else if (term_definition->has_container_mapping(keyword_index) && !has_keyword(keyword_index)
+                        else if (term_definition->has_container_mapping(ContainerMapping::Index) && !has_keyword(keyword_index)
                                  && !expanded_index->is_keyword(keyword_none)) {
                             // skipped, @index is ignored
                         }
                         // 13.8.3.7.4
-                        else if (term_definition->has_container_mapping(keyword_id) && !has_keyword(keyword_id)
+                        else if (term_definition->has_container_mapping(ContainerMapping::Id) && !has_keyword(keyword_id)
                                  && !expanded_index->is_keyword(keyword_none)) {
                             auto id = context_parser.iri_expansion(p.active_ctx, index, true, false);
                             if (!id.has_value()) {
@@ -795,7 +795,7 @@ namespace rdf4cpp::parser::json_ld {
                             e.keyword_values.emplace_back(std::move(*id));
                         }
                         // 13.8.3.7.5
-                        else if (term_definition->has_container_mapping(keyword_type) && !expanded_index->is_keyword(keyword_none)) {
+                        else if (term_definition->has_container_mapping(ContainerMapping::Type) && !expanded_index->is_keyword(keyword_none)) {
                             if (next_lvl == nullptr) {
                                 return make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid type)");
                             }
@@ -829,12 +829,12 @@ namespace rdf4cpp::parser::json_ld {
                 continue;
             }
             // 13.11
-            if (term_definition != nullptr && term_definition->has_container_mapping(keyword_list) && !is_list_object(v, p.active_ctx)) {
+            if (term_definition != nullptr && term_definition->has_container_mapping(ContainerMapping::List) && !is_list_object(v, p.active_ctx)) {
                 expanded_value.as_list = true;
             }
             // 13.12
-            if (term_definition != nullptr && term_definition->has_container_mapping(keyword_graph)
-                && !term_definition->has_container_mapping(keyword_id) && !term_definition->has_container_mapping(keyword_index)) {
+            if (term_definition != nullptr && term_definition->has_container_mapping(ContainerMapping::Graph)
+                && !term_definition->has_container_mapping(ContainerMapping::Id) && !term_definition->has_container_mapping(ContainerMapping::Index)) {
                 if (v.type() == simdjson::ondemand::json_type::array) {
                     expanded_value.as_multiple_graphs = true;
                 } else {
