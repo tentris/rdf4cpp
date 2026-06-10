@@ -59,6 +59,8 @@ template<>
 std::optional<bool> try_match_simd(std::string_view data, std::array<CharRange, 3> const &ranges, datatypes::registry::util::ConstexprString<21> const &single);
 template<>
 std::optional<bool> try_match_simd(std::string_view data, std::array<CharRange, 1> const &ranges, datatypes::registry::util::ConstexprString<1> const &single);
+template<>
+std::optional<bool> try_match_simd(std::string_view data, std::array<CharRange, 2> const &ranges, datatypes::registry::util::ConstexprString<1> const &single);
 
 /**
  * tries to check if data contains any of match.

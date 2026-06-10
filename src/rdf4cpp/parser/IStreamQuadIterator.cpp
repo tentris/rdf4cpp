@@ -2,6 +2,7 @@
 
 #include <rdf4cpp/parser/IStreamQuadIteratorSerdImpl.hpp>
 #include <rdf4cpp/parser/XMLParser.hpp>
+#include <rdf4cpp/parser/JsonLdParser.hpp>
 
 #include <cstdio>
 
@@ -51,15 +52,25 @@ static int istream_eof(void *voided_self) noexcept {
     return static_cast<int>(self->eof());
 }
 
+std::unique_ptr<IStreamQuadIterator::Impl> IStreamQuadIterator::make_impl(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof, flags_type flags, state_type *state) {
+    auto syntax = flags.get_syntax();
+    if (syntax == ParsingFlag::RdfXml) {
+        return std::make_unique<ImplXML>(stream, read, error, eof, state);
+    }
+    else if (syntax == ParsingFlag::JsonLd) {
+        return std::make_unique<ImplJsonLd>(stream, read, error, eof, flags, state);
+    }
+    else {
+        return std::make_unique<ImplSerd>(stream, read, error, flags, state);
+    }
+}
 IStreamQuadIterator::IStreamQuadIterator(void *stream,
                                          ReadFunc read,
                                          ErrorFunc error,
                                          EOFFunc eof,
                                          flags_type flags,
                                          state_type *state)
-    : impl{flags.get_syntax() == ParsingFlag::RdfXml ?
-        static_cast<std::unique_ptr<Impl>>(std::make_unique<ImplXML>(stream, read, error, eof, state)) :
-        std::make_unique<ImplSerd>(stream, read, error, flags, state)},
+    : impl{make_impl(stream, read, error, eof, flags, state)},
       cur{impl->next()} {
 }
 
