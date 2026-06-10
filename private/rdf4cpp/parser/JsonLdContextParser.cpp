@@ -322,7 +322,7 @@ namespace rdf4cpp::parser::json_ld {
                     if (t.value().get(v) != simdjson::SUCCESS || v != keyword_set) {
                         return make_error(ParsingError::Type::BadSyntax, "keyword redefinition (@type invalid @container)");
                     }
-                    p.term.container_mapping.emplace_back(keyword_set);
+                    p.term.container_mapping |= ContainerMapping::Set;
                     any = true;
                 } else if (k == keyword_protected) {
                     bool v;
@@ -504,7 +504,7 @@ namespace rdf4cpp::parser::json_ld {
                             return make_error(ParsingError::Type::BadSyntax, "invalid reverse property");
                         }
                         if (v_cont.is_null()) {
-                            p.term.container_mapping.clear();
+                            p.term.container_mapping = ContainerMapping::None;
                         } else {
                             std::string_view cont;
                             if (v_cont.get(cont) != simdjson::SUCCESS) {
@@ -513,8 +513,7 @@ namespace rdf4cpp::parser::json_ld {
                             if (cont != keyword_set && cont != keyword_index) {
                                 return make_error(ParsingError::Type::BadSyntax, "invalid reverse property");
                             }
-                            p.term.container_mapping.clear();
-                            p.term.container_mapping.emplace_back(cont);
+                            p.term.container_mapping = keyword_to_container_mapping(cont);
                         }
                     }
 
@@ -592,72 +591,63 @@ namespace rdf4cpp::parser::json_ld {
                     }
                 }
             }
-            auto container_contains = [&](std::string_view x) {
-                return std::ranges::find(p.term.container_mapping, x) != p.term.container_mapping.end();
-            };
             {  // 19
                 auto [c, v] = try_get_field<simdjson::ondemand::value>(ob, keyword_container);
                 if (c != simdjson::NO_SUCH_FIELD) {
-                    auto is_valid_keyword = [](std::string_view v) {
-                        static constexpr std::array valid = {keyword_graph, keyword_id, keyword_index, keyword_language, keyword_list, keyword_set, keyword_type};
-                        return std::ranges::any_of(valid, [v](std::string_view a) {
-                            return a == v;
-                        });
-                    };
                     if (v.is_string()) {
-                        auto d = static_cast<std::string_view>(v);
-                        if (!is_valid_keyword(d)) {
+                        auto d = keyword_to_container_mapping(static_cast<std::string_view>(v));
+                        if (d == ContainerMapping::None) {
                             return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
                         }
-                        p.term.container_mapping.clear();
-                        p.term.container_mapping.emplace_back(d);
+                        p.term.container_mapping = d;
                     } else {
                         simdjson::ondemand::array a;
                         if (v.get(a) != simdjson::SUCCESS) {
                             return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
                         }
-                        p.term.container_mapping.clear();
+                        p.term.container_mapping = ContainerMapping::None;
                         for (auto w : a) {
                             std::string_view x;
                             if (w.get(x) != simdjson::SUCCESS) {
                                 return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
                             }
-                            if (!is_valid_keyword(x)) {
+                            auto container_mapping = keyword_to_container_mapping(x);
+                            if (container_mapping == ContainerMapping::None) {
                                 return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
                             }
-                            p.term.container_mapping.emplace_back(x);
+                            p.term.container_mapping |= container_mapping;
                         }
                     }
-                    if (p.term.container_mapping.empty()) {
+                    if (p.term.container_mapping == ContainerMapping::None) {
                         return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
                     }
-                    if (p.term.container_mapping.size() > 1) {
-                        auto only = [&](std::initializer_list<std::string_view> x) {
-                            return std::ranges::all_of(p.term.container_mapping, [&](std::string_view d) {
-                                return std::ranges::any_of(x, [&](std::string_view a) {
-                                    return a == d;
-                                });
-                            });
+                    if (p.term.container_mapping_size() > 1) {
+                        auto only = [&](std::initializer_list<ContainerMapping> x) {
+                            ContainerMapping check = ContainerMapping::None;
+                            for (auto e : x) {
+                                check |= e;
+                            }
+                            return (p.term.container_mapping & ~check) == ContainerMapping::None;
                         };
-                        bool graph = container_contains(keyword_graph);
+                        bool graph = p.term.has_container_mapping(ContainerMapping::Graph);
                         if (graph) {
-                            auto id = container_contains(keyword_id);
-                            auto index = container_contains(keyword_index);
+                            auto id = p.term.has_container_mapping(ContainerMapping::Id);
+                            auto index = p.term.has_container_mapping(ContainerMapping::Index);
                             if (index == id) {  // xor
                                 graph = false;
                             } else {
-                                graph = only({keyword_graph, keyword_id, keyword_index, keyword_set});
+                                graph = only({ContainerMapping::Graph, ContainerMapping::Id, ContainerMapping::Index, ContainerMapping::Set});
                             }
                         }
-                        bool set = container_contains(keyword_set);
+                        bool set = p.term.has_container_mapping(ContainerMapping::Set);
                         if (set) {
-                            set = only({keyword_set, keyword_index, keyword_graph, keyword_id, keyword_type, keyword_language});
+                            set = only({ContainerMapping::Set, ContainerMapping::Index, ContainerMapping::Graph, ContainerMapping::Id, ContainerMapping::Type, ContainerMapping::Language});
                         }
                         if (!set && !graph) {
                             return make_error(ParsingError::Type::BadSyntax, "invalid container mapping");
                         }
                     }
-                    if (container_contains(keyword_type)) {
+                    if (p.term.has_container_mapping(ContainerMapping::Type)) {
                         if (!p.term.type_mapping.has_value()) {
                             p.term.type_mapping = keyword_id;
                         }
@@ -673,7 +663,7 @@ namespace rdf4cpp::parser::json_ld {
                     if (c != simdjson::SUCCESS) {
                         return make_error(ParsingError::Type::BadSyntax, "invalid term definition");
                     }
-                    if (!container_contains(keyword_index)) {
+                    if (!p.term.has_container_mapping(ContainerMapping::Index)) {
                         return make_error(ParsingError::Type::BadSyntax, "invalid term definition");
                     }
                     params::ParseContextIRIExpansionParams p_ctx{

@@ -84,7 +84,7 @@ namespace rdf4cpp::parser {
             constexpr auto operator<=>(NotSet const &) const = default;
         };
 
-        enum class BaseDirection : uint8_t {
+        enum struct BaseDirection : uint8_t {
             None,
             Ltr,
             Rtl,
@@ -92,7 +92,7 @@ namespace rdf4cpp::parser {
         std::optional<BaseDirection> try_parse_base_direction(std::string_view d);
 
         // corresponds to the defined map from the context parsing algorithms.
-        enum class ParseState : uint8_t {
+        enum struct ParseState : uint8_t {
             // not in the map
             NotStarted,
             // false
@@ -101,7 +101,7 @@ namespace rdf4cpp::parser {
             Done,
         };
 
-        enum class IRIMappingType : uint8_t {
+        enum struct IRIMappingType : uint8_t {
             None,
             IRI,
             BlankNode,
@@ -176,6 +176,58 @@ namespace rdf4cpp::parser {
             }
         };
 
+        enum struct ContainerMapping : uint8_t {
+            None = 0,
+            Graph = 1 << 0,
+            Id = 1 << 1,
+            Index = 1 << 2,
+            Language = 1 << 3,
+            List = 1 << 4,
+            Set = 1 << 5,
+            Type = 1 << 6,
+        };
+        // ReSharper disable once CppDFAUnreachableFunctionCall
+        constexpr ContainerMapping operator|(ContainerMapping a, ContainerMapping b) {
+            return static_cast<ContainerMapping>(static_cast<std::underlying_type_t<ContainerMapping>>(a) | static_cast<std::underlying_type_t<ContainerMapping>>(b));
+        }
+        constexpr ContainerMapping& operator|=(ContainerMapping& a, ContainerMapping b) {
+            a = a | b;
+            return a;
+        }
+        constexpr ContainerMapping operator&(ContainerMapping a, ContainerMapping b) {
+            return static_cast<ContainerMapping>(static_cast<std::underlying_type_t<ContainerMapping>>(a) & static_cast<std::underlying_type_t<ContainerMapping>>(b));
+        }
+        constexpr ContainerMapping operator^(ContainerMapping a, ContainerMapping b) {
+            return static_cast<ContainerMapping>(static_cast<std::underlying_type_t<ContainerMapping>>(a) | static_cast<std::underlying_type_t<ContainerMapping>>(b));
+        }
+        constexpr ContainerMapping operator~(ContainerMapping a) {
+            return static_cast<ContainerMapping>(~static_cast<std::underlying_type_t<ContainerMapping>>(a));
+        }
+        constexpr ContainerMapping keyword_to_container_mapping(std::string_view k) {
+            if (k == keyword_graph) {
+                return ContainerMapping::Graph;
+            }
+            else if (k == keyword_id) {
+                return ContainerMapping::Id;
+            }
+            else if (k == keyword_index) {
+                return ContainerMapping::Index;
+            }
+            else if (k == keyword_language) {
+                return ContainerMapping::Language;
+            }
+            else if (k == keyword_list) {
+                return ContainerMapping::List;
+            }
+            else if (k == keyword_set) {
+                return ContainerMapping::Set;
+            }
+            else if (k == keyword_type) {
+                return ContainerMapping::Type;
+            }
+            return ContainerMapping::None;
+        }
+
         // part of the term definition that needs to be compared for protection checks
         struct TermDefinitionBase {
             std::string key;
@@ -183,11 +235,11 @@ namespace rdf4cpp::parser {
             std::optional<std::string> base_iri;
             // needs to be padded during parent context parse
             std::optional<std::string> context;
-            std::vector<std::string> container_mapping;
             IRIMapping index_mapping;
             LanguageMapping language_mapping = NotSet{};
             std::optional<std::string> nest_value;
             std::optional<std::string> type_mapping;
+            ContainerMapping container_mapping = ContainerMapping::None;
             BaseDirection direction_mapping = BaseDirection::None;
             bool is_prefix = false;
             bool is_reverse_property = false;
@@ -199,10 +251,11 @@ namespace rdf4cpp::parser {
                 : key{k} {
             }
 
-            [[nodiscard]] constexpr bool has_container_mapping(std::string_view m) const {
-                return std::ranges::any_of(container_mapping, [&](auto const &e) {
-                    return e == m;
-                });
+            [[nodiscard]] constexpr bool has_container_mapping(ContainerMapping m) const {
+                return (m & container_mapping) != ContainerMapping::None;
+            }
+            [[nodiscard]] constexpr int container_mapping_size() const {
+                return std::popcount(static_cast<std::underlying_type_t<ContainerMapping>>(container_mapping));
             }
         };
         struct TermDefinition : TermDefinitionBase {
