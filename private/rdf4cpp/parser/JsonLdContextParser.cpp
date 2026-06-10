@@ -1,10 +1,10 @@
 #include "JsonLdContextParser.hpp"
 
 namespace rdf4cpp::parser::json_ld {
-    nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_context(simdjson::ondemand::value local_context, Context const &active_context, std::string_view base_iri, bool override_protected, bool propagate) {
+    nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p) {
         // https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
         // 1
-        nonstd::expected<Context, error_type> result{active_context};
+        nonstd::expected<Context, error_type> result{p.active_context};
         for (auto &t : result->terms) {
             t.needs_context_check = false;
         }
@@ -170,9 +170,9 @@ namespace rdf4cpp::parser::json_ld {
                         .active_context = *result,
                         .term = term,
                         .previous_terms = previous_terms,
-                        .base_iri = base_iri,
+                        .base_iri = p.base_iri,
                         .is_protected = prot,
-                        .override_protected = override_protected,
+                        .override_protected = p.override_protected,
                     });
                     if (e.has_value()) {
                         result = nonstd::unexpected{e.value()};
@@ -183,34 +183,36 @@ namespace rdf4cpp::parser::json_ld {
             return false;
         };
 
+        auto handle_null = [&]() -> nonstd::expected<Context, error_type> {
+            if (!p.override_protected) {
+                for (auto const &t : p.active_context.terms) {
+                    if (t.is_protected) {
+                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification")};
+                        return result;
+                    }
+                }
+            }
+            return Context{
+                .base_iri{original_base_iri},
+            };
+        };
+
         if (local_context.type() == simdjson::ondemand::json_type::object) {
             // 2 & 3
             simdjson::ondemand::object const o = local_context.get_object();
             auto [c, prop] = try_get_field<bool>(o, keyword_propagate);
-            bool p = propagate;
-            if (c == simdjson::SUCCESS) {
-                p = prop;
-            }
-            if (!p && result->previous_context == nullptr) {
-                result->previous_context = &active_context;
+            bool const actual_propagate = c == simdjson::SUCCESS ? prop : p.propagate;
+            if (!actual_propagate && result->previous_context == nullptr) {
+                result->previous_context = &p.active_context;
             }
             //error handling later
 
             handle_ctx(o);  // 4
-        } else if (local_context.is_scalar() && local_context.is_null()) {
-            for (auto const &t : active_context.terms) {
-                if (t.is_protected) {
-                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification")};
-                    return result;
-                }
-            }
-            result = Context{
-                .base_iri{base_iri},
-            };
-            return result;
+        } else if (local_context.is_scalar() && local_context.is_null()) { // 5.1
+            return handle_null();
         } else {
-            if (!propagate && result->previous_context == nullptr) {
-                result->previous_context = &active_context;
+            if (!p.propagate && result->previous_context == nullptr) {
+                result->previous_context = &p.active_context;
             }
             simdjson::ondemand::array a{};
             if (local_context.get(a) != simdjson::SUCCESS) {
@@ -220,19 +222,15 @@ namespace rdf4cpp::parser::json_ld {
             for (auto v : a) {
                 switch (v.type()) {
                     case simdjson::ondemand::json_type::null:  // 5.1
+                    {
                         v.is_null();
-                        if (!override_protected) {
-                            for (auto const &t : active_context.terms) {
-                                if (t.is_protected) {
-                                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification")};
-                                    return result;
-                                }
-                            }
+                        auto r = handle_null();
+                        if (!r.has_value()) {
+                            return r;
                         }
-                        result = Context{
-                            .base_iri{base_iri},
-                        };
+                        result = r;
                         break;
+                    }
                     case simdjson::ondemand::json_type::object:  // 5.4
                         if (handle_ctx(v.get_object())) {
                             return result;
@@ -252,7 +250,11 @@ namespace rdf4cpp::parser::json_ld {
         if (result.has_value()) {
             for (auto const &t : result->terms) {
                 if (t.needs_context_check && t.context.has_value()) {
-                    auto lc = parse_local_context(simdjson::padded_string_view{*t.context}, *result, base_iri, true);
+                    auto lc = parse_local_context(simdjson::padded_string_view{*t.context}, {
+                        .active_context = *result,
+                        .base_iri = p.base_iri,
+                        .override_protected = true,
+                    });
                     if (!lc.has_value()) {
                         return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, std::format("invalid scoped context ({})", lc.error().message)));
                     }
@@ -457,7 +459,7 @@ namespace rdf4cpp::parser::json_ld {
                     }
                     static constexpr std::array invalid = {keyword_json, keyword_none, keyword_id, keyword_vocab};
                     if (type->type == IRIMappingType::Keyword && !std::ranges::any_of(invalid, [&](std::string_view a) {
-                            return a == v;
+                            return a == type->data;
                         })) {
                         return make_error(ParsingError::Type::BadSyntax, "invalid type mapping (invalid keyword)");
                     }
@@ -555,7 +557,7 @@ namespace rdf4cpp::parser::json_ld {
                                 p.term.iri_mapping.data.append(std::string_view(p.term.key).substr(colon_pos + 2));
                             } else {
                                 p.term.iri_mapping.data = p.term.key;
-                                p.term.iri_mapping.type = std::string_view(p.term.key).substr(2) == "_:" ? IRIMappingType::BlankNode : IRIMappingType::IRI;
+                                p.term.iri_mapping.type = p.term.key.starts_with("_:") ? IRIMappingType::BlankNode : IRIMappingType::IRI;
                             }
                         }
                         // 16
@@ -789,13 +791,13 @@ namespace rdf4cpp::parser::json_ld {
         p.term.parse_state = ParseState::Done;
         return std::nullopt;
     }
-    nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_local_context(simdjson::padded_string_view json, Context const &active_context, std::string_view base_iri, bool override_protected, bool propagate) {
+    nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p) {
         simdjson::ondemand::parser parser{};
         simdjson::ondemand::document doc = parser.iterate(json);
         if (doc.is_scalar()) {
             return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, doc.is_string() ? "remote context not supported" : "context free floating scalar")};
         }
-        return parse_context(doc, active_context, base_iri, override_protected, propagate);
+        return parse_context(doc, p);
     }
     nonstd::expected<IRIMapping, ContextParser::error_type> ContextParser::iri_expansion(Context const &active_context,
                                                                                          std::optional<std::string_view> value,
@@ -901,6 +903,7 @@ namespace rdf4cpp::parser::json_ld {
         }
         // 9
         // no keyword, bn or valid iri, would have passed any further check
+        // => not possible to result in a valid Node, ignore it
         return IRIMapping{std::string(""), IRIMappingType::None};
     }
 }  // namespace rdf4cpp::parser::json_ld

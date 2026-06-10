@@ -81,6 +81,8 @@ namespace rdf4cpp::parser {
         result_generator active_generator_;
         std::ranges::iterator_t<result_generator> current_iter_;
 
+        static constexpr size_t BufferSizeMult = 5;
+
     public:
         [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
         [[nodiscard]] uint64_t current_line() const noexcept override;

@@ -91,9 +91,13 @@ namespace rdf4cpp::parser {
         };
         std::optional<BaseDirection> try_parse_base_direction(std::string_view d);
 
+        // corresponds to the defined map from the context parsing algorithms.
         enum class ParseState : uint8_t {
+            // not in the map
             NotStarted,
+            // false
             InProgress,
+            // true
             Done,
         };
 

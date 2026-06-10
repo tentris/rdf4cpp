@@ -12,6 +12,12 @@
 
 namespace rdf4cpp::parser {
     namespace params {
+        struct ParseContextParams {
+            json_ld::Context const &active_context;
+            std::string_view base_iri;
+            bool override_protected = false;
+            bool propagate = true;
+        };
         struct ParseContextTermParams {
             simdjson::ondemand::object local_context;
             json_ld::Context &active_context;                            // NOLINT(*-avoid-const-or-ref-data-members)
@@ -32,19 +38,12 @@ namespace rdf4cpp::parser {
         struct ContextParser {
             using error_type = ParsingError;
             IRIFactory *iri_factory;
+            std::string original_base_iri;
 
-            nonstd::expected<Context, error_type> parse_context(simdjson::ondemand::value local_context,
-                                                                Context const &active_context,
-                                                                std::string_view base_iri,
-                                                                bool override_protected = false,
-                                                                bool propagate = true);
+            nonstd::expected<Context, error_type> parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p);
             std::optional<error_type> parse_context_term(params::ParseContextTermParams p);
 
-            nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json,
-                                                                      Context const &active_context,
-                                                                      std::string_view base_iri,
-                                                                      bool override_protected = false,
-                                                                      bool propagate = true);
+            nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p);
 
 
             nonstd::expected<IRIMapping, error_type> iri_expansion(Context const &active_context,
