@@ -150,7 +150,10 @@ namespace rdf4cpp::parser::json_ld {
             }
             std::optional<Context> ctx = std::nullopt;
             if (property_scoped_context != nullptr) {
-                auto r = context_parser.parse_local_context(simdjson::padded_string_view{*property_scoped_context}, p.active_context, active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri);
+                auto r = context_parser.parse_local_context(simdjson::padded_string_view{*property_scoped_context}, {
+                    .active_context = p.active_context,
+                    .base_iri = active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri,
+                });
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
                 }
@@ -210,7 +213,11 @@ namespace rdf4cpp::parser::json_ld {
         // 8
         ExpandedMap result{};
         if (property_scoped_context != nullptr) {
-            auto r = context_parser.parse_local_context(simdjson::padded_string_view{*property_scoped_context}, *active_ctx_for_local, active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri, true);
+            auto r = context_parser.parse_local_context(simdjson::padded_string_view{*property_scoped_context}, {
+                .active_context = *active_ctx_for_local,
+                .base_iri = active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri,
+                .override_protected = true,
+            });
             if (!r.has_value()) {
                 return nonstd::unexpected(r.error());
             }
@@ -224,7 +231,10 @@ namespace rdf4cpp::parser::json_ld {
                 if (c != simdjson::SUCCESS) {
                     return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid context"));
                 }
-                auto r = context_parser.parse_context(v, *active_ctx, p.base_iri);
+                auto r = context_parser.parse_context(v, {
+                    .active_context = *active_ctx,
+                    .base_iri = p.base_iri,
+                });
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
                 }
@@ -260,7 +270,12 @@ namespace rdf4cpp::parser::json_ld {
                 if (term == nullptr || !term->context.has_value()) {
                     return std::nullopt;
                 }
-                auto r = context_parser.parse_local_context(simdjson::padded_string_view{*term->context}, *active_ctx, p.base_iri, false, false);
+                auto r = context_parser.parse_local_context(simdjson::padded_string_view{*term->context}, {
+                    .active_context = *active_ctx,
+                    .base_iri = p.base_iri,
+                    .override_protected = false,
+                    .propagate = false,
+                });
                 if (!r.has_value()) {
                     return r.error();
                 }
@@ -684,7 +699,10 @@ namespace rdf4cpp::parser::json_ld {
                     if (term_definition->has_container_mapping(keyword_type)) {
                         auto *index_term = map_context->try_find_term(index);
                         if (index_term != nullptr && index_term->context.has_value()) {
-                            auto r = context_parser.parse_local_context(simdjson::padded_string_view{*index_term->context}, *map_context, index_term->base_iri.value_or(""));
+                            auto r = context_parser.parse_local_context(simdjson::padded_string_view{*index_term->context}, {
+                                .active_context = *map_context,
+                                .base_iri = index_term->base_iri.value_or(""),
+                            });
                             if (!r.has_value()) {
                                 return r.error();
                             }
@@ -892,7 +910,7 @@ namespace rdf4cpp::parser::json_ld {
                     return false;
                 }
                 index = true;
-            } else if (expanded_property->is_keyword(keyword_index)) {
+            } else if (expanded_property->is_keyword(keyword_id)) {
                 if (id) {
                     ob.reset();
                     return false;

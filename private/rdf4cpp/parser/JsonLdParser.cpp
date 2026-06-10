@@ -618,7 +618,7 @@ namespace rdf4cpp::parser {
                 *p.obj_out = next_bn;
                 p.obj_out = nullptr;
             }
-            if (curr_sub->type != json_ld::IRIMappingType::None && curr_sub->type != json_ld::IRIMappingType::None) {
+            if (curr_sub->type != json_ld::IRIMappingType::None && curr_pred->type != json_ld::IRIMappingType::None) {
                 co_yield make_quad(p.active_graph, *curr_sub, *curr_pred, next_bn);
             }
             if (std::holds_alternative<json_ld::IRIMapping>(curr_obj)) {
@@ -634,13 +634,13 @@ namespace rdf4cpp::parser {
             *p.obj_out = nil;
             p.obj_out = nullptr;
         }
-        if (curr_sub->type != json_ld::IRIMappingType::None && curr_sub->type != json_ld::IRIMappingType::None) {
+        if (curr_sub->type != json_ld::IRIMappingType::None && curr_pred->type != json_ld::IRIMappingType::None) {
             co_yield make_quad(p.active_graph, *curr_sub, *curr_pred, nil);
         }
     }
     IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::parse() {
         simdjson::ondemand::parser parser{};
-        auto c = parser.allocate(json_data_.size() * 5);
+        auto c = parser.allocate(json_data_.size() * BufferSizeMult);
         if (c != simdjson::SUCCESS) {
             co_yield nonstd::unexpected(json_ld::make_error(ParsingError::Type::BadSyntax, "failed to allocate parser"));
             co_return;
@@ -681,7 +681,7 @@ namespace rdf4cpp::parser {
         : state_(initial_state == nullptr ? new state_type() : initial_state),
           state_is_owned_(initial_state == nullptr),
           json_data_(std::move(json)),
-          expand_parser_(state_->iri_factory),
+          expand_parser_(state_->iri_factory, std::string(state_->iri_factory.get_base())),
           direction_(flags.get_direction()),
           active_generator_(parse()),
           current_iter_(active_generator_.begin()) {
