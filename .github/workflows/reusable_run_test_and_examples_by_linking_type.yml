@@ -123,7 +123,7 @@ jobs:
           pip3 install gcovr
 
       - name: Check out sources
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7.0.0
 
       - name: Get dependency provider
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@v2.0.1

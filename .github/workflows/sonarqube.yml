@@ -55,7 +55,7 @@ jobs:
           path: ~/.conan2/p
           key: ${{ matrix.config.os }}-${{ matrix.config.compiler }}-conan2
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
