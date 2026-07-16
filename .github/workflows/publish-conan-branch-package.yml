@@ -7,7 +7,7 @@ concurrency:
 
 jobs:
   publish-release:
-    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-conan-branch-package.yml@v1.0.3
+    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-conan-branch-package.yml@v1.0.4
     with:
       public_artifactory: true
       os: ubuntu-24.04
