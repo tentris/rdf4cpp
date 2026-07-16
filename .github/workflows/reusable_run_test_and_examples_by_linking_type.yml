@@ -157,9 +157,10 @@ jobs:
       - name: Report coverage
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.coverall-token }}
+          GCOV_COMPILER: ${{ inputs.compiler }}
         if: inputs.with-coverage
         run: |
-          gcovr --gcov-executable gcov-13 --coveralls --filter 'src/' -o coverage.json -r ./
+          gcovr --gcov-executable "gcov-${GCOV_COMPILER#gcc-}" --coveralls --filter 'src/' -o coverage.json -r ./
           curl -F "json_file=@coverage.json" https://coveralls.io/api/v1/jobs
 
       - name: Run examples
