@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Add compiler repos
         if: ${{ !contains(inputs.os, 'macos') }}
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@main
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@v1.0.3
 
       - name: Setup env vars for macos
         if: ${{ contains(inputs.os, 'macos') }}
@@ -102,7 +102,7 @@ jobs:
         uses: rui314/setup-mold@v1
 
       - name: Configure conan
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@main
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@v1.0.3
         with:
           conan-version: ${{ inputs.conan-version }}
 
@@ -126,7 +126,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Get dependency provider
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@main
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@v1.0.3
 
       - name: Configure CMake
         if: ${{ !contains(inputs.os, 'macos') }}
@@ -157,9 +157,10 @@ jobs:
       - name: Report coverage
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.coverall-token }}
+          GCOV_COMPILER: ${{ inputs.compiler }}
         if: inputs.with-coverage
         run: |
-          gcovr --gcov-executable gcov-13 --coveralls --filter 'src/' -o coverage.json -r ./
+          gcovr --gcov-executable "gcov-${GCOV_COMPILER#gcc-}" --coveralls --filter 'src/' -o coverage.json -r ./
           curl -F "json_file=@coverage.json" https://coveralls.io/api/v1/jobs
 
       - name: Run examples

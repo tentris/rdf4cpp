@@ -8,7 +8,7 @@ concurrency:
 jobs:
   publish-conan-branch-package:
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-release.yml@main
+    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-release.yml@v1.0.3
     with:
       public_artifactory: true
       os: ubuntu-24.04
@@ -18,5 +18,8 @@ jobs:
       use-tag: true
       conan-options: -o boost/*:header_only=True
     secrets:
+      CONAN_CICD_USERNAME: ${{ secrets.CONAN_CICD_USERNAME }}
+      CONAN_CICD_PASSWORD: ${{ secrets.CONAN_CICD_PASSWORD }}
+      CONAN_CICD_ENDPOINT: ${{ secrets.CONAN_CICD_ENDPOINT }}
       CONAN_USER: ${{ secrets.CONAN_USER }}
       CONAN_PW: ${{ secrets.CONAN_PW }}
