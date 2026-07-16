@@ -8,7 +8,7 @@ concurrency:
 jobs:
   publish-conan-branch-package:
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-release.yml@v1.0.3
+    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-release.yml@v2.0.1
     with:
       public_artifactory: true
       os: ubuntu-24.04
