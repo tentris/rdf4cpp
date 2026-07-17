@@ -48,7 +48,7 @@ jobs:
           
       - name: Cache MacPorts
         if: ${{ !contains(inputs.os, 'macos') }}
-        uses: actions/cache@v3
+        uses: actions/cache@v6.1.0
         id: cache-macports
         with:
           path: /opt/local/
@@ -112,7 +112,7 @@ jobs:
 
       - name: Cache conan data
         id: cache-conan
-        uses: actions/cache@v4
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.conan2/p
           key: ${{ inputs.os }}-${{ inputs.compiler }}-conan2-${{ fromJSON('["nocoverage", "coverage"]')[inputs.with-coverage] }}-${{ fromJSON('["nosanitizer", "sanitizer"]')[inputs.with-sanitizer] }}-${{ fromJSON('["noavx", "avx"]')[inputs.with-avx] }}
