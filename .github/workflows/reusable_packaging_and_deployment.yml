@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Add compiler repos
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@v2.0.1
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@v2.0.2
 
       - name: Get minimum cmake version
         uses: lukka/get-cmake@v4.4.0
@@ -41,7 +41,7 @@ jobs:
         uses: rui314/setup-mold@v1
 
       - name: Configure conan
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@v2.0.1
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@v2.0.2
         with:
           conan-version: ${{ inputs.conan-version }}
 
