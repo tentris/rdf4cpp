@@ -7,6 +7,10 @@
 
 #include <cstring>
 
+#include <boost/uuid/random_generator.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
 namespace rdf4cpp {
 
 namespace detail_bnode_inlining {
@@ -62,6 +66,12 @@ BlankNode BlankNode::make_null() noexcept {
 
 BlankNode BlankNode::make(std::string_view identifier, storage::DynNodeStoragePtr node_storage) {
     return BlankNode{identifier, node_storage};
+}
+
+BlankNode BlankNode::make_uuid(storage::DynNodeStoragePtr node_storage) {
+    boost::uuids::random_generator_mt19937 gen{};
+    boost::uuids::uuid const u = gen();
+    return BlankNode{boost::uuids::to_string(u), node_storage};
 }
 
 BlankNode BlankNode::make_unchecked(std::string_view identifier, storage::DynNodeStoragePtr node_storage) {
