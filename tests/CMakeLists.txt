@@ -369,6 +369,21 @@ target_link_libraries(tests_XMLParser
 )
 add_test(NAME tests_XMLParser COMMAND tests_XMLParser)
 
+add_executable(tests_FormatGuess parser/tests_FormatGuess.cpp)
+target_link_libraries(tests_FormatGuess
+        doctest::doctest
+        rdf4cpp
+)
+add_test(NAME tests_FormatGuess COMMAND tests_FormatGuess)
+
+add_executable(tests_FormatGuess_realworld parser/tests_FormatGuess_realworld.cpp)
+target_link_libraries(tests_FormatGuess_realworld
+        doctest::doctest
+        rdf4cpp
+        CURL::libcurl
+)
+add_test(NAME tests_FormatGuess_realworld COMMAND tests_FormatGuess_realworld)
+
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.nt")
         file(DOWNLOAD "https://files.tentris.dev/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
         execute_process(COMMAND unzip "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip" -d "${CMAKE_CURRENT_BINARY_DIR}/test_swdf")

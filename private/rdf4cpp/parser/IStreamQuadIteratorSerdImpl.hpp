@@ -57,6 +57,8 @@ private:
 
     static constexpr SerdSyntax extract_syntax_from_flags(ParsingFlags flags) noexcept {
         switch (flags.get_syntax()) {
+            case ParsingFlag::Turtle:
+                return SerdSyntax::SERD_TURTLE;
             case ParsingFlag::TriG:
                 return SerdSyntax::SERD_TRIG;
             case ParsingFlag::NTriples:
@@ -64,7 +66,8 @@ private:
             case ParsingFlag::NQuads:
                 return SerdSyntax::SERD_NQUADS;
             default:
-                return SerdSyntax::SERD_TURTLE;
+                // Auto, RdfXml, OwlXml, JsonLd should be resolved before reaching here
+                RDF4CPP_UNREACHABLE;
         }
     }
 

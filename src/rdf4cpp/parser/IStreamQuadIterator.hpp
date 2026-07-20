@@ -8,12 +8,15 @@
 
 #include <rdf4cpp/Quad.hpp>
 
+#include <rdf4cpp/parser/FormatGuess.hpp>
 #include <rdf4cpp/parser/ParsingError.hpp>
 #include <rdf4cpp/parser/ParsingFlags.hpp>
 #include <rdf4cpp/parser/ParsingState.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
 
 namespace rdf4cpp::parser {
+
+struct PrefixBufferedReader;
 
 /**
  * Identical semantics to fread.
@@ -107,6 +110,9 @@ private:
 
     std::unique_ptr<Impl> impl;
     std::optional<nonstd::expected<ok_type, error_type>> cur;
+    FormatGuess detected_format_{};
+    std::unique_ptr<PrefixBufferedReader> buffered_reader_;
+
 public:
     /**
      * Constructs a IStreamQuadIterator from a C-like io api. That is something similar to
@@ -154,6 +160,11 @@ public:
 
     [[nodiscard]] uint64_t current_line() const noexcept;
     [[nodiscard]] uint64_t current_column() const noexcept;
+
+    /**
+     * @return the detected format when Auto mode was used, or the explicitly set format
+     */
+    [[nodiscard]] FormatGuess detected_format() const noexcept;
 
     bool operator==(std::default_sentinel_t) const noexcept;
     bool operator!=(std::default_sentinel_t) const noexcept;

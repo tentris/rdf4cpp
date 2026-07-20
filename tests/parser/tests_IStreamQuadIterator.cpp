@@ -328,7 +328,7 @@ TEST_SUITE("IStreamQuadIterator") {
         constexpr char const *triples = "<a> <b> _:bnode .\n";
 
         std::istringstream iss{triples};
-        IStreamQuadIterator qit{iss, ParsingFlag::NoParseBlankNode};
+        IStreamQuadIterator qit{iss, ParsingFlag::NoParseBlankNode | ParsingFlag::Turtle};
 
         CHECK_NE(qit, std::default_sentinel);
         CHECK(!qit->has_value());

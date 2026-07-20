@@ -1,15 +1,20 @@
 #include "IStreamQuadIterator.hpp"
 
 #include <rdf4cpp/parser/IStreamQuadIteratorSerdImpl.hpp>
+#include <rdf4cpp/parser/PrefixBufferedReader.hpp>
 #include <rdf4cpp/parser/XMLParser.hpp>
 
 #include <cstdio>
+#include <stdexcept>
+#include <vector>
 
 #if __has_include(<fcntl.h>)
 #include <fcntl.h>
 #endif //__has_include
 
 namespace rdf4cpp::parser {
+
+static constexpr size_t peek_size = 4096;
 
 /**
  * Adaptor function so that serd can read from std::istreams.
@@ -51,16 +56,64 @@ static int istream_eof(void *voided_self) noexcept {
     return static_cast<int>(self->eof());
 }
 
+static void throw_if_unsupported(ParsingFlag syntax) {
+    if (syntax == ParsingFlag::OwlXml) {
+        throw std::runtime_error("OWL/XML format is not supported. Please convert to RDF/XML or Turtle.");
+    }
+    if (syntax == ParsingFlag::JsonLd) {
+        throw std::runtime_error("JSON-LD format is not supported.");
+    }
+}
+
+static ParsingFlag resolve_auto_syntax(FormatGuess guess) {
+    if (guess.is_known()) {
+        return guess.syntax;
+    }
+    // fallback to Turtle when we can't determine the format
+    return ParsingFlag::Turtle;
+}
+
 IStreamQuadIterator::IStreamQuadIterator(void *stream,
                                          ReadFunc read,
                                          ErrorFunc error,
                                          EOFFunc eof,
                                          flags_type flags,
-                                         state_type *state)
-    : impl{flags.get_syntax() == ParsingFlag::RdfXml ?
-        static_cast<std::unique_ptr<Impl>>(std::make_unique<ImplXML>(stream, read, error, eof, state)) :
-        std::make_unique<ImplSerd>(stream, read, error, flags, state)},
-      cur{impl->next()} {
+                                         state_type *state) {
+    auto make_impl = [](void *s, ReadFunc r, ErrorFunc e, EOFFunc ef,
+                        flags_type f, state_type *st) -> std::unique_ptr<Impl> {
+        if (f.get_syntax() == ParsingFlag::RdfXml) {
+            return std::make_unique<ImplXML>(s, r, e, ef, st);
+        }
+        return std::make_unique<ImplSerd>(s, r, e, f, st);
+    };
+
+    if (flags.get_syntax() == ParsingFlag::Auto) {
+        // Peek bytes for content sniffing
+        std::vector<char> buf(peek_size);
+        size_t const bytes_read = read(buf.data(), 1, peek_size, stream);
+        buf.resize(bytes_read);
+
+        std::string_view const prefix{buf.data(), buf.size()};
+        auto const guess = guess_format_from_content(prefix);
+        auto const resolved = resolve_auto_syntax(guess);
+        throw_if_unsupported(resolved);
+
+        detected_format_ = guess;
+        auto const resolved_flags = flags.with_syntax(resolved);
+
+        // Create a PrefixBufferedReader to replay peeked bytes
+        buffered_reader_ = std::make_unique<PrefixBufferedReader>(stream, read, error, eof, std::move(buf));
+        impl = make_impl(buffered_reader_.get(),
+                         &PrefixBufferedReader::read_func,
+                         &PrefixBufferedReader::error_func,
+                         &PrefixBufferedReader::eof_func,
+                         resolved_flags, state);
+    } else {
+        throw_if_unsupported(flags.get_syntax());
+        detected_format_ = FormatGuess{flags.get_syntax(), GuessConfidence::Certain};
+        impl = make_impl(stream, read, error, eof, flags, state);
+    }
+    cur = impl->next();
 }
 
 IStreamQuadIterator::IStreamQuadIterator(std::istream &istream,
@@ -93,6 +146,10 @@ uint64_t IStreamQuadIterator::current_line() const noexcept {
 
 uint64_t IStreamQuadIterator::current_column() const noexcept {
     return impl->current_column();
+}
+
+FormatGuess IStreamQuadIterator::detected_format() const noexcept {
+    return detected_format_;
 }
 
 bool IStreamQuadIterator::operator==(std::default_sentinel_t) const noexcept {

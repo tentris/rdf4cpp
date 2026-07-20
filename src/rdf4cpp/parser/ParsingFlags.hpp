@@ -8,8 +8,8 @@ namespace rdf4cpp::parser {
 
 /**
  * Note that the syntax flags are mutually exclusive.
- * If none is used, Turtle is the default.
- * If more than one is used accidentally at the same time, TriG is likely the result (even if it does never get specified).
+ * If none is used, Auto is the default (auto-detect format from file extension and content).
+ * If more than one is used accidentally at the same time, the result is undefined.
  */
 enum struct ParsingFlag : uint8_t {
     Lax              = 1 << 0,
@@ -17,11 +17,14 @@ enum struct ParsingFlag : uint8_t {
     KeepBlankNodeIds = 1 << 2,
     NoParseBlankNode = 1 << 3,
 
-    Turtle   = 0b00 << 4, // default
-    NTriples = 0b01 << 4,
-    NQuads   = 0b10 << 4,
-    TriG     = 0b11 << 4,
-    RdfXml  = 0b100 << 4,
+    Auto     = 0b000 << 4, // default — auto-detect format
+    NTriples = 0b001 << 4,
+    NQuads   = 0b010 << 4,
+    TriG     = 0b011 << 4,
+    RdfXml   = 0b100 << 4,
+    Turtle   = 0b101 << 4,
+    OwlXml   = 0b110 << 4, // detected but not supported
+    JsonLd   = 0b111 << 4, // detected but not supported
 };
 constexpr uint8_t ParsingFlag_SyntaxMask = 0b111 << 4;
 
@@ -66,15 +69,24 @@ public:
     }
 
     /**
-     * @return the syntax ParsingFlag contained in this ParsingFlags. (Turtle if not specified)
+     * @return the syntax ParsingFlag contained in this ParsingFlags. (Auto if not specified)
      */
     [[nodiscard]] constexpr ParsingFlag get_syntax() const noexcept {
         return static_cast<ParsingFlag>(flags & static_cast<flag_u_type>(ParsingFlag_SyntaxMask));
     }
 
+    /**
+     * @return a copy of this ParsingFlags with the syntax bits replaced by the given syntax
+     */
+    [[nodiscard]] constexpr ParsingFlags with_syntax(ParsingFlag syntax) const noexcept {
+        auto new_flags = flags & ~static_cast<flag_u_type>(ParsingFlag_SyntaxMask);
+        new_flags |= static_cast<flag_u_type>(syntax);
+        return ParsingFlags{static_cast<uint8_t>(new_flags)};
+    }
+
     [[nodiscard]] constexpr bool syntax_allows_prefixes() const noexcept {
         auto const syn = get_syntax();
-        return syn == ParsingFlag::Turtle || syn ==  ParsingFlag::TriG;
+        return syn == ParsingFlag::Turtle || syn == ParsingFlag::TriG || syn == ParsingFlag::Auto;
     }
 };
 
