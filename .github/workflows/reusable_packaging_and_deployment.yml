@@ -57,7 +57,7 @@ jobs:
           key: ${{ inputs.os }}-${{ inputs.compiler }}-conan2
 
       - name: Check out sources
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Test conan package
         env:
