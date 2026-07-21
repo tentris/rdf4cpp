@@ -225,6 +225,14 @@ TEST_CASE("IRI UUID") {
     CHECK(regex::Regex{"^urn:uuid:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"}.regex_match(uuid.identifier()));
 }
 
+TEST_CASE("BNODE UUID") {
+    BlankNode uuid = BlankNode::make_uuid();
+    BlankNode uuid2 = BlankNode::make_uuid();
+
+    CHECK(uuid != uuid2);  // note: non-deterministic but should basically never fail
+    CHECK(regex::Regex{"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"}.regex_match(uuid.identifier()));
+}
+
 TEST_CASE("IRI fetch or serialize") {
     auto const x = IRI::make("https://example.com#some-iri");
     auto const expected = x.identifier();

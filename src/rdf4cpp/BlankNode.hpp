@@ -31,6 +31,13 @@ struct BlankNode : Node {
     [[nodiscard]] static BlankNode make(std::string_view identifier, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
+     * creates a new BlankNode from a random UUID (Universally Unique IDentifier)
+     * @return UUID IRI
+     */
+    [[nodiscard]] static BlankNode make_uuid(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+
+    /**
      * Constructs a bnode from an identifier
      */
     [[nodiscard]] static BlankNode make_unchecked(std::string_view identifier, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
