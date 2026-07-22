@@ -768,8 +768,6 @@ TEST_CASE("Literal - misc functions") {
         CHECK_EQ(("AAAA"_xsd_string).regex_replace("A+?"_xsd_string, "b"_xsd_string), "bbbb"_xsd_string);
         CHECK_EQ(("darted"_xsd_string).regex_replace("^(.*?)d(.*)$"_xsd_string, "$1c$2"_xsd_string), "carted"_xsd_string);
 
-        CHECK(("abracadabra"_xsd_string).regex_replace(".*?"_xsd_string, "$1"_xsd_string).null());
-
         CHECK_EQ(("abcd"_xsd_string).as_regex_matches(".*"_xsd_string, "q"_xsd_string).ebv(), TriBool::False);
         CHECK(("Mr. B. Obama"_xsd_string).as_regex_matches("B. OBAMA"_xsd_string, "qi"_xsd_string).ebv());
 
@@ -786,6 +784,9 @@ TEST_CASE("Literal - misc functions") {
         CHECK(Literal::make_simple("abc\ndef\ngh").regex_replace("^(def)$"_xsd_string, "y$1x"_xsd_string, "m"_xsd_string) == Literal::make_simple("abc\nydefx\ngh"));
 
         CHECK(Literal::make_simple("hello[world").regex_replace("\\ [wo(rl) d"_xsd_string, " wo$1d"_xsd_string, "x"_xsd_string) == Literal::make_simple("hello world"));
+
+        // https://github.com/w3c/rdf-tests/blob/main/sparql/sparql11/functions/replace03.rq
+        CHECK(("abcd"_xsd_string).regex_replace("(ab)|(a)"_xsd_string, "[1=$1][2=$2]"_xsd_string) == "[1=ab][2=]cd"_xsd_string);
     }
 
     SUBCASE("hashes") {

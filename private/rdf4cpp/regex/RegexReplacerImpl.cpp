@@ -46,7 +46,7 @@ namespace rdf4cpp::regex {
         std::string r{};
         r.resize(str.size() * 2);
         size_t outsize = 0;
-        int opt = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | PCRE2_SUBSTITUTE_GLOBAL | PCRE2_NO_UTF_CHECK;
+        int opt = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH | PCRE2_SUBSTITUTE_GLOBAL | PCRE2_NO_UTF_CHECK | PCRE2_SUBSTITUTE_UNKNOWN_UNSET | PCRE2_SUBSTITUTE_UNSET_EMPTY;
         if (regex->flags.contains(RegexFlag::Literal)) {
             opt |= PCRE2_SUBSTITUTE_LITERAL;
         }
