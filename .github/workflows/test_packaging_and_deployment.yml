@@ -7,7 +7,7 @@ jobs:
     with:
       os: ubuntu-24.04
       compiler: clang-20
-      cmake-version: 3.24.0
+      cmake-version: 3.31.12
       conan-version: 2.30.0
 
   packaging-and-deployment-tests-gcc:
@@ -16,5 +16,5 @@ jobs:
     with:
       os: ubuntu-24.04
       compiler: gcc-14
-      cmake-version: 3.24.0
+      cmake-version: 3.31.12
       conan-version: 2.30.0
