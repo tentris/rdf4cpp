@@ -33,7 +33,7 @@ class Recipe(ConanFile):
         self.requires("boost/1.86.0", transitive_headers=True, libs=False)
         self.requires("expected-lite/0.8.0", transitive_headers=True)
         self.requires("pcre2/10.44", options={"support_jit": True})
-        self.requires("openssl/3.3.2")
+        self.requires("openssl/3.6.3")
         self.requires("uni-algo/1.2.0")
         self.requires("highway/1.2.0")
         self.requires("dice-hash/0.4.11", transitive_headers=True)
@@ -45,7 +45,7 @@ class Recipe(ConanFile):
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")
             self.test_requires("nanobench/4.3.11")
-            self.test_requires("libcurl/8.12.1")
+            self.test_requires("libcurl/8.21.0")
 
     def set_name(self):
         if not hasattr(self, 'name') or self.version is None:
