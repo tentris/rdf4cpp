@@ -14,7 +14,7 @@ jobs:
       os: ubuntu-24.04
       compiler: clang-20
       cmake-version: 4.4.0
-      conan-version: 2.30.0
+      conan-version: 2.31.0
       use-tag: true
       conan-options: -o boost/*:header_only=True
     secrets:
