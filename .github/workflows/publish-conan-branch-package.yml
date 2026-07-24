@@ -11,7 +11,7 @@ jobs:
     with:
       public_artifactory: true
       os: ubuntu-24.04
-      compiler: clang-20
+      compiler: clang-21
       cmake-version: 4.4.0
       conan-version: 2.31.0
       conan-options: -o boost/*:header_only=True
