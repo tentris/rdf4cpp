@@ -6,9 +6,9 @@ jobs:
     uses: ./.github/workflows/reusable_packaging_and_deployment.yml
     with:
       os: ubuntu-24.04
-      compiler: clang-20
-      cmake-version: 3.24.0
-      conan-version: 2.30.0
+      compiler: clang-21
+      cmake-version: 4.4.0
+      conan-version: 2.31.0
 
   packaging-and-deployment-tests-gcc:
     name: Packaging and deployment tests gcc-14
@@ -16,5 +16,5 @@ jobs:
     with:
       os: ubuntu-24.04
       compiler: gcc-14
-      cmake-version: 3.24.0
-      conan-version: 2.30.0
+      cmake-version: 4.4.0
+      conan-version: 2.31.0
