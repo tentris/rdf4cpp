@@ -9,7 +9,7 @@ namespace rdf4cpp::query {
 
 struct Variable : Node {
 private:
-    [[nodiscard]] static Variable find(std::string_view name, bool anonymous, storage::DynNodeStoragePtr node_storage) noexcept;
+    [[nodiscard]] static Variable find(std::string_view name, bool anonymous, storage::DynNodeStoragePtr node_storage);
 
 public:
     Variable() noexcept;
@@ -25,7 +25,7 @@ public:
     [[nodiscard]] static Variable make_unchecked(std::string_view name, bool anonymous = false, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     Variable to_node_storage(storage::DynNodeStoragePtr node_storage) const;
-    [[nodiscard]] Variable try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept;
+    [[nodiscard]] Variable try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 
     /**
      * searches for a named Variable in the specified node storage and returns it.

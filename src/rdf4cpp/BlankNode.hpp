@@ -43,7 +43,7 @@ struct BlankNode : Node {
     [[nodiscard]] static BlankNode make_unchecked(std::string_view identifier, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     BlankNode to_node_storage(storage::DynNodeStoragePtr node_storage) const;
-    [[nodiscard]] BlankNode try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept;
+    [[nodiscard]] BlankNode try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 
     /**
      * searches for a bnode in the specified node storage and returns it.
@@ -52,12 +52,12 @@ struct BlankNode : Node {
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static BlankNode find(std::string_view identifier, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static BlankNode find(std::string_view identifier, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * Validates the given blank node identifier
      * @param identifier identifier to validate
-     * @throws ParsingError if the blank node identifier is not valid
+     * @throws ParsingError if the Fblank node identifier is not valid
      */
     static void validate(std::string_view identifier);
 

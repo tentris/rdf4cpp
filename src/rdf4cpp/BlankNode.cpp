@@ -99,7 +99,7 @@ BlankNode BlankNode::to_node_storage(storage::DynNodeStoragePtr node_storage) co
     return BlankNode{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-BlankNode BlankNode::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+BlankNode BlankNode::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     if (handle_.storage() == node_storage || null()) {
         return *this;
     }
@@ -116,7 +116,7 @@ BlankNode BlankNode::try_get_in_node_storage(storage::DynNodeStoragePtr node_sto
     return BlankNode{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-BlankNode BlankNode::find(std::string_view identifier, storage::DynNodeStoragePtr node_storage) noexcept {
+BlankNode BlankNode::find(std::string_view identifier, storage::DynNodeStoragePtr node_storage) {
     auto const nid = [&]() {
         if (auto const inlined = detail_bnode_inlining::try_into_inlined(identifier); !inlined.null()) {
             return inlined;

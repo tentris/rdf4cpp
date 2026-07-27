@@ -494,7 +494,7 @@ public:
     }
 
     Literal to_node_storage(storage::DynNodeStoragePtr node_storage) const;
-    [[nodiscard]] Literal try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept;
+    [[nodiscard]] Literal try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 
 private:
     [[nodiscard]] static storage::identifier::NodeBackendID find_datatype_iri(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept;
@@ -507,7 +507,7 @@ public:
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static Literal find_simple(std::string_view lexical_form, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static Literal find_simple(std::string_view lexical_form, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * searches for a rdf::LangString Literal in the specified node storage and returns it.
@@ -516,7 +516,7 @@ public:
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static Literal find_lang_tagged(std::string_view lexical_form, std::string_view lang_tag, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static Literal find_lang_tagged(std::string_view lexical_form, std::string_view lang_tag, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * searches for a Literal of type T in the specified node storage and returns it.
@@ -529,7 +529,7 @@ public:
      */
     template<datatypes::LiteralDatatype T>
     [[nodiscard]] static Literal find_typed_from_value(typename T::cpp_type const &compatible_value,
-                                                       storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept {
+                                                       storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
         if constexpr (std::is_same_v<T, datatypes::rdf::LangString>) {
             return find_lang_tagged(compatible_value.lexical_form,
                                     compatible_value.language_tag,
@@ -590,7 +590,7 @@ public:
     template<datatypes::LiteralDatatype T>
         requires(!std::same_as<T, datatypes::rdf::LangString>)
     [[nodiscard]] static Literal find_typed(std::string_view lexical_form,
-                                            storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept {
+                                            storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
         if constexpr (std::is_same_v<T, datatypes::xsd::String>) {
             return find_simple(lexical_form, node_storage);
         }

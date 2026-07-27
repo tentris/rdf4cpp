@@ -310,7 +310,7 @@ Literal Literal::to_node_storage(storage::DynNodeStoragePtr node_storage) const 
     return Literal{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-Literal Literal::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+Literal Literal::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     using datatypes::registry::DatatypeRegistry;
 
     node_storage = select_node_storage(node_storage);
@@ -353,7 +353,7 @@ Literal Literal::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage
 
     auto literal_view = handle_.literal_backend();
     auto const node_id = literal_view.visit(
-            [&](storage::view::LexicalFormLiteralBackendView &lexical_backend) noexcept {
+            [&](storage::view::LexicalFormLiteralBackendView &lexical_backend) {
                 if (auto const dt_id = storage::identifier::iri_node_id_to_literal_type(lexical_backend.datatype_id);
                     dt_id.is_fixed() && node_storage.has_specialized_storage_for(dt_id)) {
 
@@ -382,7 +382,7 @@ Literal Literal::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage
 
                 return node_storage.find_id(literal_view);
             },
-            [&node_storage, &literal_view](storage::view::ValueLiteralBackendView const &value_backend) noexcept {
+            [&node_storage, &literal_view](storage::view::ValueLiteralBackendView const &value_backend) {
                 // no need to send over datatype IRI, as this having a specialized storage requires
                 // that the datatype is fixed, so it must already be present
 
@@ -416,7 +416,7 @@ storage::identifier::NodeBackendID Literal::find_datatype_iri(datatypes::registr
     return nid.backend_handle().id();
 }
 
-Literal Literal::find_simple(std::string_view lexical_form, storage::DynNodeStoragePtr node_storage) noexcept {
+Literal Literal::find_simple(std::string_view lexical_form, storage::DynNodeStoragePtr node_storage) {
     auto esc = lexical_form_needs_escape(lexical_form);
     auto nid = node_storage.find_id(storage::view::LexicalFormLiteralBackendView{
             storage::identifier::NodeBackendID::xsd_string_iri.first, lexical_form, "", esc});
@@ -425,7 +425,7 @@ Literal Literal::find_simple(std::string_view lexical_form, storage::DynNodeStor
     return Literal{storage::identifier::NodeBackendHandle{nid, node_storage}};
 }
 
-Literal Literal::find_lang_tagged(std::string_view lexical_form, std::string_view lang_tag, storage::DynNodeStoragePtr node_storage) noexcept {
+Literal Literal::find_lang_tagged(std::string_view lexical_form, std::string_view lang_tag, storage::DynNodeStoragePtr node_storage) {
     auto esc = lexical_form_needs_escape(lexical_form);
     auto nid = node_storage.find_id(storage::view::LexicalFormLiteralBackendView{
             storage::identifier::NodeBackendID::rdf_langstring_iri.first, lexical_form, lang_tag, esc});
@@ -758,7 +758,7 @@ bool Literal::serialize(writer::BufWriterParts const writer, NodeSerializationOp
         using storage::identifier::NodeBackendHandle;
 
         return this->backend_handle().literal_backend().visit(
-                [&](storage::view::LexicalFormLiteralBackendView const &lexical_backend) noexcept {
+                [&](storage::view::LexicalFormLiteralBackendView const &lexical_backend) {
                     auto const dtype_iri = handle_.storage().find_iri_backend(lexical_backend.datatype_id);
 
                     if (lexical_backend.needs_escape) [[unlikely]] {

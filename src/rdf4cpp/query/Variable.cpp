@@ -91,7 +91,7 @@ Variable Variable::to_node_storage(storage::DynNodeStoragePtr node_storage) cons
     return Variable{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-Variable Variable::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+Variable Variable::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     if (handle_.storage() == node_storage || null()) {
         return *this;
     }
@@ -108,7 +108,7 @@ Variable Variable::try_get_in_node_storage(storage::DynNodeStoragePtr node_stora
     return Variable{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-Variable Variable::find(std::string_view name, bool anonymous, storage::DynNodeStoragePtr node_storage) noexcept {
+Variable Variable::find(std::string_view name, bool anonymous, storage::DynNodeStoragePtr node_storage) {
     auto const nid = [&]() {
         if (auto const inlined_id = detail_variable_inlining::try_into_inlined(name, anonymous); !inlined_id.null()) {
             return inlined_id;

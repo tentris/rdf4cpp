@@ -70,7 +70,7 @@ public:
     [[nodiscard]] static IRI make_uuid(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     IRI to_node_storage(storage::DynNodeStoragePtr node_storage) const;
-    [[nodiscard]] IRI try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept;
+    [[nodiscard]] IRI try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 
     /**
      * searches for a IRI in the specified node storage and returns it.
@@ -79,7 +79,7 @@ public:
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static IRI find(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static IRI find(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * Validates that the given input string is a valid IRI
@@ -96,7 +96,7 @@ private:
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static IRI find(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept;
+    [[nodiscard]] static IRI find(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage);
 
 public:
     /**
