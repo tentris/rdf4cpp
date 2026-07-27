@@ -14,6 +14,13 @@
 #include <rdf4cpp/IRIFactory.hpp>
 
 namespace rdf4cpp::parser {
+    namespace list_iris {
+        // ReSharper disable CppEvaluationInternalFailure
+        static constexpr std::string_view iri_nil = "http://www.w3.org/1999/02/22-rdf-syntax-ns#nil";
+        static constexpr std::string_view iri_rest = "http://www.w3.org/1999/02/22-rdf-syntax-ns#rest";
+        static constexpr std::string_view iri_first = "http://www.w3.org/1999/02/22-rdf-syntax-ns#first";
+        // ReSharper restore CppEvaluationInternalFailure
+    }
 
 /**
  * Identical semantics to fread.
@@ -104,9 +111,17 @@ private:
 
     struct ImplSerd;
     struct ImplXML;
+    struct ImplJsonLd;
 
     std::unique_ptr<Impl> impl;
     std::optional<nonstd::expected<ok_type, error_type>> cur;
+
+    static std::unique_ptr<Impl> make_impl(void *stream,
+                                           ReadFunc read,
+                                           ErrorFunc error,
+                                           EOFFunc eof,
+                                           flags_type flags = ParsingFlags::none(),
+                                           state_type *state = nullptr);
 public:
     /**
      * Constructs a IStreamQuadIterator from a C-like io api. That is something similar to

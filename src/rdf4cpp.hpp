@@ -14,6 +14,7 @@
 #include <rdf4cpp/storage/reference_node_storage/SyncReferenceNodeStorage.hpp>
 #include <rdf4cpp/version.hpp>
 #include <rdf4cpp/writer/SerializationState.hpp>
+#include <rdf4cpp/GraphComparison.hpp>
 
 
 /**

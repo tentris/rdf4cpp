@@ -2,9 +2,7 @@
 #include <doctest/doctest.h>
 #include <rdf4cpp.hpp>
 
-#include <iostream>
-#include <filesystem>
-#include <curl/curl.h>
+#include "parser_test_helpers.hpp"
 
 using namespace rdf4cpp;
 using namespace rdf4cpp::parser;
@@ -141,138 +139,15 @@ TEST_CASE("sanity test") {
 }
 
 void xml_test_positive(std::string xml_str, std::string nt_str, std::string_view base_iri) {
-    CAPTURE(base_iri);
-
-    IStreamQuadIterator::state_type state{};
-    CHECK(state.iri_factory.set_base(base_iri) == IRIFactoryError::Ok);
-    std::stringstream xml{std::move(xml_str)};
-    IStreamQuadIterator xml_iter{xml, ParsingFlag::RdfXml, &state};
-    std::vector<query::QuadPattern> xml_results;
-
-    std::stringstream nt{std::move(nt_str)};
-    IStreamQuadIterator nt_iter{nt, ParsingFlag::NTriples};
-    std::vector<query::QuadPattern> nt_results;
-
-    static constexpr auto read_iter_to = [](IStreamQuadIterator& i, std::vector<query::QuadPattern>& r) {
-        while (i != std::default_sentinel) {
-            if (!i->has_value()) {
-                FAIL(i->error().message);
-            }
-            r.emplace_back(i->value());
-            ++i;
-        }
-    };
-    read_iter_to(xml_iter, xml_results);
-    read_iter_to(nt_iter, nt_results);
-
-    REQUIRE(xml_results.size() == nt_results.size());
-
-    static constexpr auto num_blanks = [](const query::QuadPattern& p) {
-        size_t n = 0;
-        if (p.subject().is_blank_node()) {
-            ++n;
-        }
-        if (p.predicate().is_blank_node()) {
-            ++n;
-        }
-        if (p.object().is_blank_node()) {
-            ++n;
-        }
-        return n;
-    };
-    static constexpr auto sort = [](std::vector<query::QuadPattern>& v) {
-        std::sort(v.begin(), v.end(), [](const query::QuadPattern& a, const query::QuadPattern& b) {
-            auto a_bl = num_blanks(a);
-            auto b_bl = num_blanks(b);
-            if (a_bl != b_bl) {
-                return std::less{}(a_bl, b_bl);
-            }
-            if (a.subject() != b.subject() && !a.subject().is_blank_node() && !b.subject().is_blank_node()) {
-                return std::less{}(a.subject(), b.subject());
-            }
-            if (a.predicate() != b.predicate() && !a.predicate().is_blank_node() && !b.predicate().is_blank_node()) {
-                return std::less{}(a.predicate(), b.predicate());
-            }
-            if (!a.object().is_blank_node() && !b.object().is_blank_node()) {
-                return std::less{}(a.object(), b.object());
-            }
-            if (a.subject() != b.subject()) {
-                return std::less{}(a.subject(), b.subject());
-            }
-            if (a.predicate() != b.predicate()) {
-                return std::less{}(a.predicate(), b.predicate());
-            }
-            return std::less{}(a.object(), b.object());
-        });
-    };
-    sort(xml_results);
-    sort(nt_results);
-
-    std::map<BlankNode, BlankNode> bn_map{};
-    auto check = [&bn_map](Node xml, Node nt) {
-        if (nt.is_blank_node() && xml.is_blank_node()) {
-            auto i = bn_map.find(nt.as_blank_node());
-            if (i != bn_map.end()) {
-                CHECK(xml.as_blank_node() == i->second.as_blank_node());
-            }
-            else {
-                bn_map[nt.as_blank_node()] = xml.as_blank_node();
-            }
-        }
-        else {
-            CHECK(xml == nt);
-        }
-    };
-
-    for (size_t i = 0; i < nt_results.size(); ++i) {
-        check(xml_results.at(i).subject(), nt_results.at(i).subject());
-        check(xml_results.at(i).predicate(), nt_results.at(i).predicate());
-        check(xml_results.at(i).object(), nt_results.at(i).object());
-    }
+    parse_test_helpers::parser_test_positive(std::move(xml_str), std::move(nt_str), base_iri, ParsingFlag::RdfXml, ParsingFlag::NTriples);
 }
 
 void xml_test_negative(std::string xml_str, std::string_view base_iri) {
-    CAPTURE(base_iri);
-
-
-    std::stringstream xml{std::move(xml_str)};
-    IStreamQuadIterator xml_iter{xml, ParsingFlag::RdfXml};
-
-    bool had_error = false;
-    while (xml_iter != std::default_sentinel) {
-        if (xml_iter->has_value()) {
-            ++xml_iter;
-            continue;
-        }
-        had_error = true;
-        ++xml_iter;
-    }
-    CHECK(had_error == true);
+    parse_test_helpers::parser_test_negative(std::move(xml_str), base_iri, ParsingFlag::RdfXml);
 }
 
-
-// adopted from https://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c/9786295#9786295
-static size_t write_callback(void const *contents, size_t size, size_t nmemb, void *userp) {
-    static_cast<std::string *>(userp)->append(static_cast<char const *>(contents), size * nmemb);
-    return size * nmemb;
-}
-
-std::string remote_test_file_to_str(std::string const &file_name) {
-    CURL *curl = nullptr;
-    CURLcode curl_res;
-    auto const url = std::format("https://raw.githubusercontent.com/w3c/rdf-tests/refs/heads/main/rdf/rdf11/rdf-xml/{}", file_name);
-    std::string file_contents_as_str;
-    curl = curl_easy_init();
-    if(curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file_contents_as_str);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // for https
-        curl_res = curl_easy_perform(curl);
-        curl_easy_cleanup(curl);
-    }
-    REQUIRE_EQ(curl_res, CURLE_OK);
-    return file_contents_as_str;
+std::string remote_test_file_to_str(std::string_view file_name) {
+    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, "https://raw.githubusercontent.com/w3c/rdf-tests/refs/heads/main/rdf/rdf11/rdf-xml", "./xml_test_cache");
 }
 
 TEST_CASE("test cases from rdf-tests") {

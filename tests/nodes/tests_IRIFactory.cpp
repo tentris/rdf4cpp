@@ -159,6 +159,9 @@ TEST_CASE("base") {
     CHECK(fact.from_relative("http://ex.com/a/./b/../c").value().identifier() == "http://ex.com/a/c");
     CHECK(fact.from_maybe_relative("http://ex.com/a/./b/../c").value().identifier() == "http://ex.com/a/./b/../c");
     CHECK(fact.from_maybe_relative("/x/./b/../c").value().identifier() == "http://a/x/c");
+
+    CHECK(fact.set_base("tag:example") == IRIFactoryError::Ok);
+    CHECK(fact.from_relative("a").value().identifier() == "tag:a");
 }
 
 TEST_CASE("base reassign") {

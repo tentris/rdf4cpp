@@ -20,19 +20,19 @@ namespace rdf4cpp::parser::xml_states {
             out.add_statement(subject, predicate, last_bn, reify);
         } else {
             auto const bn = out.make_bn(std::nullopt, info);
-            out.add_statement(last_bn, out.make_hardcoded_iri(iri_rest), bn, IRI::make_null());
+            out.add_statement(last_bn, out.make_hardcoded_iri(list_iris::iri_rest), bn, IRI::make_null());
             last_bn = bn;
         }
-        out.add_statement(last_bn, out.make_hardcoded_iri(iri_first), obj, IRI::make_null());
+        out.add_statement(last_bn, out.make_hardcoded_iri(list_iris::iri_first), obj, IRI::make_null());
         return transition;
     }
 
     StateTransition CollectionState::on_end_element(XMLOutputQueue &out, [[maybe_unused]] XMLStateInfo const &info) {
-        auto const nil = out.make_hardcoded_iri(iri_nil);
+        auto const nil = out.make_hardcoded_iri(list_iris::iri_nil);
         if (first) {
             out.add_statement(subject, predicate, nil, reify);
         } else {
-            out.add_statement(last_bn, out.make_hardcoded_iri(iri_rest), nil, IRI::make_null());
+            out.add_statement(last_bn, out.make_hardcoded_iri(list_iris::iri_rest), nil, IRI::make_null());
         }
         return StateTransition{std::in_place_type<PopState>};
     }
