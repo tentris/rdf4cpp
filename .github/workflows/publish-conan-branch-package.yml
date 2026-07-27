@@ -13,7 +13,7 @@ jobs:
       os: ubuntu-24.04
       compiler: clang-21
       cmake-version: 4.4.0
-      conan-version: 2.31.0
+      conan-version: 2.31.1
       conan-options: -o boost/*:header_only=True
     secrets:
       CONAN_CICD_USERNAME: ${{ secrets.CONAN_CICD_USERNAME }}
