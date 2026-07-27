@@ -116,7 +116,7 @@ concept NodeStorage = requires (NS ns_mut,
  * A VTable for a NodeStorage
  */
 struct NodeStorageVTable {
-    bool (*has_specialized_storage_for)(void const *self, identifier::LiteralType literal_type) noexcept;
+    bool (*has_specialized_storage_for)(void const *self, identifier::LiteralType literal_type);
 
     identifier::NodeBackendID (*find_or_make_iri_id)(void *self, view::IRIBackendView const &view);
     identifier::NodeBackendID (*find_or_make_bnode_id)(void *self, view::BNodeBackendView const &view);
