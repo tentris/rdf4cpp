@@ -74,7 +74,7 @@ public:
     friend std::ostream &operator<<(std::ostream &os, QuadPattern const &pattern);
 
     [[nodiscard]] QuadPattern to_node_storage(storage::DynNodeStoragePtr node_storage) const;
-    [[nodiscard]] QuadPattern try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept;
+    [[nodiscard]] QuadPattern try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 };
 }  // namespace rdf4cpp::query
 

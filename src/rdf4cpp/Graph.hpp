@@ -79,16 +79,16 @@ public:
         query::TriplePattern pat_;
         value_type cur_;
 
-        bool check_solution() noexcept;
-        void forward_to_solution() noexcept;
+        bool check_solution();
+        void forward_to_solution();
 
     public:
         solution_iterator() noexcept = default;
         solution_iterator(typename Graph::iterator beg,
-                          query::TriplePattern const &pat) noexcept;
+                          query::TriplePattern const &pat);
 
-        solution_iterator &operator++() noexcept;
-        void operator++(int) noexcept;
+        solution_iterator &operator++();
+        void operator++(int);
         reference operator*() const noexcept;
         pointer operator->() const noexcept;
 
@@ -140,7 +140,7 @@ public:
     void add(Statement const &statement);
 
     [[nodiscard]] size_t size() const noexcept;
-    [[nodiscard]] bool contains(Statement const &statement) const noexcept;
+    [[nodiscard]] bool contains(Statement const &statement) const;
 
     [[nodiscard]] solution_sequence match(query::TriplePattern const &triple_pattern) const noexcept;
 
@@ -174,7 +174,7 @@ public:
      * @param writer writer parts
      * @return true if serialization was successful, false if a call to W::flush was not able to make room
      */
-    bool serialize(writer::BufWriterParts writer) const noexcept;
+    bool serialize(writer::BufWriterParts writer) const;
 
     /**
      * Serialize this graph as <a href="https://www.w3.org/TR/rdf12-turtle/">Turtle</a>
@@ -184,7 +184,7 @@ public:
      * @param writer writer parts
      * @return true if serialization was successful, false if a call to W::flush was not able to make room
      */
-    bool serialize_turtle(writer::SerializationState &state, writer::BufWriterParts writer) const noexcept;
+    bool serialize_turtle(writer::SerializationState &state, writer::BufWriterParts writer) const;
 
     /**
      * Serialize this graph as <a href="https://www.w3.org/TR/rdf12-turtle/">Turtle</a>
@@ -194,7 +194,7 @@ public:
      * @param writer writer parts
      * @return true if serialization was successful, false if a call to W::flush was not able to make room
      */
-    bool serialize_turtle(writer::BufWriterParts writer) const noexcept;
+    bool serialize_turtle(writer::BufWriterParts writer) const;
 
     /**
      * Serialize this graph as <a href="https://www.w3.org/TR/n-triples/">N-Triples</a>.

@@ -48,7 +48,7 @@ Quad Quad::to_node_storage(storage::DynNodeStoragePtr node_storage) const {
     return qu;
 }
 
-Quad Quad::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+Quad Quad::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     Quad qu;
     auto it = qu.begin();
     for (auto const item : *this) {
@@ -57,19 +57,19 @@ Quad Quad::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) cons
     return qu;
 }
 
-bool Quad::serialize_ntriples(writer::BufWriterParts const writer) const noexcept {
+bool Quad::serialize_ntriples(writer::BufWriterParts const writer) const {
     return writer::write_quad<writer::OutputFormat::NTriples>(*this, writer, nullptr);
 }
 
-bool Quad::serialize_nquads(writer::BufWriterParts const writer) const noexcept {
+bool Quad::serialize_nquads(writer::BufWriterParts const writer) const {
     return writer::write_quad<writer::OutputFormat::NQuads>(*this, writer, nullptr);
 }
 
-bool Quad::serialize_turtle(writer::SerializationState &state, writer::BufWriterParts const writer) const noexcept {
+bool Quad::serialize_turtle(writer::SerializationState &state, writer::BufWriterParts const writer) const {
     return writer::write_quad<writer::OutputFormat::Turtle>(*this, writer, &state);
 }
 
-bool Quad::serialize_trig(writer::SerializationState &state, writer::BufWriterParts const writer) const noexcept {
+bool Quad::serialize_trig(writer::SerializationState &state, writer::BufWriterParts const writer) const {
     return writer::write_quad<writer::OutputFormat::TriG>(*this, writer, &state);
 }
 

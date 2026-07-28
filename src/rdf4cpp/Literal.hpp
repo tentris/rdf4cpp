@@ -172,14 +172,14 @@ private:
      *
      * @return the ordering of the values of this and other; if there is a value ordering
      */
-    std::partial_ordering compare_impl(Literal const &other, std::strong_ordering *out_alternative_ordering = nullptr) const noexcept;
+    std::partial_ordering compare_impl(Literal const &other, std::strong_ordering *out_alternative_ordering = nullptr) const;
 
     /**
      * get the DatatypeIDView for the datatype of *this,
      * it will always contain the appropriate id type
      * and can be used to index the registry
      */
-    [[nodiscard]] datatypes::registry::DatatypeIDView datatype_id() const noexcept;
+    [[nodiscard]] datatypes::registry::DatatypeIDView datatype_id() const;
 
     /**
      * @return if the datatype of this is fixed
@@ -294,7 +294,7 @@ private:
      * @return whatever consume returned
      */
     template<bool simplified, typename C>
-    auto serialize_lexical_form_impl(C &&consume) const noexcept;
+    auto serialize_lexical_form_impl(C &&consume) const;
 
     [[nodiscard]] Literal cast_impl(datatypes::registry::DatatypeIDView target_dtid, storage::DynNodeStoragePtr node_storage) const;
 
@@ -459,7 +459,7 @@ public:
      *
      * @return the literal form of the given boolean
      */
-    static Literal make_boolean(TriBool b, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    static Literal make_boolean(TriBool b, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * creates a new string Literal containing a random UUID (Universally Unique IDentifier)
@@ -497,7 +497,7 @@ public:
     [[nodiscard]] Literal try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 
 private:
-    [[nodiscard]] static storage::identifier::NodeBackendID find_datatype_iri(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept;
+    [[nodiscard]] static storage::identifier::NodeBackendID find_datatype_iri(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage);
 
 public:
     /**
@@ -658,7 +658,7 @@ public:
      * @param datatype the datatype to compare against
      * @return true iff this datatype is datatype
      */
-    [[nodiscard]] bool datatype_eq(IRI const &datatype) const noexcept;
+    [[nodiscard]] bool datatype_eq(IRI const &datatype) const;
 
     /**
      * Checks if the datatype of this matches the datatype of other
@@ -667,7 +667,7 @@ public:
      * @param other other literal to check against
      * @return true iff this' datatype matches other's datatype
      */
-    [[nodiscard]] bool datatype_eq(Literal const &other) const noexcept;
+    [[nodiscard]] bool datatype_eq(Literal const &other) const;
 
     /**
      * Checks if the datatype of this matches the provided LiteralDatatype
@@ -692,7 +692,7 @@ public:
      * @param datatype the datatype to compare against
      * @return true as xsd:boolean iff this datatype is datatype or null-literal if this is null
      */
-    [[nodiscard]] Literal as_datatype_eq(IRI const &datatype, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_datatype_eq(IRI const &datatype, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * Checks if the datatype of this matches the datatype of other
@@ -701,7 +701,7 @@ public:
      * @param other other literal to check against
      * @return true as xsd:boolean iff this' datatype matches other's datatype or null-literal if this or other is null
      */
-    [[nodiscard]] Literal as_datatype_eq(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_datatype_eq(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * Tries to cast this literal to a literal of the given type IRI.
@@ -727,7 +727,7 @@ public:
      */
     template<datatypes::LiteralDatatype T>
     requires (!std::same_as<T, datatypes::xsd::String>)
-    std::optional<typename T::cpp_type> cast_to_value() const noexcept {
+    std::optional<typename T::cpp_type> cast_to_value() const {
         using namespace datatypes::registry;
         using namespace datatypes::xsd;
 
@@ -826,7 +826,7 @@ public:
      * \endverbatim
      * @return lexical form
      */
-    [[nodiscard]] CowString lexical_form() const noexcept;
+    [[nodiscard]] CowString lexical_form() const;
 
     /**
      * Similar to Literal::lexical_form.
@@ -839,7 +839,7 @@ public:
      *         - Serialized if lexical form was not yet materialized, but could be serialized.
      *         - SerializationFailed if lexical for was not yet materialized, but serialization failed.
      */
-    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_lexical_form(std::string_view &out_lex_form, writer::BufWriterParts writer) const noexcept;
+    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_lexical_form(std::string_view &out_lex_form, writer::BufWriterParts writer) const;
 
     /**
      * Converts this into it's lexical form as xsd:string. See Literal::lexical_form for more details.
@@ -853,7 +853,7 @@ public:
      * Returns the simplified/more user friendly string version of this. This is for example used when casting numerics to string.
      * @return user friendly string representation
      */
-    [[nodiscard]] CowString simplified_lexical_form() const noexcept;
+    [[nodiscard]] CowString simplified_lexical_form() const;
 
     /**
      * Similar to Literal::simplified_lexical_form.
@@ -866,7 +866,7 @@ public:
      *         - Serialized if lexical form was not yet materialized, but could be serialized.
      *         - SerializationFailed if lexical for was not yet materialized, but serialization failed.
      */
-    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_simplified_lexical_form(std::string_view &out_lex_form, writer::BufWriterParts writer) const noexcept;
+    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_simplified_lexical_form(std::string_view &out_lex_form, writer::BufWriterParts writer) const;
 
     /**
      * Converts this into it's simplified/more user friendly string representation as xsd:string. See Literal::to_simplified_string for more details.
@@ -878,13 +878,13 @@ public:
      * Returns the datatype IRI of this.
      * @return datatype IRI
      */
-    [[nodiscard]] IRI datatype() const noexcept;
+    [[nodiscard]] IRI datatype() const;
 
     /**
      * Returns the language tag of this Literal. If the string is empty this has no language tag.
      * @return language tag
      */
-    [[nodiscard]] std::string_view language_tag() const noexcept;
+    [[nodiscard]] std::string_view language_tag() const;
 
     /**
      * @return the language tag of this Literal as xsd:string. If the string is empty this has no language tag.
@@ -922,28 +922,28 @@ public:
     /**
      * See Node::serialize
      */
-    bool serialize(writer::BufWriterParts writer, NodeSerializationOpts opts = NodeSerializationOpts::long_form()) const noexcept;
+    bool serialize(writer::BufWriterParts writer, NodeSerializationOpts opts = NodeSerializationOpts::long_form()) const;
 
     /**
      * Serializes this Literal's canonical lexical form into the decomposed writer
      * See Node::serialize for more details
      */
-    bool serialize_lexical_form(writer::BufWriterParts writer) const noexcept;
+    bool serialize_lexical_form(writer::BufWriterParts writer) const;
 
     /**
      * Serializes this Literal's simplified lexical form into the decomposed writer
      * See Node::serialize for more details
      */
-    bool serialize_simplified_lexical_form(writer::BufWriterParts writer) const noexcept;
+    bool serialize_simplified_lexical_form(writer::BufWriterParts writer) const;
 
-    [[nodiscard]] explicit operator std::string() const noexcept;
+    [[nodiscard]] explicit operator std::string() const;
     friend std::ostream &operator<<(std::ostream &os, const Literal &literal);
 
     /**
      * Constructs a datatype specific container from Literal.
      * @return std::any wrapped value. will be empty if type is not registered.
      */
-    [[nodiscard]] std::any value() const noexcept;
+    [[nodiscard]] std::any value() const;
 
     /**
      * Get the value of an literal. T must be the registered datatype for the datatype iri.
@@ -998,9 +998,9 @@ public:
     bool is_blank_node() const noexcept = delete;
     bool is_iri() const noexcept = delete;
 
-    [[nodiscard]] bool is_numeric() const noexcept;
-    [[nodiscard]] bool is_timepoint() const noexcept;
-    [[nodiscard]] bool is_duration() const noexcept;
+    [[nodiscard]] bool is_numeric() const;
+    [[nodiscard]] bool is_timepoint() const;
+    [[nodiscard]] bool is_duration() const;
 
     /**
      * The literal comparison function for SPARQL filters (FILTER).
@@ -1009,7 +1009,7 @@ public:
      *
      * https://www.w3.org/TR/sparql11-query/#OperatorMapping
      */
-    [[nodiscard]] std::partial_ordering compare(Literal const &other) const noexcept;
+    [[nodiscard]] std::partial_ordering compare(Literal const &other) const;
 
     /**
      * The comparison function for SPARQL orderings (ORDER BY).
@@ -1023,43 +1023,43 @@ public:
      *          - at least one of the value's types is not comparable
      *          - there is no viable conversion to a common type to check for equality
      */
-    [[nodiscard]] std::strong_ordering order(Literal const &other) const noexcept;
+    [[nodiscard]] std::strong_ordering order(Literal const &other) const;
 
-    [[nodiscard]] TriBool eq(Literal const &other) const noexcept;
-    [[nodiscard]] bool order_eq(Literal const &other) const noexcept;
-    [[nodiscard]] TriBool ne(Literal const &other) const noexcept;
-    [[nodiscard]] bool order_ne(Literal const &other) const noexcept;
-    [[nodiscard]] TriBool lt(Literal const &other) const noexcept;
-    [[nodiscard]] bool order_lt(Literal const &other) const noexcept;
-    [[nodiscard]] TriBool le(Literal const &other) const noexcept;
-    [[nodiscard]] bool order_le(Literal const &other) const noexcept;
-    [[nodiscard]] TriBool gt(Literal const &other) const noexcept;
-    [[nodiscard]] bool order_gt(Literal const &other) const noexcept;
-    [[nodiscard]] TriBool ge(Literal const &other) const noexcept;
-    [[nodiscard]] bool order_ge(Literal const &other) const noexcept;
+    [[nodiscard]] TriBool eq(Literal const &other) const;
+    [[nodiscard]] bool order_eq(Literal const &other) const;
+    [[nodiscard]] TriBool ne(Literal const &other) const;
+    [[nodiscard]] bool order_ne(Literal const &other) const;
+    [[nodiscard]] TriBool lt(Literal const &other) const;
+    [[nodiscard]] bool order_lt(Literal const &other) const;
+    [[nodiscard]] TriBool le(Literal const &other) const;
+    [[nodiscard]] bool order_le(Literal const &other) const;
+    [[nodiscard]] TriBool gt(Literal const &other) const;
+    [[nodiscard]] bool order_gt(Literal const &other) const;
+    [[nodiscard]] TriBool ge(Literal const &other) const;
+    [[nodiscard]] bool order_ge(Literal const &other) const;
 
-    [[nodiscard]] Literal as_eq(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_order_eq(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_ne(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_order_ne(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_lt(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_order_lt(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_le(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_order_le(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_gt(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_order_gt(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_ge(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    [[nodiscard]] Literal as_order_ge(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_eq(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_order_eq(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_ne(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_order_ne(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_lt(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_order_lt(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_le(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_order_le(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_gt(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_order_gt(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_ge(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    [[nodiscard]] Literal as_order_ge(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * Equivalent to this->compare(other)
      */
-    std::partial_ordering operator<=>(Literal const &other) const noexcept;
+    std::partial_ordering operator<=>(Literal const &other) const;
 
     /**
      * Equivalent to this->eq(other)
      */
-    bool operator==(Literal const &other) const noexcept;
+    bool operator==(Literal const &other) const;
 
     [[nodiscard]] Literal add(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
     Literal operator+(Literal const &other) const;
@@ -1115,7 +1115,7 @@ public:
      * @see https://www.w3.org/TR/xpath-functions/#func-string-length
      * @return the length this' lexical form if it is string-like otherwise nullopt
      */
-    [[nodiscard]] std::optional<size_t> strlen() const noexcept;
+    [[nodiscard]] std::optional<size_t> strlen() const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-string-length
@@ -1128,7 +1128,7 @@ public:
      * @param lang_range a basic language range
      * @return whether the language tag of this matches the given lang range if this is string-like, otherwise Err
      */
-    [[nodiscard]] TriBool language_tag_matches_range(std::string_view lang_range) const noexcept;
+    [[nodiscard]] TriBool language_tag_matches_range(std::string_view lang_range) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-string-length
@@ -1136,7 +1136,7 @@ public:
      * @return whether the language tag of this matches the given lang range or the null literal if
      *      - this is not string-like
      */
-    [[nodiscard]] Literal as_language_tag_matches_range(std::string_view lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_language_tag_matches_range(std::string_view lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-string-length
@@ -1145,7 +1145,7 @@ public:
      *      - this is not string-like
      *      - lang_range is not xsd:string
      */
-    [[nodiscard]] Literal as_language_tag_matches_range(Literal const &lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_language_tag_matches_range(Literal const &lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-matches
@@ -1153,7 +1153,7 @@ public:
      * @param pattern regex to match against
      * @return whether this' lexical form matches the regex or Err if this is not string-like
      */
-    [[nodiscard]] TriBool regex_matches(regex::Regex const &pattern) const noexcept;
+    [[nodiscard]] TriBool regex_matches(regex::Regex const &pattern) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-matches
@@ -1162,7 +1162,7 @@ public:
      * @return whether this' lexical form matches the regex or the null literal if
      *      - this is not string-like
      */
-    [[nodiscard]] Literal as_regex_matches(regex::Regex const &pattern, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_regex_matches(regex::Regex const &pattern, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-matches
@@ -1174,7 +1174,7 @@ public:
      *      - regex is not string-like
      *      - flags is not string-like or not parsable as flags
      */
-    [[nodiscard]] Literal as_regex_matches(Literal const &pattern, Literal const &flags = Literal::make_simple(""), storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_regex_matches(Literal const &pattern, Literal const &flags = Literal::make_simple(""), storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @brief Creates a regex, whose pattern is the lexical form of the caller (this->lexical_form())
@@ -1209,7 +1209,7 @@ public:
      * @param needle substring to search for in this
      * @return whether this' lexical form contains the given string or Err if this is not string-like
      */
-    [[nodiscard]] TriBool contains(std::string_view needle) const noexcept;
+    [[nodiscard]] TriBool contains(std::string_view needle) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-contains
@@ -1218,7 +1218,7 @@ public:
      * @return whether this' lexical form contains the given string (as xsd:boolean) or the null literal if
      *      - this is not string-like
      */
-    [[nodiscard]] Literal as_contains(std::string_view needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_contains(std::string_view needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-contains
@@ -1228,7 +1228,7 @@ public:
      *      - this is not string-like
      *      - needle is not string-like
      */
-    [[nodiscard]] Literal as_contains(Literal const &needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_contains(Literal const &needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-substring-before
@@ -1291,7 +1291,7 @@ public:
      * @return whether this' lexical form starts with needle or Err if
      *      - this is not string-like
      */
-    [[nodiscard]] TriBool str_starts_with(std::string_view needle) const noexcept;
+    [[nodiscard]] TriBool str_starts_with(std::string_view needle) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-starts-with
@@ -1300,7 +1300,7 @@ public:
      * @return whether this' lexical form starts with needle (as xsd:boolean) or the null literal if
      *      - this is not string-like
      */
-    [[nodiscard]] Literal as_str_starts_with(std::string_view needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_str_starts_with(std::string_view needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-starts-with
@@ -1311,7 +1311,7 @@ public:
      *      - needle is not string-like
      *      - the language tags of this and needle do not match
      */
-    [[nodiscard]] Literal as_str_starts_with(Literal const &needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_str_starts_with(Literal const &needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-ends-with
@@ -1320,7 +1320,7 @@ public:
      * @return whether this' lexical form ends with needle or Err if
      *      - this is not string-like
      */
-    [[nodiscard]] TriBool str_ends_with(std::string_view needle) const noexcept;
+    [[nodiscard]] TriBool str_ends_with(std::string_view needle) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-ends-with
@@ -1329,7 +1329,7 @@ public:
      * @return whether this' lexical form ends with needle (as xsd:boolean) or the null literal if
      *      - this is not string-like
      */
-    [[nodiscard]] Literal as_str_ends_with(std::string_view needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_str_ends_with(std::string_view needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-ends-with
@@ -1340,7 +1340,7 @@ public:
      *      - needle is not string-like
      *      - the language tags of this and needle do not match
      */
-    [[nodiscard]] Literal as_str_ends_with(Literal const &needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_str_ends_with(Literal const &needle, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @see https://www.w3.org/TR/xpath-functions/#func-upper-case
@@ -1455,7 +1455,7 @@ public:
      * returns the year part of this.
      * @return year or nullopt
      */
-    [[nodiscard]] std::optional<Year> year() const noexcept;
+    [[nodiscard]] std::optional<Year> year() const;
 
     /**
      * returns the year part of this.
@@ -1467,7 +1467,7 @@ public:
      * returns the month part of this.
      * @return month or nullopt
      */
-    [[nodiscard]] std::optional<std::chrono::month> month() const noexcept;
+    [[nodiscard]] std::optional<std::chrono::month> month() const;
 
     /**
      * returns the month part of this.
@@ -1479,7 +1479,7 @@ public:
      * returns the day part of this.
      * @return day or nullopt
      */
-    [[nodiscard]] std::optional<std::chrono::day> day() const noexcept;
+    [[nodiscard]] std::optional<std::chrono::day> day() const;
 
     /**
      * returns the day part of this.
@@ -1491,7 +1491,7 @@ public:
      * returns the hours part of this.
      * @return hours ot nullopt
      */
-    [[nodiscard]] std::optional<std::chrono::hours> hours() const noexcept;
+    [[nodiscard]] std::optional<std::chrono::hours> hours() const;
 
     /**
      * returns the hours part of this.
@@ -1503,7 +1503,7 @@ public:
      * returns the minutes part of this.
      * @return minutes ot nullopt
      */
-    [[nodiscard]] std::optional<std::chrono::minutes> minutes() const noexcept;
+    [[nodiscard]] std::optional<std::chrono::minutes> minutes() const;
 
     /**
      * returns the minutes part of this.
@@ -1515,7 +1515,7 @@ public:
      * returns the seconds (including fractional) part of this.
      * @return seconds or nullopt
      */
-    [[nodiscard]] std::optional<std::chrono::nanoseconds> seconds() const noexcept;
+    [[nodiscard]] std::optional<std::chrono::nanoseconds> seconds() const;
 
     /**
      * returns the seconds (including fractional) part of this.
@@ -1527,7 +1527,7 @@ public:
      * returns the timezone offset part of this.
      * @return timezone or nullopt
      */
-    [[nodiscard]] std::optional<Timezone> timezone() const noexcept;
+    [[nodiscard]] std::optional<Timezone> timezone() const;
 
     /**
      * returns the timezone offset part of this.
@@ -1539,7 +1539,7 @@ public:
      * returns the timezone offset part of this.
      * @return timezone as string or nullopt
      */
-    [[nodiscard]] std::optional<std::string> tz() const noexcept;
+    [[nodiscard]] std::optional<std::string> tz() const;
 
     /**
      * returns the timezone offset part of this.
@@ -1550,25 +1550,25 @@ public:
     /**
      * @return the effective boolean value of this
      */
-    [[nodiscard]] TriBool ebv() const noexcept;
+    [[nodiscard]] TriBool ebv() const;
 
     /**
      * Converts this literal to its effective boolean value
      * @return Literal containing the ebv
      */
-    [[nodiscard]] Literal as_ebv(storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_ebv(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
-    [[nodiscard]] Literal logical_and(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    Literal operator&&(Literal const &other) const noexcept;
+    [[nodiscard]] Literal logical_and(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    Literal operator&&(Literal const &other) const;
 
-    [[nodiscard]] Literal logical_or(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    Literal operator||(Literal const &other) const noexcept;
+    [[nodiscard]] Literal logical_or(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    Literal operator||(Literal const &other) const;
 
-    [[nodiscard]] Literal logical_not(storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
-    Literal operator!() const noexcept;
+    [[nodiscard]] Literal logical_not(storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
+    Literal operator!() const;
 
     friend struct Node;
-    friend Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage::DynNodeStoragePtr node_storage) noexcept;
+    friend Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage::DynNodeStoragePtr node_storage);
 
     /**
      * https://www.w3.org/TR/xpath-functions/#func-math-pi
@@ -1666,34 +1666,34 @@ public:
 /**
  * @return whether lang_tag matches the basic language range lang_range
  */
-[[nodiscard]] bool lang_matches(std::string_view lang_tag, std::string_view lang_range) noexcept;
+[[nodiscard]] bool lang_matches(std::string_view lang_tag, std::string_view lang_range);
 
 /**
  * @return whether lang_tag matches the basic language range lang_range as xsd:boolean or the null-literal if:
  *      - lang_tag is not xsd:string
  *      - lang_range is not xsd:string
  */
-[[nodiscard]] Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage) noexcept;
+[[nodiscard]] Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage);
 
 inline namespace shorthands {
 
 Literal operator""_xsd_string(char const *str, size_t len);
 
 Literal operator""_xsd_double(long double d);
-Literal operator""_xsd_float(long double d) noexcept;
+Literal operator""_xsd_float(long double d);
 
 Literal operator""_xsd_decimal(char const *str, size_t len);
 
 Literal operator""_xsd_integer(unsigned long long int i);
 
-Literal operator""_xsd_byte(unsigned long long int i) noexcept;
-Literal operator""_xsd_ubyte(unsigned long long int i) noexcept;
+Literal operator""_xsd_byte(unsigned long long int i);
+Literal operator""_xsd_ubyte(unsigned long long int i);
 
-Literal operator""_xsd_short(unsigned long long int i) noexcept;
-Literal operator""_xsd_ushort(unsigned long long int i) noexcept;
+Literal operator""_xsd_short(unsigned long long int i);
+Literal operator""_xsd_ushort(unsigned long long int i);
 
-Literal operator""_xsd_int(unsigned long long int i) noexcept;
-Literal operator""_xsd_uint(unsigned long long int i) noexcept;
+Literal operator""_xsd_int(unsigned long long int i);
+Literal operator""_xsd_uint(unsigned long long int i);
 
 Literal operator""_xsd_long(unsigned long long int i);
 Literal operator""_xsd_ulong(unsigned long long int i);
@@ -1704,7 +1704,7 @@ Literal operator""_xsd_ulong(unsigned long long int i);
  * Less-than comparator for use of Literals in ordered container (e.g. std::set)
  */
 struct LiteralOrderByLess {
-    bool operator()(Literal lhs, Literal rhs) const noexcept {
+    bool operator()(Literal lhs, Literal rhs) const {
         return lhs.order_lt(rhs);
     }
 };
@@ -1713,7 +1713,7 @@ struct LiteralOrderByLess {
  * Greater-than comparator for use of Literals in ordered container (e.g. std::set)
  */
 struct LiteralOrderByGreater {
-    bool operator()(Literal lhs, Literal rhs) const noexcept {
+    bool operator()(Literal lhs, Literal rhs) const {
         return lhs.order_gt(rhs);
     }
 };

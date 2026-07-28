@@ -101,7 +101,7 @@ IRI IRI::find(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr
 }
 
 
-IRI::operator datatypes::registry::DatatypeIDView() const noexcept {
+IRI::operator datatypes::registry::DatatypeIDView() const {
     using namespace storage::identifier;
 
     auto const id = this->handle_.id();
@@ -114,7 +114,7 @@ IRI::operator datatypes::registry::DatatypeIDView() const noexcept {
     }
 }
 
-bool IRI::serialize(writer::BufWriterParts const writer) const noexcept {
+bool IRI::serialize(writer::BufWriterParts const writer) const {
     if (null()) {
         return rdf4cpp::writer::write_str("null", writer);
     }
@@ -127,7 +127,7 @@ bool IRI::serialize(writer::BufWriterParts const writer) const noexcept {
     return true;
 }
 
-IRI::operator std::string() const noexcept {
+IRI::operator std::string() const {
     return writer::StringWriter::oneshot([this](auto &w) noexcept {
         return this->serialize(w);
     });
@@ -184,11 +184,11 @@ std::ostream &operator<<(std::ostream &os, IRI const &iri) {
 
     return os;
 }
-std::string_view IRI::identifier() const noexcept {
+std::string_view IRI::identifier() const {
     return handle_.iri_backend().identifier;
 }
 
-FetchOrSerializeResult IRI::fetch_or_serialize_identifier(std::string_view &out, [[maybe_unused]] writer::BufWriterParts writer) const noexcept {
+FetchOrSerializeResult IRI::fetch_or_serialize_identifier(std::string_view &out, [[maybe_unused]] writer::BufWriterParts writer) const {
     auto const id = identifier();
     out = id;
     return FetchOrSerializeResult::Fetched;

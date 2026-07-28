@@ -132,7 +132,7 @@ BlankNode BlankNode::find(std::string_view identifier, storage::DynNodeStoragePt
     return BlankNode{storage::identifier::NodeBackendHandle{nid, node_storage}};
 }
 
-CowString BlankNode::identifier() const noexcept {
+CowString BlankNode::identifier() const {
     if (handle_.is_inlined()) {
         auto const inlined = detail_bnode_inlining::from_inlined(handle_.id());
         auto const identifier = inlined.view().identifier;
@@ -143,7 +143,7 @@ CowString BlankNode::identifier() const noexcept {
     return CowString{CowString::borrowed, handle_.bnode_backend().identifier};
 }
 
-FetchOrSerializeResult BlankNode::fetch_or_serialize_identifier(std::string_view &out, writer::BufWriterParts writer) const noexcept {
+FetchOrSerializeResult BlankNode::fetch_or_serialize_identifier(std::string_view &out, writer::BufWriterParts writer) const {
     if (handle_.is_inlined()) {
         auto const inlined = detail_bnode_inlining::from_inlined(handle_.id());
         if (!rdf4cpp::writer::write_str(inlined.view().identifier, writer)) [[unlikely]] {
@@ -157,7 +157,7 @@ FetchOrSerializeResult BlankNode::fetch_or_serialize_identifier(std::string_view
     return FetchOrSerializeResult::Fetched;
 }
 
-bool BlankNode::serialize(writer::BufWriterParts const writer) const noexcept {
+bool BlankNode::serialize(writer::BufWriterParts const writer) const {
     if (null()) {
         return rdf4cpp::writer::write_str("null", writer);
     }
@@ -210,7 +210,7 @@ void BlankNode::validate(std::string_view v) {
     }
 }
 
-std::strong_ordering BlankNode::order(BlankNode const &other) const noexcept {
+std::strong_ordering BlankNode::order(BlankNode const &other) const {
     if (is_inlined()) {
         auto const this_delined = detail_bnode_inlining::from_inlined(handle_.id());
         if (other.is_inlined()) {
@@ -229,7 +229,7 @@ std::strong_ordering BlankNode::order(BlankNode const &other) const noexcept {
     }
 }
 
-bool BlankNode::order_eq(BlankNode const &other) const noexcept {
+bool BlankNode::order_eq(BlankNode const &other) const {
     return order(other) == std::strong_ordering::equivalent;
 }
 

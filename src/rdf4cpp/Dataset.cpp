@@ -28,7 +28,7 @@ void Dataset::add(Quad const &quad) {
     it.value().add(quad.without_graph());
 }
 
-bool Dataset::contains(Quad const &quad) const noexcept {
+bool Dataset::contains(Quad const &quad) const {
     auto const g = quad.graph().try_get_in_node_storage(node_storage_);
 
     auto it = graphs_.find(to_node_id(g));
@@ -49,7 +49,7 @@ size_t Dataset::size() const noexcept {
     });
 }
 
-size_t Dataset::size(IRI const &graph_name_) const noexcept {
+size_t Dataset::size(IRI const &graph_name_) const {
     auto const graph_name = graph_name_.try_get_in_node_storage(node_storage_);
 
     auto it = graphs_.find(to_node_id(graph_name));
@@ -113,7 +113,7 @@ Dataset::sentinel Dataset::end() const noexcept {
     return sentinel{};
 }
 
-bool Dataset::serialize(writer::BufWriterParts const writer) const noexcept {
+bool Dataset::serialize(writer::BufWriterParts const writer) const {
     for (Quad const &quad : *this) {
         if (!quad.serialize_nquads(writer)) {
             return false;
@@ -123,7 +123,7 @@ bool Dataset::serialize(writer::BufWriterParts const writer) const noexcept {
     return true;
 }
 
-bool Dataset::serialize_trig(writer::SerializationState &state, writer::BufWriterParts const writer) const noexcept {
+bool Dataset::serialize_trig(writer::SerializationState &state, writer::BufWriterParts const writer) const {
     for (Quad const &quad : *this) {
         if (!quad.serialize_trig(state, writer)) {
             return false;
@@ -133,7 +133,7 @@ bool Dataset::serialize_trig(writer::SerializationState &state, writer::BufWrite
     return true;
 }
 
-bool Dataset::serialize_trig(writer::BufWriterParts const writer) const noexcept {
+bool Dataset::serialize_trig(writer::BufWriterParts const writer) const {
     writer::SerializationState st{};
     if (!st.begin(writer)) {
         return false;
@@ -201,7 +201,7 @@ bool operator==(Dataset::sentinel, Dataset::iterator const &self) noexcept {
     return self.giter_ == self.gend_;
 }
 
-void Dataset::solution_iterator::fill_solution() noexcept {
+void Dataset::solution_iterator::fill_solution() {
     if (iter_ != std::default_sentinel) {
         if (pat_.graph().is_variable()) {
             cur_[0] = parent_->to_node(giter_->first);
@@ -226,7 +226,7 @@ void Dataset::solution_iterator::advance_until_result() {
 Dataset::solution_iterator::solution_iterator(Dataset const *parent,
                                               query::QuadPattern const &pat,
                                               typename storage_type::const_iterator beg,
-                                              typename storage_type::const_iterator end) noexcept : parent_{parent}, pat_{pat}, giter_{beg}, gend_{end}, iter_{}, cur_{pat} {
+                                              typename storage_type::const_iterator end) : parent_{parent}, pat_{pat}, giter_{beg}, gend_{end}, iter_{}, cur_{pat} {
     if (giter_ != gend_) {
         auto const &tpat = pat_.without_graph();
 
@@ -241,7 +241,7 @@ Dataset::solution_iterator::solution_iterator(Dataset const *parent,
     fill_solution();
 }
 
-Dataset::solution_iterator &Dataset::solution_iterator::operator++() noexcept {
+Dataset::solution_iterator &Dataset::solution_iterator::operator++() {
     ++iter_;
 
     if (pat_.graph().is_variable()) {
@@ -252,7 +252,7 @@ Dataset::solution_iterator &Dataset::solution_iterator::operator++() noexcept {
     return *this;
 }
 
-void Dataset::solution_iterator::operator++(int) noexcept {
+void Dataset::solution_iterator::operator++(int) {
     ++*this;
 }
 

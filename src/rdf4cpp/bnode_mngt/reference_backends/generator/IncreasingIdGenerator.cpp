@@ -17,7 +17,7 @@ IncreasingIdGenerator::IncreasingIdGenerator(std::string prefix, size_t const in
     BlankNode::validate(prefix_); // throws if invalid
 }
 
-BlankNode IncreasingIdGenerator::generate(storage::DynNodeStoragePtr node_storage) noexcept {
+BlankNode IncreasingIdGenerator::generate(storage::DynNodeStoragePtr node_storage) {
     static thread_local std::string buf;
 
     buf.clear();

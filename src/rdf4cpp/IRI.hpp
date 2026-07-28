@@ -23,7 +23,7 @@ public:
      * Constructs the corresponding datatype id for this iri. Return value can be safely used to
      * index the registry and yields the correct result.
      */
-    operator datatypes::registry::DatatypeIDView() const noexcept;
+    operator datatypes::registry::DatatypeIDView() const;
 
     /**
      * Constructs an IRI from a node backend handle
@@ -103,19 +103,19 @@ public:
      * Get the IRI string of this.
      * @return IRI string
      */
-    [[nodiscard]] std::string_view identifier() const noexcept;
+    [[nodiscard]] std::string_view identifier() const;
 
     /**
      * @see Literal::fetch_or_serialize_lexical_form
      */
-    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_identifier(std::string_view &out, writer::BufWriterParts writer) const noexcept;
+    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_identifier(std::string_view &out, writer::BufWriterParts writer) const;
 
     /**
      * See Node::serialize
      */
-    bool serialize(writer::BufWriterParts writer) const noexcept;
+    bool serialize(writer::BufWriterParts writer) const;
 
-    [[nodiscard]] explicit operator std::string() const noexcept;
+    [[nodiscard]] explicit operator std::string() const;
     friend std::ostream &operator<<(std::ostream &os, const IRI &iri);
 
     bool is_literal() const noexcept = delete;
@@ -168,7 +168,7 @@ public:
      * @return err if this is null, otherwise true iff this IRI is the datatype IRI of the given datatype
      */
     template<datatypes::LiteralDatatype T>
-    [[nodiscard]] TriBool is_datatype() const noexcept {
+    [[nodiscard]] TriBool is_datatype() const {
         if (null()) {
             return TriBool::Err;
         }

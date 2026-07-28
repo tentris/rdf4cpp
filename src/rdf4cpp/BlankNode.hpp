@@ -65,21 +65,21 @@ struct BlankNode : Node {
      * Get the string identifier of this. For BlankNode `_:abc` the identifier is `abc`.
      * @return string identifier
      */
-    [[nodiscard]] CowString identifier() const noexcept;
+    [[nodiscard]] CowString identifier() const;
 
     /**
      * @see Literal::fetch_or_serialize_lexical_form
      */
-    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_identifier(std::string_view &out, writer::BufWriterParts writer) const noexcept;
+    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_identifier(std::string_view &out, writer::BufWriterParts writer) const;
 
     /**
      * See Node::serialize
      */
-    bool serialize(writer::BufWriterParts writer) const noexcept;
+    bool serialize(writer::BufWriterParts writer) const;
 
-    [[nodiscard]] std::strong_ordering order(BlankNode const &other) const noexcept;
+    [[nodiscard]] std::strong_ordering order(BlankNode const &other) const;
 
-    [[nodiscard]] bool order_eq(BlankNode const &other) const noexcept;
+    [[nodiscard]] bool order_eq(BlankNode const &other) const;
     [[nodiscard]] bool order_ne(BlankNode const &other) const noexcept;
 
     [[nodiscard]] bool eq(BlankNode const &other) const noexcept;

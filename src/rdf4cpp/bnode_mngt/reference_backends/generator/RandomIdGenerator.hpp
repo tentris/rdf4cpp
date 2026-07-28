@@ -30,7 +30,7 @@ public:
      */
     explicit RandomIdGenerator(uint64_t seed);
 
-    BlankNode generate(storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    BlankNode generate(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 };
 static_assert(NodeGenerator<RandomIdGenerator>);
 

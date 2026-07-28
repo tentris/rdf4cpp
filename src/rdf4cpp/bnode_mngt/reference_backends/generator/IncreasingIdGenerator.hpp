@@ -26,7 +26,7 @@ public:
      */
     explicit IncreasingIdGenerator(std::string prefix = "", size_t initial_value = 0) noexcept;
 
-    BlankNode generate(storage::DynNodeStoragePtr node_storage) noexcept;
+    BlankNode generate(storage::DynNodeStoragePtr node_storage);
 };
 static_assert(NodeGenerator<IncreasingIdGenerator>);
 

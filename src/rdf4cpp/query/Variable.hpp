@@ -34,7 +34,7 @@ public:
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static Variable find_named(std::string_view name, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static Variable find_named(std::string_view name, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
     /**
      * searches for an anonymous Variable in the specified node storage and returns it.
      * returns a null Variable, if not found.
@@ -42,7 +42,7 @@ public:
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static Variable find_anonymous(std::string_view name, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static Variable find_anonymous(std::string_view name, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * Validates that the given name is a valid Variable name
@@ -59,12 +59,12 @@ public:
     /**
      * @see Literal::fetch_or_serialize_lexical_form
      */
-    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_name(std::string_view &out, writer::BufWriterParts writer) const noexcept;
+    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_name(std::string_view &out, writer::BufWriterParts writer) const;
 
     /**
      * See Node::serialize
      */
-    bool serialize(writer::BufWriterParts writer) const noexcept;
+    bool serialize(writer::BufWriterParts writer) const;
 
     [[nodiscard]] explicit operator std::string() const;
     friend std::ostream &operator<<(std::ostream &os, const Variable &variable);
@@ -74,9 +74,9 @@ public:
     bool is_variable() const = delete;
     bool is_iri() const = delete;
 
-    [[nodiscard]] std::strong_ordering order(Variable const &other) const noexcept;
+    [[nodiscard]] std::strong_ordering order(Variable const &other) const;
 
-    [[nodiscard]] bool order_eq(Variable const &other) const noexcept;
+    [[nodiscard]] bool order_eq(Variable const &other) const;
     [[nodiscard]] bool order_ne(Variable const &other) const noexcept;
 
     [[nodiscard]] bool eq(Variable const &other) const noexcept;
