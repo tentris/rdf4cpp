@@ -2218,6 +2218,10 @@ Literal Literal::as_str_ends_with(Literal const &needle, storage::DynNodeStorage
 }
 
 Literal Literal::uppercase(storage::DynNodeStoragePtr node_storage) const {
+    if (this->null()) {
+        return Literal{};
+    }
+
     if (!this->is_string_like()) {
         return Literal{};
     }
@@ -2229,6 +2233,10 @@ Literal Literal::uppercase(storage::DynNodeStoragePtr node_storage) const {
 }
 
 Literal Literal::lowercase(storage::DynNodeStoragePtr node_storage) const {
+    if (this->null()) {
+        return Literal{};
+    }
+
     if (!this->is_string_like()) {
         return Literal{};
     }
