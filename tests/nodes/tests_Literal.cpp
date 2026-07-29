@@ -610,6 +610,7 @@ TEST_CASE("Literal - misc functions") {
         CHECK_EQ(Literal::make_simple(case_number1).uppercase(), Literal::make_simple(case_number1));
         CHECK_EQ(Literal::make_simple(case_number2).uppercase(), Literal::make_simple(case_number2));
         CHECK_EQ(Literal::make_simple("\xc3\x9f").uppercase(), Literal::make_simple("SS"));  // german sharp s
+        CHECK(Literal{}.uppercase().null());
     }
 
     SUBCASE("lcase") {
@@ -621,6 +622,7 @@ TEST_CASE("Literal - misc functions") {
         CHECK_EQ(Literal::make_simple("\xd0\x9e").lowercase(), Literal::make_simple("\xd0\xbe"));  // cyrillic o
         CHECK_EQ(Literal::make_simple(case_number1).lowercase(), Literal::make_simple(case_number1));
         CHECK_EQ(Literal::make_simple(case_number2).lowercase(), Literal::make_simple(case_number2));
+        CHECK(Literal{}.lowercase().null());
     }
 
     SUBCASE("contains") {
