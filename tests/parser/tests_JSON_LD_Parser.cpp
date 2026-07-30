@@ -428,12 +428,14 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // jsonld_test_positive(remote_test_file_to_str("wf05-in.jsonld"), remote_test_file_to_str("wf05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/twf05");
     // jsonld_test_positive(remote_test_file_to_str("wf07-in.jsonld"), remote_test_file_to_str("wf07-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/twf07");
     // negative tests
+    // @propagate is only invalid in json-ld 1.0, this parser implements 1.1
     // this document contains no error that the parser detects
     // jsonld_test_negative(remote_test_file_to_str("c029-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc029");
     jsonld_test_negative(remote_test_file_to_str("c030-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc030");
     jsonld_test_negative(remote_test_file_to_str("c032-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc032");
     jsonld_test_negative(remote_test_file_to_str("c033-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc033");
     jsonld_test_negative(remote_test_file_to_str("di08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tdi08");
+    // the parser does not report a relative IRI as a property with @vocab, it emits a quad for it
     //jsonld_test_negative(remote_test_file_to_str("e115-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te115");
     //jsonld_test_negative(remote_test_file_to_str("e116-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te116");
     jsonld_test_negative(remote_test_file_to_str("e123-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te123");
@@ -446,6 +448,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("en04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten04");
     jsonld_test_negative(remote_test_file_to_str("en05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten05");
     jsonld_test_negative(remote_test_file_to_str("en06-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten06");
+    // needs the json-ld 1.0 processing mode, which this parser does not offer
     //jsonld_test_negative(remote_test_file_to_str("ep02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tep02");
     jsonld_test_negative(remote_test_file_to_str("ep03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tep03");
     jsonld_test_negative(remote_test_file_to_str("er01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter01");
@@ -467,9 +470,11 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("er18-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter18");
     jsonld_test_negative(remote_test_file_to_str("er19-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter19");
     jsonld_test_negative(remote_test_file_to_str("er20-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter20");
+    // the parser does not report this container mapping, it emits nothing for the term
     // jsonld_test_negative(remote_test_file_to_str("er21-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter21");
     jsonld_test_negative(remote_test_file_to_str("er22-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter22");
     jsonld_test_negative(remote_test_file_to_str("er23-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter23");
+    // the parser does not report a list of lists, it emits quads for the inner list
     // jsonld_test_negative(remote_test_file_to_str("er24-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter24");
     jsonld_test_negative(remote_test_file_to_str("er25-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter25");
     jsonld_test_negative(remote_test_file_to_str("er26-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter26");
@@ -478,6 +483,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("er29-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter29");
     jsonld_test_negative(remote_test_file_to_str("er30-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter30");
     jsonld_test_negative(remote_test_file_to_str("er31-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter31");
+    // the parser does not report a list of lists, it emits quads for the inner list
     // jsonld_test_negative(remote_test_file_to_str("er32-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter32");
     jsonld_test_negative(remote_test_file_to_str("er33-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter33");
     jsonld_test_negative(remote_test_file_to_str("er34-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter34");
@@ -488,6 +494,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("er39-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter39");
     jsonld_test_negative(remote_test_file_to_str("er40-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter40");
     jsonld_test_negative(remote_test_file_to_str("er41-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter41");
+    // keyword redefinition is only invalid in json-ld 1.0
     // jsonld_test_negative(remote_test_file_to_str("er42-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter42");
     jsonld_test_negative(remote_test_file_to_str("er43-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter43");
     jsonld_test_negative(remote_test_file_to_str("er44-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter44");
@@ -523,6 +530,9 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("pr31-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr31");
     jsonld_test_negative(remote_test_file_to_str("pr32-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr32");
     jsonld_test_negative(remote_test_file_to_str("pr33-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr33");
+    // se01 to se09 expect the key order of the json-ld streaming profile: @context before @id and
+    // before the properties, @type before @id. this parser reads the whole document before it
+    // expands it, so the order of the keys does not change its result.
     // jsonld_test_negative(remote_test_file_to_str("se01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse01");
     // jsonld_test_negative(remote_test_file_to_str("se02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse02");
     // jsonld_test_negative(remote_test_file_to_str("se03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse03");
@@ -539,6 +549,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("so10-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso10");
     jsonld_test_negative(remote_test_file_to_str("so12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso12");
     jsonld_test_negative(remote_test_file_to_str("so13-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso13");
+    // @type: @none is only invalid in json-ld 1.0
     // jsonld_test_negative(remote_test_file_to_str("tn01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ttn01");
 }
 
