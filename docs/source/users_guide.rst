@@ -43,6 +43,21 @@ The class :class:`rdf4cpp::parser::RDFFileParser` allows reading files containin
 Supported Formats: Turtle, TriG, N-Triples N-Quads, RDF/XML and JSON-LD.
 :class:`rdf4cpp::parser::IStreamQuadIterator` allows doing the same over arbitrary data streams.
 
+JSON-LD Limitations
+___________________
+
+The JSON-LD parser implements the processing mode json-ld-1.1 of `<https://www.w3.org/TR/json-ld11-api/>`_.
+The following parts are missing:
+
+ * A context given as an IRI is not fetched, neither as ``@context`` nor via ``@import``. Both are reported as a parsing error.
+ * The processing mode json-ld-1.0 is not offered. Documents that are only invalid in 1.0, for example a document redefining a keyword, are parsed instead of reported.
+ * Literals of the datatype rdf:JSON keep the JSON of the document. They are not canonicalized as `<https://www.rfc-editor.org/rfc/rfc8785>`_ describes.
+ * Parsing errors carry no line and no column, both are reported as 0.
+ * Three checks of the specification are missing. A list inside a list, a relative IRI used as a property together with ``@vocab``, and some invalid container mappings are parsed instead of reported.
+
+The parser reads the whole document before it expands it. The key order rules of the streaming
+profile therefore do not apply to it: a document that names ``@context`` after a property is parsed.
+
 Relaxed Parsing Mode
 --------------------
 
