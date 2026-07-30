@@ -242,6 +242,13 @@ target_link_libraries(tests_TriBool
         )
 add_test(NAME tests_TriBool COMMAND tests_TriBool)
 
+add_executable(tests_GraphComparison util/tests_GraphComparison.cpp)
+target_link_libraries(tests_GraphComparison
+        doctest::doctest
+        rdf4cpp
+        )
+add_test(NAME tests_GraphComparison COMMAND tests_GraphComparison)
+
 add_executable(tests_Regex util/tests_Regex.cpp)
 target_link_libraries(tests_Regex
         doctest::doctest
