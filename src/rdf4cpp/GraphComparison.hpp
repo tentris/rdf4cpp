@@ -116,7 +116,8 @@ namespace rdf4cpp {
                     }
                 }
                 std::ranges::sort(found);
-                v[i].similar_count = static_cast<size_t>(std::ranges::distance(std::ranges::unique(found))); // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                auto const duplicates = std::ranges::unique(found);
+                v[i].similar_count = static_cast<size_t>(std::ranges::distance(found.begin(), duplicates.begin())); // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
             }
         };
         static constexpr auto sort = [](std::vector<Quad> &v, size_t arity) {
