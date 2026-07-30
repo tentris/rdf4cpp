@@ -265,8 +265,9 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e106-in.jsonld"), remote_test_file_to_str("e106-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te106");
     jsonld_test_positive(remote_test_file_to_str("e107-in.jsonld"), remote_test_file_to_str("e107-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te107");
     jsonld_test_positive(remote_test_file_to_str("e108-in.jsonld"), remote_test_file_to_str("e108-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te108", true);
-    // invalid IRI
-    //jsonld_test_positive(remote_test_file_to_str("e109-in.jsonld"), remote_test_file_to_str("e109-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te109");
+    // IRIView takes the text before the first ':' as a scheme even when a '?' or '#' comes first,
+    // so a fragment containing ':' is reported as an invalid scheme
+    // jsonld_test_positive(remote_test_file_to_str("e109-in.jsonld"), remote_test_file_to_str("e109-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te109");
     jsonld_test_positive(remote_test_file_to_str("e110-in.jsonld"), remote_test_file_to_str("e110-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te110");
     // broken vocab iri
     //jsonld_test_positive(remote_test_file_to_str("e111-in.jsonld"), remote_test_file_to_str("e111-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te111");
@@ -276,8 +277,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e117-in.jsonld"), remote_test_file_to_str("e117-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te117");
     jsonld_test_positive(remote_test_file_to_str("e118-in.jsonld"), remote_test_file_to_str("e118-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te118");
     jsonld_test_positive(remote_test_file_to_str("e119-in.jsonld"), remote_test_file_to_str("e119-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te119");
-    // looks like keyword as id
-    //jsonld_test_positive(remote_test_file_to_str("e120-in.jsonld"), remote_test_file_to_str("e120-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te120");
+    jsonld_test_positive(remote_test_file_to_str("e120-in.jsonld"), remote_test_file_to_str("e120-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te120");
     jsonld_test_positive(remote_test_file_to_str("e121-in.jsonld"), remote_test_file_to_str("e121-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te121");
     jsonld_test_positive(remote_test_file_to_str("e122-in.jsonld"), remote_test_file_to_str("e122-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te122");
     // remote context
@@ -384,12 +384,10 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("pr30-in.jsonld"), remote_test_file_to_str("pr30-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr30");
     jsonld_test_positive(remote_test_file_to_str("pr34-in.jsonld"), remote_test_file_to_str("pr34-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr34");
     jsonld_test_positive(remote_test_file_to_str("pr35-in.jsonld"), remote_test_file_to_str("pr35-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr35");
-    // according to spec this is an invalid iri mapping: iri expansion returns null, because
-    // @ignoreMe looks like a keyword, and null is neither an iri, a blank node nor a keyword
-    // jsonld_test_positive(remote_test_file_to_str("pr36-in.jsonld"), remote_test_file_to_str("pr36-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr36");
-    // jsonld_test_positive(remote_test_file_to_str("pr37-in.jsonld"), remote_test_file_to_str("pr37-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr37");
-    // jsonld_test_positive(remote_test_file_to_str("pr38-in.jsonld"), remote_test_file_to_str("pr38-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr38");
-    // jsonld_test_positive(remote_test_file_to_str("pr39-in.jsonld"), remote_test_file_to_str("pr39-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr39");
+    jsonld_test_positive(remote_test_file_to_str("pr36-in.jsonld"), remote_test_file_to_str("pr36-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr36");
+    jsonld_test_positive(remote_test_file_to_str("pr37-in.jsonld"), remote_test_file_to_str("pr37-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr37");
+    jsonld_test_positive(remote_test_file_to_str("pr38-in.jsonld"), remote_test_file_to_str("pr38-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr38");
+    jsonld_test_positive(remote_test_file_to_str("pr39-in.jsonld"), remote_test_file_to_str("pr39-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr39");
     jsonld_test_positive(remote_test_file_to_str("pr40-in.jsonld"), remote_test_file_to_str("pr40-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr40");
     jsonld_test_positive(remote_test_file_to_str("rt01-in.jsonld"), remote_test_file_to_str("rt01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/trt01");
     // uses @import
@@ -792,6 +790,15 @@ TEST_CASE("a literal that cannot be created reports an error") {
     // the i18n form builds the datatype from the language, "a b" does not fit into an IRI
     jsonld_test_negative_flags(R"({"@context": {"@language": "a b", "@direction": "ltr"}, "@id": "http://example.com/s", "http://example.com/p": "v"})",
                                "http://example.com/", ParsingFlag::JsonLd | ParsingFlag::JsonLdDirectionI18n);
+}
+
+TEST_CASE("a language tag outside of the rdf grammar") {
+    // such a literal cannot be written to n-triples, it is reported instead of emitted
+    jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": {"@value": "v", "@language": "a b"}})", "http://example.com/");
+    jsonld_test_negative(R"({"@context": {"@language": "de_DE"}, "@id": "http://example.com/s", "http://example.com/p": "v"})", "http://example.com/");
+    // valid tags stay valid
+    jsonld_test_positive(R"({"@id": "http://example.com/s", "http://example.com/p": {"@value": "v", "@language": "de-DE-1996"}})",
+                         R"(<http://example.com/s> <http://example.com/p> "v"@de-DE-1996 .)", "http://example.com/");
 }
 
 TEST_CASE("a relative iri that stays invalid after resolving") {

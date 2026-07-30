@@ -360,6 +360,11 @@ namespace rdf4cpp::parser::json_ld {
         auto handle_id = [&](std::optional<std::string_view> v) -> std::optional<error_type> {
             if (!v.has_value()) {
                 p.term.iri_mapping = {};
+            } else if (looks_like_keyword(*v) && !is_keyword(*v)) {
+                // 14.2.3, a value with the form of a keyword leaves the term without a definition
+                p.term.ignored = true;
+                p.term.parse_state = ParseState::Done;
+                return std::nullopt;
             } else {
                 params::ParseContextIRIExpansionParams p_ctx{
                     .active_context = p.active_context,
@@ -493,6 +498,13 @@ namespace rdf4cpp::parser::json_ld {
                     std::tie(nc, va) = try_get_field<simdjson::ondemand::value>(ob, keyword_nest);
                     if (nc != simdjson::NO_SUCH_FIELD) {
                         return make_error(ParsingError::Type::BadSyntax, "invalid reverse property (contains nest)");
+                    }
+
+                    if (looks_like_keyword(v) && !is_keyword(v)) {
+                        // 13.4, a value with the form of a keyword leaves the term without a definition
+                        p.term.ignored = true;
+                        p.term.parse_state = ParseState::Done;
+                        return std::nullopt;
                     }
 
                     params::ParseContextIRIExpansionParams p_ctx{

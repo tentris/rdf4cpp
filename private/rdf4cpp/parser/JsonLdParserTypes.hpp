@@ -272,6 +272,12 @@ namespace rdf4cpp::parser {
         struct TermDefinition : TermDefinitionBase {
             bool is_protected = false;
             bool needs_context_check = false;
+            /**
+             * If set, no term definition was created for this key, because the key maps to something
+             * that has the form of a keyword. Context::try_find_term skips such a term, so the key
+             * behaves like a key without a term definition.
+             */
+            bool ignored = false;
             ParseState parse_state = ParseState::NotStarted;
 
             using TermDefinitionBase::TermDefinitionBase;

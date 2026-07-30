@@ -16,7 +16,7 @@ namespace rdf4cpp::parser {
     size_t json_ld::Context::find_term_position(std::string_view key) const {
         if (terms.size() < TermIndex::min_terms) {
             auto i = std::ranges::find_if(terms, [&](auto const &t) {
-                return t.key == key;
+                return t.key == key && !t.ignored;
             });
             return i == terms.end() ? TermIndex::not_found : static_cast<size_t>(i - terms.begin());
         }
@@ -29,7 +29,10 @@ namespace rdf4cpp::parser {
             term_index.indexed_terms = terms.size();
         }
         auto i = term_index.positions.find(key);
-        return i == term_index.positions.end() ? TermIndex::not_found : i->second;
+        if (i == term_index.positions.end() || terms[i->second].ignored) {  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+            return TermIndex::not_found;
+        }
+        return i->second;
     }
 
     json_ld::TermDefinition *json_ld::Context::try_find_term(std::string_view key) {

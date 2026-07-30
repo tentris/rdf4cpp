@@ -26,6 +26,51 @@ We implement the following W3C standards:
 - [OWL Real and Rational](https://www.w3.org/TR/owl2-syntax/#Datatype_Maps)
 - [XPath and XQuery Functions and Operators 3.1](https://www.w3.org/TR/xpath-functions-31/) (SPARQL related parts)
 
+## JSON-LD conformance
+
+`tests/parser/tests_JSON_LD_Parser.cpp` runs the [json-ld-streaming](https://github.com/w3c/json-ld-streaming)
+test suite. The tests below are deactivated there. Every entry names the reason.
+
+Tests of json-ld-1.0. This parser implements json-ld-1.1 only, and each of these documents is either
+valid in 1.1 or needs a 1.0 processing mode:
+
+| test | what it needs |
+|---|---|
+| `0118` | the generalized RDF flag, a blank node as predicate |
+| `e026`, `e071` | 1.0 term semantics, the same documents are the negative tests `er43` and `er44` in 1.1 |
+| `e075` | `@vocab` as a blank node identifier, deprecated in 1.1 |
+| `c029` | `@propagate` reported outside a scoped context |
+| `e115`, `e116` | a relative IRI as a property with `@vocab` reported |
+| `ep02` | the processing mode json-ld-1.0, conflicting with `@version` |
+| `er21` | `@container: @id` reported, `m001` and `m002` cover the 1.1 behavior |
+| `er24`, `er32` | a list inside a list reported, `li01` and `li02` cover the 1.1 behavior |
+| `er42` | a redefined keyword reported |
+| `tn01` | `@type: @none` reported |
+
+Missing features:
+
+| test | what it needs |
+|---|---|
+| `c031`, `c034`, `e126`, `e127`, `e128` | fetching a context named by an IRI, see [#431](https://github.com/rdf4cpp/rdf4cpp/issues/431) |
+| `so05`, `so06`, `so08`, `so09`, `so11` | `@import`, which also fetches a context by IRI |
+| `e077` | an expandContext option on the parser, the document carries no context |
+| `js06` to `js16`, `js19`, `js20`, `js21` | canonicalization of rdf:JSON literals after [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) |
+
+Different behavior on purpose:
+
+| test | what it expects |
+|---|---|
+| `wf01` to `wf04`, `wf07`, `e111`, `e112` | a triple with an invalid IRI dropped without a message. This parser reports a `ParsingError` for it, like the other parsers do. |
+| `wf05` | a triple with an invalid language tag dropped without a message. This parser reports a `ParsingError` for it. |
+| `0035` | the literal `"9.9E0"^^xsd:integer`, whose lexical form does not fit its datatype. rdf4cpp validates literals, the test above it covers the rest of the document. |
+| `se01` to `se09` | the key order of the streaming profile, `@context` before `@id` and before the properties. This parser reads the whole document before it expands it, so the key order does not change its result. |
+
+Open bug:
+
+| test | cause |
+|---|---|
+| `e109` | `IRIView` takes the text before the first `:` as a scheme even when a `?` or `#` comes first, so a fragment containing `:` is reported as an invalid scheme. The fix changes IRI resolution for every parser and needs its own version bump. |
+
 ## Example
 
 ```c++

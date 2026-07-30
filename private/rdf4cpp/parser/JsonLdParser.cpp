@@ -2,6 +2,41 @@
 #include <uni_algo/case.h>
 
 namespace rdf4cpp::parser {
+    /**
+     * Checks a language tag against the grammar the rdf serializations use:
+     * one or more letters, followed by any number of parts of letters and digits, separated by '-'.
+     * A tag outside of it cannot be written to n-triples or turtle.
+     */
+    static bool is_valid_language_tag(std::string_view tag) {
+        static constexpr auto alpha = [](char const c) {
+            return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+        };
+        static constexpr auto alpha_num = [](char const c) {
+            return alpha(c) || (c >= '0' && c <= '9');
+        };
+
+        size_t i = 0;
+        while (i < tag.size() && alpha(tag[i])) {
+            ++i;
+        }
+        if (i == 0) {
+            return false;
+        }
+        while (i < tag.size()) {
+            if (tag[i] != '-') {
+                return false;
+            }
+            ++i;
+            size_t const part_start = i;
+            while (i < tag.size() && alpha_num(tag[i])) {
+                ++i;
+            }
+            if (i == part_start) {
+                return false;
+            }
+        }
+        return true;
+    }
     json_ld::IRIMapping IStreamQuadIterator::ImplJsonLd::make_new_bn() {
         return {
             std::format("{}{}", generated_bnode_prefix, blank_node_index_++),
@@ -43,6 +78,9 @@ namespace rdf4cpp::parser {
     }
     nonstd::expected<json_ld::DirectionLiteralResult, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_literal(json_ld::StringLikeLiteralMapping const &lit, json_ld::IRIMapping const &graph) {
         try {
+            if (lit.language.has_value() && !is_valid_language_tag(*lit.language)) {
+                return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadLiteral, std::format("invalid language tag: {}", *lit.language)));
+            }
             if (lit.direction != json_ld::BaseDirection::None) {
                 std::string_view dir = lit.direction == json_ld::BaseDirection::Ltr ? "ltr" : "rtl";
                 if (flags_.get_direction() == ParsingFlag::JsonLdDirectionI18n) {
