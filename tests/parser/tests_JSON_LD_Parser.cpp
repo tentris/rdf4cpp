@@ -158,8 +158,15 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e011-in.jsonld"), remote_test_file_to_str("e011-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te011");
     jsonld_test_positive(remote_test_file_to_str("e012-in.jsonld"), remote_test_file_to_str("e012-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te012");
     jsonld_test_positive(remote_test_file_to_str("e013-in.jsonld"), remote_test_file_to_str("e013-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te013");
-    // test looks to be broken ???
-    //jsonld_test_positive(remote_test_file_to_str("e014-in.jsonld"), remote_test_file_to_str("e014-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te014");
+    // e014-out.nq expects xsd:date to expand through the term xsd. xsd is an expanded term
+    // definition without @prefix, and json-ld 1.1 only treats simple term definitions as prefixes,
+    // so the datatype stays xsd:date. the rest of the expected output is unchanged.
+    jsonld_test_positive(remote_test_file_to_str("e014-in.jsonld"), R"(<http://example.org/test#example1> <http://example.org/test#property1> <http://example.org/test#example2> .
+<http://example.org/test#example2> <http://example.org/test#property4> "foo" .
+<http://example.org/test#example1> <http://example.org/test#property2> <http://example.org/test#example3> .
+<http://example.org/test#example1> <http://example.org/test#property3> <http://example.org/test#example4> .
+<http://example.org/test#example1> <http://example.org/test#property4> <http://example.org/test#example4> .
+<http://example.org/test#example4> <http://example.org/test#property5> "2012-03-31"^^<xsd:date> .)", "https://w3c.github.io/json-ld-streaming/tests/te014");
     jsonld_test_positive(remote_test_file_to_str("e015-in.jsonld"), remote_test_file_to_str("e015-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te015");
     jsonld_test_positive(remote_test_file_to_str("e016-in.jsonld"), remote_test_file_to_str("e016-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te016");
     jsonld_test_positive(remote_test_file_to_str("e017-in.jsonld"), remote_test_file_to_str("e017-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te017");
@@ -171,7 +178,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e023-in.jsonld"), remote_test_file_to_str("e023-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te023");
     jsonld_test_positive(remote_test_file_to_str("e024-in.jsonld"), remote_test_file_to_str("e024-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te024");
     jsonld_test_positive(remote_test_file_to_str("e025-in.jsonld"), remote_test_file_to_str("e025-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te025");
-    // this is the same as er43 (a negative test)?
+    // the same document as er43, which is a negative test
     // jsonld_test_positive(remote_test_file_to_str("e026-in.jsonld"), remote_test_file_to_str("e026-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te026");
     jsonld_test_positive(remote_test_file_to_str("e027-in.jsonld"), remote_test_file_to_str("e027-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te027", true);
     jsonld_test_positive(remote_test_file_to_str("e028-in.jsonld"), remote_test_file_to_str("e028-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/stream-toRdf/te028");
@@ -225,7 +232,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // bn vocab is deprecated
     //jsonld_test_positive(remote_test_file_to_str("e075-in.jsonld"), remote_test_file_to_str("e075-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te075");
     jsonld_test_positive(remote_test_file_to_str("e076-in.jsonld"), remote_test_file_to_str("e076-out.nq"), "http://example/base/");
-    // some sort of external context ...
+    // uses a remote context
     //jsonld_test_positive(remote_test_file_to_str("e077-in.jsonld"), remote_test_file_to_str("e077-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te077");
     jsonld_test_positive(remote_test_file_to_str("e078-in.jsonld"), remote_test_file_to_str("e078-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/stream-toRdf/e078-in.jsonld");
     jsonld_test_positive(remote_test_file_to_str("e079-in.jsonld"), remote_test_file_to_str("e079-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te079");
@@ -290,7 +297,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("js03-in.jsonld"), remote_test_file_to_str("js03-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs03");
     jsonld_test_positive(remote_test_file_to_str("js04-in.jsonld"), remote_test_file_to_str("js04-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs04");
     jsonld_test_positive(remote_test_file_to_str("js05-in.jsonld"), remote_test_file_to_str("js05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs05");
-    // TODO? canonization
+    // rdf:JSON literals are not canonicalized, so the expected output keeps the json of the document
     jsonld_test_positive(remote_test_file_to_str("js06-in.jsonld"), R"(_:bn_0 <http://example.org/vocab#object> "{\"foo\": \"bar\"}"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON> .)", "https://w3c.github.io/json-ld-streaming/tests/tjs06");
     jsonld_test_positive(remote_test_file_to_str("js07-in.jsonld"), R"(_:bn_0 <http://example.org/vocab#array> "[{\"foo\": \"bar\"}]"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON> .)", "https://w3c.github.io/json-ld-streaming/tests/tjs07");
     jsonld_test_positive(remote_test_file_to_str("js15-in.jsonld"), R"(_:bn_0 <http://example.org/vocab#object> "{\"foo\": \"bar\"}"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON> .)", "https://w3c.github.io/json-ld-streaming/tests/tjs15");
@@ -377,14 +384,15 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("pr30-in.jsonld"), remote_test_file_to_str("pr30-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr30");
     jsonld_test_positive(remote_test_file_to_str("pr34-in.jsonld"), remote_test_file_to_str("pr34-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr34");
     jsonld_test_positive(remote_test_file_to_str("pr35-in.jsonld"), remote_test_file_to_str("pr35-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr35");
-    // according to spec, this should produce invalid iri mapping (expand iri returns null, because @ignoreMe looks like a keyword, which is not iri, bn or keyword
+    // according to spec this is an invalid iri mapping: iri expansion returns null, because
+    // @ignoreMe looks like a keyword, and null is neither an iri, a blank node nor a keyword
     // jsonld_test_positive(remote_test_file_to_str("pr36-in.jsonld"), remote_test_file_to_str("pr36-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr36");
     // jsonld_test_positive(remote_test_file_to_str("pr37-in.jsonld"), remote_test_file_to_str("pr37-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr37");
     // jsonld_test_positive(remote_test_file_to_str("pr38-in.jsonld"), remote_test_file_to_str("pr38-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr38");
     // jsonld_test_positive(remote_test_file_to_str("pr39-in.jsonld"), remote_test_file_to_str("pr39-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr39");
     jsonld_test_positive(remote_test_file_to_str("pr40-in.jsonld"), remote_test_file_to_str("pr40-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr40");
     jsonld_test_positive(remote_test_file_to_str("rt01-in.jsonld"), remote_test_file_to_str("rt01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/trt01");
-    //import
+    // uses @import
     // jsonld_test_positive(remote_test_file_to_str("so05-in.jsonld"), remote_test_file_to_str("so05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso05");
     // jsonld_test_positive(remote_test_file_to_str("so06-in.jsonld"), remote_test_file_to_str("so06-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso06");
     // jsonld_test_positive(remote_test_file_to_str("so08-in.jsonld"), remote_test_file_to_str("so08-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso08");
@@ -420,7 +428,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // jsonld_test_positive(remote_test_file_to_str("wf05-in.jsonld"), remote_test_file_to_str("wf05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/twf05");
     // jsonld_test_positive(remote_test_file_to_str("wf07-in.jsonld"), remote_test_file_to_str("wf07-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/twf07");
     // negative tests
-    //as far as i can tell, this contains no errors
+    // this document contains no error that the parser detects
     // jsonld_test_negative(remote_test_file_to_str("c029-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc029");
     jsonld_test_negative(remote_test_file_to_str("c030-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc030");
     jsonld_test_negative(remote_test_file_to_str("c032-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc032");

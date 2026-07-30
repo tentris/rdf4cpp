@@ -203,8 +203,9 @@ namespace rdf4cpp::parser {
             *p.obj_out = std::monostate{};
         }
 
-        // follows https://www.w3.org/TR/json-ld11-api/#node-map-generation and https://www.w3.org/TR/json-ld11-api/#deserialize-json-ld-to-rdf-algorithm very roughly
-        // this code and the source are different enough to make mapping out the single steps hard/impossible
+        // combines https://www.w3.org/TR/json-ld11-api/#node-map-generation and
+        // https://www.w3.org/TR/json-ld11-api/#deserialize-json-ld-to-rdf-algorithm into one pass,
+        // so the steps of those algorithms have no single counterpart here
         if (p.element.type() == simdjson::ondemand::json_type::array && !p.is_json_literal) {
             for (auto element : static_cast<simdjson::ondemand::array>(p.element)) {
                 auto element_params = p;

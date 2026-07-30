@@ -100,7 +100,7 @@ namespace rdf4cpp::parse_test_helpers {
         CHECK(had_error);
     }
 
-    // adopted from https://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c/9786295#9786295
+    // source: https://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c/9786295#9786295
     inline size_t write_callback(void const *contents, size_t size, size_t nmemb, void *userp) {
         static_cast<std::string *>(userp)->append(static_cast<char const *>(contents), size * nmemb);
         return size * nmemb;

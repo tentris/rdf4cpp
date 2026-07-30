@@ -109,7 +109,7 @@ namespace rdf4cpp::parser::json_ld {
                             .previous_terms = previous_terms,
                         };
                         auto r = iri_expansion(result.value(), v, true, true, nullptr, &p_ctx);
-                        if (!r.has_value() || r->type != IRIMappingType::IRI) {  // technically blank node is only deprecated, not removed
+                        if (!r.has_value() || r->type != IRIMappingType::IRI) {  // a blank node as @vocab is deprecated, not removed
                             result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid vocab mapping")};
                             return true;
                         }
@@ -157,7 +157,7 @@ namespace rdf4cpp::parser::json_ld {
                     result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @propagate value")};
                     return true;
                 }
-                // setting field earlier
+                // @propagate is only validated here, parse_local_context applies it
             }
             {  // 5.13
                 auto [c, prot] = try_get_field<bool>(o, keyword_protected);
@@ -211,7 +211,7 @@ namespace rdf4cpp::parser::json_ld {
             if (!actual_propagate && result->previous_context == nullptr) {
                 result->previous_context = &p.active_context;
             }
-            //error handling later
+            // an invalid @propagate value is reported by handle_ctx below
 
             handle_ctx(o);  // 4
         } else if (local_context.is_scalar() && local_context.is_null()) { // 5.1
@@ -252,7 +252,8 @@ namespace rdf4cpp::parser::json_ld {
             }
         }
 
-        // check scoped context for errors, moved here from create_term
+        // scoped contexts are validated after the whole context is parsed, so that they can
+        // refer to terms defined later in the same context
         if (result.has_value()) {
             for (auto const &t : result->terms) {
                 if (t.needs_context_check && t.context.has_value()) {
@@ -525,7 +526,8 @@ namespace rdf4cpp::parser::json_ld {
                         }
                     }
 
-                    // TODO double check protected
+                    // a reverse property returns here, so the protected redefinition check of step 26
+                    // does not apply to it
                     p.term.is_reverse_property = true;
                     p.term.parse_state = ParseState::Done;
                     return std::nullopt;
@@ -641,7 +643,8 @@ namespace rdf4cpp::parser::json_ld {
                         if (graph) {
                             auto id = p.term.has_container_mapping(ContainerMapping::Id);
                             auto index = p.term.has_container_mapping(ContainerMapping::Index);
-                            if (index == id) {  // xor
+                            // @graph needs exactly one of @id and @index
+                            if (index == id) {
                                 graph = false;
                             } else {
                                 graph = only({ContainerMapping::Graph, ContainerMapping::Id, ContainerMapping::Index, ContainerMapping::Set});
@@ -704,7 +707,7 @@ namespace rdf4cpp::parser::json_ld {
                         p.term.context = std::format("[{}]", *p.term.context);
                     }
                     simdjson::pad(*p.term.context);
-                    // check moved to end of context processing
+                    // the context itself is validated at the end of context processing
                     p.term.needs_context_check = true;
                 }
             }
@@ -903,8 +906,8 @@ namespace rdf4cpp::parser::json_ld {
             }
         }
         // 9
-        // no keyword, bn or valid iri, would have passed any above check
-        // => caller would ignore it anyway => return empty
+        // the value is no keyword, no blank node and no valid iri, so every check above failed.
+        // the caller ignores an empty mapping.
         return IRIMapping{std::string(""), IRIMappingType::None};
     }
 }  // namespace rdf4cpp::parser::json_ld

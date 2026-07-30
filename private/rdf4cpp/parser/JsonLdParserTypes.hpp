@@ -120,7 +120,7 @@ namespace rdf4cpp::parser {
             Keyword,
         };
         /**
-         * result of the https://www.w3.org/TR/json-ld11-api/#iri-expansion algorythm.
+         * result of the https://www.w3.org/TR/json-ld11-api/#iri-expansion algorithm.
          * contrary to its name, not necessarily a IRI.
          */
         struct IRIMapping {
@@ -294,9 +294,9 @@ namespace rdf4cpp::parser {
             Context *active_context = nullptr;
             // moving the contained objects is not allowed
             std::forward_list<Context> context_storage;
-            // if set, this map was expanded from something that is not a map (example: a string being converted to a map containing only an @id entry)
-            // therefore parse may not cast the input element to an object
-            // if set, only entries consisting of keyword_values may be in this map
+            // if set, this map was expanded from something that is not a map (example: a string
+            // converted to a map containing only an @id entry). parse may then not cast the input
+            // element to an object, and only entries consisting of keyword_values may be in this map.
             bool expanded_from_no_map = false;
 
             constexpr ExpandedMapEntry *try_find_entry(IRIMapping const &key);

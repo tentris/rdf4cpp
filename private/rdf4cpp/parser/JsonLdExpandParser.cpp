@@ -30,7 +30,7 @@ namespace rdf4cpp::parser::json_ld {
         if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_json) {
             return to_json_literal(value);
         }
-        // steps 4 and 5 do not look at the json type of a string, the overload below handles them
+        // the string_view overload covers the remaining steps for a string
         if (value.is_string()) {
             return value_expansion(active_conext, active_property, value.get_string());
         }
@@ -75,14 +75,13 @@ namespace rdf4cpp::parser::json_ld {
             })) {
             return TypedLiteralMapping{std::string{value}, *active_term->type_mapping};
         }
-        // 5 (condition always true)
+        // 5, the condition of the step is always true for a string
         auto const &l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
         return StringLikeLiteralMapping{
             std::string(value),
             l.output(),
             active_term != nullptr && active_term->direction_mapping != BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
         };
-        // rest unreachable
     }
     StringifyResult ExpandParser::stringify(simdjson::ondemand::value v, bool normalize, bool force_double, bool escape_string) {
         auto t = *v.type();
