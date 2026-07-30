@@ -1,4 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT
+#include "../../../../../../.conan2/p/b/simdj338fdbb3b5228/p/include/simdjson.h"
+
+
 #include <doctest/doctest.h>
 
 #include <rdf4cpp.hpp>
@@ -480,6 +483,140 @@ TEST_CASE("Literal - casting") {
     }
 }
 
+// verify that operations based/on null node always return the null node
+TEST_CASE("Literal - null nodes") {
+    // ensure null node returns null node for specific functionality
+    Literal const null_node{};
+    Literal const null_node_cmp{};
+
+    Literal const stub_literal = Literal::make_simple("hello");
+    Literal const stub_literal_tagged = Literal::make_lang_tagged("hello", "en");
+
+    SUBCASE("upper case") {
+        CHECK(null_node.uppercase().null());
+    }
+
+    SUBCASE("lower case") {
+        CHECK(null_node.lowercase().null());
+    }
+
+    SUBCASE("langTag") {
+        CHECK(null_node.as_language_tag().null());
+    }
+
+    SUBCASE("langTag matches") {
+        CHECK(null_node.as_language_tag_matches_range("*").null());
+        CHECK(null_node.as_language_tag_matches_range(Literal::make_simple("en")).null());
+        CHECK(stub_literal_tagged.as_language_tag_matches_range(null_node).null());
+    }
+
+    SUBCASE("datatype") {
+        CHECK(null_node.datatype().null());
+    }
+
+    SUBCASE("abs") {
+        CHECK(null_node.abs().null());
+    }
+
+    SUBCASE("ceil") {
+        CHECK(null_node.ceil().null());
+    }
+
+    SUBCASE("floor") {
+        CHECK(null_node.floor().null());
+    }
+
+    SUBCASE("round") {
+        CHECK(null_node.round().null());
+    }
+
+    SUBCASE("concat") {
+        CHECK(null_node.concat(null_node_cmp).null());
+        CHECK(null_node.concat(stub_literal).null());
+        CHECK(stub_literal.concat(null_node).null());
+    }
+
+    SUBCASE("strlen") {
+        CHECK(null_node.as_strlen().null());
+    }
+
+    SUBCASE("contains") {
+        CHECK(null_node.as_contains("").null());
+    }
+
+    SUBCASE("str starts with") {
+        CHECK(null_node.as_str_starts_with("").null());
+    }
+
+    SUBCASE("str ends with") {
+        CHECK(null_node.as_str_ends_with("").null());
+    }
+
+    SUBCASE("substring before") {
+        CHECK(null_node.substr_before("").null());
+    }
+
+    SUBCASE("substring after") {
+        CHECK(null_node.substr_after("").null());
+    }
+
+    SUBCASE("year") {
+        CHECK(null_node.as_year().null());
+    }
+
+    SUBCASE("month") {
+        CHECK(null_node.as_month().null());
+    }
+
+    SUBCASE("day") {
+        CHECK(null_node.as_day().null());
+    }
+
+    SUBCASE("hours") {
+        CHECK(null_node.as_hours().null());
+    }
+
+    SUBCASE("minutes") {
+        CHECK(null_node.as_minutes().null());
+    }
+
+    SUBCASE("seconds") {
+        CHECK(null_node.as_seconds().null());
+    }
+
+    SUBCASE("timezone") {
+        CHECK(null_node.as_timezone().null());
+    }
+
+    SUBCASE("tz") {
+        CHECK(null_node.as_tz().null());
+    }
+
+    SUBCASE("md5") {
+        CHECK(null_node.md5().null());
+    }
+
+    SUBCASE("sha1") {
+        CHECK(null_node.sha1().null());
+    }
+
+    SUBCASE("sha256") {
+        CHECK(null_node.sha256().null());
+    }
+
+    SUBCASE("sha384") {
+        CHECK(null_node.sha384().null());
+    }
+
+    SUBCASE("sha512") {
+        CHECK(null_node.sha512().null());
+    }
+
+    SUBCASE("encode for uri") {
+        CHECK(null_node.encode_for_uri().null());
+    }
+}
+
 TEST_CASE("Literal - misc functions") {
     using namespace rdf4cpp;
 
@@ -610,7 +747,6 @@ TEST_CASE("Literal - misc functions") {
         CHECK_EQ(Literal::make_simple(case_number1).uppercase(), Literal::make_simple(case_number1));
         CHECK_EQ(Literal::make_simple(case_number2).uppercase(), Literal::make_simple(case_number2));
         CHECK_EQ(Literal::make_simple("\xc3\x9f").uppercase(), Literal::make_simple("SS"));  // german sharp s
-        CHECK(Literal{}.uppercase().null());
     }
 
     SUBCASE("lcase") {
@@ -622,7 +758,6 @@ TEST_CASE("Literal - misc functions") {
         CHECK_EQ(Literal::make_simple("\xd0\x9e").lowercase(), Literal::make_simple("\xd0\xbe"));  // cyrillic o
         CHECK_EQ(Literal::make_simple(case_number1).lowercase(), Literal::make_simple(case_number1));
         CHECK_EQ(Literal::make_simple(case_number2).lowercase(), Literal::make_simple(case_number2));
-        CHECK(Literal{}.lowercase().null());
     }
 
     SUBCASE("contains") {
