@@ -55,8 +55,8 @@ public:
         iterator() noexcept = default;
         iterator(Graph const *parent, typename triple_storage_type::const_iterator beg, typename triple_storage_type::const_iterator end) noexcept;
 
-        iterator &operator++() noexcept;
-        void operator++(int) noexcept;
+        iterator &operator++();
+        void operator++(int);
 
         reference operator*() const noexcept;
         pointer operator->() const noexcept;
@@ -142,7 +142,7 @@ public:
     [[nodiscard]] size_t size() const noexcept;
     [[nodiscard]] bool contains(Statement const &statement) const;
 
-    [[nodiscard]] solution_sequence match(query::TriplePattern const &triple_pattern) const noexcept;
+    [[nodiscard]] solution_sequence match(query::TriplePattern const &triple_pattern) const;
 
     [[nodiscard]] iterator begin() const noexcept;
     [[nodiscard]] sentinel end() const noexcept;

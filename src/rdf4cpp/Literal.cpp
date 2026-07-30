@@ -508,7 +508,7 @@ auto Literal::serialize_lexical_form_impl(C &&consume) const {
     }
 
     return handle_.literal_backend().visit(
-            [this, &consume](storage::view::LexicalFormLiteralBackendView const &lexical_backend) noexcept {
+            [this, &consume](storage::view::LexicalFormLiteralBackendView const &lexical_backend) {
                 if constexpr (simplified) {
                     auto const *entry = datatypes::registry::DatatypeRegistry::get_entry(this->datatype_id());
 
@@ -634,7 +634,7 @@ Literal Literal::as_language_tag(storage::DynNodeStoragePtr node_storage) const 
     return Literal::make_simple_unchecked(this->language_tag(), false, select_node_storage(node_storage));
 }
 
-TriBool Literal::language_tag_eq(std::string_view const lang_tag) const noexcept {
+TriBool Literal::language_tag_eq(std::string_view const lang_tag) const {
     if (!this->datatype_eq<datatypes::rdf::LangString>()) {
         return TriBool::Err;
     }
@@ -642,7 +642,7 @@ TriBool Literal::language_tag_eq(std::string_view const lang_tag) const noexcept
     return this->language_tag() == lang_tag;
 }
 
-TriBool Literal::language_tag_eq(Literal const &other) const noexcept {
+TriBool Literal::language_tag_eq(Literal const &other) const {
     if (!this->datatype_eq<datatypes::rdf::LangString>() || !other.datatype_eq<datatypes::rdf::LangString>()) {
         return TriBool::Err;
     }
@@ -650,7 +650,7 @@ TriBool Literal::language_tag_eq(Literal const &other) const noexcept {
     return this->language_tag() == other.language_tag();
 }
 
-Literal Literal::as_language_tag_eq(std::string_view const lang_tag, storage::DynNodeStoragePtr node_storage) const noexcept {
+Literal Literal::as_language_tag_eq(std::string_view const lang_tag, storage::DynNodeStoragePtr node_storage) const {
     if (this->null()) {
         return Literal{};
     }
@@ -658,7 +658,7 @@ Literal Literal::as_language_tag_eq(std::string_view const lang_tag, storage::Dy
     return Literal::make_boolean(this->language_tag_eq(lang_tag), select_node_storage(node_storage));
 }
 
-Literal Literal::as_language_tag_eq(Literal const &other, storage::DynNodeStoragePtr node_storage) const noexcept {
+Literal Literal::as_language_tag_eq(Literal const &other, storage::DynNodeStoragePtr node_storage) const {
     if (this->null() || other.null()) {
         return Literal{};
     }
@@ -805,7 +805,7 @@ bool Literal::serialize_simplified_lexical_form(writer::BufWriterParts const wri
 }
 
 Literal::operator std::string() const {
-    return writer::StringWriter::oneshot([this](auto &w) noexcept {
+    return writer::StringWriter::oneshot([this](auto &w) {
         return this->serialize(w);
     });
 }
@@ -1088,7 +1088,7 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
         return Literal{};  // this_datatype not numeric
     }
 
-    auto const [operand_entry, value] = [&]() noexcept {
+    auto const [operand_entry, value] = [&]() {
         if (this_entry->numeric_ops->is_stub()) {
             auto const &impl_converter = DatatypeRegistry::get_numeric_op_impl_conversion(*this_entry);
             auto const target_num_ops = DatatypeRegistry::get_entry(impl_converter.target_type_id);
@@ -1979,7 +1979,7 @@ Literal Literal::as_regex_matches(Literal const &pattern, Literal const &flags, 
         return Literal{};
     }
 
-    auto const re = [&]() noexcept -> std::optional<regex::Regex> {
+    auto const re = [&]() -> std::optional<regex::Regex> {
         try {
             return pattern.make_regex(flags);
         } catch (std::runtime_error const &) {
@@ -2544,7 +2544,7 @@ std::string normalize_unicode(std::string_view utf8) {
     return una::norm::to_nfc_utf8(utf8);
 }
 
-bool lang_matches(std::string_view const lang_tag, std::string_view const lang_range) {
+bool lang_matches(std::string_view const lang_tag, std::string_view const lang_range) noexcept {
     if (lang_range.empty()) {
         return lang_tag.empty();
     }

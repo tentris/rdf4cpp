@@ -49,7 +49,7 @@ Graph::sentinel Graph::end() const noexcept {
     return sentinel{};
 }
 
-Graph::solution_sequence Graph::match(query::TriplePattern const &triple_pattern) const noexcept {
+Graph::solution_sequence Graph::match(query::TriplePattern const &triple_pattern) const {
     return solution_sequence{solution_iterator{begin(), triple_pattern}};
 }
 
@@ -161,9 +161,7 @@ void Graph::solution_iterator::forward_to_solution() {
 }
 
 Graph::solution_iterator::solution_iterator(typename Graph::iterator beg,
-                                            query::TriplePattern const &pat) : iter_{beg},
-                                                                                        pat_{pat},
-                                                                                        cur_{pat} {
+                                            query::TriplePattern const &pat) : iter_{beg}, pat_{pat}, cur_{pat} {
     forward_to_solution();
 }
 

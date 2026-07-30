@@ -271,15 +271,6 @@ private:
      */
     [[nodiscard]] bool dynamic_datatype_eq_impl(std::string_view datatype) const noexcept;
 
-    /**
-     * Implementation.
-     * Serializes the n-format representation of this literal into the decomposed
-     * writer. See `Node::serialize` for more details
-     *
-     * @tparam short_form whether to serialize in short/turtle form or in long/ntriples form
-     */
-    template<bool short_form>
-    bool serialize_impl(writer::BufWriterParts writer) const noexcept;
 
     /**
      * Implementation.
@@ -639,7 +630,7 @@ public:
      * @return true iff this datatype is T
      */
     template<datatypes::LiteralDatatype T>
-    [[nodiscard]] bool datatype_eq() const noexcept {
+    [[nodiscard]] bool datatype_eq() const {
         if constexpr (datatypes::HasFixedId<T>) {
             if (auto const type = this->handle_.node_id().literal_type(); type.is_fixed()) {
                 return type == T::fixed_id;
@@ -677,7 +668,7 @@ public:
      * @return true as xsd:boolean iff this datatype is T or null-literal if this is null
      */
     template<datatypes::LiteralDatatype T>
-    [[nodiscard]] Literal as_datatype_eq(storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept {
+    [[nodiscard]] Literal as_datatype_eq(storage::DynNodeStoragePtr node_storage = keep_node_storage) const {
         if (this->null()) {
             return Literal{};
         }
@@ -895,7 +886,7 @@ public:
      * @param lang_tag language tag to compare against
      * @return if this->language_tag() == lang_tag or error if this is not langString
      */
-    [[nodiscard]] TriBool language_tag_eq(std::string_view lang_tag) const noexcept;
+    [[nodiscard]] TriBool language_tag_eq(std::string_view lang_tag) const;
 
     /**
      * @param other literal to compare against
@@ -903,13 +894,13 @@ public:
      *      - this is not rdf:langString
      *      - other is not rdf:langString
      */
-    [[nodiscard]] TriBool language_tag_eq(Literal const &other) const noexcept;
+    [[nodiscard]] TriBool language_tag_eq(Literal const &other) const;
 
     /**
      * @param lang_tag language tag to compare against
      * @return if this->language_tag() == lang_tag or null-literal if this is not langString
      */
-    [[nodiscard]] Literal as_language_tag_eq(std::string_view lang_tag, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_language_tag_eq(std::string_view lang_tag, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * @param other literal to compare against
@@ -917,7 +908,7 @@ public:
      *      - this is not rdf:langString
      *      - other is not rdf:langString
      */
-    [[nodiscard]] Literal as_language_tag_eq(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const noexcept;
+    [[nodiscard]] Literal as_language_tag_eq(Literal const &other, storage::DynNodeStoragePtr node_storage = keep_node_storage) const;
 
     /**
      * See Node::serialize
@@ -1666,7 +1657,7 @@ public:
 /**
  * @return whether lang_tag matches the basic language range lang_range
  */
-[[nodiscard]] bool lang_matches(std::string_view lang_tag, std::string_view lang_range);
+[[nodiscard]] bool lang_matches(std::string_view lang_tag, std::string_view lang_range) noexcept;
 
 /**
  * @return whether lang_tag matches the basic language range lang_range as xsd:boolean or the null-literal if:

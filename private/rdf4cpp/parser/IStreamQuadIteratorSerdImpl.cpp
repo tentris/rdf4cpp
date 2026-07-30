@@ -62,8 +62,8 @@ nonstd::expected<Node, SerdStatus> IStreamQuadIterator::ImplSerd::get_bnode(std:
     }
 }
 
-nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_iri(SerdNode const *node) noexcept {
-    auto const iri = [this, node]() noexcept {
+nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_iri(SerdNode const *node) {
+    auto const iri = [this, node]() {
         auto const s = node_into_string_view(node);
 
         if (flags.syntax_allows_prefixes()) {
@@ -86,7 +86,7 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_iri(SerdNod
     return *iri;
 }
 
-nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_iri(SerdNode const *node) noexcept {
+nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_iri(SerdNode const *node) {
     if (!flags.syntax_allows_prefixes()) [[unlikely]] {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
                                         .line = serd_reader_get_current_line(this->reader.get()),
@@ -298,7 +298,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
                                               SerdNode const *pred,
                                               SerdNode const *obj,
                                               SerdNode const *obj_datatype,
-                                              SerdNode const *obj_lang) noexcept {
+                                              SerdNode const *obj_lang) {
 
     auto *self = static_cast<ImplSerd *>(voided_self);
 

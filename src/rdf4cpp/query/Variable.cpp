@@ -192,7 +192,7 @@ bool Variable::serialize(writer::BufWriterParts const writer) const {
 }
 
 Variable::operator std::string() const {
-    return writer::StringWriter::oneshot([this](auto &w) noexcept {
+    return writer::StringWriter::oneshot([this](auto &w) {
         return this->serialize(w);
     });
 }
@@ -253,15 +253,15 @@ std::strong_ordering Variable::order(Variable const &other) const {
 bool Variable::order_eq(Variable const &other) const {
     return order(other) == std::strong_ordering::equal;
 }
-bool Variable::order_ne(Variable const &other) const noexcept {
+bool Variable::order_ne(Variable const &other) const {
     return !order_eq(other);
 }
 
-bool Variable::eq(Variable const &other) const noexcept {
+bool Variable::eq(Variable const &other) const {
     // for variables order_eq and eq are the same
     return order_eq(other);
 }
-bool Variable::ne(Variable const &other) const noexcept {
+bool Variable::ne(Variable const &other) const {
     return !eq(other);
 }
 

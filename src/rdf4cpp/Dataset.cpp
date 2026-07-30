@@ -39,7 +39,7 @@ bool Dataset::contains(Quad const &quad) const {
     return it->second.contains(quad.without_graph());
 }
 
-Dataset::solution_sequence Dataset::match(query::QuadPattern const &pat) const noexcept {
+Dataset::solution_sequence Dataset::match(query::QuadPattern const &pat) const {
     return solution_sequence{solution_iterator{this, pat, graphs_.begin(), graphs_.end()}};
 }
 
@@ -201,7 +201,7 @@ bool operator==(Dataset::sentinel, Dataset::iterator const &self) noexcept {
     return self.giter_ == self.gend_;
 }
 
-void Dataset::solution_iterator::fill_solution() {
+void Dataset::solution_iterator::fill_solution() noexcept {
     if (iter_ != std::default_sentinel) {
         if (pat_.graph().is_variable()) {
             cur_[0] = parent_->to_node(giter_->first);

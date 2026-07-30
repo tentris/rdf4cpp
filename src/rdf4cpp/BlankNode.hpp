@@ -80,12 +80,12 @@ struct BlankNode : Node {
     [[nodiscard]] std::strong_ordering order(BlankNode const &other) const;
 
     [[nodiscard]] bool order_eq(BlankNode const &other) const;
-    [[nodiscard]] bool order_ne(BlankNode const &other) const noexcept;
+    [[nodiscard]] bool order_ne(BlankNode const &other) const;
 
-    [[nodiscard]] bool eq(BlankNode const &other) const noexcept;
-    [[nodiscard]] bool ne(BlankNode const &other) const noexcept;
+    [[nodiscard]] bool eq(BlankNode const &other) const;
+    [[nodiscard]] bool ne(BlankNode const &other) const;
 
-    [[nodiscard]] explicit operator std::string() const noexcept;
+    [[nodiscard]] explicit operator std::string() const;
 
     friend std::ostream &operator<<(std::ostream &os, BlankNode const &node);
 

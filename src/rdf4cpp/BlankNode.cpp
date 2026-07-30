@@ -169,8 +169,8 @@ bool BlankNode::serialize(writer::BufWriterParts const writer) const {
     return true;
 }
 
-BlankNode::operator std::string() const noexcept {
-    return writer::StringWriter::oneshot([this](auto &w) noexcept {
+BlankNode::operator std::string() const {
+    return writer::StringWriter::oneshot([this](auto &w) {
         return this->serialize(w);
     });
 }
@@ -233,16 +233,16 @@ bool BlankNode::order_eq(BlankNode const &other) const {
     return order(other) == std::strong_ordering::equivalent;
 }
 
-bool BlankNode::order_ne(BlankNode const &other) const noexcept {
+bool BlankNode::order_ne(BlankNode const &other) const {
     return !order_eq(other);
 }
 
-bool BlankNode::eq(BlankNode const &other) const noexcept {
+bool BlankNode::eq(BlankNode const &other) const {
     // there is no difference between order_eq and eq for blank nodes
     return order_eq(other);
 }
 
-bool BlankNode::ne(BlankNode const &other) const noexcept {
+bool BlankNode::ne(BlankNode const &other) const {
     return !eq(other);
 }
 

@@ -16,7 +16,7 @@ private:
      * Constructs the corresponding IRI from a given datatype id and places it into node_storage if
      * it does not exist already.
      */
-    IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept;
+    IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage);
 
 public:
     /**

@@ -78,7 +78,7 @@ public:
         value_type cur_;
 
         void advance_until_result();
-        void fill_solution();
+        void fill_solution() noexcept;
 
     public:
         solution_iterator(Dataset const *parent,
@@ -152,7 +152,7 @@ public:
     [[nodiscard]] iterator begin() const noexcept;
     [[nodiscard]] sentinel end() const noexcept;
 
-    [[nodiscard]] solution_sequence match(query::QuadPattern const &quad_pattern) const noexcept;
+    [[nodiscard]] solution_sequence match(query::QuadPattern const &quad_pattern) const;
 
     template<typename ErrF = decltype([](parser::ParsingError) noexcept {})>
     void load_rdf_data(std::istream &rdf_file,

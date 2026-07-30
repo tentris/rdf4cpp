@@ -21,7 +21,7 @@ IRI::IRI(std::string_view iri, storage::DynNodeStoragePtr node_storage)
     : IRI{make_unchecked((validate(iri), iri), node_storage)} {
 }
 
-IRI::IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept
+IRI::IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage)
     : IRI{visit(datatypes::registry::DatatypeIDVisitor{
                         [&](storage::identifier::LiteralType const fixed) -> IRI {
                             return IRI{storage::identifier::NodeBackendHandle{storage::identifier::literal_type_to_iri_node_id(fixed),
@@ -128,7 +128,7 @@ bool IRI::serialize(writer::BufWriterParts const writer) const {
 }
 
 IRI::operator std::string() const {
-    return writer::StringWriter::oneshot([this](auto &w) noexcept {
+    return writer::StringWriter::oneshot([this](auto &w) {
         return this->serialize(w);
     });
 }
