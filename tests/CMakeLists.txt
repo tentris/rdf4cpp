@@ -378,8 +378,9 @@ target_link_libraries(tests_JSON_LD_Parser
 add_test(NAME tests_JSON_LD_Parser COMMAND tests_JSON_LD_Parser)
 
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.nt")
-        file(DOWNLOAD "https://files.tentris.dev/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
-        execute_process(COMMAND unzip "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip" -d "${CMAKE_CURRENT_BINARY_DIR}/test_swdf")
+        file(DOWNLOAD "https://files.tentris.dev/swdf.zip" "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip"
+                EXPECTED_HASH SHA256=14526b449f10f0ffd12c29a63161cdd7b3932eabdc305df5792d08ee3107c680)
+        file(ARCHIVE_EXTRACT INPUT "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/test_swdf")
         file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/test_swdf/swdf.zip")
 endif ()
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/graph/tests_loading_simple.trig" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
