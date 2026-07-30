@@ -30,8 +30,9 @@ namespace rdf4cpp::parse_test_helpers {
                 }
                 auto& val = i->value();
                 if (dedup) {
+                    // term equality, the same as the graph comparison below uses
                     if (std::ranges::any_of(r, [&](const auto& x) {
-                        return x.graph().eq(val.graph()) && x.subject().eq(val.subject()) && x.predicate().eq(val.predicate()) && x.object().eq(val.object());
+                        return x == val;
                     })) {
                         continue;
                     }
@@ -43,7 +44,8 @@ namespace rdf4cpp::parse_test_helpers {
         if (read_iter_to(check_iter, check_results, deduplicate)) {
             return;
         }
-        if (read_iter_to(truth_iter, truth_results, false)) {
+        // try_compare_graphs_fast expects both graphs to be deduplicated
+        if (read_iter_to(truth_iter, truth_results, deduplicate)) {
             return;
         }
 
@@ -113,20 +115,26 @@ namespace rdf4cpp::parse_test_helpers {
             std::ifstream ifs(cache);
             return std::string{std::istreambuf_iterator{ifs}, {}};
         }
-        CURL *curl = nullptr;
-        CURLcode curl_res;
+        CURLcode curl_res = CURLE_FAILED_INIT;
+        long response_code = 0;
         auto const url = std::format("{}/{}", base_url, file_name);
         std::string file_contents_as_str;
-        curl = curl_easy_init();
-        if(curl) {
-            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file_contents_as_str);
-            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // for https
-            curl_res = curl_easy_perform(curl);
-            curl_easy_cleanup(curl);
-        }
+        CURL *curl = curl_easy_init();
+        REQUIRE(curl != nullptr);
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file_contents_as_str);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // for https
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
+        curl_res = curl_easy_perform(curl);
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+        curl_easy_cleanup(curl);
+        CAPTURE(url);
+        CAPTURE(response_code);
+        // an error page must not end up in the cache, it would be replayed by every later run
         REQUIRE_EQ(curl_res, CURLE_OK);
+        REQUIRE_EQ(response_code, 200);
         std::filesystem::create_directories(cache.parent_path());
         std::ofstream ofs(cache);
         ofs << file_contents_as_str;
