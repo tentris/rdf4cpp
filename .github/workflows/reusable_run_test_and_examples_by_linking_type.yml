@@ -153,7 +153,10 @@ jobs:
           path: |
             build_dir/tests/xml_test_cache
             build_dir/tests/jsonld_test_cache
-          key: parser_test
+          # the test sources list the files to download, so their hash changes when the set changes.
+          # actions/cache only writes on an exact key miss, a constant key would freeze the cache forever.
+          key: parser_test-${{ hashFiles('tests/parser/tests_XMLParser.cpp', 'tests/parser/tests_JSON_LD_Parser.cpp') }}
+          restore-keys: parser_test-
 
       - name: Build Tests & Examples
         working-directory: build_dir

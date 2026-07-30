@@ -151,6 +151,8 @@ static std::string_view merge_path_with_base(IRIView::AllParts const &base, std:
     }
 
     r.reserve(std::bit_ceil(base.path.size() + path.size() + 1));
+    // the merge keeps the base path up to its last '/'. a base path without any '/', for example the
+    // path of urn:example:name, contributes nothing.
     if (base.path.find('/') != std::string_view::npos) {
         r.append(base.path);
         remove_last_path_segment(r);

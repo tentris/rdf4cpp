@@ -13,7 +13,7 @@ class Recipe(ConanFile):
     url = "https://github.com/rdf4cpp/rdf4cpp"
     license = "MIT"
     description = "rdf4cpp aims to be a stable, modern RDF library for C++."
-    topics = "rdf", "semantic-web", "sparql", "knowledge-graphs", "C++20"
+    topics = "rdf", "semantic-web", "sparql", "knowledge-graphs", "C++23"
     settings = "os", "compiler", "build_type", "arch"
     options = {
         "shared": [True, False],

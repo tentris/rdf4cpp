@@ -207,6 +207,9 @@ set_target_properties(rdf4cpp PROPERTIES
         CXX_STANDARD_REQUIRED ON
 )
 
+# consumers need C++23 as well, CXX_STANDARD alone does not propagate
+target_compile_features(rdf4cpp PUBLIC cxx_std_23)
+
 if (PROJECT_IS_TOP_LEVEL)
     include(cmake/install_library.cmake)
     install_cpp_library(rdf4cpp src)
