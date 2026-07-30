@@ -209,9 +209,6 @@ namespace rdf4cpp::parser {
         constexpr ContainerMapping operator&(ContainerMapping a, ContainerMapping b) {
             return static_cast<ContainerMapping>(static_cast<std::underlying_type_t<ContainerMapping>>(a) & static_cast<std::underlying_type_t<ContainerMapping>>(b));
         }
-        constexpr ContainerMapping operator^(ContainerMapping a, ContainerMapping b) {
-            return static_cast<ContainerMapping>(static_cast<std::underlying_type_t<ContainerMapping>>(a) | static_cast<std::underlying_type_t<ContainerMapping>>(b));
-        }
         constexpr ContainerMapping operator~(ContainerMapping a) {
             return static_cast<ContainerMapping>(~static_cast<std::underlying_type_t<ContainerMapping>>(a));
         }
@@ -313,13 +310,11 @@ namespace rdf4cpp::parser {
             IRIMapping key;
             KeyPath path;
             std::vector<IRIMapping> keyword_values;
-            std::string active_property = "";
             bool is_json_literal = false;
             bool as_list = false;
             bool as_graph = false;
             bool is_reverse = false;
             bool as_multiple_graphs = false;
-            std::optional<IRIMapping> as_named_graph = std::nullopt;
             std::optional<BaseDirection> language_map = std::nullopt;
             std::optional<ExpandedValue> pre_expanded_value = std::nullopt;
             Context const *active_context = nullptr;

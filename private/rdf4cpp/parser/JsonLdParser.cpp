@@ -155,6 +155,49 @@ namespace rdf4cpp::parser {
 
         return Quad{gra, sub, pred, object};
     }
+    IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::emit_literal(json_ld::IRIMapping const &graph,
+                                                                                                   json_ld::IRIMapping const &subject,
+                                                                                                   json_ld::IRIMapping const &predicate,
+                                                                                                   json_ld::StringLikeLiteralMapping const &lit,
+                                                                                                   params::ListObjOut *obj_out,
+                                                                                                   bool &failed) {
+        auto l = make_literal(lit, graph);
+        if (!l.has_value()) {
+            failed = true;
+            co_yield nonstd::make_unexpected(l.error());
+            co_return;
+        }
+        if (subject.type != json_ld::IRIMappingType::None && predicate.type != json_ld::IRIMappingType::None) {
+            co_yield make_quad(graph, subject, predicate, l->object);
+            if (l->extra_quads.has_value()) {
+                co_yield std::ranges::elements_of(*l->extra_quads | std::views::filter([](Quad const &e) {
+                    return !e.graph().null() && !e.subject().null() && !e.predicate().null() && !e.object().null();
+                }));
+            }
+        }
+        if (obj_out != nullptr) {
+            *obj_out = l->object;
+        }
+    }
+    IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::emit_literal(json_ld::IRIMapping const &graph,
+                                                                                                   json_ld::IRIMapping const &subject,
+                                                                                                   json_ld::IRIMapping const &predicate,
+                                                                                                   json_ld::TypedLiteralMapping const &lit,
+                                                                                                   params::ListObjOut *obj_out,
+                                                                                                   bool &failed) {
+        auto l = make_literal(lit);
+        if (!l.has_value()) {
+            failed = true;
+            co_yield nonstd::make_unexpected(l.error());
+            co_return;
+        }
+        if (subject.type != json_ld::IRIMappingType::None && predicate.type != json_ld::IRIMappingType::None) {
+            co_yield make_quad(graph, subject, predicate, *l);
+        }
+        if (obj_out != nullptr) {
+            *obj_out = *l;
+        }
+    }
     IStreamQuadIterator::ImplJsonLd::result_generator IStreamQuadIterator::ImplJsonLd::parse(params::ParseParams p) {
         if (p.obj_out != nullptr) {
             *p.obj_out = std::monostate{};
@@ -164,19 +207,9 @@ namespace rdf4cpp::parser {
         // this code and the source are different enough to make mapping out the single steps hard/impossible
         if (p.element.type() == simdjson::ondemand::json_type::array && !p.is_json_literal) {
             for (auto element : static_cast<simdjson::ondemand::array>(p.element)) {
-                co_yield std::ranges::elements_of(parse({
-                    .element = *element,
-                    .active_ctx = p.active_ctx,
-                    .base_iri = p.base_iri,
-                    .active_graph = p.active_graph,
-                    .active_subject = p.active_subject,
-                    .active_property = p.active_property,
-                    .obj_out = p.obj_out,
-                    .is_top_level = p.is_top_level,
-                    .is_reverse = p.is_reverse,
-                    .is_json_literal = p.is_json_literal,
-                    .is_included = p.is_included,
-                }));
+                auto element_params = p;
+                element_params.element = *element;
+                co_yield std::ranges::elements_of(parse(element_params));
             }
             co_return;
         }
@@ -205,19 +238,9 @@ namespace rdf4cpp::parser {
 
         if (std::holds_alternative<simdjson::ondemand::array>(expanded)) {
             for (auto element : std::get<simdjson::ondemand::array>(expanded)) {
-                co_yield std::ranges::elements_of(parse({
-                    .element = *element,
-                    .active_ctx = p.active_ctx,
-                    .base_iri = p.base_iri,
-                    .active_graph = p.active_graph,
-                    .active_subject = p.active_subject,
-                    .active_property = p.active_property,
-                    .obj_out = p.obj_out,
-                    .is_top_level = p.is_top_level,
-                    .is_reverse = p.is_reverse,
-                    .is_json_literal = p.is_json_literal,
-                    .is_included = p.is_included,
-                }));
+                auto element_params = p;
+                element_params.element = *element;
+                co_yield std::ranges::elements_of(parse(element_params));
             }
             co_return;
         }
@@ -233,22 +256,8 @@ namespace rdf4cpp::parser {
                 co_return;
             }
             auto &literal_mapping = std::get<json_ld::StringLikeLiteralMapping>(expanded);
-            auto lit = make_literal(literal_mapping, p.active_graph);
-            if (!lit.has_value()) {
-                co_yield nonstd::make_unexpected(lit.error());
-                co_return;
-            }
-            if (p.active_subject.type != json_ld::IRIMappingType::None && p.active_property.type != json_ld::IRIMappingType::None) {
-                co_yield make_quad(p.active_graph, p.active_subject, p.active_property, lit->object);
-                if (lit->extra_quads.has_value()) {
-                    co_yield std::ranges::elements_of(*lit->extra_quads | std::views::filter([](Quad const &e) {
-                        return !e.graph().null() && !e.subject().null() && !e.predicate().null() && !e.object().null();
-                    }));
-                }
-            }
-            if (p.obj_out != nullptr) {
-                *p.obj_out = lit->object;
-            }
+            bool failed = false;
+            co_yield std::ranges::elements_of(emit_literal(p.active_graph, p.active_subject, p.active_property, literal_mapping, p.obj_out, failed));
             co_return;
         }
         if (std::holds_alternative<json_ld::TypedLiteralMapping>(expanded)) {
@@ -261,17 +270,8 @@ namespace rdf4cpp::parser {
                 co_return;
             }
             auto &literal_mapping = std::get<json_ld::TypedLiteralMapping>(expanded);
-            auto lit = make_literal(literal_mapping);
-            if (!lit.has_value()) {
-                co_yield nonstd::make_unexpected(lit.error());
-                co_return;
-            }
-            if (p.active_subject.type != json_ld::IRIMappingType::None && p.active_property.type != json_ld::IRIMappingType::None) {
-                co_yield make_quad(p.active_graph, p.active_subject, p.active_property, *lit);
-            }
-            if (p.obj_out != nullptr) {
-                *p.obj_out = *lit;
-            }
+            bool failed = false;
+            co_yield std::ranges::elements_of(emit_literal(p.active_graph, p.active_subject, p.active_property, literal_mapping, p.obj_out, failed));
             co_return;
         }
 
@@ -432,28 +432,17 @@ namespace rdf4cpp::parser {
                             auto &val = *entry.pre_expanded_value;
                             if (std::holds_alternative<json_ld::StringLikeLiteralMapping>(val)) {
                                 auto &literal_mapping = std::get<json_ld::StringLikeLiteralMapping>(val);
-                                auto lit = make_literal(literal_mapping, p.active_graph);
-                                if (!lit.has_value()) {
-                                    co_yield nonstd::make_unexpected(lit.error());
+                                bool failed = false;
+                                co_yield std::ranges::elements_of(emit_literal(p.active_graph, id, entry.key, literal_mapping, nullptr, failed));
+                                if (failed) {
                                     co_return;
-                                }
-                                if (id.type != json_ld::IRIMappingType::None && entry.key.type != json_ld::IRIMappingType::None) {
-                                    co_yield make_quad(p.active_graph, id, entry.key, lit->object);
-                                    if (lit->extra_quads.has_value()) {
-                                        co_yield std::ranges::elements_of(*lit->extra_quads | std::views::filter([](Quad const &e) {
-                                            return !e.graph().null() && !e.subject().null() && !e.predicate().null() && !e.object().null();
-                                        }));
-                                    }
                                 }
                             } else if (std::holds_alternative<json_ld::TypedLiteralMapping>(val)) {
                                 auto &literal_mapping = std::get<json_ld::TypedLiteralMapping>(val);
-                                auto lit = make_literal(literal_mapping);
-                                if (!lit.has_value()) {
-                                    co_yield nonstd::make_unexpected(lit.error());
+                                bool failed = false;
+                                co_yield std::ranges::elements_of(emit_literal(p.active_graph, id, entry.key, literal_mapping, nullptr, failed));
+                                if (failed) {
                                     co_return;
-                                }
-                                if (id.type != json_ld::IRIMappingType::None && entry.key.type != json_ld::IRIMappingType::None) {
-                                    co_yield make_quad(p.active_graph, id, entry.key, *lit);
                                 }
                             } else if (std::holds_alternative<json_ld::IRIMapping>(val)) {
                                 auto &iri = std::get<json_ld::IRIMapping>(val);
@@ -521,8 +510,8 @@ namespace rdf4cpp::parser {
                                         .is_json_literal = entry.is_json_literal,
                                     }));
                                 }
-                            } else if (entry.as_graph || entry.as_named_graph.has_value()) {
-                                auto graph = entry.as_named_graph.has_value() ? *entry.as_named_graph : make_new_bn();
+                            } else if (entry.as_graph) {
+                                auto graph = make_new_bn();
                                 if (id.type != json_ld::IRIMappingType::None && entry.key.type != json_ld::IRIMappingType::None) {
                                     if (p.is_reverse) {
                                         co_yield make_quad(p.active_graph, graph, entry.key, id);

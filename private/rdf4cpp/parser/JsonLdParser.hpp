@@ -74,6 +74,25 @@ namespace rdf4cpp::parser {
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
 
+        /**
+         * Yields the quads of a literal object: the quad for the literal itself, plus the extra quads
+         * of the compound direction form. Writes the literal to obj_out, if that is not null.
+         * Nothing is yielded for the quad itself if subject or predicate is not set.
+         * @param failed set to true if the literal could not be created, the error is yielded then
+         */
+        result_generator emit_literal(json_ld::IRIMapping const &graph,
+                                     json_ld::IRIMapping const &subject,
+                                     json_ld::IRIMapping const &predicate,
+                                     json_ld::StringLikeLiteralMapping const &lit,
+                                     params::ListObjOut *obj_out,
+                                     bool &failed);
+        result_generator emit_literal(json_ld::IRIMapping const &graph,
+                                     json_ld::IRIMapping const &subject,
+                                     json_ld::IRIMapping const &predicate,
+                                     json_ld::TypedLiteralMapping const &lit,
+                                     params::ListObjOut *obj_out,
+                                     bool &failed);
+
         result_generator parse(params::ParseParams p);
         result_generator parse(params::ParseParams p, json_ld::ExpandedLevel &expanded);
         result_generator parse_list(params::ParseListParams p);

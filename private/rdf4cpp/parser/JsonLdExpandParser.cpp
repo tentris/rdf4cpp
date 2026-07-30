@@ -30,24 +30,19 @@ namespace rdf4cpp::parser::json_ld {
         if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_json) {
             return to_json_literal(value);
         }
+        // steps 4 and 5 do not look at the json type of a string, the overload below handles them
+        if (value.is_string()) {
+            return value_expansion(active_conext, active_property, value.get_string());
+        }
         static constexpr std::array inv_type = {keyword_id, keyword_vocab, keyword_none};
         if (active_term != nullptr && active_term->type_mapping.has_value() && !std::ranges::any_of(inv_type, [&](std::string_view a) {
                 return a == *active_term->type_mapping;
             })) {
             auto t = *value.type();
-            if (t != simdjson::ondemand::json_type::number && t != simdjson::ondemand::json_type::boolean && t != simdjson::ondemand::json_type::string) {
+            if (t != simdjson::ondemand::json_type::number && t != simdjson::ondemand::json_type::boolean) {
                 return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid type for literal")};
             }
             return TypedLiteralMapping{stringify(value, true, std::string_view(*active_term->type_mapping) == datatypes::registry::xsd_double).value, *active_term->type_mapping};
-        }
-        // 5
-        if (value.is_string()) {
-            auto const &l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
-            return StringLikeLiteralMapping{
-                std::string(static_cast<std::string_view>(value.get_string())),
-                l.output(),
-                active_term != nullptr && active_term->direction_mapping != BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
-            };
         }
         // https://www.w3.org/TR/json-ld11-api/#object-to-rdf-conversion
         // 9
@@ -539,7 +534,6 @@ namespace rdf4cpp::parser::json_ld {
                 else if (expanded_property->data == keyword_graph) {
                     expanded_value.path = p.active_path;
                     expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                    expanded_value.active_property = keyword_graph;
                 }
                 // 13.4.6
                 else if (expanded_property->data == keyword_included) { // NOLINT(*-branch-clone)
@@ -729,7 +723,6 @@ namespace rdf4cpp::parser::json_ld {
                     for (ValueArrayIter iter{w}; iter != iter.end(); ++iter) {
                         auto index_value = *iter;
                         auto ex = expanded_value;
-                        ex.active_property = k;
                         ex.active_context = map_context;
                         ExpandedMap *next_lvl = nullptr;
                         std::optional<simdjson::ondemand::object> index_value_obj = std::nullopt;
@@ -831,7 +824,6 @@ namespace rdf4cpp::parser::json_ld {
             else {
                 expanded_value.path = p.active_path;
                 expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                expanded_value.active_property = k;
             }
             // 13.10
             if (expanded_value.path.keys.empty() && expanded_value.keyword_values.empty()) {
