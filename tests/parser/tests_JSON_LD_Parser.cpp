@@ -15,6 +15,10 @@ void jsonld_test_negative(std::string json_str, std::string_view base_iri) {
     parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, ParsingFlag::JsonLd);
 }
 
+void jsonld_test_negative_flags(std::string json_str, std::string_view base_iri, ParsingFlags flags) {
+    parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, flags);
+}
+
 std::string remote_test_file_to_str(std::string_view file_name) {
     return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, "https://raw.githubusercontent.com/w3c/json-ld-streaming/refs/heads/main/tests/stream-toRdf", "./jsonld_test_cache");
 }
@@ -528,4 +532,84 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("so12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso12");
     jsonld_test_negative(remote_test_file_to_str("so13-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso13");
     // jsonld_test_negative(remote_test_file_to_str("tn01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ttn01");
+}
+
+TEST_CASE("malformed json becomes a parsing error") {
+    // empty input
+    jsonld_test_negative("", "http://example.com/");
+    // truncated object
+    jsonld_test_negative(R"({"a":)", "http://example.com/");
+    // missing closing brace
+    jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": "v")", "http://example.com/");
+    // invalid escape sequence
+    jsonld_test_negative(R"({"http://example.com/p": "\ux"})", "http://example.com/");
+    // trailing garbage
+    jsonld_test_negative(R"({"@id": "http://example.com/s"} garbage)", "http://example.com/");
+}
+
+TEST_CASE("numbers in a document with crlf line endings") {
+    jsonld_test_positive("{\r\n\"@id\": \"http://example.com/s\",\r\n\"http://example.com/i\": 1,\r\n\"http://example.com/d\": 2.5\r\n}",
+                         R"(<http://example.com/s> <http://example.com/i> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.com/s> <http://example.com/d> "2.5E0"^^<http://www.w3.org/2001/XMLSchema#double> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("integral numbers that do not fit into int64") {
+    jsonld_test_positive(R"({"@id": "http://example.com/s", "http://example.com/p": 1e19, "http://example.com/n": -1e19})",
+                         R"(<http://example.com/s> <http://example.com/p> "10000000000000000000"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.com/s> <http://example.com/n> "-10000000000000000000"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("compact iri term is checked against its own expansion") {
+    // the term ex:x expands to http://example.com/x via the prefix ex, which contradicts its @id
+    jsonld_test_negative(R"({"@context": {"ex": "http://example.com/", "ex:x": "http://other.example.com/x"}, "ex:x": "v"})", "http://example.com/");
+    // same with a longer suffix, this was already detected
+    jsonld_test_negative(R"({"@context": {"ex": "http://example.com/", "ex:xy": "http://other.example.com/xy"}, "ex:xy": "v"})", "http://example.com/");
+}
+
+TEST_CASE("parsing json-ld leaves the base of the parsing state alone") {
+    IStreamQuadIterator::state_type state{};
+    REQUIRE(state.iri_factory.set_base("http://example.com/") == IRIFactoryError::Ok);
+
+    std::stringstream json{R"({"@context": {"@base": "http://other.example.com/"}, "@id": "s", "http://example.com/p": {"@id": "o"}})"};
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        CHECK(it->has_value());
+    }
+
+    CHECK(state.iri_factory.get_base() == "http://example.com/");
+
+    // a turtle parse reusing the state resolves against the original base
+    std::stringstream ttl{"<s> <http://example.com/p> <o> ."};
+    IStreamQuadIterator ttl_it{ttl, ParsingFlag::Turtle, &state};
+    REQUIRE(ttl_it != std::default_sentinel);
+    REQUIRE(ttl_it->has_value());
+    CHECK(ttl_it->value().subject().as_iri().identifier() == "http://example.com/s");
+}
+
+TEST_CASE("json-ld honors NoParseBlankNode") {
+    // blank node label in the document
+    jsonld_test_negative_flags(R"({"@id": "_:x", "http://example.com/p": "v"})", "http://example.com/", ParsingFlag::JsonLd | ParsingFlag::NoParseBlankNode);
+    // blank node generated for a node object without @id
+    jsonld_test_negative_flags(R"({"http://example.com/p": "v"})", "http://example.com/", ParsingFlag::JsonLd | ParsingFlag::NoParseBlankNode);
+}
+
+TEST_CASE("json-ld honors KeepBlankNodeIds") {
+    std::stringstream json{R"({"@id": "_:x", "http://example.com/p": "v"})"};
+    IStreamQuadIterator it{json, ParsingFlag::JsonLd | ParsingFlag::KeepBlankNodeIds};
+    REQUIRE(it != std::default_sentinel);
+    REQUIRE(it->has_value());
+    CHECK(it->value().subject().as_blank_node().identifier() == "x");
+}
+
+TEST_CASE("test deduplication keeps terms that are only value equal") {
+    parse_test_helpers::parser_test_positive(R"({
+  "@context": {"d": {"@id": "http://example.com/p", "@type": "http://www.w3.org/2001/XMLSchema#double"}},
+  "@id": "http://example.com/s",
+  "d": 1,
+  "http://example.com/p": 1
+})",
+                                             R"(<http://example.com/s> <http://example.com/p> "1.0E0"^^<http://www.w3.org/2001/XMLSchema#double> .
+<http://example.com/s> <http://example.com/p> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                                             "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, true);
 }

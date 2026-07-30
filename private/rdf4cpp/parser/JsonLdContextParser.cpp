@@ -1,6 +1,12 @@
 #include "JsonLdContextParser.hpp"
 
 namespace rdf4cpp::parser::json_ld {
+    IRIFactoryError ContextParser::set_resolution_base(std::string_view const base) {
+        if (iri_factory.get_base() == base) {
+            return IRIFactoryError::Ok;
+        }
+        return iri_factory.set_base(base);
+    }
     nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p) {
         // https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
         // 1
@@ -35,11 +41,11 @@ namespace rdf4cpp::parser::json_ld {
                         result->base_iri = "";
                     } else {
                         if (IRIView{*v}.is_relative()) {
-                            if (iri_factory->set_base(result->base_iri) != IRIFactoryError::Ok) {
+                            if (set_resolution_base(result->base_iri) != IRIFactoryError::Ok) {
                                 result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
                                 return true;
                             }
-                            auto r = iri_factory->from_maybe_relative_as_string(*v);
+                            auto r = iri_factory.from_maybe_relative_as_string(*v);
                             if (r.has_value()) {
                                 result->base_iri = *r;
                             } else {
@@ -369,8 +375,10 @@ namespace rdf4cpp::parser::json_ld {
                 p.term.iri_mapping = *ex;
 
                 bool const has_slash = p.term.key.find('/') != std::string::npos;
+                // a colon anywhere but as first or last character makes the key a compact IRI,
+                // so the part to search in drops the first and the last character
                 std::string_view colon_check_part = p.term.key;
-                colon_check_part = colon_check_part.substr(0, colon_check_part.length() - 2);
+                colon_check_part = colon_check_part.substr(0, colon_check_part.length() - 1);
                 if (!colon_check_part.empty()) {
                     colon_check_part = colon_check_part.substr(1);
                 }
@@ -839,7 +847,10 @@ namespace rdf4cpp::parser::json_ld {
                 auto pre = value->substr(0, i);
                 auto post = value->substr(i + 1);
                 if (pre == "_") {
-                    return IRIMapping{std::format("bn_n{}", post), IRIMappingType::BlankNode};
+                    if (keep_document_bnode_labels) {
+                        return IRIMapping{std::string{post}, IRIMappingType::BlankNode};
+                    }
+                    return IRIMapping{std::format("{}{}", document_bnode_prefix, post), IRIMappingType::BlankNode};
                 }
                 if (post.starts_with("//")) {
                     return IRIMapping{std::string(*value), IRIMappingType::IRI};
@@ -881,10 +892,10 @@ namespace rdf4cpp::parser::json_ld {
             if (active_context.base_iri.empty()) {
                 return IRIMapping{std::string(""), IRIMappingType::None};
             }
-            if (iri_factory->set_base(active_context.base_iri) != IRIFactoryError::Ok) {
+            if (set_resolution_base(active_context.base_iri) != IRIFactoryError::Ok) {
                 return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, "invalid base iri"));
             }
-            auto r = iri_factory->from_maybe_relative_as_string(*value);
+            auto r = iri_factory.from_maybe_relative_as_string(*value);
             if (r.has_value()) {
                 return IRIMapping{std::string(*r), IRIMappingType::IRI};
             } else {

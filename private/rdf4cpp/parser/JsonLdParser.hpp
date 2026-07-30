@@ -10,6 +10,7 @@
 #include <rdf4cpp/parser/JsonLdParserTypes.hpp>
 
 #include <generator>
+#include <memory>
 
 #include <simdjson.h>
 
@@ -54,12 +55,13 @@ namespace rdf4cpp::parser {
 
     struct IStreamQuadIterator::ImplJsonLd final : Impl {
     private:
+        // holds the state only if it was not provided by the caller
+        std::unique_ptr<state_type> owned_state_;
         state_type *state_;
-        bool state_is_owned_;
         std::string json_data_;
         uint64_t blank_node_index_ = 0;
         json_ld::ExpandParser expand_parser_;
-        ParsingFlag direction_;
+        ParsingFlags flags_;
 
         json_ld::IRIMapping make_new_bn();
         nonstd::expected<IRI, error_type> make_iri(std::string_view iri);
@@ -96,7 +98,7 @@ namespace rdf4cpp::parser {
                    ParsingFlags flags,
                    state_type *initial_state = nullptr);
 
-        ~ImplJsonLd() override;
+        ~ImplJsonLd() override = default;
     };
 }  // namespace rdf4cpp::parser
 

@@ -38,6 +38,18 @@ namespace rdf4cpp::parser {
     static constexpr std::string_view keyword_version = "@version";
     static constexpr std::string_view keyword_vocab = "@vocab";
 
+    // vocabulary of the compound direction form, see https://www.w3.org/TR/json-ld11-api/#dfn-i18n-datatype
+    static constexpr std::string_view iri_rdf_value = "http://www.w3.org/1999/02/22-rdf-syntax-ns#value";
+    static constexpr std::string_view iri_rdf_language = "http://www.w3.org/1999/02/22-rdf-syntax-ns#language";
+    static constexpr std::string_view iri_rdf_direction = "http://www.w3.org/1999/02/22-rdf-syntax-ns#direction";
+    static constexpr std::string_view iri_i18n_prefix = "https://www.w3.org/ns/i18n#";
+
+    // blank node labels the parser generates itself get generated_bnode_prefix plus a decimal number,
+    // labels taken from the document get document_bnode_prefix plus the label from the document.
+    // the two prefixes must stay distinct, otherwise a document label can name a generated blank node.
+    static constexpr std::string_view generated_bnode_prefix = "bn_";
+    static constexpr std::string_view document_bnode_prefix = "bn_n";
+
     // not treated as keyword in other places
     static constexpr std::string_view keyword_default = "@default";
 

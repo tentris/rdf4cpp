@@ -1,6 +1,16 @@
 #include "JsonLdExpandParser.hpp"
 
 namespace rdf4cpp::parser::json_ld {
+    /**
+     * Removes what raw_json_token appends to a token: the separator of the next token and json whitespace.
+     */
+    static std::string_view trim_raw_token(std::string_view token) {
+        static constexpr std::string_view trailing = "\n\r\t ,";
+        while (!token.empty() && trailing.find(token.back()) != std::string_view::npos) {
+            token.remove_suffix(1);
+        }
+        return token;
+    }
     nonstd::expected<ExpandedValue, ExpandParser::error_type>
     ExpandParser::value_expansion(Context const &active_conext,
                                   IRIMapping const &active_property,
@@ -85,10 +95,7 @@ namespace rdf4cpp::parser::json_ld {
             return {std::string{v.get_bool() ? "true" : "false"}, datatypes::registry::xsd_boolean};
         }
         if (t == simdjson::ondemand::json_type::number) {
-            auto str = v.raw_json_token();
-            while (str.ends_with('\n') || str.ends_with(',') || str.ends_with(' ') || str.ends_with('\t')) {
-                str = str.substr(0, str.length() - 1);
-            }
+            auto str = trim_raw_token(v.raw_json_token());
             auto d = datatypes::registry::util::from_chars<double, "">(str);
             if (!normalize && d == 0.0) {
                 return {"0", datatypes::registry::xsd_integer};
@@ -103,10 +110,16 @@ namespace rdf4cpp::parser::json_ld {
                 return {std::string(str), datatypes::registry::xsd_double};
             }
             if (normalize) {
-                return {writer::StringWriter::oneshot([&](writer::StringWriter &w) {
-                            return datatypes::registry::util::to_chars_canonical(static_cast<int64_t>(d), w);
-                        }),
-                        datatypes::registry::xsd_integer};
+                // 2^63, the first double that int64_t cannot represent
+                static constexpr double int64_limit = 9223372036854775808.0;
+                if (std::abs(d) < int64_limit) {
+                    return {writer::StringWriter::oneshot([&](writer::StringWriter &w) {
+                                return datatypes::registry::util::to_chars_canonical(static_cast<int64_t>(d), w);
+                            }),
+                            datatypes::registry::xsd_integer};
+                }
+                // d is integral and below 1e21, so this is the canonical form of an integer
+                return {std::format("{:.0f}", d), datatypes::registry::xsd_integer};
             }
             return {std::string(str), datatypes::registry::xsd_integer};
         }
@@ -117,11 +130,7 @@ namespace rdf4cpp::parser::json_ld {
         if (v.is_null()) {
             return {std::string{"null"}, ""};
         }
-        auto str = *v.raw_json();
-        while (str.ends_with('\n') || str.ends_with(',') || str.ends_with(' ') || str.ends_with('\t')) {
-            str = str.substr(0, str.length() - 1);
-        }
-        return {std::string{str}, ""};
+        return {std::string{trim_raw_token(*v.raw_json())}, ""};
     }
     TypedLiteralMapping ExpandParser::to_json_literal(simdjson::ondemand::value v) {
         return TypedLiteralMapping{stringify(v, false, false, true).value, std::string{rdf_json_datatype}};

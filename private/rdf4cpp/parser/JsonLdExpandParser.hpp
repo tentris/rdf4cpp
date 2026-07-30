@@ -41,8 +41,8 @@ namespace rdf4cpp::parser {
             using error_type = ParsingError;
             ContextParser context_parser;
 
-            inline explicit ExpandParser(IRIFactory &f, std::string base_iri)
-                : context_parser(&f, std::move(base_iri)) {
+            inline explicit ExpandParser(std::string base_iri, bool const keep_document_bnode_labels)
+                : context_parser(std::move(base_iri), keep_document_bnode_labels) {
             }
 
             nonstd::expected<ExpandedValue, error_type> value_expansion(Context const &active_conext,
