@@ -603,11 +603,121 @@ TEST_CASE("json-ld honors NoParseBlankNode") {
 }
 
 TEST_CASE("json-ld honors KeepBlankNodeIds") {
-    std::stringstream json{R"({"@id": "_:x", "http://example.com/p": "v"})"};
-    IStreamQuadIterator it{json, ParsingFlag::JsonLd | ParsingFlag::KeepBlankNodeIds};
-    REQUIRE(it != std::default_sentinel);
-    REQUIRE(it->has_value());
-    CHECK(it->value().subject().as_blank_node().identifier() == "x");
+    SUBCASE("without a scope manager") {
+        std::stringstream json{R"({"@id": "_:x", "http://example.com/p": "v"})"};
+        IStreamQuadIterator it{json, ParsingFlag::JsonLd | ParsingFlag::KeepBlankNodeIds};
+        REQUIRE(it != std::default_sentinel);
+        REQUIRE(it->has_value());
+        CHECK(it->value().subject().as_blank_node().identifier() == "x");
+    }
+    SUBCASE("with a scope manager") {
+        bnode_mngt::MergeNodeScopeManager<> manager;
+        IStreamQuadIterator::state_type state{.blank_node_scope_manager = &manager};
+        std::stringstream json{R"({"@id": "_:x", "http://example.com/p": "v"})"};
+        IStreamQuadIterator it{json, ParsingFlag::JsonLd | ParsingFlag::KeepBlankNodeIds, &state};
+        REQUIRE(it != std::default_sentinel);
+        REQUIRE(it->has_value());
+        CHECK(it->value().subject().as_blank_node().identifier() == "x");
+    }
+}
+
+TEST_CASE("json-ld blank nodes go through the scope manager") {
+    bnode_mngt::MergeNodeScopeManager<> manager;
+    IStreamQuadIterator::state_type state{.blank_node_scope_manager = &manager};
+
+    // the same document label in the default graph and in a named graph is one node,
+    // json-ld shares blank node labels over the whole document
+    std::stringstream json{R"({"@graph": [
+  {"@id": "_:x", "http://example.com/p": {"@id": "_:y"}},
+  {"@id": "http://example.com/g", "@graph": [{"@id": "_:x", "http://example.com/q": "v"}]}
+]})"};
+    std::vector<Quad> quads;
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        REQUIRE(it->has_value());
+        quads.emplace_back(it->value());
+    }
+    REQUIRE(quads.size() == 2);
+
+    // the scope manager relabels, so the document labels are gone
+    CHECK(quads[0].subject().is_blank_node());
+    CHECK(quads[0].subject().as_blank_node().identifier() != "x");
+    CHECK(quads[1].subject().is_blank_node());
+    CHECK(quads[0].subject() == quads[1].subject());
+    CHECK(quads[0].object() != quads[0].subject());
+}
+
+TEST_CASE("context with more terms than the lookup index threshold") {
+    // the fixtures of the w3c suite all stay below the threshold, so this covers the indexed lookup
+    std::string context;
+    for (size_t i = 0; i < 40; ++i) {
+        context += std::format("{}\"t{}\": \"http://example.com/p{}\"", i == 0 ? "" : ", ", i, i);
+    }
+    // uses the first, a middle and the last term, plus a key that is no term at all
+    auto const doc = std::format(R"({{"@context": {{{}}}, "@id": "http://example.com/s",
+      "t0": "a", "t23": "b", "t39": "c", "http://example.com/direct": "d"}})",
+                                 context);
+    jsonld_test_positive(doc, R"(<http://example.com/s> <http://example.com/p0> "a" .
+<http://example.com/s> <http://example.com/p23> "b" .
+<http://example.com/s> <http://example.com/p39> "c" .
+<http://example.com/s> <http://example.com/direct> "d" .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("document larger than one read block") {
+    // the stream constructor reads in blocks, this needs more than one of them
+    static constexpr size_t nodes = 3000;
+    std::string doc{R"({"@context": {"p": "http://example.com/p"}, "@graph": [)"};
+    std::string expected;
+    for (size_t i = 0; i < nodes; ++i) {
+        doc += std::format("{}{{\"@id\": \"http://example.com/s{}\", \"p\": \"value {}\"}}", i == 0 ? "" : ", ", i, i);
+        expected += std::format("<http://example.com/s{}> <http://example.com/p> \"value {}\" .\n", i, i);
+    }
+    doc += "]}";
+    REQUIRE(doc.size() > 64 * 1024);
+    jsonld_test_positive(doc, expected, "http://example.com/");
+}
+
+TEST_CASE("numbers that no double can hold") {
+    // from_chars reports these as an invalid literal, which must not escape the iterator
+    jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": 1e999999})", "http://example.com/");
+    jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": -1e999999})", "http://example.com/");
+}
+
+TEST_CASE("integral numbers at the int64 limit") {
+    // 2^63 does not fit, 2^63-1024 (the largest double below it) does
+    jsonld_test_positive(R"({"@id": "http://example.com/s", "http://example.com/p": 9223372036854775808, "http://example.com/q": 9223372036854774784})",
+                         R"(<http://example.com/s> <http://example.com/p> "9223372036854775808"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.com/s> <http://example.com/q> "9223372036854774784"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+    jsonld_test_positive(R"({"@id": "http://example.com/s", "http://example.com/p": -9223372036854775808})",
+                         R"(<http://example.com/s> <http://example.com/p> "-9223372036854775808"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("a parsing error after valid quads") {
+    // the invalid escape is in the second array element, the first one still produces its quad
+    std::stringstream json{R"([{"@id": "http://example.com/s", "http://example.com/p": "ok"}, {"@id": "http://example.com/s2", "http://example.com/p": "\ux"}])"};
+    IStreamQuadIterator it{json, ParsingFlag::JsonLd};
+
+    size_t values = 0;
+    bool had_error = false;
+    for (; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            ++values;
+        } else {
+            had_error = true;
+        }
+    }
+    CHECK(values == 1);
+    CHECK(had_error);
+}
+
+TEST_CASE("a term with a type mapping and a string value") {
+    // the value overload of value_expansion delegates strings to the string_view overload
+    jsonld_test_positive(R"({"@context": {"d": {"@id": "http://example.com/p", "@type": "http://www.w3.org/2001/XMLSchema#date"}},
+      "@id": "http://example.com/s", "d": "2012-03-31"})",
+                         R"(<http://example.com/s> <http://example.com/p> "2012-03-31"^^<http://www.w3.org/2001/XMLSchema#date> .)",
+                         "http://example.com/");
 }
 
 TEST_CASE("test deduplication keeps terms that are only value equal") {
