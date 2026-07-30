@@ -52,7 +52,7 @@ jobs:
         id: cache-macports
         with:
           path: /opt/local/
-          key: macports-v2.10.7-${{ runner.os }}-${{ inputs.compiler }}
+          key: macports-v2.10.7-${{ inputs.os }}-${{ inputs.compiler }}
 
       - name: Fix MacPorts permissions
         if: ${{ contains(inputs.os, 'macos') && steps.cache-macports.outputs.cache-hit == 'true' }}
