@@ -765,6 +765,56 @@ TEST_CASE("@import is reported as unsupported") {
                             "import context not supported");
 }
 
+TEST_CASE("a free floating scalar is no json-ld document") {
+    jsonld_test_negative("42", "http://example.com/");
+    jsonld_test_negative(R"("hello")", "http://example.com/");
+    jsonld_test_negative("true", "http://example.com/");
+}
+
+TEST_CASE("a document label that is no valid blank node label") {
+    // KeepBlankNodeIds passes the label of the document to BlankNode::make, which rejects it
+    jsonld_test_negative_flags(R"({"@id": "_:a b", "http://example.com/p": "v"})", "http://example.com/",
+                               ParsingFlag::JsonLd | ParsingFlag::KeepBlankNodeIds);
+}
+
+TEST_CASE("a literal that cannot be created reports an error") {
+    // the i18n form builds the datatype from the language, "a b" does not fit into an IRI
+    jsonld_test_negative_flags(R"({"@context": {"@language": "a b", "@direction": "ltr"}, "@id": "http://example.com/s", "http://example.com/p": "v"})",
+                               "http://example.com/", ParsingFlag::JsonLd | ParsingFlag::JsonLdDirectionI18n);
+}
+
+TEST_CASE("a relative iri that stays invalid after resolving") {
+    jsonld_test_negative(R"({"@context": {"@base": "http://example.com/"}, "@id": "a<b>", "http://example.com/p": "v"})", "http://example.com/");
+}
+
+TEST_CASE("index container with a type mapping") {
+    // the values of an index map are expanded before the quads are emitted
+    jsonld_test_positive(R"({"@context": {"t": {"@id": "http://example.com/p", "@container": "@index", "@type": "http://www.w3.org/2001/XMLSchema#integer"}},
+      "@id": "http://example.com/s", "t": {"k1": "42", "k2": "43"}})",
+                         R"(<http://example.com/s> <http://example.com/p> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.com/s> <http://example.com/p> "43"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("index container with an index property") {
+    // @index in the term definition names the property that receives the keys of the index map.
+    // those keys are expanded before the quads are emitted, once as a plain and once as a typed literal
+    jsonld_test_positive(R"({"@context": {
+        "idx": {"@id": "http://example.com/idx", "@type": "http://www.w3.org/2001/XMLSchema#integer"},
+        "t": {"@id": "http://example.com/p", "@container": "@index", "@index": "idx"}},
+      "@id": "http://example.com/s", "t": {"42": {"@id": "http://example.com/o"}}})",
+                         R"(<http://example.com/s> <http://example.com/p> <http://example.com/o> .
+<http://example.com/o> <http://example.com/idx> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+
+    jsonld_test_positive(R"({"@context": {
+        "t": {"@id": "http://example.com/p", "@container": "@index", "@index": "http://example.com/idx"}},
+      "@id": "http://example.com/s", "t": {"key": {"@id": "http://example.com/o"}}})",
+                         R"(<http://example.com/s> <http://example.com/p> <http://example.com/o> .
+<http://example.com/o> <http://example.com/idx> "key" .)",
+                         "http://example.com/");
+}
+
 TEST_CASE("a null context is supported") {
     // @context null resets the context, it is not a remote reference
     jsonld_test_positive(R"({"@context": null, "@id": "http://example.com/s", "http://example.com/p": "v"})",

@@ -73,6 +73,42 @@ TEST_CASE("different graphs report the first mismatch") {
     CHECK(r.error().second == IRI::make("http://example.com/o2"));
 }
 
+TEST_CASE("blank nodes and other nodes are ordered apart") {
+    // both quads of a graph hold one blank node, but at different positions. the sort has to compare
+    // a blank node with an IRI, and blank node handles are arbitrary, so they may not decide the order
+    std::vector<Quad> a{quad("_:x", "http://example.com/p", "http://example.com/o"),
+                        quad("http://example.com/s", "http://example.com/p", "_:y")};
+    std::vector<Quad> b{quad("_:n1", "http://example.com/p", "http://example.com/o"),
+                        quad("http://example.com/s", "http://example.com/p", "_:n2")};
+
+    auto r = try_compare_graphs_fast<Quad>(a, b);
+    REQUIRE(r.has_value());
+    CHECK(r->size() == 2);
+    CHECK(r->at(BlankNode::make("n1")) == BlankNode::make("x"));
+    CHECK(r->at(BlankNode::make("n2")) == BlankNode::make("y"));
+}
+
+TEST_CASE("elements of different size are reported") {
+    // Q does not have to be a Quad, a range of Nodes is enough, and those can differ in size
+    std::vector<std::vector<Node>> a{{IRI::make("http://example.com/s"), IRI::make("http://example.com/p"), IRI::make("http://example.com/o")},
+                                     {IRI::make("http://example.com/s"), IRI::make("http://example.com/p")}};
+    std::vector<std::vector<Node>> b = a;
+
+    auto r = try_compare_graphs_fast<std::vector<Node>>(a, b);
+    REQUIRE(!r.has_value());
+    CHECK(r.error().first.null());
+    CHECK(r.error().second.null());
+}
+
+TEST_CASE("elements without any node") {
+    std::vector<std::vector<Node>> a{{}, {}};
+    std::vector<std::vector<Node>> b{{}, {}};
+
+    auto r = try_compare_graphs_fast<std::vector<Node>>(a, b);
+    REQUIRE(r.has_value());
+    CHECK(r->empty());
+}
+
 TEST_CASE("blank nodes are matched over a bigger graph") {
     std::vector<Quad> a{};
     std::vector<Quad> b{};
