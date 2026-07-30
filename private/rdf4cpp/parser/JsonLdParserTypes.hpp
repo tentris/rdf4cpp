@@ -7,7 +7,9 @@
 #include <rdf4cpp/parser/JsonLdParserPath.hpp>
 
 #include <forward_list>
+#include <limits>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include <simdjson.h>
@@ -275,6 +277,41 @@ namespace rdf4cpp::parser {
             using TermDefinitionBase::TermDefinitionBase;
         };
 
+        /**
+         * Maps the key of a term to its position in Context::terms. Built on the first lookup and
+         * rebuilt whenever the number of terms changed. A copy starts out empty, so copying a Context
+         * stays as cheap as copying its terms.
+         */
+        struct TermIndex {
+            static constexpr size_t not_found = std::numeric_limits<size_t>::max();
+            /**
+             * Number of terms from which on the index is used. Below it a linear scan over the terms
+             * is cheaper than filling the map.
+             */
+            static constexpr size_t min_terms = 16;
+
+            struct KeyHash {
+                using is_transparent = void;
+                size_t operator()(std::string_view key) const noexcept {
+                    return std::hash<std::string_view>{}(key);
+                }
+            };
+
+            std::unordered_map<std::string, size_t, KeyHash, std::equal_to<>> positions{};
+            size_t indexed_terms = not_found;
+
+            TermIndex() = default;
+            TermIndex(TermIndex const &) {}
+            TermIndex(TermIndex &&) noexcept = default;
+            TermIndex &operator=(TermIndex const &) {
+                positions.clear();
+                indexed_terms = not_found;
+                return *this;
+            }
+            TermIndex &operator=(TermIndex &&) noexcept = default;
+            ~TermIndex() = default;
+        };
+
         struct Context {
             std::vector<TermDefinition> terms{};
             std::string base_iri;
@@ -282,9 +319,13 @@ namespace rdf4cpp::parser {
             Context const *previous_context = nullptr;
             LanguageMapping language = NotSet{};
             BaseDirection base_direction = BaseDirection::None;
+            mutable TermIndex term_index{};
 
             TermDefinition *try_find_term(std::string_view key);
             [[nodiscard]] TermDefinition const *try_find_term(std::string_view key) const;
+
+        private:
+            [[nodiscard]] size_t find_term_position(std::string_view key) const;
         };
 
 

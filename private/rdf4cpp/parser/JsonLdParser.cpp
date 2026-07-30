@@ -700,10 +700,9 @@ namespace rdf4cpp::parser {
         : ImplJsonLd([&]() {
               std::string buff{};
               while (error(stream) == 0 && eof(stream) == 0) {
-                  static constexpr size_t s = 1024;
                   auto i = buff.size();
-                  buff.append(s, '\0');
-                  auto n = read(&buff[i], 1, s, stream);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                  buff.append(StreamChunkSize, '\0');
+                  auto n = read(&buff[i], 1, StreamChunkSize, stream);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
                   buff.resize(i + n);
               }
               return buff;

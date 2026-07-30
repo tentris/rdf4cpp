@@ -102,7 +102,20 @@ namespace rdf4cpp::parser {
         result_generator active_generator_;
         std::ranges::iterator_t<result_generator> current_iter_;
 
+        /**
+         * Factor between the document size and the simdjson parser capacity.
+         * simdjson keeps one string buffer per document and advances it on every get_string and
+         * unescaped_key, without ever reusing the space. This parser reads the same fields again in
+         * every pass over an object, so the buffer has to hold the strings of the document several
+         * times over. Exceeding it writes past the buffer, the check for that is only compiled in
+         * with SIMDJSON_DEVELOPMENT_CHECKS.
+         */
         static constexpr size_t BufferSizeMult = 5;
+
+        /**
+         * Size of the blocks the stream constructor reads.
+         */
+        static constexpr size_t StreamChunkSize = 64 * 1024;
 
     public:
         [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;

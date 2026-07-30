@@ -216,10 +216,8 @@ nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_maybe_relative(std::stri
 }
 nonstd::expected<std::string_view, IRIFactoryError> IRIFactory::from_maybe_relative_as_string(std::string_view rel) const noexcept {
     auto r = to_absolute<false>(base_parts_cache, rel);
-    if (!rdf4cpp::datatypes::registry::relaxed_parsing_mode) {
-        if (auto const e = IRIView{r}.quick_validate(); e != IRIFactoryError::Ok) {
-            return nonstd::make_unexpected(e);
-        }
+    if (auto const e = validate(r); e != IRIFactoryError::Ok) {
+        return nonstd::make_unexpected(e);
     }
     return r;
 }
@@ -243,11 +241,16 @@ nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_prefix(std::string_view 
     return create_and_validate(deref, node_storage);
 }
 
+IRIFactoryError IRIFactory::validate(std::string_view iri) noexcept {
+    if (rdf4cpp::datatypes::registry::relaxed_parsing_mode) {
+        return IRIFactoryError::Ok;
+    }
+    return IRIView{iri}.quick_validate();
+}
+
 nonstd::expected<IRI, IRIFactoryError> IRIFactory::create_and_validate(std::string_view iri, storage::DynNodeStoragePtr node_storage) noexcept {
-    if (!rdf4cpp::datatypes::registry::relaxed_parsing_mode) {
-        if (auto const e = IRIView{iri}.quick_validate(); e != IRIFactoryError::Ok) {
-            return nonstd::make_unexpected(e);
-        }
+    if (auto const e = validate(iri); e != IRIFactoryError::Ok) {
+        return nonstd::make_unexpected(e);
     }
     return IRI::make_unchecked(iri, node_storage);
 }

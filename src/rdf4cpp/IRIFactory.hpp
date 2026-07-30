@@ -65,9 +65,11 @@ public:
      */
     [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const noexcept;
     /**
-     * Creates a IRI from a possibly relative IRI.
-     * if rel is relative, returns the same as from_relative, otherwise returns rel unchanged.
-     * the result is only valid, until the next call that resolves a relative IRI.
+     * Resolves a possibly relative IRI and validates it, without creating a node.
+     * If rel is relative, this resolves it against the base, otherwise it returns rel unchanged.
+     * @warning The returned view points into a thread_local buffer of this class if rel was relative,
+     * and into the memory of rel if it was not. In the first case the next call on any IRIFactory of
+     * this thread that resolves a relative IRI overwrites it. Copy the result before that.
      * @param rel
      * @return
      */
@@ -128,6 +130,13 @@ public:
      * @return
      */
     [[nodiscard]] static nonstd::expected<IRI, IRIFactoryError> create_and_validate(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+
+    /**
+     * Validates the given IRI. Every IRI is accepted in relaxed parsing mode.
+     * @param iri
+     * @return Ok if the IRI may be used
+     */
+    [[nodiscard]] static IRIFactoryError validate(std::string_view iri) noexcept;
 };
 
 }  // namespace rdf4cpp
