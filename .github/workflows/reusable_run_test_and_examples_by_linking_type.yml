@@ -48,12 +48,10 @@ jobs:
 
           if [[ "${{ inputs.os }}" == "macos-15" ]]; then
             echo MACPORTS_VERSION=2.10.7 >> $GITHUB_ENV
-          elif [[ "${{ inputs.os }}" == "macos-26" ]]; then
-            echo MACPORTS_VERSION=2.12.5 >> $GITHUB_ENV
           fi
 
       - name: Cache MacPorts
-        if: ${{ contains(inputs.os, 'macos') }}
+        if: ${{ contains(inputs.os, 'macos-15') }}
         uses: actions/cache@v6.1.0
         id: cache-macports
         with:
@@ -61,22 +59,17 @@ jobs:
           key: macports-${{ env.MACPORTS_VERSION }}-${{ inputs.os }}-${{ inputs.compiler }}
 
       - name: Fix MacPorts permissions
-        if: ${{ contains(inputs.os, 'macos') && steps.cache-macports.outputs.cache-hit == 'true' }}
+        if: ${{ contains(inputs.os, 'macos-15') && steps.cache-macports.outputs.cache-hit == 'true' }}
         run: sudo chown -R root:wheel /opt/local
 
-      - name: Install MacPorts(Sequoia)
+      - name: Install MacPorts
         if: ${{ contains(inputs.os, 'macos-15') && steps.cache-macports.outputs.cache-hit != 'true' }}
         run: |
           curl -LO "https://github.com/macports/macports-base/releases/download/v${MACPORTS_VERSION}/MacPorts-${MACPORTS_VERSION}-15-Sequoia.pkg"
           sudo installer -pkg "MacPorts-${MACPORTS_VERSION}-15-Sequoia.pkg" -target /
 
-      - name: Install MacPorts(Tahoe)
-        if: ${{ contains(inputs.os, 'macos-26') && steps.cache-macports.outputs.cache-hit != 'true' }}
-        run: |
-          curl -LO "https://github.com/macports/macports-base/releases/download/v${MACPORTS_VERSION}/MacPorts-${MACPORTS_VERSION}-26-Tahoe.pkg"
-          sudo installer -pkg "MacPorts-${MACPORTS_VERSION}-26-Tahoe.pkg" -target /
-
       - name: Add MacPorts to system paths
+        if: ${{ contains(inputs.os, 'macos-15') }}
         run: |
           # so sudo can find port
           echo "/opt/local/bin" | sudo tee -a /etc/paths
@@ -85,17 +78,26 @@ jobs:
           echo "/opt/local/bin" >> $GITHUB_PATH
 
       - name: Update MacPorts
-        if: ${{ contains(inputs.os, 'macos') && steps.cache-macports.outputs.cache-hit != 'true' }}
-        run: | 
+        if: ${{ contains(inputs.os, 'macos-15') && steps.cache-macports.outputs.cache-hit != 'true' }}
+        run: |
           sudo port -v selfupdate
           sudo port install "gcc${GCC_VERSION}"
           sudo port select --set gcc "mp-gcc${GCC_VERSION}"
           hash -r
       - name: Set env vars
-        if: ${{ contains(inputs.os, 'macos') }}
+        if: ${{ contains(inputs.os, 'macos-15') }}
         run: |
           echo CC="$(which gcc)" >> $GITHUB_ENV
           echo CXX="$(which g++)" >> $GITHUB_ENV
+
+      - name: Set env vars (macos-26)
+        if: ${{ contains(inputs.os, 'macos-26') }}
+        run: |
+          # MacPorts gcc15 is 15.2.0 and cannot compile the macOS 26 SDK headers
+          # (_Static_assert in mach/message.h is rejected by gcc < 15.3 in C++).
+          # The runner image preinstalls Homebrew GCC 15.3.0 as gcc-15, use that.
+          echo CC="gcc-${GCC_VERSION}" >> $GITHUB_ENV
+          echo CXX="g++-${GCC_VERSION}" >> $GITHUB_ENV
 
       - name: Get minimum cmake version
         uses: lukka/get-cmake@v4.4.0
