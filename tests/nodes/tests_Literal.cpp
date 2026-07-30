@@ -1,6 +1,4 @@
 #define DOCTEST_CONFIG_IMPLEMENT
-#include "../../../../../../.conan2/p/b/simdj338fdbb3b5228/p/include/simdjson.h"
-
 
 #include <doctest/doctest.h>
 
