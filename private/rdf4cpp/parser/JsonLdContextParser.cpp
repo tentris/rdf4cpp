@@ -216,6 +216,9 @@ namespace rdf4cpp::parser::json_ld {
             handle_ctx(o);  // 4
         } else if (local_context.is_scalar() && local_context.is_null()) { // 5.1
             return handle_null();
+        } else if (local_context.type() == simdjson::ondemand::json_type::string) {  // 5.2
+            // a string names a remote context, the same case as inside the array below
+            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
         } else {
             if (!p.propagate && result->previous_context == nullptr) {
                 result->previous_context = &p.active_context;

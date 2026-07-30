@@ -712,6 +712,66 @@ TEST_CASE("a parsing error after valid quads") {
     CHECK(had_error);
 }
 
+// checks that an unsupported context feature is reported and that no quad is produced from a
+// document whose context could not be applied
+void jsonld_test_unsupported(std::string json_str, std::string_view message_part) {
+    CAPTURE(message_part);
+    std::stringstream json{std::move(json_str)};
+    IStreamQuadIterator it{json, ParsingFlag::JsonLd};
+
+    size_t quads = 0;
+    std::string first_message;
+    for (; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            ++quads;
+        } else if (first_message.empty()) {
+            first_message = it->error().message;
+        }
+    }
+    CAPTURE(first_message);
+    // expanding with an unapplied context would produce plausible but wrong quads
+    CHECK(quads == 0);
+    REQUIRE(!first_message.empty());
+    CHECK(first_message.find(message_part) != std::string::npos);
+}
+
+TEST_CASE("remote contexts are reported as unsupported") {
+    // the w3c tests for this are the deactivated c031, c034, e077, e126, e127 and e128
+    SUBCASE("context is a string") {
+        jsonld_test_unsupported(R"({"@context": "http://example.com/ctx.jsonld", "http://example.com/p": "v"})", "remote context not supported");
+    }
+    SUBCASE("context is a relative string") {
+        jsonld_test_unsupported(R"({"@context": "ctx.jsonld", "http://example.com/p": "v"})", "remote context not supported");
+    }
+    SUBCASE("context array contains a string") {
+        jsonld_test_unsupported(R"({"@context": ["http://example.com/ctx.jsonld", {"t": "http://example.com/p"}], "t": "v"})", "remote context not supported");
+    }
+    SUBCASE("property scoped context is a string") {
+        jsonld_test_unsupported(R"({"@context": {"t": {"@id": "http://example.com/p", "@context": "http://example.com/ctx.jsonld"}},
+          "@id": "http://example.com/s", "t": {"x": "v"}})",
+                                "invalid scoped context, remote");
+    }
+    SUBCASE("type scoped context is a string") {
+        jsonld_test_unsupported(R"({"@context": {"T": {"@id": "http://example.com/T", "@context": "http://example.com/ctx.jsonld"}},
+          "@id": "http://example.com/s", "@type": "T", "http://example.com/p": "v"})",
+                                "invalid scoped context, remote");
+    }
+}
+
+TEST_CASE("@import is reported as unsupported") {
+    // the w3c tests for this are the deactivated so05, so06, so08, so09 and so11
+    jsonld_test_unsupported(R"({"@context": {"@import": "http://example.com/ctx.jsonld", "t": "http://example.com/p"},
+      "@id": "http://example.com/s", "t": "v"})",
+                            "import context not supported");
+}
+
+TEST_CASE("a null context is supported") {
+    // @context null resets the context, it is not a remote reference
+    jsonld_test_positive(R"({"@context": null, "@id": "http://example.com/s", "http://example.com/p": "v"})",
+                         R"(<http://example.com/s> <http://example.com/p> "v" .)",
+                         "http://example.com/");
+}
+
 TEST_CASE("a term with a type mapping and a string value") {
     // the value overload of value_expansion delegates strings to the string_view overload
     jsonld_test_positive(R"({"@context": {"d": {"@id": "http://example.com/p", "@type": "http://www.w3.org/2001/XMLSchema#date"}},
