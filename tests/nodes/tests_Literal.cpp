@@ -613,6 +613,12 @@ TEST_CASE("Literal - null nodes") {
     SUBCASE("encode for uri") {
         CHECK(null_node.encode_for_uri().null());
     }
+
+    SUBCASE("is_* checks") {
+        CHECK_FALSE(null_node.is_numeric());
+        CHECK_FALSE(null_node.is_duration());
+        CHECK_FALSE(null_node.is_timepoint());
+    }
 }
 
 TEST_CASE("Literal - misc functions") {
