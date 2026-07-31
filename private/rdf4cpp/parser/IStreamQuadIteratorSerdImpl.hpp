@@ -45,8 +45,8 @@ private:
     static ParsingError::Type parsing_error_type_from_serd(SerdStatus st) noexcept;
 
     nonstd::expected<Node, SerdStatus> get_bnode(std::string &&graph_str, SerdNode const *node) noexcept;
-    nonstd::expected<IRI, SerdStatus> get_iri(SerdNode const *node);
-    nonstd::expected<IRI, SerdStatus> get_prefixed_iri(SerdNode const *node);
+    nonstd::expected<IRI, SerdStatus> get_iri(SerdNode const *node) noexcept;
+    nonstd::expected<IRI, SerdStatus> get_prefixed_iri(SerdNode const *node) noexcept;
     nonstd::expected<Literal, SerdStatus> get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept;
     SerdStatus inspect_node(Node const &node) noexcept;
 
