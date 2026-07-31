@@ -78,7 +78,6 @@ namespace rdf4cpp {
             };
 
             struct PairKeyHash {
-                using is_transparent = void;
                 size_t operator()(PairKey const &k) const noexcept {
                     return dice::hash::DiceHashwyhash<std::tuple<Node, Node, size_t, size_t>>{}(
                         std::make_tuple(k.node_a, k.node_b, k.pos_a, k.pos_b));
