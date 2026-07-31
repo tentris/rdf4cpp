@@ -37,7 +37,7 @@ QuadPattern QuadPattern::to_node_storage(storage::DynNodeStoragePtr node_storage
     return qp;
 }
 
-QuadPattern QuadPattern::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+QuadPattern QuadPattern::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     QuadPattern qp;
     auto it = qp.begin();
     for (const auto &item : *this) {

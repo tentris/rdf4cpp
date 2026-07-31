@@ -8,7 +8,7 @@
 namespace rdf4cpp::writer {
 
 template<writer::OutputFormat F>
-bool write_node(Node const node, writer::BufWriterParts const writer) noexcept {
+bool write_node(Node const node, writer::BufWriterParts const writer) {
     if constexpr (writer::format_has_prefix<F>) {
         return node.serialize(writer, NodeSerializationOpts::prefixed_and_short_form());
     } else {
@@ -42,7 +42,7 @@ bool write_pred(Node const pred, writer::BufWriterParts const writer) {
 }
 
 template<writer::OutputFormat F, typename Q>
-bool write_quad(Q const &s, writer::BufWriterParts const writer, writer::SerializationState *const state) noexcept {
+bool write_quad(Q const &s, writer::BufWriterParts const writer, writer::SerializationState *const state) {
     if constexpr (writer::format_has_prefix<F>) {
         if constexpr (writer::format_has_graph<F>) {
             if (s.graph() != state->active_graph) {

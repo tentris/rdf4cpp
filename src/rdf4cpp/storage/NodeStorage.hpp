@@ -116,27 +116,27 @@ concept NodeStorage = requires (NS ns_mut,
  * A VTable for a NodeStorage
  */
 struct NodeStorageVTable {
-    bool (*has_specialized_storage_for)(void const *self, identifier::LiteralType literal_type) noexcept;
+    bool (*has_specialized_storage_for)(void const *self, identifier::LiteralType literal_type);
 
     identifier::NodeBackendID (*find_or_make_iri_id)(void *self, view::IRIBackendView const &view);
     identifier::NodeBackendID (*find_or_make_bnode_id)(void *self, view::BNodeBackendView const &view);
     identifier::NodeBackendID (*find_or_make_literal_id)(void *self, view::LiteralBackendView const &view);
     identifier::NodeBackendID (*find_or_make_variable_id)(void *self, view::VariableBackendView const &view);
 
-    identifier::NodeBackendID (*find_iri_id)(void const *self, view::IRIBackendView const &view) noexcept;
-    identifier::NodeBackendID (*find_bnode_id)(void const *self, view::BNodeBackendView const &view) noexcept;
-    identifier::NodeBackendID (*find_literal_id)(void const *self, view::LiteralBackendView const &view) noexcept;
-    identifier::NodeBackendID (*find_variable_id)(void const *self, view::VariableBackendView const &view) noexcept;
+    identifier::NodeBackendID (*find_iri_id)(void const *self, view::IRIBackendView const &view);
+    identifier::NodeBackendID (*find_bnode_id)(void const *self, view::BNodeBackendView const &view);
+    identifier::NodeBackendID (*find_literal_id)(void const *self, view::LiteralBackendView const &view);
+    identifier::NodeBackendID (*find_variable_id)(void const *self, view::VariableBackendView const &view);
 
-    view::IRIBackendView (*find_iri_backend)(void const *self, identifier::NodeBackendID id) noexcept;
-    view::BNodeBackendView (*find_bnode_backend)(void const *self, identifier::NodeBackendID id) noexcept;
-    view::LiteralBackendView (*find_literal_backend)(void const *self, identifier::NodeBackendID id) noexcept;
-    view::VariableBackendView (*find_variable_backend)(void const *self, identifier::NodeBackendID id) noexcept;
+    view::IRIBackendView (*find_iri_backend)(void const *self, identifier::NodeBackendID id);
+    view::BNodeBackendView (*find_bnode_backend)(void const *self, identifier::NodeBackendID id);
+    view::LiteralBackendView (*find_literal_backend)(void const *self, identifier::NodeBackendID id);
+    view::VariableBackendView (*find_variable_backend)(void const *self, identifier::NodeBackendID id);
 
     template<NodeStorage NS>
     static NodeStorageVTable const *get() noexcept {
         static constexpr NodeStorageVTable vtable{
-            .has_specialized_storage_for = [](void const *self, identifier::LiteralType const lit_type) noexcept -> bool {
+            .has_specialized_storage_for = [](void const *self, identifier::LiteralType const lit_type) -> bool {
                 return static_cast<NS const *>(self)->has_specialized_storage_for(lit_type);
             },
             .find_or_make_iri_id = [](void *self, view::IRIBackendView const &view) -> identifier::NodeBackendID {
@@ -151,28 +151,28 @@ struct NodeStorageVTable {
             .find_or_make_variable_id = [](void *self, view::VariableBackendView const &view) -> identifier::NodeBackendID {
                 return static_cast<NS *>(self)->find_or_make_id(view);
             },
-            .find_iri_id = [](void const *self, view::IRIBackendView const &view) noexcept -> identifier::NodeBackendID {
+            .find_iri_id = [](void const *self, view::IRIBackendView const &view) -> identifier::NodeBackendID {
                 return static_cast<NS const *>(self)->find_id(view);
             },
-            .find_bnode_id = [](void const *self, view::BNodeBackendView const &view) noexcept -> identifier::NodeBackendID {
+            .find_bnode_id = [](void const *self, view::BNodeBackendView const &view) -> identifier::NodeBackendID {
                 return static_cast<NS const *>(self)->find_id(view);
             },
-            .find_literal_id = [](void const *self, view::LiteralBackendView const &view) noexcept -> identifier::NodeBackendID {
+            .find_literal_id = [](void const *self, view::LiteralBackendView const &view) -> identifier::NodeBackendID {
                 return static_cast<NS const *>(self)->find_id(view);
             },
-            .find_variable_id = [](void const *self, view::VariableBackendView const &view) noexcept -> identifier::NodeBackendID {
+            .find_variable_id = [](void const *self, view::VariableBackendView const &view) -> identifier::NodeBackendID {
                 return static_cast<NS const *>(self)->find_id(view);
             },
-            .find_iri_backend = [](void const *self, identifier::NodeBackendID id) noexcept -> view::IRIBackendView {
+            .find_iri_backend = [](void const *self, identifier::NodeBackendID id) -> view::IRIBackendView {
                 return static_cast<NS const *>(self)->find_iri_backend(id);
             },
-            .find_bnode_backend = [](void const *self, identifier::NodeBackendID id) noexcept -> view::BNodeBackendView {
+            .find_bnode_backend = [](void const *self, identifier::NodeBackendID id) -> view::BNodeBackendView {
                 return static_cast<NS const *>(self)->find_bnode_backend(id);
             },
-            .find_literal_backend = [](void const *self, identifier::NodeBackendID id) noexcept -> view::LiteralBackendView {
+            .find_literal_backend = [](void const *self, identifier::NodeBackendID id) -> view::LiteralBackendView {
                 return static_cast<NS const *>(self)->find_literal_backend(id);
             },
-            .find_variable_backend = [](void const *self, identifier::NodeBackendID id) noexcept -> view::VariableBackendView {
+            .find_variable_backend = [](void const *self, identifier::NodeBackendID id) -> view::VariableBackendView {
                 return static_cast<NS const *>(self)->find_variable_backend(id);
             }};
 
@@ -227,7 +227,7 @@ public:
         return vtable_;
     }
 
-    [[nodiscard]] bool has_specialized_storage_for(identifier::LiteralType literal_type) const noexcept {
+    [[nodiscard]] bool has_specialized_storage_for(identifier::LiteralType literal_type) const {
         return vtable_->has_specialized_storage_for(backend_, literal_type);
     }
 
@@ -247,35 +247,35 @@ public:
         return vtable_->find_or_make_variable_id(backend_, view);
     }
 
-    [[nodiscard]] identifier::NodeBackendID find_id(view::IRIBackendView const &view) const noexcept {
+    [[nodiscard]] identifier::NodeBackendID find_id(view::IRIBackendView const &view) const {
         return vtable_->find_iri_id(backend_, view);
     }
 
-    [[nodiscard]] identifier::NodeBackendID find_id(view::BNodeBackendView const &view) const noexcept {
+    [[nodiscard]] identifier::NodeBackendID find_id(view::BNodeBackendView const &view) const {
         return vtable_->find_bnode_id(backend_, view);
     }
 
-    [[nodiscard]] identifier::NodeBackendID find_id(view::LiteralBackendView const &view) const noexcept {
+    [[nodiscard]] identifier::NodeBackendID find_id(view::LiteralBackendView const &view) const {
         return vtable_->find_literal_id(backend_, view);
     }
 
-    [[nodiscard]] identifier::NodeBackendID find_id(view::VariableBackendView const &view) const noexcept {
+    [[nodiscard]] identifier::NodeBackendID find_id(view::VariableBackendView const &view) const {
         return vtable_->find_variable_id(backend_, view);
     }
 
-    [[nodiscard]] view::IRIBackendView find_iri_backend(identifier::NodeBackendID id) const noexcept {
+    [[nodiscard]] view::IRIBackendView find_iri_backend(identifier::NodeBackendID id) const {
         return vtable_->find_iri_backend(backend_, id);
     }
 
-    [[nodiscard]] view::BNodeBackendView find_bnode_backend(identifier::NodeBackendID id) const noexcept {
+    [[nodiscard]] view::BNodeBackendView find_bnode_backend(identifier::NodeBackendID id) const {
         return vtable_->find_bnode_backend(backend_, id);
     }
 
-    [[nodiscard]] view::LiteralBackendView find_literal_backend(identifier::NodeBackendID id) const noexcept {
+    [[nodiscard]] view::LiteralBackendView find_literal_backend(identifier::NodeBackendID id) const {
         return vtable_->find_literal_backend(backend_, id);
     }
 
-    [[nodiscard]] view::VariableBackendView find_variable_backend(identifier::NodeBackendID id) const noexcept {
+    [[nodiscard]] view::VariableBackendView find_variable_backend(identifier::NodeBackendID id) const {
         return vtable_->find_variable_backend(backend_, id);
     }
 

@@ -12,12 +12,12 @@ namespace generator_detail {
 static constexpr size_t max_generated_id_size = std::numeric_limits<size_t>::digits10;
 } //namespace generator_detail
 
-IncreasingIdGenerator::IncreasingIdGenerator(std::string prefix, size_t const initial_value) noexcept : prefix_{std::move(prefix)},
+IncreasingIdGenerator::IncreasingIdGenerator(std::string prefix, size_t const initial_value)  : prefix_{std::move(prefix)},
                                                                                                         counter_{initial_value} {
     BlankNode::validate(prefix_); // throws if invalid
 }
 
-BlankNode IncreasingIdGenerator::generate(storage::DynNodeStoragePtr node_storage) noexcept {
+BlankNode IncreasingIdGenerator::generate(storage::DynNodeStoragePtr node_storage) {
     static thread_local std::string buf;
 
     buf.clear();

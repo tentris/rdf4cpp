@@ -12,6 +12,8 @@
 namespace rdf4cpp {
 /**
  * Stores a base IRI and a prefix map and allows to create IRIs by possibly applying both.
+ *
+ * TODO see https://github.com/tentris/rdf4cpp/issues/465
  */
 struct IRIFactory {
     using prefix_map_type = boost::container::flat_map<std::string, std::string, std::less<>>;
@@ -55,7 +57,7 @@ public:
      * @param storage
      * @return
      */
-    [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const noexcept;
+    [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const;
     /**
      * Creates a IRI from a possibly relative IRI.
      * if rel is relative, returns the same as from_relative, otherwise returns rel unchanged.
@@ -63,7 +65,7 @@ public:
      * @param storage
      * @return
      */
-    [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const noexcept;
+    [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const;
     /**
      * Creates a IRI from a possibly relative IRI.
      * if rel is relative, returns the same as from_relative, otherwise returns rel unchanged.
@@ -127,7 +129,7 @@ public:
      * @param storage
      * @return
      */
-    [[nodiscard]] static nonstd::expected<IRI, IRIFactoryError> create_and_validate(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static nonstd::expected<IRI, IRIFactoryError> create_and_validate(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 };
 
 }  // namespace rdf4cpp

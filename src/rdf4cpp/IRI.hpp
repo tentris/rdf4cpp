@@ -16,14 +16,14 @@ private:
      * Constructs the corresponding IRI from a given datatype id and places it into node_storage if
      * it does not exist already.
      */
-    IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept;
+    IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage);
 
 public:
     /**
      * Constructs the corresponding datatype id for this iri. Return value can be safely used to
      * index the registry and yields the correct result.
      */
-    operator datatypes::registry::DatatypeIDView() const noexcept;
+    operator datatypes::registry::DatatypeIDView() const;
 
     /**
      * Constructs an IRI from a node backend handle
@@ -70,7 +70,7 @@ public:
     [[nodiscard]] static IRI make_uuid(storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     IRI to_node_storage(storage::DynNodeStoragePtr node_storage) const;
-    [[nodiscard]] IRI try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept;
+    [[nodiscard]] IRI try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 
     /**
      * searches for a IRI in the specified node storage and returns it.
@@ -79,7 +79,7 @@ public:
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static IRI find(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static IRI find(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * Validates that the given input string is a valid IRI
@@ -96,26 +96,26 @@ private:
      * @param node_storage
      * @return
      */
-    [[nodiscard]] static IRI find(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept;
+    [[nodiscard]] static IRI find(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage);
 
 public:
     /**
      * Get the IRI string of this.
      * @return IRI string
      */
-    [[nodiscard]] std::string_view identifier() const noexcept;
+    [[nodiscard]] std::string_view identifier() const;
 
     /**
      * @see Literal::fetch_or_serialize_lexical_form
      */
-    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_identifier(std::string_view &out, writer::BufWriterParts writer) const noexcept;
+    [[nodiscard]] FetchOrSerializeResult fetch_or_serialize_identifier(std::string_view &out, writer::BufWriterParts writer) const;
 
     /**
      * See Node::serialize
      */
-    bool serialize(writer::BufWriterParts writer) const noexcept;
+    bool serialize(writer::BufWriterParts writer) const;
 
-    [[nodiscard]] explicit operator std::string() const noexcept;
+    [[nodiscard]] explicit operator std::string() const;
     friend std::ostream &operator<<(std::ostream &os, const IRI &iri);
 
     bool is_literal() const noexcept = delete;
@@ -168,7 +168,7 @@ public:
      * @return err if this is null, otherwise true iff this IRI is the datatype IRI of the given datatype
      */
     template<datatypes::LiteralDatatype T>
-    [[nodiscard]] TriBool is_datatype() const noexcept {
+    [[nodiscard]] TriBool is_datatype() const {
         if (null()) {
             return TriBool::Err;
         }
