@@ -53,7 +53,7 @@ private:
     static SerdStatus on_error(void *voided_self, SerdError const *error) noexcept;
     static SerdStatus on_base(void *voided_self, SerdNode const *uri) noexcept;
     static SerdStatus on_prefix(void *voided_self, SerdNode const *name, SerdNode const *uri) noexcept;
-    static SerdStatus on_stmt(void *voided_self, SerdStatementFlags, SerdNode const *graph, SerdNode const *subj, SerdNode const *pred, SerdNode const *obj, SerdNode const *obj_datatype, SerdNode const *obj_lang);
+    static SerdStatus on_stmt(void *voided_self, SerdStatementFlags, SerdNode const *graph, SerdNode const *subj, SerdNode const *pred, SerdNode const *obj, SerdNode const *obj_datatype, SerdNode const *obj_lang) noexcept;
 
     static constexpr SerdSyntax extract_syntax_from_flags(ParsingFlags flags) noexcept {
         switch (flags.get_syntax()) {

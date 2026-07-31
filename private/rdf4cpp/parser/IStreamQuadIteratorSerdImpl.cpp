@@ -298,7 +298,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
                                               SerdNode const *pred,
                                               SerdNode const *obj,
                                               SerdNode const *obj_datatype,
-                                              SerdNode const *obj_lang) {
+                                              SerdNode const *obj_lang) noexcept {
 
     auto *self = static_cast<ImplSerd *>(voided_self);
 
