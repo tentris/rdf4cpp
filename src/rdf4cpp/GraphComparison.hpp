@@ -5,8 +5,10 @@
 
 #include <map>
 #include <ranges>
-#include <unordered_map>
 #include <vector>
+
+#include <dice/hash.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
 
 namespace rdf4cpp {
     /**
@@ -63,7 +65,7 @@ namespace rdf4cpp {
             }
             return n;
         };
-        // counts the quads of v that share at least two non blank nodes at the same position with p.
+        // counts the quads of v that share at least two non-blank nodes at the same position with p.
         // the index maps a pair of positions and the nodes at them to the quads that have them.
         static constexpr auto count_all_sim = [](std::vector<Quad> &v, size_t arity) {
             struct PairKey {
@@ -74,16 +76,16 @@ namespace rdf4cpp {
 
                 bool operator==(PairKey const &) const noexcept = default;
             };
+
             struct PairKeyHash {
+                using is_transparent = void;
                 size_t operator()(PairKey const &k) const noexcept {
-                    size_t h = std::hash<Node>{}(k.node_a);
-                    h = h * 31 + std::hash<Node>{}(k.node_b);
-                    h = h * 31 + k.pos_a;
-                    return h * 31 + k.pos_b;
+                    return dice::hash::DiceHashwyhash<std::tuple<Node, Node, size_t, size_t>>{}(
+                        std::make_tuple(k.node_a, k.node_b, k.pos_a, k.pos_b));
                 }
             };
 
-            std::unordered_map<PairKey, std::vector<size_t>, PairKeyHash> index{};
+            boost::unordered_flat_map<PairKey, std::vector<size_t>, PairKeyHash> index{};
             for (size_t i = 0; i < v.size(); ++i) {
                 Q const &q = *v[i].quad; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
                 for (size_t pa = 0; pa < arity; ++pa) {
@@ -94,7 +96,10 @@ namespace rdf4cpp {
                         if (q[pb].is_blank_node()) {
                             continue;
                         }
-                        index[PairKey{pa, pb, q[pa], q[pb]}].push_back(i);
+                        auto const [pos, inserted] = index.emplace(PairKey{pa, pb, q[pa], q[pb]}, std::vector<size_t>{i});
+                        if (!inserted) {
+                            pos->second.push_back(i);
+                        }
                     }
                 }
             }
@@ -111,8 +116,10 @@ namespace rdf4cpp {
                         if (q[pb].is_blank_node()) {
                             continue;
                         }
-                        auto const &matches = index[PairKey{pa, pb, q[pa], q[pb]}];
-                        found.insert(found.end(), matches.begin(), matches.end());
+                        auto const matches = index.find(PairKey{pa, pb, q[pa], q[pb]});
+                        if (matches != index.end()) {
+                            found.insert(found.end(), matches->second.begin(), matches->second.end());
+                        }
                     }
                 }
                 std::ranges::sort(found);
@@ -126,7 +133,7 @@ namespace rdf4cpp {
             // blank node handles are arbitrary, so blank nodes are ordered by the position of their
             // first appearance instead. non blank nodes sort before all blank nodes, which keeps the
             // order independent of the handles and makes it a strict weak ordering.
-            std::unordered_map<Node, size_t> bn_indices{};
+            boost::unordered_flat_map<Node, size_t, dice::hash::DiceHashwyhash<Node>> bn_indices{};
             auto get_ind = [&](Node n) {
                 auto i = bn_indices.find(n);
                 return i == bn_indices.end() ? not_found : i->second;

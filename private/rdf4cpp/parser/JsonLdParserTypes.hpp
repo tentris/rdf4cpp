@@ -9,9 +9,11 @@
 #include <forward_list>
 #include <limits>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
+#include <dice/hash.hpp>
+
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <simdjson.h>
 
 namespace rdf4cpp::parser {
@@ -303,7 +305,9 @@ namespace rdf4cpp::parser {
                 }
             };
 
-            std::unordered_map<std::string, size_t, KeyHash, std::equal_to<>> positions{};
+
+            boost::unordered_flat_map<std::string, size_t,
+                                         KeyHash, std::equal_to<>> positions{};
             size_t indexed_terms = not_found;
 
             TermIndex() = default;
