@@ -14,6 +14,12 @@
 #include <boost/multiprecision/cpp_int.hpp>
 
 namespace rdf4cpp {
+
+namespace util {
+
+inline constexpr unsigned char days_in_month_common[]{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+} // namespace util
+
 struct Timezone {
     // heavily inspired by https://howardhinnant.github.io/date/tz.html#Examples
 
@@ -305,9 +311,8 @@ private:
 
     static constexpr std::chrono::day last_day_in_month(Year year, Month month) noexcept {
         RDF4CPP_ASSERT(month.ok());
-        constexpr unsigned char common[]{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
         auto m = static_cast<unsigned int>(month);
-        return std::chrono::day{m != 2 || !year.is_leap() ? common[m - 1] : 29u};
+        return std::chrono::day{m != 2 || !year.is_leap() ? util::days_in_month_common[m - 1] : 29u};
     }
 
 public:
