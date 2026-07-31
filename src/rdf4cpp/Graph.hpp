@@ -55,8 +55,8 @@ public:
         iterator() noexcept = default;
         iterator(Graph const *parent, typename triple_storage_type::const_iterator beg, typename triple_storage_type::const_iterator end) noexcept;
 
-        iterator &operator++();
-        void operator++(int);
+        iterator &operator++() noexcept;
+        void operator++(int) noexcept;
 
         reference operator*() const noexcept;
         pointer operator->() const noexcept;

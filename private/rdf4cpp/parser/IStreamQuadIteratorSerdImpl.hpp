@@ -45,15 +45,15 @@ private:
     static ParsingError::Type parsing_error_type_from_serd(SerdStatus st) noexcept;
 
     nonstd::expected<Node, SerdStatus> get_bnode(std::string &&graph_str, SerdNode const *node) noexcept;
-    nonstd::expected<IRI, SerdStatus> get_iri(SerdNode const *node) noexcept;
-    nonstd::expected<IRI, SerdStatus> get_prefixed_iri(SerdNode const *node) noexcept;
+    nonstd::expected<IRI, SerdStatus> get_iri(SerdNode const *node);
+    nonstd::expected<IRI, SerdStatus> get_prefixed_iri(SerdNode const *node);
     nonstd::expected<Literal, SerdStatus> get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept;
     SerdStatus inspect_node(Node const &node) noexcept;
 
     static SerdStatus on_error(void *voided_self, SerdError const *error) noexcept;
     static SerdStatus on_base(void *voided_self, SerdNode const *uri) noexcept;
     static SerdStatus on_prefix(void *voided_self, SerdNode const *name, SerdNode const *uri) noexcept;
-    static SerdStatus on_stmt(void *voided_self, SerdStatementFlags, SerdNode const *graph, SerdNode const *subj, SerdNode const *pred, SerdNode const *obj, SerdNode const *obj_datatype, SerdNode const *obj_lang) noexcept;
+    static SerdStatus on_stmt(void *voided_self, SerdStatementFlags, SerdNode const *graph, SerdNode const *subj, SerdNode const *pred, SerdNode const *obj, SerdNode const *obj_datatype, SerdNode const *obj_lang);
 
     static constexpr SerdSyntax extract_syntax_from_flags(ParsingFlags flags) noexcept {
         switch (flags.get_syntax()) {
