@@ -100,7 +100,7 @@ jobs:
           echo CXX="g++-${GCC_VERSION}" >> $GITHUB_ENV
 
       - name: Get minimum cmake version
-        uses: lukka/get-cmake@v4.4.0
+        uses: lukka/get-cmake@v4.4.2
         with:
           cmakeVersion: ${{ inputs.cmake-version }}
 
