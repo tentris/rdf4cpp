@@ -2061,8 +2061,9 @@ Literal Literal::as_contains(Literal const &needle, storage::DynNodeStoragePtr n
         return Literal{};
     }
 
-    if (!needle.is_string_like())
-        return Literal::make_boolean(true, select_node_storage(node_storage));
+    if (!needle.is_string_like()) {
+        return Literal{};
+    }
 
     auto const needle_lex = needle.lexical_form();
     auto const res = this->contains(needle_lex);
