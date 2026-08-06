@@ -503,9 +503,11 @@ TEST_CASE("Literal - null nodes") {
     }
 
     SUBCASE("langTag matches") {
-        CHECK(null_node.as_language_tag_matches_range("*").null());
-        CHECK(null_node.as_language_tag_matches_range(Literal::make_simple("en")).null());
+        Literal const lang_range = Literal::make_simple("en");
+
+        CHECK(null_node.as_language_tag_matches_range(lang_range).null());
         CHECK(stub_literal_tagged.as_language_tag_matches_range(null_node).null());
+        CHECK(null_node.as_language_tag_matches_range(null_node_cmp).null());
     }
 
     SUBCASE("datatype") {
@@ -539,23 +541,91 @@ TEST_CASE("Literal - null nodes") {
     }
 
     SUBCASE("contains") {
-        CHECK(null_node.as_contains("").null());
+        Literal const needle = Literal::make_simple("ell");
+
+        CHECK(null_node.as_contains(needle).null());
+        CHECK(stub_literal.as_contains(null_node).null());
+        CHECK(null_node.as_contains(null_node_cmp).null());
     }
 
     SUBCASE("str starts with") {
-        CHECK(null_node.as_str_starts_with("").null());
+        Literal const needle = Literal::make_simple("hel");
+
+        CHECK(null_node.as_str_starts_with(needle).null());
+        CHECK(stub_literal.as_str_starts_with(null_node).null());
+        CHECK(null_node.as_str_starts_with(null_node_cmp).null());
     }
 
     SUBCASE("str ends with") {
-        CHECK(null_node.as_str_ends_with("").null());
+        Literal const needle = Literal::make_simple("llo");
+
+        CHECK(null_node.as_str_ends_with(needle).null());
+        CHECK(stub_literal.as_str_ends_with(null_node).null());
+        CHECK(null_node.as_str_ends_with(null_node_cmp).null());
     }
 
     SUBCASE("substring before") {
-        CHECK(null_node.substr_before("").null());
+        Literal const needle = Literal::make_simple("l");
+
+        CHECK(null_node.substr_before(needle).null());
+        CHECK(stub_literal.substr_before(null_node).null());
+        CHECK(null_node.substr_before(null_node_cmp).null());
     }
 
     SUBCASE("substring after") {
-        CHECK(null_node.substr_after("").null());
+        Literal const needle = Literal::make_simple("l");
+
+        CHECK(null_node.substr_after(needle).null());
+        CHECK(stub_literal.substr_after(null_node).null());
+        CHECK(null_node.substr_after(null_node_cmp).null());
+    }
+
+    SUBCASE("substr") {
+        Literal const start = 1.0_xsd_double;
+        Literal const len = 3.0_xsd_double;
+
+        CHECK(null_node.substr(start, len).null());
+        CHECK(stub_literal.substr(null_node, len).null());
+        CHECK(null_node.substr(null_node_cmp, len).null());
+        CHECK(stub_literal.substr(start, null_node).null());
+        CHECK(null_node.substr(start, null_node_cmp).null());
+        CHECK(stub_literal.substr(null_node, null_node_cmp).null());
+        CHECK(null_node.substr(null_node_cmp, null_node).null());
+    }
+
+    SUBCASE("regex") {
+        Literal const pattern = Literal::make_simple("h.*");
+        Literal const flags = Literal::make_simple("");
+
+        CHECK(null_node.as_regex_matches(pattern, flags).null());
+        CHECK(stub_literal.as_regex_matches(null_node, flags).null());
+        CHECK(null_node.as_regex_matches(null_node_cmp, flags).null());
+        CHECK(stub_literal.as_regex_matches(pattern, null_node).null());
+        CHECK(null_node.as_regex_matches(pattern, null_node_cmp).null());
+        CHECK(stub_literal.as_regex_matches(null_node, null_node_cmp).null());
+        CHECK(null_node.as_regex_matches(null_node_cmp, null_node).null());
+    }
+
+    SUBCASE("replace") {
+        Literal const pattern = Literal::make_simple("h");
+        Literal const replacement = Literal::make_simple("H");
+        Literal const flags = Literal::make_simple("");
+
+        CHECK(null_node.regex_replace(pattern, replacement, flags).null());
+        CHECK(stub_literal.regex_replace(null_node, replacement, flags).null());
+        CHECK(null_node.regex_replace(null_node_cmp, replacement, flags).null());
+        CHECK(stub_literal.regex_replace(pattern, null_node, flags).null());
+        CHECK(null_node.regex_replace(pattern, null_node_cmp, flags).null());
+        CHECK(stub_literal.regex_replace(null_node, null_node_cmp, flags).null());
+        CHECK(null_node.regex_replace(null_node_cmp, null_node, flags).null());
+        CHECK(stub_literal.regex_replace(pattern, replacement, null_node).null());
+        CHECK(null_node.regex_replace(pattern, replacement, null_node_cmp).null());
+        CHECK(stub_literal.regex_replace(null_node, replacement, null_node_cmp).null());
+        CHECK(null_node.regex_replace(null_node_cmp, replacement, null_node).null());
+        CHECK(stub_literal.regex_replace(pattern, null_node, null_node_cmp).null());
+        CHECK(null_node.regex_replace(pattern, null_node_cmp, null_node).null());
+        CHECK(stub_literal.regex_replace(null_node, null_node_cmp, null_node).null());
+        CHECK(null_node.regex_replace(null_node_cmp, null_node, null_node_cmp).null());
     }
 
     SUBCASE("year") {
