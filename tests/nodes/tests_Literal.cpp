@@ -6,7 +6,6 @@
 #include <rdf4cpp/storage/reference_node_storage/UnsyncReferenceNodeStorage.hpp>
 #include <rdf4cpp/storage/reference_node_storage/SyncReferenceNodeStorage.hpp>
 
-#include <array>
 #include <thread>
 
 using namespace rdf4cpp;

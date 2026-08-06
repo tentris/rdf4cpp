@@ -2022,7 +2022,7 @@ Literal Literal::regex_replace(regex::RegexReplacer const &replacer, storage::Dy
 }
 
 Literal Literal::regex_replace(Literal const &pattern, Literal const &replacement, Literal const &flags, storage::DynNodeStoragePtr node_storage) const {
-    if (this->null() || !this->is_string_like() || replacement.null()) {
+    if (this->null() || !this->is_string_like() || replacement.null() || !replacement.datatype_eq<datatypes::xsd::String>()) {
         return Literal{};
     }
 
