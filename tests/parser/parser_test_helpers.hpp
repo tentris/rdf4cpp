@@ -13,7 +13,7 @@ namespace rdf4cpp::parse_test_helpers {
         CAPTURE(base_iri);
 
         IStreamQuadIterator::state_type state{};
-        CHECK(state.iri_factory.set_base(base_iri) == IRIFactoryError::Ok);
+        CHECK_NOTHROW(state.iri_factory.set_base(base_iri));
         std::stringstream check_stream{std::move(check_str)};
         IStreamQuadIterator check_iter{check_stream, check_flags, &state};
         std::vector<Quad> check_results;

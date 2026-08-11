@@ -70,7 +70,7 @@ TEST_CASE("sanity test") {
     CHECK(it != std::default_sentinel);
     CHECK(!it->has_value());
     CHECK(it->error().error_type == ParsingError::Type::BadIri);
-    CHECK(it->error().message == "htt?ps://example: InvalidScheme");
+    CHECK(it->error().message == "htt?ps://example: invalid scheme");
     ++it;
     CHECK(it != std::default_sentinel);
     CHECK(it->has_value());

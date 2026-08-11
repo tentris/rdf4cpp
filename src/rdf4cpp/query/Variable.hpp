@@ -48,7 +48,7 @@ public:
      * Validates that the given name is a valid Variable name
      * @param var_name name to check
      * @param anonymous if the variable is supposed to be anonymous
-     * @throws ParsingError if the variable name is not valid
+     * @throws InvalidNode if the variable name is not valid
      */
     static void validate(std::string_view var_name, bool anonymous = false);
 

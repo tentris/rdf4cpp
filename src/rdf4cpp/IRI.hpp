@@ -84,7 +84,7 @@ public:
     /**
      * Validates that the given input string is a valid IRI
      * @param iri iri string to validate
-     * @throws ParsingError if the given IRI is invalid
+     * @throws InvalidIRI if the given IRI is invalid
      */
     static void validate(std::string_view iri);
 

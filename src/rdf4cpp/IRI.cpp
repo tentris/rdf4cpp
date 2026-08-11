@@ -55,9 +55,7 @@ IRI IRI::make_uuid(storage::DynNodeStoragePtr node_storage) {
 }
 
 void IRI::validate(std::string_view s) {
-    auto v = IRIView(s).quick_validate();
-    if (v != IRIFactoryError::Ok)
-        throw InvalidNode(std::format("IRI {} is invalid: {}", s, v));
+    IRIView(s).quick_validate();
 }
 
 IRI IRI::to_node_storage(storage::DynNodeStoragePtr node_storage) const {

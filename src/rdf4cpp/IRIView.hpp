@@ -1,19 +1,21 @@
 #ifndef RDF4CPP_IRIVIEW_HPP
 #define RDF4CPP_IRIVIEW_HPP
 
+#include <rdf4cpp/InvalidNode.hpp>
+
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
 
 namespace rdf4cpp {
+
 /**
  * std::format gets you a printable string.
  */
-enum struct IRIFactoryError {
-    Ok,
+enum struct IRIParseError : uint8_t {
     UnknownPrefix,
-    Relative,
+    UnexpectedRelative,
     InvalidScheme,
     InvalidUserinfo,
     InvalidHost,
@@ -22,6 +24,25 @@ enum struct IRIFactoryError {
     InvalidQuery,
     InvalidFragment,
     InvalidPrefix,
+};
+
+[[nodiscard]] std::string_view to_string_view(IRIParseError ipe) noexcept;
+
+struct InvalidIRI : InvalidNode {
+    using error_type = IRIParseError;
+
+private:
+    error_type type_;
+
+public:
+    explicit InvalidIRI(error_type ty)
+        : InvalidNode{std::format("Invalid IRI: {}", to_string_view(ty))},
+          type_{ty} {
+    }
+
+    [[nodiscard]] error_type type() const noexcept {
+        return type_;
+    }
 };
 
 /**
@@ -193,52 +214,19 @@ public:
      * quickly checks if the IRI is valid according to the IRI specification (not the schemes specification).
      * (does not accept relative references)
      * (may miss invalid IRIs)
-     * @return
+     * @throws InvalidIRI if validation failed
      */
-    [[nodiscard]] IRIFactoryError quick_validate(bool allow_relative = false) const noexcept;
+    void quick_validate(bool allow_relative = false) const;
 };
-}
+
+} // namespace rdf4cpp
 
 template<>
-struct std::formatter<rdf4cpp::IRIFactoryError> : std::formatter<string_view> {
-    auto format(rdf4cpp::IRIFactoryError p, format_context& ctx) const {
-        std::string_view s{};
-        switch (p) {
-            case rdf4cpp::IRIFactoryError::Ok:
-                s = "Ok";
-                break;
-            case rdf4cpp::IRIFactoryError::UnknownPrefix:
-                s = "UnknownPrefix";
-                break;
-            case rdf4cpp::IRIFactoryError::Relative:
-                s = "Relative";
-                break;
-            case rdf4cpp::IRIFactoryError::InvalidScheme:
-                s = "InvalidScheme";
-                break;
-            case rdf4cpp::IRIFactoryError::InvalidUserinfo:
-                s = "InvalidUserinfo";
-                break;
-            case rdf4cpp::IRIFactoryError::InvalidHost:
-                s = "InvalidHost";
-                break;
-            case rdf4cpp::IRIFactoryError::InvalidPort:
-                s = "InvalidPort";
-                break;
-            case rdf4cpp::IRIFactoryError::InvalidPath:
-                s = "InvalidPath";
-                break;
-            case rdf4cpp::IRIFactoryError::InvalidQuery:
-                s = "InvalidQuery";
-                break;
-            case rdf4cpp::IRIFactoryError::InvalidFragment:
-                s = "InvalidFragment";
-                break;
-            default:
-                s = "Unknown";
-                break;
-        }
-        return std::formatter<std::string_view>::format(s, ctx);
+struct std::formatter<rdf4cpp::IRIParseError> : std::formatter<string_view> {
+    template<typename Ctx>
+    auto format(rdf4cpp::IRIParseError const p, Ctx &ctx) const {
+        auto sv = to_string_view(p);
+        return std::ranges::copy(sv, ctx.out()).out;
     }
 };
 
