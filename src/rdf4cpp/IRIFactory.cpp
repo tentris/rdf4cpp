@@ -66,7 +66,7 @@ static void remove_last_path_segment(std::string &path) noexcept {
 /**
 * removes ./ and ../ segments from path.
 */
-static std::string_view remove_dot_segments(std::string_view src) noexcept {
+static std::string_view remove_dot_segments(std::string_view src) {
     // adapted from https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.4
 
     thread_local static std::string buf;
@@ -139,7 +139,7 @@ static std::string_view remove_dot_segments(std::string_view src) noexcept {
 /**
  * merges the path of the current base and path, as described in https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.3.
  */
-static std::string_view merge_path_with_base(IRIView::AllParts const &base, std::string_view path) noexcept {
+static std::string_view merge_path_with_base(IRIView::AllParts const &base, std::string_view path) {
     static thread_local std::string r;
     r.clear();
 

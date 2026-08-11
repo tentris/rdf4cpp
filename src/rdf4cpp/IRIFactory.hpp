@@ -6,14 +6,11 @@
 #include <boost/container/flat_map.hpp>
 
 #include <rdf4cpp/IRI.hpp>
-#include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/IRIView.hpp>
 
 namespace rdf4cpp {
 /**
  * Stores a base IRI and a prefix map and allows to create IRIs by possibly applying both.
- *
- * TODO see https://github.com/tentris/rdf4cpp/issues/465
  */
 struct IRIFactory {
     using prefix_map_type = boost::container::flat_map<std::string, std::string, std::less<>>;
