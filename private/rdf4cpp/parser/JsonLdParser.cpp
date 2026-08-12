@@ -102,6 +102,8 @@ namespace rdf4cpp::parser {
             return Literal::make_typed(lit.value, *dt, state_->node_storage);
         } catch (InvalidNode const &e) {
             return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadLiteral, e.what()));
+        } catch (...) {
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::Internal, "unknown internal error"));
         }
     }
     nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object) {
