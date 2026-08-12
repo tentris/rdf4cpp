@@ -33,6 +33,7 @@ public:
      * Creates a IRIFactory with a given prefix map and a given base IRI. Throws if base is invalid.
      * @param prefixes
      * @param base
+     * @throws InvalidIRI if the given base is not valid
      */
     explicit IRIFactory(prefix_map_type &&prefixes, std::string_view base = default_base);
 
@@ -116,7 +117,6 @@ public:
     /**
      * Changes the base IRI. Validates the new base IRI before setting.
      * @param b
-     * @return
      * @throws InvalidIRI
      */
     void set_base(std::string_view b);
