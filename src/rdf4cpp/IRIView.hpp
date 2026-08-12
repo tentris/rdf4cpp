@@ -225,8 +225,7 @@ template<>
 struct std::formatter<rdf4cpp::IRIParseError> : std::formatter<string_view> {
     template<typename Ctx>
     auto format(rdf4cpp::IRIParseError const p, Ctx &ctx) const {
-        auto sv = to_string_view(p);
-        return std::ranges::copy(sv, ctx.out()).out;
+        return std::formatter<string_view>::format(to_string_view(p), ctx);
     }
 };
 
