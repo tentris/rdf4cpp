@@ -108,25 +108,18 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_ir
     auto const prefix = uri_node_view.substr(0, sep_pos);
     auto const suffix = uri_node_view.substr(sep_pos + 1);
 
+    if (!state->iri_factory.contains_prefix(prefix)) {
+        // NOTE: line, col not entirely accurate as this function is called after a triple was parsed
+        this->last_error = ParsingError{.error_type = ParsingError::Type::BadCurie,
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
+                                        .message = "unknown prefix. note: position may not be accurate and instead point to the end of the triple."};
+
+        return nonstd::make_unexpected(SERD_ERR_BAD_CURIE);
+    }
+
     try {
         return state->iri_factory.from_prefix(prefix, suffix, state->node_storage);
-    } catch (InvalidIRI const &ii) {
-        if (ii.type() == IRIParseError::UnknownPrefix) {
-            // NOTE: line, col not entirely accurate as this function is called after a triple was parsed
-            this->last_error = ParsingError{.error_type = ParsingError::Type::BadCurie,
-                                            .line = serd_reader_get_current_line(this->reader.get()),
-                                            .col = serd_reader_get_current_col(this->reader.get()),
-                                            .message = "unknown prefix. note: position may not be accurate and instead point to the end of the triple."};
-
-            return nonstd::make_unexpected(SERD_ERR_BAD_CURIE);
-        } else {
-            this->last_error = ParsingError{.error_type = ParsingError::Type::BadIri,
-                                            .line = serd_reader_get_current_line(this->reader.get()),
-                                            .col = serd_reader_get_current_col(this->reader.get()),
-                                            .message = std::format("unable to expand curie into valid iri. {}. note: position may not be accurate and instead point to the end of the triple.", ii.what())};
-
-            return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
-        }
     } catch (InvalidNode const &in) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadIri,
                                         .line = serd_reader_get_current_line(this->reader.get()),

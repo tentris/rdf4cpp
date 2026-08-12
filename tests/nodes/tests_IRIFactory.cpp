@@ -211,6 +211,17 @@ TEST_CASE("prefix") {
     CHECK_NOTHROW(fact.assign_prefix("", "foo"));
 }
 
+TEST_CASE("contains prefix") {
+    IRIFactory fact{};
+    CHECK_NOTHROW(fact.assign_prefix("dot", "http://ex.org/a/./b/../c#"));
+
+    CHECK(fact.contains_prefix("dot"));
+    CHECK(!fact.contains_prefix("missing"));
+
+    fact.clear_prefix("dot");
+    CHECK(!fact.contains_prefix("dot"));
+}
+
 TEST_CASE("relative prefix") {
     IRIFactory fact{"http://ex.org/"};
 

@@ -110,6 +110,13 @@ public:
     void clear_prefix(std::string_view prefix);
 
     /**
+     * Checks if a prefix is known. Allows to avoid the InvalidIRI that from_prefix throws for an unknown prefix.
+     * @param prefix
+     * @return
+     */
+    [[nodiscard]] bool contains_prefix(std::string_view prefix) const noexcept;
+
+    /**
      * The base IRI.
      * @return
      */
