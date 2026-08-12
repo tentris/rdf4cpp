@@ -57,6 +57,14 @@ public:
           type_{ty} {
     }
 
+    /**
+     * iri is only read to build the message, it is not stored.
+     */
+    InvalidIRI(error_type ty, std::string_view iri)
+        : InvalidNode{std::format("{} is invalid: {}", iri, to_string_view(ty))},
+          type_{ty} {
+    }
+
     [[nodiscard]] error_type type() const noexcept {
         return type_;
     }

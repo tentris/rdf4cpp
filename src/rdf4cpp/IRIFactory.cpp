@@ -219,7 +219,7 @@ std::string_view IRIFactory::from_maybe_relative_as_string(std::string_view rel)
 IRI IRIFactory::from_prefix(std::string_view prefix, std::string_view local, storage::DynNodeStoragePtr node_storage) const {
     auto i = prefixes.find(prefix);
     if (i == prefixes.end()) {
-        throw InvalidIRI{IRIParseError::UnknownPrefix};
+        throw InvalidIRI{IRIParseError::UnknownPrefix, prefix};
     }
 
     static thread_local std::string deref;
@@ -248,20 +248,20 @@ void IRIFactory::assign_prefix(std::string_view prefix, std::string_view expande
     auto it = r.begin();
     if (it != r.end()) {
         if (!PNCharsBaseMatcher.match(*it)) {
-            throw InvalidIRI{IRIParseError::InvalidPrefix};
+            throw InvalidIRI{IRIParseError::InvalidPrefix, prefix};
         }
         auto lastchar = *it;
         ++it;
         static constexpr auto pn_matcher = PNCharsMatcher | ASCIIPatternMatcher{"."};
         while (it != r.end()) {
             if (!pn_matcher.match(*it)) {
-                throw InvalidIRI{IRIParseError::InvalidPrefix};
+                throw InvalidIRI{IRIParseError::InvalidPrefix, prefix};
             }
             lastchar = *it;
             ++it;
         }
         if (lastchar == '.') {
-            throw InvalidIRI{IRIParseError::InvalidPrefix};
+            throw InvalidIRI{IRIParseError::InvalidPrefix, prefix};
         }
     }
     // checking expanded can only be done after the full IRI was created
