@@ -10,11 +10,11 @@ TEST_CASE("IRI") {
     static constexpr std::string_view iri = "http//:example:foo/bar";
 
     datatypes::registry::relaxed_parsing_mode = false;
-    CHECK(!f.create_and_validate(iri).has_value());
+    CHECK_THROWS_AS((void) f.create_and_validate(iri), InvalidIRI);
 
     datatypes::registry::relaxed_parsing_mode = true;
-    CHECK(f.create_and_validate(iri).has_value());
-    CHECK(f.create_and_validate(iri).value().identifier() == iri);
+    CHECK_NOTHROW((void) f.create_and_validate(iri));
+    CHECK(f.create_and_validate(iri).identifier() == iri);
 }
 
 TEST_CASE("date/time") {

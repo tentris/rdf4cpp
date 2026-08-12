@@ -57,7 +57,7 @@ struct BlankNode : Node {
     /**
      * Validates the given blank node identifier
      * @param identifier identifier to validate
-     * @throws ParsingError if the blank node identifier is not valid
+     * @throws InvalidNode if the blank node identifier is not valid
      */
     static void validate(std::string_view identifier);
 

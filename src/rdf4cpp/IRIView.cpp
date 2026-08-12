@@ -5,6 +5,7 @@
 #include <rdf4cpp/util/CharMatcher.hpp>
 
 namespace rdf4cpp {
+
 IRIView::IRIView(std::string_view iri) noexcept : data(iri) {
 }
 
@@ -165,33 +166,49 @@ IRIView::AuthorityParts IRIView::all_authority_parts() const noexcept {
     return {apply_opt(ui), apply_opt(ho), apply_opt(po)};
 }
 
-IRIFactoryError IRIView::quick_validate(bool allow_relative) const noexcept {
+void IRIView::quick_validate(bool allow_relative) const {
     using namespace util::char_matcher_detail;
     auto [scheme, auth, path, query, frag] = all_parts();
-    if (!scheme.has_value() && !allow_relative)
-        return IRIFactoryError::Relative;
+    if (!scheme.has_value() && !allow_relative) {
+        throw InvalidIRI{IRIParseError::UnexpectedRelative, data};
+    }
+
     static constexpr auto scheme_pattern = ascii_alphanum_matcher | ASCIIPatternMatcher{"+-."};
-    if (scheme.has_value() && !match<scheme_pattern, una::views::utf8>(*scheme))
-        return IRIFactoryError::InvalidScheme;
+    if (scheme.has_value() && !match<scheme_pattern, una::views::utf8>(*scheme)) {
+        throw InvalidIRI{IRIParseError::InvalidScheme, data};
+    }
+
     auto [userinfo, host, port] = all_authority_parts();
     static constexpr auto userinfo_pattern = i_unreserved_matcher | sub_delims_matcher | ASCIIPatternMatcher{"%:"};
-    if (userinfo.has_value() && !match<userinfo_pattern, una::views::utf8>(*userinfo))
-        return IRIFactoryError::InvalidUserinfo;
+    if (userinfo.has_value() && !match<userinfo_pattern, una::views::utf8>(*userinfo)) {
+        throw InvalidIRI{IRIParseError::InvalidUserinfo, data};
+    }
+
     static constexpr auto host_pattern = i_unreserved_matcher | sub_delims_matcher | ASCIIPatternMatcher{"%[]:"};
-    if (host.has_value() && !match<host_pattern, una::views::utf8>(*host))
-        return IRIFactoryError::InvalidHost;
+    if (host.has_value() && !match<host_pattern, una::views::utf8>(*host)) {
+        throw InvalidIRI{IRIParseError::InvalidHost, data};
+    }
+
     static constexpr ASCIINumMatcher port_pattern{};
-    if (port.has_value() && !match<port_pattern, una::views::utf8>(*port))
-        return IRIFactoryError::InvalidPort;
+    if (port.has_value() && !match<port_pattern, una::views::utf8>(*port)) {
+        throw InvalidIRI{IRIParseError::InvalidPort, data};
+    }
+
     static constexpr auto path_pattern = i_unreserved_matcher | sub_delims_matcher | ASCIIPatternMatcher{"%:@/"};
-    if (!match<path_pattern, una::views::utf8>(path))
-        return IRIFactoryError::InvalidPath;
+    if (!match<path_pattern, una::views::utf8>(path)) {
+        throw InvalidIRI{IRIParseError::InvalidPath, data};
+    }
+
     static constexpr auto query_pattern = i_unreserved_matcher | sub_delims_matcher | IPrivateMatcher{} | ASCIIPatternMatcher{"%:@/?"};
-    if (query.has_value() && !match<query_pattern, una::views::utf8>(*query))
-        return IRIFactoryError::InvalidQuery;
+    if (query.has_value() && !match<query_pattern, una::views::utf8>(*query)) {
+        throw InvalidIRI{IRIParseError::InvalidQuery, data};
+    }
+
     static constexpr auto frag_pattern = i_unreserved_matcher | sub_delims_matcher | ASCIIPatternMatcher{"%:@/?"};
-    if (frag.has_value() && !match<frag_pattern, una::views::utf8>(*frag))
-        return IRIFactoryError::InvalidFragment;
-    return IRIFactoryError::Ok;
+    if (frag.has_value() && !match<frag_pattern, una::views::utf8>(*frag)) {
+        throw InvalidIRI{IRIParseError::InvalidFragment, data};
+    }
+
+    // ok
 }
-}
+} // namespace rdf4cpp

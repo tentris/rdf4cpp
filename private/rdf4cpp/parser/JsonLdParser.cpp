@@ -9,11 +9,12 @@ namespace rdf4cpp::parser {
         };
     }
     nonstd::expected<IRI, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_iri(std::string_view iri) {
-        auto result = state_->iri_factory.create_and_validate(iri, state_->node_storage);
-        if (result.has_value()) {
-            return *result;
-        } else {
-            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadIri, std::format("{}", result.error())));
+        try {
+            return state_->iri_factory.create_and_validate(iri, state_->node_storage);
+        } catch (InvalidIRI const &ii) {
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadIri, ii.what()));
+        } catch (...) {
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::Internal, "unknown internal error"));
         }
     }
     nonstd::expected<IRI, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_iri(json_ld::IRIMapping const &iri) {
@@ -24,12 +25,19 @@ namespace rdf4cpp::parser {
     }
     nonstd::expected<Node, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_bn_or_iri(json_ld::IRIMapping const &mapping) {
         if (mapping.type == json_ld::IRIMappingType::BlankNode) {
-            if (state_->blank_node_scope_manager == nullptr) {
-                return BlankNode::make(mapping.data, state_->node_storage);
-            } else {
-                return state_->blank_node_scope_manager.scope("").get_or_generate_node(mapping.data, state_->node_storage);
+            try {
+                if (state_->blank_node_scope_manager == nullptr) {
+                    return BlankNode::make(mapping.data, state_->node_storage);
+                } else {
+                    return state_->blank_node_scope_manager.scope("").get_or_generate_node(mapping.data, state_->node_storage);
+                }
+            } catch (InvalidNode const &in) {
+                return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadBlankNode, in.what()));
+            } catch (...) {
+                return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::Internal, "unknown internal error"));
             }
         }
+
         return make_iri(mapping);
     }
     nonstd::expected<json_ld::DirectionLiteralResult, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_literal(json_ld::StringLikeLiteralMapping const &lit, json_ld::IRIMapping const &graph) {
@@ -81,6 +89,8 @@ namespace rdf4cpp::parser {
             return json_ld::DirectionLiteralResult{Literal::make_simple(lit.value, state_->node_storage)};
         } catch (InvalidNode const &e) {
             return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadLiteral, e.what()));
+        } catch (...) {
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::Internal, "unknown internal error"));
         }
     }
     nonstd::expected<Literal, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_literal(json_ld::TypedLiteralMapping const &lit) {
@@ -92,6 +102,8 @@ namespace rdf4cpp::parser {
             return Literal::make_typed(lit.value, *dt, state_->node_storage);
         } catch (InvalidNode const &e) {
             return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadLiteral, e.what()));
+        } catch (...) {
+            return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::Internal, "unknown internal error"));
         }
     }
     nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type> IStreamQuadIterator::ImplJsonLd::make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object) {
