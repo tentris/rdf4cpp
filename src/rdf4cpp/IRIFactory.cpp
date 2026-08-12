@@ -271,10 +271,6 @@ void IRIFactory::assign_prefix_unchecked(std::string_view prefix, std::string_vi
     std::string pre{prefix};
     prefixes[pre] = expanded;
 }
-bool IRIFactory::contains_prefix(std::string_view prefix) const noexcept {
-    return prefixes.find(prefix) != prefixes.end();
-}
-
 void IRIFactory::clear_prefix(std::string_view prefix) {
     auto it = prefixes.find(prefix);
     if (it == prefixes.end()) [[unlikely]] {
