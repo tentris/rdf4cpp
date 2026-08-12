@@ -282,7 +282,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_prefix(void *voided_self, SerdNode 
             self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
                                             .line = serd_reader_get_current_line(self->reader.get()),
                                             .col = serd_reader_get_current_col(self->reader.get()),
-                                            .message = std::format("Invalid prefix: {}. note: position may not be accurate and instead point to the end of the line.", ii.what())};
+                                            .message = std::format("{}. note: position may not be accurate and instead point to the end of the line.", ii.what())};
         } catch (...) {
             self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
                                             .line = serd_reader_get_current_line(self->reader.get()),
