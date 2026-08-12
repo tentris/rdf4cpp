@@ -27,7 +27,23 @@ enum struct IRIParseError : uint8_t {
     InvalidPrefix,
 };
 
-[[nodiscard]] std::string_view to_string_view(IRIParseError ipe) noexcept;
+[[nodiscard]] constexpr std::string_view to_string_view(IRIParseError const ipe) noexcept {
+    switch (ipe) {
+        using enum IRIParseError;
+        case UnknownPrefix: return "unknown prefix";
+        case UnexpectedRelative: return "unexpected relative IRI";
+        case InvalidScheme: return "invalid scheme";
+        case InvalidUserinfo: return "invalid userinfo";
+        case InvalidHost: return "invalid host";
+        case InvalidPort: return "invalid port";
+        case InvalidPath: return "invalid path";
+        case InvalidQuery: return "invalid query";
+        case InvalidFragment: return "invalid fragment";
+        case InvalidPrefix: return "invalid prefix";
+    }
+
+    return "unknown error";
+}
 
 struct InvalidIRI : InvalidNode {
     using error_type = IRIParseError;
