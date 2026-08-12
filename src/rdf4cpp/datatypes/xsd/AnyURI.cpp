@@ -15,7 +15,7 @@ capabilities::Default<xsd_any_uri>::cpp_type capabilities::Default<xsd_any_uri>:
     try {
         IRIView{s}.quick_validate(true);
     } catch (InvalidIRI const &iri) {
-        throw InvalidNode(std::format("http://www.w3.org/2001/XMLSchema#anyURI parsing error: invalid IRI: {}", iri.type()));
+        throw InvalidNode(std::format("http://www.w3.org/2001/XMLSchema#anyURI parsing error: {}", iri.what()));
     }
     return cpp_type{s};
 }
