@@ -53,7 +53,7 @@ nonstd::expected<Node, SerdStatus> IStreamQuadIterator::ImplSerd::get_bnode(std:
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
-        this->last_error = ParsingError{.error_type = ParsingError::Type::BadBlankNode,
+        this->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
@@ -79,7 +79,7 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_iri(SerdNod
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
-        this->last_error = ParsingError{.error_type = ParsingError::Type::BadIri,
+        this->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
@@ -127,8 +127,15 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_ir
 
             return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
         }
+    } catch (InvalidNode const &in) {
+        this->last_error = ParsingError{.error_type = ParsingError::Type::BadIri,
+                                        .line = serd_reader_get_current_line(this->reader.get()),
+                                        .col = serd_reader_get_current_col(this->reader.get()),
+                                        .message = std::format("unable to expand curie into valid iri. {}. note: position may not be accurate and instead point to the end of the triple.", in.what())};
+
+        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
-        this->last_error = ParsingError{.error_type = ParsingError::Type::BadCurie,
+        this->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
@@ -176,7 +183,7 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::ImplSerd::get_literal
 
         return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
-        this->last_error = ParsingError{.error_type = ParsingError::Type::BadLiteral,
+        this->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
@@ -257,7 +264,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_base(void *voided_self, const SerdN
                                             .col = serd_reader_get_current_col(self->reader.get()),
                                             .message = std::format("Error setting base: {}. note: position may not be accurate and instead point to the end of the line.", ii.what())};
         } catch (...) {
-            self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
+            self->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                             .line = serd_reader_get_current_line(self->reader.get()),
                                             .col = serd_reader_get_current_col(self->reader.get()),
                                             .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the line."};
@@ -284,7 +291,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_prefix(void *voided_self, SerdNode 
                                             .col = serd_reader_get_current_col(self->reader.get()),
                                             .message = std::format("{}. note: position may not be accurate and instead point to the end of the line.", ii.what())};
         } catch (...) {
-            self->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
+            self->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                             .line = serd_reader_get_current_line(self->reader.get()),
                                             .col = serd_reader_get_current_col(self->reader.get()),
                                             .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the line."};
