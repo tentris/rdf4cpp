@@ -3,6 +3,7 @@
 
 #include <rdf4cpp/InvalidNode.hpp>
 
+#include <cstdint>
 #include <format>
 #include <optional>
 #include <string>
