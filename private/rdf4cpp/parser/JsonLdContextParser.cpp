@@ -2,10 +2,10 @@
 
 namespace rdf4cpp::parser::json_ld {
     IRIFactoryError ContextParser::set_resolution_base(std::string_view const base) {
-        if (iri_factory.get_base() == base) {
+        if (iri_factory->get_base() == base) {
             return IRIFactoryError::Ok;
         }
-        return iri_factory.set_base(base);
+        return iri_factory->set_base(base);
     }
     nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p) {
         // https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
@@ -45,7 +45,7 @@ namespace rdf4cpp::parser::json_ld {
                                 result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
                                 return true;
                             }
-                            auto r = iri_factory.from_maybe_relative_as_string(*v);
+                            auto r = iri_factory->from_maybe_relative_as_string(*v);
                             if (r.has_value()) {
                                 result->base_iri = *r;
                             } else {
@@ -257,6 +257,7 @@ namespace rdf4cpp::parser::json_ld {
 
         // scoped contexts are validated after the whole context is parsed, so that they can
         // refer to terms defined later in the same context
+        // moved here from https://www.w3.org/TR/json-ld11-api/#create-term-definition 21.3
         if (result.has_value()) {
             for (auto const &t : result->terms) {
                 if (t.needs_context_check && t.context.has_value()) {
@@ -913,7 +914,7 @@ namespace rdf4cpp::parser::json_ld {
             if (set_resolution_base(active_context.base_iri) != IRIFactoryError::Ok) {
                 return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, "invalid base iri"));
             }
-            auto r = iri_factory.from_maybe_relative_as_string(*value);
+            auto r = iri_factory->from_maybe_relative_as_string(*value);
             if (r.has_value()) {
                 return IRIMapping{std::string(*r), IRIMappingType::IRI};
             } else {

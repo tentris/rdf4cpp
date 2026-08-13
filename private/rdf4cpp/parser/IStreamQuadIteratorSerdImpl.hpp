@@ -31,6 +31,8 @@ private:
     };
     std::unique_ptr<SerdReader, SerdReaderDtorLambda> reader;
 
+    // holds the state only if it was not provided by the caller
+    std::unique_ptr<state_type> owned_state_;
     state_type *state;
     bool state_is_owned;
 

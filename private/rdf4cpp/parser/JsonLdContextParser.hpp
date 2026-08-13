@@ -42,7 +42,7 @@ namespace rdf4cpp::parser {
              * ParsingState, because a json-ld document can set its own base and that base must not leak
              * into other parsers sharing the state.
              */
-            IRIFactory iri_factory{};
+            IRIFactory* iri_factory;
             std::string original_base_iri;
             /**
              * If set, blank node labels of the document are used as they are. Otherwise they get
@@ -50,8 +50,9 @@ namespace rdf4cpp::parser {
              */
             bool keep_document_bnode_labels;
 
-            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels)
-                : original_base_iri(std::move(base_iri)),
+            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IRIFactory *iri_factory)
+                : iri_factory(iri_factory),
+                  original_base_iri(std::move(base_iri)),
                   keep_document_bnode_labels(keep_document_bnode_labels) {
             }
 

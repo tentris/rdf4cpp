@@ -729,7 +729,7 @@ namespace rdf4cpp::parser {
         : owned_state_(initial_state == nullptr ? std::make_unique<state_type>() : nullptr),
           state_(initial_state == nullptr ? owned_state_.get() : initial_state),
           json_data_(std::move(json)),
-          expand_parser_(std::string(state_->iri_factory.get_base()), flags.contains(ParsingFlag::KeepBlankNodeIds)),
+          expand_parser_(state_->iri_factory, std::string(state_->iri_factory.get_base()), flags.contains(ParsingFlag::KeepBlankNodeIds)),
           flags_(flags),
           active_generator_(parse()),
           current_iter_(active_generator_.begin()) {

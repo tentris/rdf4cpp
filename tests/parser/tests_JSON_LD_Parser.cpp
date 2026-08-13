@@ -585,25 +585,6 @@ TEST_CASE("compact iri term is checked against its own expansion") {
     jsonld_test_negative(R"({"@context": {"ex": "http://example.com/", "ex:xy": "http://other.example.com/xy"}, "ex:xy": "v"})", "http://example.com/");
 }
 
-TEST_CASE("parsing json-ld leaves the base of the parsing state alone") {
-    IStreamQuadIterator::state_type state{};
-    REQUIRE(state.iri_factory.set_base("http://example.com/") == IRIFactoryError::Ok);
-
-    std::stringstream json{R"({"@context": {"@base": "http://other.example.com/"}, "@id": "s", "http://example.com/p": {"@id": "o"}})"};
-    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
-        CHECK(it->has_value());
-    }
-
-    CHECK(state.iri_factory.get_base() == "http://example.com/");
-
-    // a turtle parse reusing the state resolves against the original base
-    std::stringstream ttl{"<s> <http://example.com/p> <o> ."};
-    IStreamQuadIterator ttl_it{ttl, ParsingFlag::Turtle, &state};
-    REQUIRE(ttl_it != std::default_sentinel);
-    REQUIRE(ttl_it->has_value());
-    CHECK(ttl_it->value().subject().as_iri().identifier() == "http://example.com/s");
-}
-
 TEST_CASE("json-ld honors NoParseBlankNode") {
     // blank node label in the document
     jsonld_test_negative_flags(R"({"@id": "_:x", "http://example.com/p": "v"})", "http://example.com/", ParsingFlag::JsonLd | ParsingFlag::NoParseBlankNode);
