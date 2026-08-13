@@ -1,4 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT
+
 #include <doctest/doctest.h>
 
 #include <rdf4cpp.hpp>
@@ -477,6 +478,216 @@ TEST_CASE("Literal - casting") {
         auto const lit2 = lit1.cast<Integer>();
 
         CHECK_EQ(lit2.value<Integer>(), -7);
+    }
+}
+
+// verify that operations based/on null node always return the null node
+TEST_CASE("Literal - null nodes") {
+    // ensure null node returns null node for specific functionality
+    Literal const null_node{};
+    Literal const null_node_cmp{};
+
+    Literal const stub_literal = Literal::make_simple("hello");
+    Literal const stub_literal_tagged = Literal::make_lang_tagged("hello", "en");
+
+    SUBCASE("upper case") {
+        CHECK(null_node.uppercase().null());
+    }
+
+    SUBCASE("lower case") {
+        CHECK(null_node.lowercase().null());
+    }
+
+    SUBCASE("langTag") {
+        CHECK(null_node.as_language_tag().null());
+    }
+
+    SUBCASE("langTag matches") {
+        Literal const lang_range = Literal::make_simple("en");
+
+        CHECK(null_node.as_language_tag_matches_range(lang_range).null());
+        CHECK(stub_literal_tagged.as_language_tag_matches_range(null_node).null());
+        CHECK(null_node.as_language_tag_matches_range(null_node_cmp).null());
+    }
+
+    SUBCASE("datatype") {
+        CHECK(null_node.datatype().null());
+    }
+
+    SUBCASE("abs") {
+        CHECK(null_node.abs().null());
+    }
+
+    SUBCASE("ceil") {
+        CHECK(null_node.ceil().null());
+    }
+
+    SUBCASE("floor") {
+        CHECK(null_node.floor().null());
+    }
+
+    SUBCASE("round") {
+        CHECK(null_node.round().null());
+    }
+
+    SUBCASE("concat") {
+        CHECK(null_node.concat(null_node_cmp).null());
+        CHECK(null_node.concat(stub_literal).null());
+        CHECK(stub_literal.concat(null_node).null());
+    }
+
+    SUBCASE("strlen") {
+        CHECK(null_node.as_strlen().null());
+    }
+
+    SUBCASE("contains") {
+        Literal const needle = Literal::make_simple("ell");
+
+        CHECK(null_node.as_contains(needle).null());
+        CHECK(stub_literal.as_contains(null_node).null());
+        CHECK(null_node.as_contains(null_node_cmp).null());
+    }
+
+    SUBCASE("str starts with") {
+        Literal const needle = Literal::make_simple("hel");
+
+        CHECK(null_node.as_str_starts_with(needle).null());
+        CHECK(stub_literal.as_str_starts_with(null_node).null());
+        CHECK(null_node.as_str_starts_with(null_node_cmp).null());
+    }
+
+    SUBCASE("str ends with") {
+        Literal const needle = Literal::make_simple("llo");
+
+        CHECK(null_node.as_str_ends_with(needle).null());
+        CHECK(stub_literal.as_str_ends_with(null_node).null());
+        CHECK(null_node.as_str_ends_with(null_node_cmp).null());
+    }
+
+    SUBCASE("substring before") {
+        Literal const needle = Literal::make_simple("l");
+
+        CHECK(null_node.substr_before(needle).null());
+        CHECK(stub_literal.substr_before(null_node).null());
+        CHECK(null_node.substr_before(null_node_cmp).null());
+    }
+
+    SUBCASE("substring after") {
+        Literal const needle = Literal::make_simple("l");
+
+        CHECK(null_node.substr_after(needle).null());
+        CHECK(stub_literal.substr_after(null_node).null());
+        CHECK(null_node.substr_after(null_node_cmp).null());
+    }
+
+    SUBCASE("substr") {
+        Literal const start = 1.0_xsd_double;
+        Literal const len = 3.0_xsd_double;
+
+        CHECK(null_node.substr(start, len).null());
+        CHECK(stub_literal.substr(null_node, len).null());
+        CHECK(null_node.substr(null_node_cmp, len).null());
+        CHECK(stub_literal.substr(start, null_node).null());
+        CHECK(null_node.substr(start, null_node_cmp).null());
+        CHECK(stub_literal.substr(null_node, null_node_cmp).null());
+        CHECK(null_node.substr(null_node_cmp, null_node).null());
+    }
+
+    SUBCASE("regex") {
+        Literal const pattern = Literal::make_simple("h.*");
+        Literal const flags = Literal::make_simple("");
+
+        CHECK(null_node.as_regex_matches(pattern, flags).null());
+        CHECK(stub_literal.as_regex_matches(null_node, flags).null());
+        CHECK(null_node.as_regex_matches(null_node_cmp, flags).null());
+        CHECK(stub_literal.as_regex_matches(pattern, null_node).null());
+        CHECK(null_node.as_regex_matches(pattern, null_node_cmp).null());
+        CHECK(stub_literal.as_regex_matches(null_node, null_node_cmp).null());
+        CHECK(null_node.as_regex_matches(null_node_cmp, null_node).null());
+    }
+
+    SUBCASE("replace") {
+        Literal const pattern = Literal::make_simple("h");
+        Literal const replacement = Literal::make_simple("H");
+        Literal const flags = Literal::make_simple("");
+
+        CHECK(null_node.regex_replace(pattern, replacement, flags).null());
+        CHECK(stub_literal.regex_replace(null_node, replacement, flags).null());
+        CHECK(null_node.regex_replace(null_node_cmp, replacement, flags).null());
+        CHECK(stub_literal.regex_replace(pattern, null_node, flags).null());
+        CHECK(null_node.regex_replace(pattern, null_node_cmp, flags).null());
+        CHECK(stub_literal.regex_replace(null_node, null_node_cmp, flags).null());
+        CHECK(null_node.regex_replace(null_node_cmp, null_node, flags).null());
+        CHECK(stub_literal.regex_replace(pattern, replacement, null_node).null());
+        CHECK(null_node.regex_replace(pattern, replacement, null_node_cmp).null());
+        CHECK(stub_literal.regex_replace(null_node, replacement, null_node_cmp).null());
+        CHECK(null_node.regex_replace(null_node_cmp, replacement, null_node).null());
+        CHECK(stub_literal.regex_replace(pattern, null_node, null_node_cmp).null());
+        CHECK(null_node.regex_replace(pattern, null_node_cmp, null_node).null());
+        CHECK(stub_literal.regex_replace(null_node, null_node_cmp, null_node).null());
+        CHECK(null_node.regex_replace(null_node_cmp, null_node, null_node_cmp).null());
+    }
+
+    SUBCASE("year") {
+        CHECK(null_node.as_year().null());
+    }
+
+    SUBCASE("month") {
+        CHECK(null_node.as_month().null());
+    }
+
+    SUBCASE("day") {
+        CHECK(null_node.as_day().null());
+    }
+
+    SUBCASE("hours") {
+        CHECK(null_node.as_hours().null());
+    }
+
+    SUBCASE("minutes") {
+        CHECK(null_node.as_minutes().null());
+    }
+
+    SUBCASE("seconds") {
+        CHECK(null_node.as_seconds().null());
+    }
+
+    SUBCASE("timezone") {
+        CHECK(null_node.as_timezone().null());
+    }
+
+    SUBCASE("tz") {
+        CHECK(null_node.as_tz().null());
+    }
+
+    SUBCASE("md5") {
+        CHECK(null_node.md5().null());
+    }
+
+    SUBCASE("sha1") {
+        CHECK(null_node.sha1().null());
+    }
+
+    SUBCASE("sha256") {
+        CHECK(null_node.sha256().null());
+    }
+
+    SUBCASE("sha384") {
+        CHECK(null_node.sha384().null());
+    }
+
+    SUBCASE("sha512") {
+        CHECK(null_node.sha512().null());
+    }
+
+    SUBCASE("encode for uri") {
+        CHECK(null_node.encode_for_uri().null());
+    }
+
+    SUBCASE("is_* checks") {
+        CHECK_FALSE(null_node.is_numeric());
+        CHECK_FALSE(null_node.is_duration());
+        CHECK_FALSE(null_node.is_timepoint());
     }
 }
 

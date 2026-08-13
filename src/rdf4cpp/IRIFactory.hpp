@@ -6,7 +6,6 @@
 #include <boost/container/flat_map.hpp>
 
 #include <rdf4cpp/IRI.hpp>
-#include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/IRIView.hpp>
 
 namespace rdf4cpp {
@@ -27,12 +26,14 @@ public:
     /**
      * Creates a IRIFactory with empty prefix map and a given base IRI. Throws if base is invalid.
      * @param base
+     * @throws InvalidIRI if the given base is not valid
      */
     explicit IRIFactory(std::string_view base = default_base);
     /**
      * Creates a IRIFactory with a given prefix map and a given base IRI. Throws if base is invalid.
      * @param prefixes
      * @param base
+     * @throws InvalidIRI if the given base is not valid
      */
     explicit IRIFactory(prefix_map_type &&prefixes, std::string_view base = default_base);
 
@@ -52,18 +53,20 @@ public:
      * Creates a IRI from a relative IRI.
      * Implements https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.
      * @param rel
-     * @param storage
+     * @param node_storage
      * @return
+     * @throws InvalidIRI
      */
-    [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const noexcept;
+    [[nodiscard]] IRI from_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const;
     /**
      * Creates a IRI from a possibly relative IRI.
      * if rel is relative, returns the same as from_relative, otherwise returns rel unchanged.
      * @param rel
-     * @param storage
+     * @param node_storage
      * @return
+     * @throws InvalidIRI
      */
-    [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const noexcept;
+    [[nodiscard]] IRI from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const;
     /**
      * Resolves a possibly relative IRI and validates it, without creating a node.
      * If rel is relative, this resolves it against the base, otherwise it returns rel unchanged.
@@ -72,24 +75,27 @@ public:
      * this thread that resolves a relative IRI overwrites it. Copy the result before that.
      * @param rel
      * @return
+     * @throws InvalidIRI
      */
-    [[nodiscard]] nonstd::expected<std::string_view, IRIFactoryError> from_maybe_relative_as_string(std::string_view rel) const noexcept;
+    [[nodiscard]] std::string_view from_maybe_relative_as_string(std::string_view rel) const;
 
     /**
      * Creates a IRI by looking up a prefix in the prefix map and possibly resolving a relative IRI.
      * @param prefix
      * @param local
-     * @param storage
+     * @param node_storage
      * @return
+     * @throws InvalidIRI
      */
-    [[nodiscard]] nonstd::expected<IRI, IRIFactoryError> from_prefix(std::string_view prefix, std::string_view local, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const;
+    [[nodiscard]] IRI from_prefix(std::string_view prefix, std::string_view local, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) const;
 
     /**
      * Creates or changes a prefix.
      * @param prefix
      * @param expanded
+     * @throws InvalidIRI
      */
-    [[nodiscard]] IRIFactoryError assign_prefix(std::string_view prefix, std::string_view expanded);
+    void assign_prefix(std::string_view prefix, std::string_view expanded);
 
     /**
      * Creates or changes a prefix.
@@ -113,9 +119,9 @@ public:
     /**
      * Changes the base IRI. Validates the new base IRI before setting.
      * @param b
-     * @return
+     * @throws InvalidIRI
      */
-    [[nodiscard]] IRIFactoryError set_base(std::string_view b) noexcept;
+    void set_base(std::string_view b);
     /**
      * Changes the base IRI. Skips validating the new base IRI.
      * @param b
@@ -126,17 +132,18 @@ public:
     /**
      * validates the given IRI and creates it in the given node storage, if valid.
      * @param iri
-     * @param storage
+     * @param node_storage
      * @return
+     * @throws InvalidIRI
      */
-    [[nodiscard]] static nonstd::expected<IRI, IRIFactoryError> create_and_validate(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) noexcept;
+    [[nodiscard]] static IRI create_and_validate(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * Validates the given IRI. Every IRI is accepted in relaxed parsing mode.
      * @param iri
-     * @return Ok if the IRI may be used
+     * @throws InvalidIRI
      */
-    [[nodiscard]] static IRIFactoryError validate(std::string_view iri) noexcept;
+    static void validate(std::string_view iri) noexcept;
 };
 
 }  // namespace rdf4cpp

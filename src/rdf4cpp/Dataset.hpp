@@ -84,10 +84,10 @@ public:
         solution_iterator(Dataset const *parent,
                           query::QuadPattern const &pat,
                           typename storage_type::const_iterator beg,
-                          typename storage_type::const_iterator end) noexcept;
+                          typename storage_type::const_iterator end);
 
-        solution_iterator &operator++() noexcept;
-        void operator++(int) noexcept;
+        solution_iterator &operator++();
+        void operator++(int);
         reference operator*() const noexcept;
         pointer operator->() const noexcept;
 
@@ -135,10 +135,10 @@ public:
 
     void add(Quad const &quad);
 
-    [[nodiscard]] bool contains(Quad const &quad) const noexcept;
+    [[nodiscard]] bool contains(Quad const &quad) const;
 
     [[nodiscard]] size_t size() const noexcept;
-    [[nodiscard]] size_t size(IRI const &graph_name) const noexcept;
+    [[nodiscard]] size_t size(IRI const &graph_name) const;
 
     Graph *find_graph(Node const &graph);
     Graph *find_graph();
@@ -152,7 +152,7 @@ public:
     [[nodiscard]] iterator begin() const noexcept;
     [[nodiscard]] sentinel end() const noexcept;
 
-    [[nodiscard]] solution_sequence match(query::QuadPattern const &quad_pattern) const noexcept;
+    [[nodiscard]] solution_sequence match(query::QuadPattern const &quad_pattern) const;
 
     template<typename ErrF = decltype([](parser::ParsingError) noexcept {})>
     void load_rdf_data(std::istream &rdf_file,
@@ -181,7 +181,7 @@ public:
      * @param writer writer parts
      * @return true if serialization was successful, false if a call to flush was not able to make room
      */
-    bool serialize(writer::BufWriterParts writer) const noexcept;
+    bool serialize(writer::BufWriterParts writer) const;
 
     /**
      * Serialize this dataset as <a href="https://www.w3.org/TR/rdf12-trig/">TriG</a>.
@@ -192,7 +192,7 @@ public:
      * @param writer writer parts
      * @return true if serialization was successful, false if a call to W::flush was not able to make room
      */
-    bool serialize_trig(writer::SerializationState &state, writer::BufWriterParts writer) const noexcept;
+    bool serialize_trig(writer::SerializationState &state, writer::BufWriterParts writer) const;
 
     /**
      * Serialize this dataset as <a href="https://www.w3.org/TR/rdf12-trig/">TriG</a>.
@@ -202,7 +202,7 @@ public:
      * @param writer writer parts
      * @return true if serialization was successful, false if a call to W::flush was not able to make room
      */
-    bool serialize_trig(writer::BufWriterParts writer) const noexcept;
+    bool serialize_trig(writer::BufWriterParts writer) const;
 
     friend std::ostream &operator<<(std::ostream &os, Dataset const &self);
 

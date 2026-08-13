@@ -11,9 +11,11 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_any_uri>::cpp_type capabilities::Default<xsd_any_uri>::from_string(std::string_view s) {
-    auto e = IRIView{s}.quick_validate(true);
-    if (e != IRIFactoryError::Ok) {
-        throw InvalidNode(std::format("http://www.w3.org/2001/XMLSchema#anyURI parsing error: invalid IRI: {}", e));
+
+    try {
+        IRIView{s}.quick_validate(true);
+    } catch (InvalidIRI const &iri) {
+        throw InvalidNode(std::format("http://www.w3.org/2001/XMLSchema#anyURI parsing error: {}", iri.what()));
     }
     return cpp_type{s};
 }

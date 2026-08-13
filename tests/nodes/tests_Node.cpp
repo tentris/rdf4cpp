@@ -362,6 +362,12 @@ TEST_CASE("null nodes") {
     run_checks(n3);
     run_checks(n4);
     run_checks(n5);
+
+    // casting from null nodes, stays a null node
+    CHECK(n2.as_literal().null());
+    CHECK(n3.as_blank_node().null());
+    CHECK(n4.as_iri().null());
+    CHECK(n5.as_variable().null());
 }
 
 TEST_CASE("variable inlining") {

@@ -24,9 +24,9 @@ public:
      * @param initial_value initial value of the counter
      * @throws ParsingError if the prefix is not a valid blank node identifier
      */
-    explicit IncreasingIdGenerator(std::string prefix = "", size_t initial_value = 0) noexcept;
+    explicit IncreasingIdGenerator(std::string prefix = "", size_t initial_value = 0);
 
-    BlankNode generate(storage::DynNodeStoragePtr node_storage) noexcept;
+    BlankNode generate(storage::DynNodeStoragePtr node_storage);
 };
 static_assert(NodeGenerator<IncreasingIdGenerator>);
 

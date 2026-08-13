@@ -59,7 +59,7 @@ namespace rdf4cpp::parser {
             /**
              * Sets the base of iri_factory, skipping the validation if it is already set to base.
              */
-            [[nodiscard]] IRIFactoryError set_resolution_base(std::string_view base);
+            void set_resolution_base(std::string_view base);
 
             nonstd::expected<Context, error_type> parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p);
             std::optional<error_type> parse_context_term(params::ParseContextTermParams p);

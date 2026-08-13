@@ -15,7 +15,7 @@ TEST_SUITE("Serialize") {
             expected = std::string{node};
         }
 
-        auto const result = writer::StringWriter::oneshot([node](auto &w) noexcept {
+        auto const result = writer::StringWriter::oneshot([node](auto &w) {
             return node.serialize(w);
         });
 

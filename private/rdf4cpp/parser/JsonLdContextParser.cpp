@@ -1,9 +1,9 @@
 #include "JsonLdContextParser.hpp"
 
 namespace rdf4cpp::parser::json_ld {
-    IRIFactoryError ContextParser::set_resolution_base(std::string_view const base) {
+    void ContextParser::set_resolution_base(std::string_view const base) {
         if (iri_factory->get_base() == base) {
-            return IRIFactoryError::Ok;
+            return;
         }
         return iri_factory->set_base(base);
     }
@@ -40,25 +40,20 @@ namespace rdf4cpp::parser::json_ld {
                     if (!v.has_value()) {
                         result->base_iri = "";
                     } else {
-                        if (IRIView{*v}.is_relative()) {
-                            if (set_resolution_base(result->base_iri) != IRIFactoryError::Ok) {
-                                result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
-                                return true;
-                            }
-                            auto r = iri_factory->from_maybe_relative_as_string(*v);
-                            if (r.has_value()) {
-                                result->base_iri = *r;
+                        try {
+                            if (IRIView{*v}.is_relative()) {
+                                set_resolution_base(result->base_iri);
+                                result->base_iri = iri_factory->from_maybe_relative_as_string(*v);
                             } else {
-                                result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
-                                return true;
-                            }
-                        } else {
-                            if (IRIView{*v}.quick_validate() == IRIFactoryError::Ok) {
+                                IRIView{*v}.quick_validate();
                                 result->base_iri = *v;
-                            } else {
-                                result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
-                                return true;
                             }
+                        } catch (InvalidIRI const &ii) {
+                            result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::format("invalid base IRI: {}", ii.what()))};
+                            return true;
+                        } catch (...) {
+                            result = nonstd::unexpected{make_error(ParsingError::Type::Internal, "unknown internal error")};
+                            return true;
                         }
                     }
                 }
@@ -895,8 +890,12 @@ namespace rdf4cpp::parser::json_ld {
                     v.append(post);
                     return IRIMapping{std::move(v), IRIMappingType::IRI, std::string{*value}};
                 }
-                if (IRIView(*value).quick_validate() == IRIFactoryError::Ok) {
+
+                try {
+                    IRIView(*value).quick_validate();
                     return IRIMapping{std::string(*value), IRIMappingType::IRI};
+                } catch (...) {
+                    // ignore
                 }
             }
         }
@@ -911,14 +910,22 @@ namespace rdf4cpp::parser::json_ld {
             if (active_context.base_iri.empty()) {
                 return IRIMapping{std::string(""), IRIMappingType::None};
             }
-            if (set_resolution_base(active_context.base_iri) != IRIFactoryError::Ok) {
-                return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, "invalid base iri"));
+
+            try {
+                set_resolution_base(active_context.base_iri);
+            } catch (InvalidIRI const &ii) {
+                return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid base iri: {}", ii.what())));
+            } catch (...) {
+                return nonstd::make_unexpected(make_error(ParsingError::Type::Internal, "unknown internal error"));
             }
-            auto r = iri_factory->from_maybe_relative_as_string(*value);
-            if (r.has_value()) {
-                return IRIMapping{std::string(*r), IRIMappingType::IRI};
-            } else {
-                return nonstd::make_unexpected(json_ld::make_error(ParsingError::Type::BadIri, std::format("invalid relative iri: {}", r.error())));
+
+            try {
+                auto r = iri_factory->from_maybe_relative_as_string(*value);
+                return IRIMapping{std::string(r), IRIMappingType::IRI};
+            } catch (InvalidIRI const &ii) {
+                return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid relative iri: {}", ii.what())));
+            } catch (...) {
+                return nonstd::make_unexpected(make_error(ParsingError::Type::Internal, "unknown internal error"));
             }
         }
         // 9

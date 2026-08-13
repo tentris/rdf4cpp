@@ -11,7 +11,7 @@ namespace rdf4cpp {
 * turns the parts of a IRI back into a full IRI.
 */
 static std::string_view construct(std::string_view scheme, std::optional<std::string_view> auth, std::string_view path,
-                                  std::optional<std::string_view> query, std::optional<std::string_view> frag) noexcept {
+                                  std::optional<std::string_view> query, std::optional<std::string_view> frag) {
     static thread_local std::string str;
     str.clear();
     str.reserve(std::bit_ceil(scheme.size() + 1 + path.size()));
@@ -66,7 +66,7 @@ static void remove_last_path_segment(std::string &path) noexcept {
 /**
 * removes ./ and ../ segments from path.
 */
-static std::string_view remove_dot_segments(std::string_view src) noexcept {
+static std::string_view remove_dot_segments(std::string_view src) {
     // adapted from https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.4
 
     thread_local static std::string buf;
@@ -139,7 +139,7 @@ static std::string_view remove_dot_segments(std::string_view src) noexcept {
 /**
  * merges the path of the current base and path, as described in https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.3.
  */
-static std::string_view merge_path_with_base(IRIView::AllParts const &base, std::string_view path) noexcept {
+static std::string_view merge_path_with_base(IRIView::AllParts const &base, std::string_view path) {
     static thread_local std::string r;
     r.clear();
 
@@ -166,7 +166,7 @@ static std::string_view merge_path_with_base(IRIView::AllParts const &base, std:
  * Converts rel to an absolute IRI by merging it with the given base
  */
 template<bool always_remove_dots>
-static std::string_view to_absolute(IRIView::AllParts const &base, std::string_view rel) noexcept {
+static std::string_view to_absolute(IRIView::AllParts const &base, std::string_view rel) {
     auto [r_scheme, r_auth, r_path, r_query, r_frag] = IRIView{rel}.all_parts();
 
     if (r_scheme.has_value()) {
@@ -196,36 +196,32 @@ static std::string_view to_absolute(IRIView::AllParts const &base, std::string_v
 
 
 IRIFactory::IRIFactory(std::string_view base) {
-    if (set_base(base) != IRIFactoryError::Ok) {
-        throw std::invalid_argument{"invalid base"};
-    }
+    set_base(base);
 }
 
 IRIFactory::IRIFactory(prefix_map_type &&prefixes, std::string_view base) : prefixes(std::move(prefixes)) {
-    if (set_base(base) != IRIFactoryError::Ok) {
-        throw std::invalid_argument{"invalid base"};
-    }
+    set_base(base);
 }
 
-nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage) const noexcept {
+IRI IRIFactory::from_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage) const {
     return create_and_validate(to_absolute<true>(base_parts_cache, rel), node_storage);
 }
 
-nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage) const noexcept {
+IRI IRIFactory::from_maybe_relative(std::string_view rel, storage::DynNodeStoragePtr node_storage) const {
     return create_and_validate(to_absolute<false>(base_parts_cache, rel), node_storage);
 }
-nonstd::expected<std::string_view, IRIFactoryError> IRIFactory::from_maybe_relative_as_string(std::string_view rel) const noexcept {
+std::string_view IRIFactory::from_maybe_relative_as_string(std::string_view rel) const {
     auto r = to_absolute<false>(base_parts_cache, rel);
-    if (auto const e = validate(r); e != IRIFactoryError::Ok) {
-        return nonstd::make_unexpected(e);
+    if (!rdf4cpp::datatypes::registry::relaxed_parsing_mode) {
+        IRIView{r}.quick_validate();
     }
     return r;
 }
 
-nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_prefix(std::string_view prefix, std::string_view local, storage::DynNodeStoragePtr node_storage) const {
+IRI IRIFactory::from_prefix(std::string_view prefix, std::string_view local, storage::DynNodeStoragePtr node_storage) const {
     auto i = prefixes.find(prefix);
     if (i == prefixes.end()) {
-        return nonstd::make_unexpected(IRIFactoryError::UnknownPrefix);
+        throw InvalidIRI{IRIParseError::UnknownPrefix, prefix};
     }
 
     static thread_local std::string deref;
@@ -241,45 +237,37 @@ nonstd::expected<IRI, IRIFactoryError> IRIFactory::from_prefix(std::string_view 
     return create_and_validate(deref, node_storage);
 }
 
-IRIFactoryError IRIFactory::validate(std::string_view iri) noexcept {
-    if (rdf4cpp::datatypes::registry::relaxed_parsing_mode) {
-        return IRIFactoryError::Ok;
-    }
-    return IRIView{iri}.quick_validate();
-}
-
-nonstd::expected<IRI, IRIFactoryError> IRIFactory::create_and_validate(std::string_view iri, storage::DynNodeStoragePtr node_storage) noexcept {
-    if (auto const e = validate(iri); e != IRIFactoryError::Ok) {
-        return nonstd::make_unexpected(e);
+IRI IRIFactory::create_and_validate(std::string_view iri, storage::DynNodeStoragePtr node_storage) {
+    if (!rdf4cpp::datatypes::registry::relaxed_parsing_mode) {
+        return IRI::make(iri, node_storage);
     }
     return IRI::make_unchecked(iri, node_storage);
 }
 
-IRIFactoryError IRIFactory::assign_prefix(std::string_view prefix, std::string_view expanded) {
+void IRIFactory::assign_prefix(std::string_view prefix, std::string_view expanded) {
     using namespace util::char_matcher_detail;
     auto r = prefix | una::views::utf8;
     auto it = r.begin();
     if (it != r.end()) {
         if (!PNCharsBaseMatcher.match(*it)) {
-            return IRIFactoryError::InvalidPrefix;
+            throw InvalidIRI{IRIParseError::InvalidPrefix, prefix};
         }
         auto lastchar = *it;
         ++it;
         static constexpr auto pn_matcher = PNCharsMatcher | ASCIIPatternMatcher{"."};
         while (it != r.end()) {
             if (!pn_matcher.match(*it)) {
-                return IRIFactoryError::InvalidPrefix;
+                throw InvalidIRI{IRIParseError::InvalidPrefix, prefix};
             }
             lastchar = *it;
             ++it;
         }
         if (lastchar == '.') {
-            return IRIFactoryError::InvalidPrefix;
+            throw InvalidIRI{IRIParseError::InvalidPrefix, prefix};
         }
     }
     // checking expanded can only be done after the full IRI was created
     assign_prefix_unchecked(prefix, expanded);
-    return IRIFactoryError::Ok;
 }
 void IRIFactory::assign_prefix_unchecked(std::string_view prefix, std::string_view expanded) {
     std::string pre{prefix};
@@ -298,15 +286,12 @@ std::string_view IRIFactory::get_base() const noexcept {
     return base;
 }
 
-IRIFactoryError IRIFactory::set_base(std::string_view b) noexcept {
+void IRIFactory::set_base(std::string_view b) {
     if (!rdf4cpp::datatypes::registry::relaxed_parsing_mode) {
-        if (auto const e = IRIView{b}.quick_validate(); e != IRIFactoryError::Ok) {
-            return e;
-        }
+        IRIView{b}.quick_validate();
     }
     base = b;
     base_parts_cache = IRIView{base}.all_parts();
-    return IRIFactoryError::Ok;
 }
 void IRIFactory::set_base_unchecked(std::string_view b) noexcept {
     base = b;

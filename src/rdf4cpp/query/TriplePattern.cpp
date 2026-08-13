@@ -36,7 +36,7 @@ TriplePattern TriplePattern::to_node_storage(storage::DynNodeStoragePtr node_sto
     return tp;
 }
 
-TriplePattern TriplePattern::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+TriplePattern TriplePattern::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     TriplePattern tp;
     auto it = tp.begin();
     for (const auto &item : *this) {

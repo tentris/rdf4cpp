@@ -22,7 +22,7 @@ bool Statement::valid() const noexcept {
     return st;
 }
 
-[[nodiscard]] Statement Statement::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+[[nodiscard]] Statement Statement::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     Statement st;
     auto it = st.begin();
     for (auto const &item : *this) {
@@ -31,11 +31,11 @@ bool Statement::valid() const noexcept {
     return st;
 }
 
-bool Statement::serialize_ntriples(writer::BufWriterParts writer) const noexcept {
+bool Statement::serialize_ntriples(writer::BufWriterParts writer) const {
     return writer::write_quad<writer::OutputFormat::NTriples>(*this, writer, nullptr);
 }
 
-bool Statement::serialize_turtle(writer::SerializationState &state, writer::BufWriterParts writer) const noexcept {
+bool Statement::serialize_turtle(writer::SerializationState &state, writer::BufWriterParts writer) const {
     return writer::write_quad<writer::OutputFormat::Turtle>(*this, writer, &state);
 }
 

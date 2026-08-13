@@ -34,7 +34,7 @@ public:
     explicit Solution(QuadPattern const &qp);
     explicit Solution(TriplePattern const &tp);
 
-    Node operator[](Variable const &variable) const noexcept;
+    Node operator[](Variable const &variable) const;
 
     Node const &operator[](size_t pos) const noexcept;
     Node &operator[](size_t pos) noexcept;

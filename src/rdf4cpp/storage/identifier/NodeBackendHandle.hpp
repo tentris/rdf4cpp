@@ -158,7 +158,7 @@ public:
      * MUST only be called if this is not null and is_iri() const is true.
      * @return
      */
-    [[nodiscard]] view::IRIBackendView iri_backend() const noexcept {
+    [[nodiscard]] view::IRIBackendView iri_backend() const {
         RDF4CPP_ASSERT(id_.is_iri());
         return storage_.find_iri_backend(id_);
     }
@@ -168,7 +168,7 @@ public:
      * MUST only be called if this is not null and is_literal() const is true.
      * @return
      */
-    [[nodiscard]] view::LiteralBackendView literal_backend() const noexcept {
+    [[nodiscard]] view::LiteralBackendView literal_backend() const {
         RDF4CPP_ASSERT(id_.is_literal());
         return storage_.find_literal_backend(id_);
     }
@@ -178,7 +178,7 @@ public:
      * MUST only be called if this is not null and is_bnode() const is true.
      * @return
      */
-    [[nodiscard]] view::BNodeBackendView bnode_backend() const noexcept {
+    [[nodiscard]] view::BNodeBackendView bnode_backend() const {
         RDF4CPP_ASSERT(id_.is_blank_node());
         return storage_.find_bnode_backend(id_);
     }
@@ -188,7 +188,7 @@ public:
      * MUST only be called if this is not null and is_variable() const is true.
      * @return
      */
-    [[nodiscard]] view::VariableBackendView variable_backend() const noexcept {
+    [[nodiscard]] view::VariableBackendView variable_backend() const {
         RDF4CPP_ASSERT(id_.is_variable());
         return storage_.find_variable_backend(id_);
     }

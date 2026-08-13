@@ -91,7 +91,7 @@ Variable Variable::to_node_storage(storage::DynNodeStoragePtr node_storage) cons
     return Variable{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-Variable Variable::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+Variable Variable::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     if (handle_.storage() == node_storage || null()) {
         return *this;
     }
@@ -108,7 +108,7 @@ Variable Variable::try_get_in_node_storage(storage::DynNodeStoragePtr node_stora
     return Variable{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-Variable Variable::find(std::string_view name, bool anonymous, storage::DynNodeStoragePtr node_storage) noexcept {
+Variable Variable::find(std::string_view name, bool anonymous, storage::DynNodeStoragePtr node_storage) {
     auto const nid = [&]() {
         if (auto const inlined_id = detail_variable_inlining::try_into_inlined(name, anonymous); !inlined_id.null()) {
             return inlined_id;
@@ -123,10 +123,10 @@ Variable Variable::find(std::string_view name, bool anonymous, storage::DynNodeS
 
     return Variable{storage::identifier::NodeBackendHandle{nid, node_storage}};
 }
-Variable Variable::find_named(std::string_view name, storage::DynNodeStoragePtr node_storage) noexcept {
+Variable Variable::find_named(std::string_view name, storage::DynNodeStoragePtr node_storage) {
     return find(name, false, node_storage);
 }
-Variable Variable::find_anonymous(std::string_view name, storage::DynNodeStoragePtr node_storage) noexcept {
+Variable Variable::find_anonymous(std::string_view name, storage::DynNodeStoragePtr node_storage) {
     return find(name, true, node_storage);
 }
 
@@ -150,7 +150,7 @@ CowString Variable::name() const {
     return CowString{CowString::borrowed, handle_.variable_backend().name};
 }
 
-FetchOrSerializeResult Variable::fetch_or_serialize_name(std::string_view &out, writer::BufWriterParts writer) const noexcept {
+FetchOrSerializeResult Variable::fetch_or_serialize_name(std::string_view &out, writer::BufWriterParts writer) const {
     if (handle_.is_inlined()) {
         auto const inlined_repr = detail_variable_inlining::from_inlined(handle_.id());
         if (!rdf4cpp::writer::write_str(inlined_repr.view().name, writer)) {
@@ -164,7 +164,7 @@ FetchOrSerializeResult Variable::fetch_or_serialize_name(std::string_view &out, 
     return FetchOrSerializeResult::Fetched;
 }
 
-bool Variable::serialize(writer::BufWriterParts const writer) const noexcept {
+bool Variable::serialize(writer::BufWriterParts const writer) const {
     if (null()) {
         return rdf4cpp::writer::write_str("null", writer);
     }
@@ -192,7 +192,7 @@ bool Variable::serialize(writer::BufWriterParts const writer) const noexcept {
 }
 
 Variable::operator std::string() const {
-    return writer::StringWriter::oneshot([this](auto &w) noexcept {
+    return writer::StringWriter::oneshot([this](auto &w) {
         return this->serialize(w);
     });
 }
@@ -231,7 +231,7 @@ void Variable::validate(std::string_view n, bool anonymous) {
     }
 }
 
-std::strong_ordering Variable::order(Variable const &other) const noexcept {
+std::strong_ordering Variable::order(Variable const &other) const {
     if (is_inlined()) {
         auto const this_deinlined = detail_variable_inlining::from_inlined(handle_.id());
         if (other.is_inlined()) {
@@ -250,18 +250,18 @@ std::strong_ordering Variable::order(Variable const &other) const noexcept {
     }
 }
 
-bool Variable::order_eq(Variable const &other) const noexcept {
+bool Variable::order_eq(Variable const &other) const {
     return order(other) == std::strong_ordering::equal;
 }
-bool Variable::order_ne(Variable const &other) const noexcept {
+bool Variable::order_ne(Variable const &other) const {
     return !order_eq(other);
 }
 
-bool Variable::eq(Variable const &other) const noexcept {
+bool Variable::eq(Variable const &other) const {
     // for variables order_eq and eq are the same
     return order_eq(other);
 }
-bool Variable::ne(Variable const &other) const noexcept {
+bool Variable::ne(Variable const &other) const {
     return !eq(other);
 }
 

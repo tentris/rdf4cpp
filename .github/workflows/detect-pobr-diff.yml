@@ -13,7 +13,7 @@ jobs:
       os: ubuntu-24.04
       cc: clang-20
       cmake-version: 4.4.0
-      conan-version: 2.31.1
+      conan-version: 2.31.2
       base-branch: ${{ github.base_ref }}
       setup_tools: true
       search-path: >

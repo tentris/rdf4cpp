@@ -13,7 +13,7 @@ jobs:
           - os: ubuntu-24.04
             compiler: clang-20
             cmake-version: 4.4.0
-            conan-version: 2.31.1
+            conan-version: 2.31.2
     name: SonarSource Static Analyzer Build
     runs-on: ${{ matrix.config.os }}
     env:
@@ -26,7 +26,7 @@ jobs:
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@v2.0.5
 
       - name: Get minimum cmake version
-        uses: lukka/get-cmake@v4.4.0
+        uses: lukka/get-cmake@v4.4.2
         with:
           cmakeVersion: ${{ matrix.config.cmake-version }}
 

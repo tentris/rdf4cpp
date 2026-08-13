@@ -36,7 +36,7 @@ void Graph::add(Statement const &stmt_) {
     triples_.insert(to_id_triple(stmt));
 }
 
-bool Graph::contains(Statement const &stmt_) const noexcept {
+bool Graph::contains(Statement const &stmt_) const {
     auto const stmt = stmt_.try_get_in_node_storage(node_storage_);
     return triples_.contains(to_id_triple(stmt));
 }
@@ -49,7 +49,7 @@ Graph::sentinel Graph::end() const noexcept {
     return sentinel{};
 }
 
-Graph::solution_sequence Graph::match(query::TriplePattern const &triple_pattern) const noexcept {
+Graph::solution_sequence Graph::match(query::TriplePattern const &triple_pattern) const {
     return solution_sequence{solution_iterator{begin(), triple_pattern}};
 }
 
@@ -57,7 +57,7 @@ size_t Graph::size() const noexcept {
     return triples_.size();
 }
 
-bool Graph::serialize(writer::BufWriterParts const writer) const noexcept {
+bool Graph::serialize(writer::BufWriterParts const writer) const {
     for (auto const &[s, p, o] : triples_) {
         Quad q{to_node(s), to_node(p), to_node(o)};
         if (!q.serialize_ntriples(writer)) {
@@ -68,7 +68,7 @@ bool Graph::serialize(writer::BufWriterParts const writer) const noexcept {
     return true;
 }
 
-bool Graph::serialize_turtle(writer::SerializationState &state, writer::BufWriterParts const writer) const noexcept {
+bool Graph::serialize_turtle(writer::SerializationState &state, writer::BufWriterParts const writer) const {
     for (auto const &[s, p, o] : triples_) {
         Quad q{to_node(s), to_node(p), to_node(o)};
         if (!q.serialize_turtle(state, writer)) {
@@ -79,7 +79,7 @@ bool Graph::serialize_turtle(writer::SerializationState &state, writer::BufWrite
     return true;
 }
 
-bool Graph::serialize_turtle(writer::BufWriterParts const writer) const noexcept {
+bool Graph::serialize_turtle(writer::BufWriterParts const writer) const {
     writer::SerializationState st{};
     if (!st.begin(writer)) {
         return false;
@@ -136,7 +136,7 @@ bool operator==(Graph::sentinel, Graph::iterator const &self) noexcept {
     return self.iter_ == self.end_;
 }
 
-bool Graph::solution_iterator::check_solution() noexcept {
+bool Graph::solution_iterator::check_solution() {
     auto pat_it = pat_.begin();
     auto out_it = cur_.begin();
 
@@ -154,20 +154,18 @@ bool Graph::solution_iterator::check_solution() noexcept {
     return true;
 }
 
-void Graph::solution_iterator::forward_to_solution() noexcept {
+void Graph::solution_iterator::forward_to_solution() {
     while (iter_ != std::default_sentinel && !check_solution()) {
         ++iter_;
     }
 }
 
 Graph::solution_iterator::solution_iterator(typename Graph::iterator beg,
-                                            query::TriplePattern const &pat) noexcept : iter_{beg},
-                                                                                        pat_{pat},
-                                                                                        cur_{pat} {
+                                            query::TriplePattern const &pat) : iter_{beg}, pat_{pat}, cur_{pat} {
     forward_to_solution();
 }
 
-Graph::solution_iterator &Graph::solution_iterator::operator++() noexcept {
+Graph::solution_iterator &Graph::solution_iterator::operator++() {
     ++iter_;
     forward_to_solution();
     return *this;

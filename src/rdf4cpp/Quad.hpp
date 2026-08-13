@@ -59,12 +59,12 @@ struct Quad : query::QuadPattern {
     [[nodiscard]] Statement const &without_graph() const noexcept;
 
     [[nodiscard]] Quad to_node_storage(storage::DynNodeStoragePtr node_storage) const;
-    [[nodiscard]] Quad try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept;
+    [[nodiscard]] Quad try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 
-    bool serialize_ntriples(writer::BufWriterParts writer) const noexcept;
-    bool serialize_nquads(writer::BufWriterParts writer) const noexcept;
-    bool serialize_turtle(writer::SerializationState &state, writer::BufWriterParts writer) const noexcept;
-    bool serialize_trig(writer::SerializationState &state, writer::BufWriterParts writer) const noexcept;
+    bool serialize_ntriples(writer::BufWriterParts writer) const;
+    bool serialize_nquads(writer::BufWriterParts writer) const;
+    bool serialize_turtle(writer::SerializationState &state, writer::BufWriterParts writer) const;
+    bool serialize_trig(writer::SerializationState &state, writer::BufWriterParts writer) const;
 };
 }  // namespace rdf4cpp
 

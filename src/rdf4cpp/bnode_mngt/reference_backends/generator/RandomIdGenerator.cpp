@@ -24,7 +24,7 @@ RandomIdGenerator::RandomIdGenerator(uint64_t const seed) : rng_{seed},
                                                             dist_{0, generator_detail::bnode_id_valid_chars.size() - 1} {
 }
 
-BlankNode RandomIdGenerator::generate(storage::DynNodeStoragePtr node_storage) noexcept {
+BlankNode RandomIdGenerator::generate(storage::DynNodeStoragePtr node_storage) {
     std::array<char, generator_detail::generated_id_size> buf;
 
     {

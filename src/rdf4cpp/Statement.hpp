@@ -14,10 +14,10 @@ struct Statement : query::TriplePattern {
     [[nodiscard]] bool valid() const noexcept;
 
     [[nodiscard]] Statement to_node_storage(storage::DynNodeStoragePtr node_storage) const;
-    [[nodiscard]] Statement try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept;
+    [[nodiscard]] Statement try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const;
 
-    bool serialize_ntriples(writer::BufWriterParts writer) const noexcept;
-    bool serialize_turtle(writer::SerializationState &state, writer::BufWriterParts writer) const noexcept;
+    bool serialize_ntriples(writer::BufWriterParts writer) const;
+    bool serialize_turtle(writer::SerializationState &state, writer::BufWriterParts writer) const;
 };
 }  // namespace rdf4cpp
 #endif  //RDF4CPP_STATEMENT_HPP

@@ -21,7 +21,7 @@ IRI::IRI(std::string_view iri, storage::DynNodeStoragePtr node_storage)
     : IRI{make_unchecked((validate(iri), iri), node_storage)} {
 }
 
-IRI::IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept
+IRI::IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage)
     : IRI{visit(datatypes::registry::DatatypeIDVisitor{
                         [&](storage::identifier::LiteralType const fixed) -> IRI {
                             return IRI{storage::identifier::NodeBackendHandle{storage::identifier::literal_type_to_iri_node_id(fixed),
@@ -55,9 +55,7 @@ IRI IRI::make_uuid(storage::DynNodeStoragePtr node_storage) {
 }
 
 void IRI::validate(std::string_view s) {
-    auto v = IRIView(s).quick_validate();
-    if (v != IRIFactoryError::Ok)
-        throw InvalidNode(std::format("IRI {} is invalid: {}", s, v));
+    IRIView(s).quick_validate();
 }
 
 IRI IRI::to_node_storage(storage::DynNodeStoragePtr node_storage) const {
@@ -69,7 +67,7 @@ IRI IRI::to_node_storage(storage::DynNodeStoragePtr node_storage) const {
     return IRI{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-IRI IRI::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const noexcept {
+IRI IRI::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const {
     if (handle_.storage() == node_storage || null()) {
         return *this;
     }
@@ -82,13 +80,13 @@ IRI IRI::try_get_in_node_storage(storage::DynNodeStoragePtr node_storage) const 
     return IRI{storage::identifier::NodeBackendHandle{node_id, node_storage}};
 }
 
-IRI IRI::find(std::string_view iri, storage::DynNodeStoragePtr node_storage) noexcept {
+IRI IRI::find(std::string_view iri, storage::DynNodeStoragePtr node_storage) {
     auto nid = node_storage.find_id(storage::view::IRIBackendView{iri});
     if (nid.null())
         return IRI{};
     return IRI{storage::identifier::NodeBackendHandle{nid, node_storage}};
 }
-IRI IRI::find(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) noexcept {
+IRI IRI::find(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage) {
     return visit(datatypes::registry::DatatypeIDVisitor{
                              [&](storage::identifier::LiteralType const fixed) -> IRI {
                                  return IRI{storage::identifier::NodeBackendHandle{storage::identifier::literal_type_to_iri_node_id(fixed),
@@ -101,7 +99,7 @@ IRI IRI::find(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr
 }
 
 
-IRI::operator datatypes::registry::DatatypeIDView() const noexcept {
+IRI::operator datatypes::registry::DatatypeIDView() const {
     using namespace storage::identifier;
 
     auto const id = this->handle_.id();
@@ -114,7 +112,7 @@ IRI::operator datatypes::registry::DatatypeIDView() const noexcept {
     }
 }
 
-bool IRI::serialize(writer::BufWriterParts const writer) const noexcept {
+bool IRI::serialize(writer::BufWriterParts const writer) const {
     if (null()) {
         return rdf4cpp::writer::write_str("null", writer);
     }
@@ -127,8 +125,8 @@ bool IRI::serialize(writer::BufWriterParts const writer) const noexcept {
     return true;
 }
 
-IRI::operator std::string() const noexcept {
-    return writer::StringWriter::oneshot([this](auto &w) noexcept {
+IRI::operator std::string() const {
+    return writer::StringWriter::oneshot([this](auto &w) {
         return this->serialize(w);
     });
 }
@@ -184,11 +182,11 @@ std::ostream &operator<<(std::ostream &os, IRI const &iri) {
 
     return os;
 }
-std::string_view IRI::identifier() const noexcept {
+std::string_view IRI::identifier() const {
     return handle_.iri_backend().identifier;
 }
 
-FetchOrSerializeResult IRI::fetch_or_serialize_identifier(std::string_view &out, [[maybe_unused]] writer::BufWriterParts writer) const noexcept {
+FetchOrSerializeResult IRI::fetch_or_serialize_identifier(std::string_view &out, [[maybe_unused]] writer::BufWriterParts writer) const {
     auto const id = identifier();
     out = id;
     return FetchOrSerializeResult::Fetched;

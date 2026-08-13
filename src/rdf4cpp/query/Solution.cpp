@@ -23,7 +23,7 @@ Solution::Solution(std::vector<Variable> const &variables) : partial_mapping{ini
 Solution::Solution(QuadPattern const &qp) : Solution{extract_variables(qp)} {}
 Solution::Solution(TriplePattern const &tp) : Solution{extract_variables(tp)} {}
 
-Node Solution::operator[](Variable const &variable) const noexcept {
+Node Solution::operator[](Variable const &variable) const {
     size_t pos = std::distance(partial_mapping.begin(), std::find_if(partial_mapping.begin(), partial_mapping.end(),
                                                                      [=](const auto &item) { return item.first == variable; }));
     if (pos < partial_mapping.size()) {
