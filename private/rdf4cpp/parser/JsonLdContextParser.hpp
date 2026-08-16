@@ -38,11 +38,10 @@ namespace rdf4cpp::parser {
         struct ContextParser {
             using error_type = ParsingError;
             /**
-             * Resolves document relative IRIs. This is owned by the parser and not the IRIFactory of the
-             * ParsingState, because a json-ld document can set its own base and that base must not leak
-             * into other parsers sharing the state.
+             * Resolves document relative IRIs. This is the IRIFactory of the ParsingState, so a base set
+             * by the document stays in the state after parsing, like in the other parsers.
              */
-            IRIFactory* iri_factory;
+            IRIFactory *iri_factory;
             std::string original_base_iri;
             /**
              * If set, blank node labels of the document are used as they are. Otherwise they get
