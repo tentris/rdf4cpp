@@ -432,13 +432,7 @@ IStreamQuadIterator::ImplSerd::ImplSerd(void *stream,
     : reader{serd_reader_new(extract_syntax_from_flags(flags), this, nullptr, &ImplSerd::on_base, &ImplSerd::on_prefix, &ImplSerd::on_stmt, nullptr)},
       owned_state_(initial_state == nullptr ? std::make_unique<state_type>() : nullptr),
       state(initial_state == nullptr ? owned_state_.get() : initial_state),
-      state_is_owned{false},
       flags{flags} {
-    if (this->state == nullptr) {
-        this->state = new state_type{};
-        this->state_is_owned = true;
-    }
-
     serd_reader_set_strict(this->reader.get(), !flags.contains(ParsingFlag::Lax));
     serd_reader_set_error_sink(this->reader.get(), &ImplSerd::on_error, this);
     serd_reader_start_source_stream(this->reader.get(), read, error, stream, nullptr, 4096);

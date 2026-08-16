@@ -34,7 +34,6 @@ private:
     // holds the state only if it was not provided by the caller
     std::unique_ptr<state_type> owned_state_;
     state_type *state;
-    bool state_is_owned;
 
     std::deque<Quad> quad_buffer;
     std::optional<ParsingError> last_error;
