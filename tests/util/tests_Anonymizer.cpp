@@ -8,11 +8,22 @@
 #include <rdf4cpp/query/Variable.hpp>
 #include <rdf4cpp/namespaces/FOAF.hpp>
 
-#include <dice/template-library/ranges.hpp>
+#include <unordered_set>
+#include <vector>
 
 TEST_SUITE("anonymizer") {
     using namespace rdf4cpp;
     using namespace rdf4cpp::shorthands;
+
+    /**
+     * Checks that no two elements of the given vector are equal.
+     * Equality is the element's own operator==, and lookup goes through std::hash.
+     */
+    template<typename T>
+    [[nodiscard]] bool all_distinct(std::vector<T> const &elements) {
+        std::unordered_set<T> const seen{elements.begin(), elements.end()};
+        return seen.size() == elements.size();
+    }
 
     TEST_CASE("sanity check") {
         util::Anonymizer anony{};
@@ -37,7 +48,7 @@ TEST_SUITE("anonymizer") {
         CHECK_NE(anon_lit, lit);
 
         // generates distinct nodes for all cases
-        CHECK((std::vector<Node>{anon_null, anon_default_graph, anon_iri, anon_bn, anon_lit, iri, bn, lit} | dice::template_library::all_distinct()));
+        CHECK(all_distinct(std::vector<Node>{anon_null, anon_default_graph, anon_iri, anon_bn, anon_lit, iri, bn, lit}));
 
         // same result for second call
         CHECK_EQ(anony.anonymize(iri), anon_iri);
@@ -92,7 +103,7 @@ _:customer2 a foaf:Person ;
         auto const m1 = first_solution(anon, query::TriplePattern{c1, foaf_mbox, query::Variable{"n"}})[0];
         auto const m2 = first_solution(anon, query::TriplePattern{c2, foaf_mbox, query::Variable{"n"}})[0];
 
-        CHECK((std::vector{c1, c2, n1, n2, m1, m2} | dice::template_library::all_distinct()));
+        CHECK(all_distinct(std::vector{c1, c2, n1, n2, m1, m2}));
     }
 
     TEST_CASE("dataset") {
@@ -135,6 +146,6 @@ _:customer2 a foaf:Person ;
         auto const m1 = first_solution(anon, query::QuadPattern{query::Variable{"g"}, c1, foaf_mbox, query::Variable{"n"}})[1];
         auto const m2 = first_solution(anon, query::QuadPattern{query::Variable{"g"}, c2, foaf_mbox, query::Variable{"n"}})[1];
 
-        CHECK((std::vector{c1, c2, n1, n2, m1, m2} | dice::template_library::all_distinct()));
+        CHECK(all_distinct(std::vector{c1, c2, n1, n2, m1, m2}));
     }
 }
