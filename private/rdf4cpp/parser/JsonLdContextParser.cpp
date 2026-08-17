@@ -1,6 +1,12 @@
 #include "JsonLdContextParser.hpp"
 
 namespace rdf4cpp::parser::json_ld {
+    void ContextParser::set_resolution_base(std::string_view const base) {
+        if (iri_factory->get_base() == base) {
+            return;
+        }
+        return iri_factory->set_base(base);
+    }
     nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p) {
         // https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
         // 1
@@ -36,7 +42,7 @@ namespace rdf4cpp::parser::json_ld {
                     } else {
                         try {
                             if (IRIView{*v}.is_relative()) {
-                                iri_factory->set_base(result->base_iri);
+                                set_resolution_base(result->base_iri);
                                 result->base_iri = iri_factory->from_maybe_relative_as_string(*v);
                             } else {
                                 IRIView{*v}.quick_validate();
@@ -98,7 +104,7 @@ namespace rdf4cpp::parser::json_ld {
                             .previous_terms = previous_terms,
                         };
                         auto r = iri_expansion(result.value(), v, true, true, nullptr, &p_ctx);
-                        if (!r.has_value() || r->type != IRIMappingType::IRI) {  // technically blank node is only deprecated, not removed
+                        if (!r.has_value() || r->type != IRIMappingType::IRI) {  // a blank node as @vocab is deprecated, not removed
                             result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid vocab mapping")};
                             return true;
                         }
@@ -146,7 +152,7 @@ namespace rdf4cpp::parser::json_ld {
                     result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @propagate value")};
                     return true;
                 }
-                // setting field earlier
+                // @propagate is only validated here, parse_local_context applies it
             }
             {  // 5.13
                 auto [c, prot] = try_get_field<bool>(o, keyword_protected);
@@ -200,11 +206,14 @@ namespace rdf4cpp::parser::json_ld {
             if (!actual_propagate && result->previous_context == nullptr) {
                 result->previous_context = &p.active_context;
             }
-            //error handling later
+            // an invalid @propagate value is reported by handle_ctx below
 
             handle_ctx(o);  // 4
         } else if (local_context.is_scalar() && local_context.is_null()) { // 5.1
             return handle_null();
+        } else if (local_context.type() == simdjson::ondemand::json_type::string) {  // 5.2
+            // a string names a remote context, the same case as inside the array below
+            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
         } else {
             if (!p.propagate && result->previous_context == nullptr) {
                 result->previous_context = &p.active_context;
@@ -241,7 +250,9 @@ namespace rdf4cpp::parser::json_ld {
             }
         }
 
-        // check scoped context for errors, moved here from create_term
+        // scoped contexts are validated after the whole context is parsed, so that they can
+        // refer to terms defined later in the same context
+        // moved here from https://www.w3.org/TR/json-ld11-api/#create-term-definition 21.3
         if (result.has_value()) {
             for (auto const &t : result->terms) {
                 if (t.needs_context_check && t.context.has_value()) {
@@ -345,6 +356,11 @@ namespace rdf4cpp::parser::json_ld {
         auto handle_id = [&](std::optional<std::string_view> v) -> std::optional<error_type> {
             if (!v.has_value()) {
                 p.term.iri_mapping = {};
+            } else if (looks_like_keyword(*v) && !is_keyword(*v)) {
+                // 14.2.3, a value with the form of a keyword leaves the term without a definition
+                p.term.ignored = true;
+                p.term.parse_state = ParseState::Done;
+                return std::nullopt;
             } else {
                 params::ParseContextIRIExpansionParams p_ctx{
                     .active_context = p.active_context,
@@ -364,8 +380,10 @@ namespace rdf4cpp::parser::json_ld {
                 p.term.iri_mapping = *ex;
 
                 bool const has_slash = p.term.key.find('/') != std::string::npos;
+                // a colon anywhere but as first or last character makes the key a compact IRI,
+                // so the part to search in drops the first and the last character
                 std::string_view colon_check_part = p.term.key;
-                colon_check_part = colon_check_part.substr(0, colon_check_part.length() - 2);
+                colon_check_part = colon_check_part.substr(0, colon_check_part.length() - 1);
                 if (!colon_check_part.empty()) {
                     colon_check_part = colon_check_part.substr(1);
                 }
@@ -478,6 +496,13 @@ namespace rdf4cpp::parser::json_ld {
                         return make_error(ParsingError::Type::BadSyntax, "invalid reverse property (contains nest)");
                     }
 
+                    if (looks_like_keyword(v) && !is_keyword(v)) {
+                        // 13.4, a value with the form of a keyword leaves the term without a definition
+                        p.term.ignored = true;
+                        p.term.parse_state = ParseState::Done;
+                        return std::nullopt;
+                    }
+
                     params::ParseContextIRIExpansionParams p_ctx{
                         .active_context = p.active_context,
                         .local_context = p.local_context,
@@ -512,7 +537,8 @@ namespace rdf4cpp::parser::json_ld {
                         }
                     }
 
-                    // TODO double check protected
+                    // a reverse property returns here, so the protected redefinition check of step 26
+                    // does not apply to it
                     p.term.is_reverse_property = true;
                     p.term.parse_state = ParseState::Done;
                     return std::nullopt;
@@ -628,7 +654,8 @@ namespace rdf4cpp::parser::json_ld {
                         if (graph) {
                             auto id = p.term.has_container_mapping(ContainerMapping::Id);
                             auto index = p.term.has_container_mapping(ContainerMapping::Index);
-                            if (index == id) {  // xor
+                            // @graph needs exactly one of @id and @index
+                            if (index == id) {
                                 graph = false;
                             } else {
                                 graph = only({ContainerMapping::Graph, ContainerMapping::Id, ContainerMapping::Index, ContainerMapping::Set});
@@ -691,7 +718,7 @@ namespace rdf4cpp::parser::json_ld {
                         p.term.context = std::format("[{}]", *p.term.context);
                     }
                     simdjson::pad(*p.term.context);
-                    // check moved to end of context processing
+                    // the context itself is validated at the end of context processing
                     p.term.needs_context_check = true;
                 }
             }
@@ -834,7 +861,10 @@ namespace rdf4cpp::parser::json_ld {
                 auto pre = value->substr(0, i);
                 auto post = value->substr(i + 1);
                 if (pre == "_") {
-                    return IRIMapping{std::format("bn_n{}", post), IRIMappingType::BlankNode};
+                    if (keep_document_bnode_labels) {
+                        return IRIMapping{std::string{post}, IRIMappingType::BlankNode};
+                    }
+                    return IRIMapping{std::format("{}{}", document_bnode_prefix, post), IRIMappingType::BlankNode};
                 }
                 if (post.starts_with("//")) {
                     return IRIMapping{std::string(*value), IRIMappingType::IRI};
@@ -882,7 +912,7 @@ namespace rdf4cpp::parser::json_ld {
             }
 
             try {
-                iri_factory->set_base(active_context.base_iri);
+                set_resolution_base(active_context.base_iri);
             } catch (InvalidIRI const &ii) {
                 return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid base iri: {}", ii.what())));
             } catch (...) {
@@ -899,8 +929,8 @@ namespace rdf4cpp::parser::json_ld {
             }
         }
         // 9
-        // no keyword, bn or valid iri, would have passed any above check
-        // => caller would ignore it anyway => return empty
+        // the value is no keyword, no blank node and no valid iri, so every check above failed.
+        // the caller ignores an empty mapping.
         return IRIMapping{std::string(""), IRIMappingType::None};
     }
 }  // namespace rdf4cpp::parser::json_ld

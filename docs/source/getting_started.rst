@@ -35,7 +35,7 @@ Build
 Requirements
 ____________
 
-Currently, rdf4cpp builds only on linux with a C++20 compatible compiler.
+Currently, rdf4cpp builds only on linux with a C++23 compatible compiler.
 CI builds and tests rdf4cpp with gcc-{13}, clang-{15,16} with libstdc++-13 on ubuntu 22.04.
 
 Dependencies

@@ -77,8 +77,9 @@ namespace rdf4cpp::parser {
     private:
         std::deque<value_type> result_queue_;
         size_t next_bn_index_ = 0;
+        // holds the state only if it was not provided by the caller
+        std::unique_ptr<state_type> owned_state_;
         state_type *state_;
-        bool state_is_owned_ = false;
         dice::sparse_map::sparse_set<storage::identifier::NodeBackendID> reserved_ids_;
 
         static constexpr std::string_view reify_subject = "http://www.w3.org/1999/02/22-rdf-syntax-ns#subject";
@@ -91,7 +92,7 @@ namespace rdf4cpp::parser {
 
     public:
         explicit XMLOutputQueue(state_type *state);
-        ~XMLOutputQueue();
+        ~XMLOutputQueue() = default;
 
         XMLOutputQueue(XMLOutputQueue const &) = delete;
         XMLOutputQueue &operator=(XMLOutputQueue const &) = delete;

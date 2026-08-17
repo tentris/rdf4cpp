@@ -3,17 +3,9 @@
 #include <uni_algo/ranges_conv.h>
 
 namespace rdf4cpp::parser {
-    XMLOutputQueue::XMLOutputQueue(state_type *state) : state_(state) {
-        if (state_ == nullptr) {
-            state_ = new state_type();
-            state_is_owned_ = true;
-        }
-    }
-
-    XMLOutputQueue::~XMLOutputQueue() {
-        if (state_is_owned_) {
-            delete state_;
-        }
+    XMLOutputQueue::XMLOutputQueue(state_type *initial_state)
+        : owned_state_(initial_state == nullptr ? std::make_unique<state_type>() : nullptr),
+          state_(initial_state == nullptr ? owned_state_.get() : initial_state) {
     }
 
     bool XMLOutputQueue::empty() const {
