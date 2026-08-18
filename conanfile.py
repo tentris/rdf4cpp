@@ -36,9 +36,9 @@ class Recipe(ConanFile):
         self.requires("openssl/3.6.3")
         self.requires("uni-algo/1.2.0")
         self.requires("highway/1.4.0")
-        self.requires("dice-hash/0.4.12", transitive_headers=True)
-        self.requires("dice-sparse-map/0.2.11", transitive_headers=True)
-        self.requires("dice-template-library/1.19.0", transitive_headers=True)
+        self.requires("dice-hash/0.5.0", transitive_headers=True)
+        self.requires("dice-sparse-map/0.3.0", transitive_headers=True)
+        self.requires("dice-template-library/2.8.0", transitive_headers=True)
         self.requires("libxml2/2.15.3", options={"iconv": False})
         self.requires("simdjson/4.6.3")
 
