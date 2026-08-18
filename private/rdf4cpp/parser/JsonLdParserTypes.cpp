@@ -13,24 +13,42 @@ namespace rdf4cpp::parser {
         return std::nullopt;
     }
 
+    size_t json_ld::Context::find_term_position(std::string_view key) const {
+        if (terms.size() < TermIndex::min_terms) {
+            auto i = std::ranges::find_if(terms, [&](auto const &t) {
+                return t.key == key && !t.ignored;
+            });
+            return i == terms.end() ? TermIndex::not_found : static_cast<size_t>(i - terms.begin());
+        }
+        if (term_index.indexed_terms != terms.size()) {
+            term_index.positions.clear();
+            term_index.positions.reserve(terms.size());
+            for (size_t i = 0; i < terms.size(); ++i) {
+                term_index.positions.emplace(terms[i].key, i);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+            }
+            term_index.indexed_terms = terms.size();
+        }
+        auto i = term_index.positions.find(key);
+        if (i == term_index.positions.end() || terms[i->second].ignored) {  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+            return TermIndex::not_found;
+        }
+        return i->second;
+    }
+
     json_ld::TermDefinition *json_ld::Context::try_find_term(std::string_view key) {
-        auto i = std::ranges::find_if(terms, [&](auto const &t) {
-            return t.key == key;
-        });
-        if (i == terms.end()) {
+        auto i = find_term_position(key);
+        if (i == TermIndex::not_found) {
             return nullptr;
         }
-        return &*i;
+        return &terms[i];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
     }
 
     json_ld::TermDefinition const *json_ld::Context::try_find_term(std::string_view key) const {
-        auto i = std::ranges::find_if(terms, [&](auto const &t) {
-            return t.key == key;
-        });
-        if (i == terms.end()) {
+        auto i = find_term_position(key);
+        if (i == TermIndex::not_found) {
             return nullptr;
         }
-        return &*i;
+        return &terms[i];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
     }
 
     bool looks_like_keyword(std::string_view v) {

@@ -7,9 +7,13 @@
 #include <rdf4cpp/parser/JsonLdParserPath.hpp>
 
 #include <forward_list>
+#include <limits>
 #include <string_view>
 #include <vector>
 
+#include <dice/hash.hpp>
+
+#include <boost/unordered/unordered_flat_map.hpp>
 #include <simdjson.h>
 
 namespace rdf4cpp::parser {
@@ -37,6 +41,18 @@ namespace rdf4cpp::parser {
     static constexpr std::string_view keyword_value = "@value";
     static constexpr std::string_view keyword_version = "@version";
     static constexpr std::string_view keyword_vocab = "@vocab";
+
+    // vocabulary of the compound direction form, see https://www.w3.org/TR/json-ld11-api/#dfn-i18n-datatype
+    static constexpr std::string_view iri_rdf_value = "http://www.w3.org/1999/02/22-rdf-syntax-ns#value";
+    static constexpr std::string_view iri_rdf_language = "http://www.w3.org/1999/02/22-rdf-syntax-ns#language";
+    static constexpr std::string_view iri_rdf_direction = "http://www.w3.org/1999/02/22-rdf-syntax-ns#direction";
+    static constexpr std::string_view iri_i18n_prefix = "https://www.w3.org/ns/i18n#";
+
+    // blank node labels the parser generates itself get generated_bnode_prefix plus a decimal number,
+    // labels taken from the document get document_bnode_prefix plus the label from the document.
+    // the two prefixes must stay distinct, otherwise a document label can name a generated blank node.
+    static constexpr std::string_view generated_bnode_prefix = "bn_";
+    static constexpr std::string_view document_bnode_prefix = "bn_n";
 
     // not treated as keyword in other places
     static constexpr std::string_view keyword_default = "@default";
@@ -108,7 +124,7 @@ namespace rdf4cpp::parser {
             Keyword,
         };
         /**
-         * result of the https://www.w3.org/TR/json-ld11-api/#iri-expansion algorythm.
+         * result of the https://www.w3.org/TR/json-ld11-api/#iri-expansion algorithm.
          * contrary to its name, not necessarily a IRI.
          */
         struct IRIMapping {
@@ -197,9 +213,6 @@ namespace rdf4cpp::parser {
         constexpr ContainerMapping operator&(ContainerMapping a, ContainerMapping b) {
             return static_cast<ContainerMapping>(static_cast<std::underlying_type_t<ContainerMapping>>(a) & static_cast<std::underlying_type_t<ContainerMapping>>(b));
         }
-        constexpr ContainerMapping operator^(ContainerMapping a, ContainerMapping b) {
-            return static_cast<ContainerMapping>(static_cast<std::underlying_type_t<ContainerMapping>>(a) | static_cast<std::underlying_type_t<ContainerMapping>>(b));
-        }
         constexpr ContainerMapping operator~(ContainerMapping a) {
             return static_cast<ContainerMapping>(~static_cast<std::underlying_type_t<ContainerMapping>>(a));
         }
@@ -261,9 +274,52 @@ namespace rdf4cpp::parser {
         struct TermDefinition : TermDefinitionBase {
             bool is_protected = false;
             bool needs_context_check = false;
+            /**
+             * If set, no term definition was created for this key, because the key maps to something
+             * that has the form of a keyword. Context::try_find_term skips such a term, so the key
+             * behaves like a key without a term definition.
+             */
+            bool ignored = false;
             ParseState parse_state = ParseState::NotStarted;
 
             using TermDefinitionBase::TermDefinitionBase;
+        };
+
+        /**
+         * Maps the key of a term to its position in Context::terms. Built on the first lookup and
+         * rebuilt whenever the number of terms changed. A copy starts out empty, so copying a Context
+         * stays as cheap as copying its terms.
+         */
+        struct TermIndex {
+            static constexpr size_t not_found = std::numeric_limits<size_t>::max();
+            /**
+             * Number of terms from which on the index is used. Below it a linear scan over the terms
+             * is cheaper than filling the map.
+             */
+            static constexpr size_t min_terms = 16;
+
+            struct KeyHash {
+                using is_transparent = void;
+                size_t operator()(std::string_view key) const noexcept {
+                    return std::hash<std::string_view>{}(key);
+                }
+            };
+
+
+            boost::unordered_flat_map<std::string, size_t,
+                                         KeyHash, std::equal_to<>> positions{};
+            size_t indexed_terms = not_found;
+
+            TermIndex() = default;
+            TermIndex(TermIndex const &) {}
+            TermIndex(TermIndex &&) noexcept = default;
+            TermIndex &operator=(TermIndex const &) {
+                positions.clear();
+                indexed_terms = not_found;
+                return *this;
+            }
+            TermIndex &operator=(TermIndex &&) noexcept = default;
+            ~TermIndex() = default;
         };
 
         struct Context {
@@ -273,9 +329,13 @@ namespace rdf4cpp::parser {
             Context const *previous_context = nullptr;
             LanguageMapping language = NotSet{};
             BaseDirection base_direction = BaseDirection::None;
+            mutable TermIndex term_index{};
 
             TermDefinition *try_find_term(std::string_view key);
             [[nodiscard]] TermDefinition const *try_find_term(std::string_view key) const;
+
+        private:
+            [[nodiscard]] size_t find_term_position(std::string_view key) const;
         };
 
 
@@ -285,9 +345,9 @@ namespace rdf4cpp::parser {
             Context *active_context = nullptr;
             // moving the contained objects is not allowed
             std::forward_list<Context> context_storage;
-            // if set, this map was expanded from something that is not a map (example: a string being converted to a map containing only an @id entry)
-            // therefore parse may not cast the input element to an object
-            // if set, only entries consisting of keyword_values may be in this map
+            // if set, this map was expanded from something that is not a map (example: a string
+            // converted to a map containing only an @id entry). parse may then not cast the input
+            // element to an object, and only entries consisting of keyword_values may be in this map.
             bool expanded_from_no_map = false;
 
             constexpr ExpandedMapEntry *try_find_entry(IRIMapping const &key);
@@ -301,13 +361,11 @@ namespace rdf4cpp::parser {
             IRIMapping key;
             KeyPath path;
             std::vector<IRIMapping> keyword_values;
-            std::string active_property = "";
             bool is_json_literal = false;
             bool as_list = false;
             bool as_graph = false;
             bool is_reverse = false;
             bool as_multiple_graphs = false;
-            std::optional<IRIMapping> as_named_graph = std::nullopt;
             std::optional<BaseDirection> language_map = std::nullopt;
             std::optional<ExpandedValue> pre_expanded_value = std::nullopt;
             Context const *active_context = nullptr;

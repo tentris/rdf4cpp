@@ -15,6 +15,10 @@ void jsonld_test_negative(std::string json_str, std::string_view base_iri) {
     parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, ParsingFlag::JsonLd);
 }
 
+void jsonld_test_negative_flags(std::string json_str, std::string_view base_iri, ParsingFlags flags) {
+    parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, flags);
+}
+
 std::string remote_test_file_to_str(std::string_view file_name) {
     return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, "https://raw.githubusercontent.com/w3c/json-ld-streaming/refs/heads/main/tests/stream-toRdf", "./jsonld_test_cache");
 }
@@ -154,8 +158,15 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e011-in.jsonld"), remote_test_file_to_str("e011-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te011");
     jsonld_test_positive(remote_test_file_to_str("e012-in.jsonld"), remote_test_file_to_str("e012-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te012");
     jsonld_test_positive(remote_test_file_to_str("e013-in.jsonld"), remote_test_file_to_str("e013-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te013");
-    // test looks to be broken ???
-    //jsonld_test_positive(remote_test_file_to_str("e014-in.jsonld"), remote_test_file_to_str("e014-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te014");
+    // e014-out.nq expects xsd:date to expand through the term xsd. xsd is an expanded term
+    // definition without @prefix, and json-ld 1.1 only treats simple term definitions as prefixes,
+    // so the datatype stays xsd:date. the rest of the expected output is unchanged.
+    jsonld_test_positive(remote_test_file_to_str("e014-in.jsonld"), R"(<http://example.org/test#example1> <http://example.org/test#property1> <http://example.org/test#example2> .
+<http://example.org/test#example2> <http://example.org/test#property4> "foo" .
+<http://example.org/test#example1> <http://example.org/test#property2> <http://example.org/test#example3> .
+<http://example.org/test#example1> <http://example.org/test#property3> <http://example.org/test#example4> .
+<http://example.org/test#example1> <http://example.org/test#property4> <http://example.org/test#example4> .
+<http://example.org/test#example4> <http://example.org/test#property5> "2012-03-31"^^<xsd:date> .)", "https://w3c.github.io/json-ld-streaming/tests/te014");
     jsonld_test_positive(remote_test_file_to_str("e015-in.jsonld"), remote_test_file_to_str("e015-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te015");
     jsonld_test_positive(remote_test_file_to_str("e016-in.jsonld"), remote_test_file_to_str("e016-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te016");
     jsonld_test_positive(remote_test_file_to_str("e017-in.jsonld"), remote_test_file_to_str("e017-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te017");
@@ -167,7 +178,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e023-in.jsonld"), remote_test_file_to_str("e023-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te023");
     jsonld_test_positive(remote_test_file_to_str("e024-in.jsonld"), remote_test_file_to_str("e024-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te024");
     jsonld_test_positive(remote_test_file_to_str("e025-in.jsonld"), remote_test_file_to_str("e025-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te025");
-    // this is the same as er43 (a negative test)?
+    // the same document as er43, which is a negative test
     // jsonld_test_positive(remote_test_file_to_str("e026-in.jsonld"), remote_test_file_to_str("e026-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te026");
     jsonld_test_positive(remote_test_file_to_str("e027-in.jsonld"), remote_test_file_to_str("e027-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te027", true);
     jsonld_test_positive(remote_test_file_to_str("e028-in.jsonld"), remote_test_file_to_str("e028-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/stream-toRdf/te028");
@@ -221,7 +232,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // bn vocab is deprecated
     //jsonld_test_positive(remote_test_file_to_str("e075-in.jsonld"), remote_test_file_to_str("e075-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te075");
     jsonld_test_positive(remote_test_file_to_str("e076-in.jsonld"), remote_test_file_to_str("e076-out.nq"), "http://example/base/");
-    // some sort of external context ...
+    // uses a remote context
     //jsonld_test_positive(remote_test_file_to_str("e077-in.jsonld"), remote_test_file_to_str("e077-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te077");
     jsonld_test_positive(remote_test_file_to_str("e078-in.jsonld"), remote_test_file_to_str("e078-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/stream-toRdf/e078-in.jsonld");
     jsonld_test_positive(remote_test_file_to_str("e079-in.jsonld"), remote_test_file_to_str("e079-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te079");
@@ -254,8 +265,9 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e106-in.jsonld"), remote_test_file_to_str("e106-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te106");
     jsonld_test_positive(remote_test_file_to_str("e107-in.jsonld"), remote_test_file_to_str("e107-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te107");
     jsonld_test_positive(remote_test_file_to_str("e108-in.jsonld"), remote_test_file_to_str("e108-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te108", true);
-    // invalid IRI
-    //jsonld_test_positive(remote_test_file_to_str("e109-in.jsonld"), remote_test_file_to_str("e109-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te109");
+    // IRIView takes the text before the first ':' as a scheme even when a '?' or '#' comes first,
+    // so a fragment containing ':' is reported as an invalid scheme
+    // jsonld_test_positive(remote_test_file_to_str("e109-in.jsonld"), remote_test_file_to_str("e109-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te109");
     jsonld_test_positive(remote_test_file_to_str("e110-in.jsonld"), remote_test_file_to_str("e110-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te110");
     // broken vocab iri
     //jsonld_test_positive(remote_test_file_to_str("e111-in.jsonld"), remote_test_file_to_str("e111-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te111");
@@ -265,8 +277,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e117-in.jsonld"), remote_test_file_to_str("e117-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te117");
     jsonld_test_positive(remote_test_file_to_str("e118-in.jsonld"), remote_test_file_to_str("e118-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te118");
     jsonld_test_positive(remote_test_file_to_str("e119-in.jsonld"), remote_test_file_to_str("e119-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te119");
-    // looks like keyword as id
-    //jsonld_test_positive(remote_test_file_to_str("e120-in.jsonld"), remote_test_file_to_str("e120-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te120");
+    jsonld_test_positive(remote_test_file_to_str("e120-in.jsonld"), remote_test_file_to_str("e120-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te120");
     jsonld_test_positive(remote_test_file_to_str("e121-in.jsonld"), remote_test_file_to_str("e121-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te121");
     jsonld_test_positive(remote_test_file_to_str("e122-in.jsonld"), remote_test_file_to_str("e122-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te122");
     // remote context
@@ -286,7 +297,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("js03-in.jsonld"), remote_test_file_to_str("js03-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs03");
     jsonld_test_positive(remote_test_file_to_str("js04-in.jsonld"), remote_test_file_to_str("js04-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs04");
     jsonld_test_positive(remote_test_file_to_str("js05-in.jsonld"), remote_test_file_to_str("js05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs05");
-    // TODO? canonization
+    // rdf:JSON literals are not canonicalized, so the expected output keeps the json of the document
     jsonld_test_positive(remote_test_file_to_str("js06-in.jsonld"), R"(_:bn_0 <http://example.org/vocab#object> "{\"foo\": \"bar\"}"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON> .)", "https://w3c.github.io/json-ld-streaming/tests/tjs06");
     jsonld_test_positive(remote_test_file_to_str("js07-in.jsonld"), R"(_:bn_0 <http://example.org/vocab#array> "[{\"foo\": \"bar\"}]"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON> .)", "https://w3c.github.io/json-ld-streaming/tests/tjs07");
     jsonld_test_positive(remote_test_file_to_str("js15-in.jsonld"), R"(_:bn_0 <http://example.org/vocab#object> "{\"foo\": \"bar\"}"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON> .)", "https://w3c.github.io/json-ld-streaming/tests/tjs15");
@@ -307,8 +318,8 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // jsonld_test_positive(remote_test_file_to_str("js19-in.jsonld"), remote_test_file_to_str("js19-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs19");
     // jsonld_test_positive(remote_test_file_to_str("js20-in.jsonld"), remote_test_file_to_str("js20-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs20");
     // jsonld_test_positive(remote_test_file_to_str("js21-in.jsonld"), remote_test_file_to_str("js21-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs21");
-    // jsonld_test_positive(remote_test_file_to_str("js22-in.jsonld"), remote_test_file_to_str("js22-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs22");
-    // jsonld_test_positive(remote_test_file_to_str("js23-in.jsonld"), remote_test_file_to_str("js23-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs23");
+    jsonld_test_positive(remote_test_file_to_str("js22-in.jsonld"), remote_test_file_to_str("js22-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs22");
+    jsonld_test_positive(remote_test_file_to_str("js23-in.jsonld"), remote_test_file_to_str("js23-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tjs23");
     jsonld_test_positive(remote_test_file_to_str("li01-in.jsonld"), remote_test_file_to_str("li01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tli01");
     jsonld_test_positive(remote_test_file_to_str("li02-in.jsonld"), remote_test_file_to_str("li02-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tli02");
     jsonld_test_positive(remote_test_file_to_str("li03-in.jsonld"), remote_test_file_to_str("li03-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tli03");
@@ -373,14 +384,13 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("pr30-in.jsonld"), remote_test_file_to_str("pr30-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr30");
     jsonld_test_positive(remote_test_file_to_str("pr34-in.jsonld"), remote_test_file_to_str("pr34-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr34");
     jsonld_test_positive(remote_test_file_to_str("pr35-in.jsonld"), remote_test_file_to_str("pr35-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr35");
-    // according to spec, this should produce invalid iri mapping (expand iri returns null, because @ignoreMe looks like a keyword, which is not iri, bn or keyword
-    // jsonld_test_positive(remote_test_file_to_str("pr36-in.jsonld"), remote_test_file_to_str("pr36-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr36");
-    // jsonld_test_positive(remote_test_file_to_str("pr37-in.jsonld"), remote_test_file_to_str("pr37-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr37");
-    // jsonld_test_positive(remote_test_file_to_str("pr38-in.jsonld"), remote_test_file_to_str("pr38-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr38");
-    // jsonld_test_positive(remote_test_file_to_str("pr39-in.jsonld"), remote_test_file_to_str("pr39-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr39");
+    jsonld_test_positive(remote_test_file_to_str("pr36-in.jsonld"), remote_test_file_to_str("pr36-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr36");
+    jsonld_test_positive(remote_test_file_to_str("pr37-in.jsonld"), remote_test_file_to_str("pr37-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr37");
+    jsonld_test_positive(remote_test_file_to_str("pr38-in.jsonld"), remote_test_file_to_str("pr38-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr38");
+    jsonld_test_positive(remote_test_file_to_str("pr39-in.jsonld"), remote_test_file_to_str("pr39-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr39");
     jsonld_test_positive(remote_test_file_to_str("pr40-in.jsonld"), remote_test_file_to_str("pr40-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr40");
     jsonld_test_positive(remote_test_file_to_str("rt01-in.jsonld"), remote_test_file_to_str("rt01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/trt01");
-    //import
+    // uses @import
     // jsonld_test_positive(remote_test_file_to_str("so05-in.jsonld"), remote_test_file_to_str("so05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso05");
     // jsonld_test_positive(remote_test_file_to_str("so06-in.jsonld"), remote_test_file_to_str("so06-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso06");
     // jsonld_test_positive(remote_test_file_to_str("so08-in.jsonld"), remote_test_file_to_str("so08-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso08");
@@ -416,12 +426,14 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // jsonld_test_positive(remote_test_file_to_str("wf05-in.jsonld"), remote_test_file_to_str("wf05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/twf05");
     // jsonld_test_positive(remote_test_file_to_str("wf07-in.jsonld"), remote_test_file_to_str("wf07-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/twf07");
     // negative tests
-    //as far as i can tell, this contains no errors
+    // @propagate is only invalid in json-ld 1.0, this parser implements 1.1
+    // this document contains no error that the parser detects
     // jsonld_test_negative(remote_test_file_to_str("c029-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc029");
     jsonld_test_negative(remote_test_file_to_str("c030-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc030");
     jsonld_test_negative(remote_test_file_to_str("c032-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc032");
     jsonld_test_negative(remote_test_file_to_str("c033-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc033");
     jsonld_test_negative(remote_test_file_to_str("di08-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tdi08");
+    // a relative IRI as a property with @vocab is only invalid in json-ld 1.0
     //jsonld_test_negative(remote_test_file_to_str("e115-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te115");
     //jsonld_test_negative(remote_test_file_to_str("e116-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te116");
     jsonld_test_negative(remote_test_file_to_str("e123-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/te123");
@@ -434,6 +446,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("en04-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten04");
     jsonld_test_negative(remote_test_file_to_str("en05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten05");
     jsonld_test_negative(remote_test_file_to_str("en06-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ten06");
+    // needs the json-ld 1.0 processing mode, which this parser does not offer
     //jsonld_test_negative(remote_test_file_to_str("ep02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tep02");
     jsonld_test_negative(remote_test_file_to_str("ep03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tep03");
     jsonld_test_negative(remote_test_file_to_str("er01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter01");
@@ -455,9 +468,11 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("er18-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter18");
     jsonld_test_negative(remote_test_file_to_str("er19-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter19");
     jsonld_test_negative(remote_test_file_to_str("er20-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter20");
+    // @container: @id is only invalid in json-ld 1.0, m001 and m002 cover the 1.1 behavior
     // jsonld_test_negative(remote_test_file_to_str("er21-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter21");
     jsonld_test_negative(remote_test_file_to_str("er22-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter22");
     jsonld_test_negative(remote_test_file_to_str("er23-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter23");
+    // a list inside a list is only invalid in json-ld 1.0, li01 and li02 cover the 1.1 behavior
     // jsonld_test_negative(remote_test_file_to_str("er24-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter24");
     jsonld_test_negative(remote_test_file_to_str("er25-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter25");
     jsonld_test_negative(remote_test_file_to_str("er26-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter26");
@@ -466,6 +481,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("er29-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter29");
     jsonld_test_negative(remote_test_file_to_str("er30-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter30");
     jsonld_test_negative(remote_test_file_to_str("er31-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter31");
+    // a list inside a list is only invalid in json-ld 1.0, li01 and li02 cover the 1.1 behavior
     // jsonld_test_negative(remote_test_file_to_str("er32-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter32");
     jsonld_test_negative(remote_test_file_to_str("er33-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter33");
     jsonld_test_negative(remote_test_file_to_str("er34-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter34");
@@ -476,6 +492,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("er39-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter39");
     jsonld_test_negative(remote_test_file_to_str("er40-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter40");
     jsonld_test_negative(remote_test_file_to_str("er41-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter41");
+    // keyword redefinition is only invalid in json-ld 1.0
     // jsonld_test_negative(remote_test_file_to_str("er42-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter42");
     jsonld_test_negative(remote_test_file_to_str("er43-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter43");
     jsonld_test_negative(remote_test_file_to_str("er44-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ter44");
@@ -511,6 +528,9 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("pr31-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr31");
     jsonld_test_negative(remote_test_file_to_str("pr32-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr32");
     jsonld_test_negative(remote_test_file_to_str("pr33-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tpr33");
+    // se01 to se09 expect the key order of the json-ld streaming profile: @context before @id and
+    // before the properties, @type before @id. this parser reads the whole document before it
+    // expands it, so the order of the keys does not change its result.
     // jsonld_test_negative(remote_test_file_to_str("se01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse01");
     // jsonld_test_negative(remote_test_file_to_str("se02-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse02");
     // jsonld_test_negative(remote_test_file_to_str("se03-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tse03");
@@ -527,5 +547,315 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("so10-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso10");
     jsonld_test_negative(remote_test_file_to_str("so12-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso12");
     jsonld_test_negative(remote_test_file_to_str("so13-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso13");
+    // @type: @none is only invalid in json-ld 1.0
     // jsonld_test_negative(remote_test_file_to_str("tn01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ttn01");
+}
+
+TEST_CASE("malformed json becomes a parsing error") {
+    // empty input
+    jsonld_test_negative("", "http://example.com/");
+    // truncated object
+    jsonld_test_negative(R"({"a":)", "http://example.com/");
+    // missing closing brace
+    jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": "v")", "http://example.com/");
+    // invalid escape sequence
+    jsonld_test_negative(R"({"http://example.com/p": "\ux"})", "http://example.com/");
+    // trailing garbage
+    jsonld_test_negative(R"({"@id": "http://example.com/s"} garbage)", "http://example.com/");
+}
+
+TEST_CASE("numbers in a document with crlf line endings") {
+    jsonld_test_positive("{\r\n\"@id\": \"http://example.com/s\",\r\n\"http://example.com/i\": 1,\r\n\"http://example.com/d\": 2.5\r\n}",
+                         R"(<http://example.com/s> <http://example.com/i> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.com/s> <http://example.com/d> "2.5E0"^^<http://www.w3.org/2001/XMLSchema#double> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("integral numbers that do not fit into int64") {
+    jsonld_test_positive(R"({"@id": "http://example.com/s", "http://example.com/p": 1e19, "http://example.com/n": -1e19})",
+                         R"(<http://example.com/s> <http://example.com/p> "10000000000000000000"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.com/s> <http://example.com/n> "-10000000000000000000"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("compact iri term is checked against its own expansion") {
+    // the term ex:x expands to http://example.com/x via the prefix ex, which contradicts its @id
+    jsonld_test_negative(R"({"@context": {"ex": "http://example.com/", "ex:x": "http://other.example.com/x"}, "ex:x": "v"})", "http://example.com/");
+    // same with a longer suffix, this was already detected
+    jsonld_test_negative(R"({"@context": {"ex": "http://example.com/", "ex:xy": "http://other.example.com/xy"}, "ex:xy": "v"})", "http://example.com/");
+}
+
+TEST_CASE("a base set by a json-ld document stays in the parsing state") {
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base("http://example.com/");
+
+    std::stringstream json{R"({"@context": {"@base": "http://other.example.com/"}, "@id": "s", "http://example.com/p": {"@id": "o"}})"};
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        CHECK(it->has_value());
+    }
+
+    CHECK(state.iri_factory.get_base() == "http://other.example.com/");
+
+    // a turtle parse reusing the state resolves against the base the json-ld document set
+    std::stringstream ttl{"<s> <http://example.com/p> <o> ."};
+    IStreamQuadIterator ttl_it{ttl, ParsingFlag::Turtle, &state};
+    REQUIRE(ttl_it != std::default_sentinel);
+    REQUIRE(ttl_it->has_value());
+    CHECK(ttl_it->value().subject().as_iri().identifier() == "http://other.example.com/s");
+}
+
+TEST_CASE("json-ld honors NoParseBlankNode") {
+    // blank node label in the document
+    jsonld_test_negative_flags(R"({"@id": "_:x", "http://example.com/p": "v"})", "http://example.com/", ParsingFlag::JsonLd | ParsingFlag::NoParseBlankNode);
+    // blank node generated for a node object without @id
+    jsonld_test_negative_flags(R"({"http://example.com/p": "v"})", "http://example.com/", ParsingFlag::JsonLd | ParsingFlag::NoParseBlankNode);
+}
+
+TEST_CASE("json-ld honors KeepBlankNodeIds") {
+    SUBCASE("without a scope manager") {
+        std::stringstream json{R"({"@id": "_:x", "http://example.com/p": "v"})"};
+        IStreamQuadIterator it{json, ParsingFlag::JsonLd | ParsingFlag::KeepBlankNodeIds};
+        REQUIRE(it != std::default_sentinel);
+        REQUIRE(it->has_value());
+        CHECK(it->value().subject().as_blank_node().identifier() == "x");
+    }
+    SUBCASE("with a scope manager") {
+        bnode_mngt::MergeNodeScopeManager<> manager;
+        IStreamQuadIterator::state_type state{.blank_node_scope_manager = &manager};
+        std::stringstream json{R"({"@id": "_:x", "http://example.com/p": "v"})"};
+        IStreamQuadIterator it{json, ParsingFlag::JsonLd | ParsingFlag::KeepBlankNodeIds, &state};
+        REQUIRE(it != std::default_sentinel);
+        REQUIRE(it->has_value());
+        CHECK(it->value().subject().as_blank_node().identifier() == "x");
+    }
+}
+
+TEST_CASE("json-ld blank nodes go through the scope manager") {
+    bnode_mngt::MergeNodeScopeManager<> manager;
+    IStreamQuadIterator::state_type state{.blank_node_scope_manager = &manager};
+
+    // the same document label in the default graph and in a named graph is one node,
+    // json-ld shares blank node labels over the whole document
+    std::stringstream json{R"({"@graph": [
+  {"@id": "_:x", "http://example.com/p": {"@id": "_:y"}},
+  {"@id": "http://example.com/g", "@graph": [{"@id": "_:x", "http://example.com/q": "v"}]}
+]})"};
+    std::vector<Quad> quads;
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        REQUIRE(it->has_value());
+        quads.emplace_back(it->value());
+    }
+    REQUIRE(quads.size() == 2);
+
+    // the scope manager relabels, so the document labels are gone
+    CHECK(quads[0].subject().is_blank_node());
+    CHECK(quads[0].subject().as_blank_node().identifier() != "x");
+    CHECK(quads[1].subject().is_blank_node());
+    CHECK(quads[0].subject() == quads[1].subject());
+    CHECK(quads[0].object() != quads[0].subject());
+}
+
+TEST_CASE("context with more terms than the lookup index threshold") {
+    // the fixtures of the w3c suite all stay below the threshold, so this covers the indexed lookup
+    std::string context;
+    for (size_t i = 0; i < 40; ++i) {
+        context += std::format("{}\"t{}\": \"http://example.com/p{}\"", i == 0 ? "" : ", ", i, i);
+    }
+    // uses the first, a middle and the last term, plus a key that is no term at all
+    auto const doc = std::format(R"({{"@context": {{{}}}, "@id": "http://example.com/s",
+      "t0": "a", "t23": "b", "t39": "c", "http://example.com/direct": "d"}})",
+                                 context);
+    jsonld_test_positive(doc, R"(<http://example.com/s> <http://example.com/p0> "a" .
+<http://example.com/s> <http://example.com/p23> "b" .
+<http://example.com/s> <http://example.com/p39> "c" .
+<http://example.com/s> <http://example.com/direct> "d" .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("document larger than one read block") {
+    // the stream constructor reads in blocks, this needs more than one of them
+    static constexpr size_t nodes = 3000;
+    std::string doc{R"({"@context": {"p": "http://example.com/p"}, "@graph": [)"};
+    std::string expected;
+    for (size_t i = 0; i < nodes; ++i) {
+        doc += std::format("{}{{\"@id\": \"http://example.com/s{}\", \"p\": \"value {}\"}}", i == 0 ? "" : ", ", i, i);
+        expected += std::format("<http://example.com/s{}> <http://example.com/p> \"value {}\" .\n", i, i);
+    }
+    doc += "]}";
+    REQUIRE(doc.size() > 64 * 1024);
+    jsonld_test_positive(doc, expected, "http://example.com/");
+}
+
+TEST_CASE("numbers that no double can hold") {
+    // from_chars reports these as an invalid literal, which must not escape the iterator
+    jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": 1e999999})", "http://example.com/");
+    jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": -1e999999})", "http://example.com/");
+}
+
+TEST_CASE("integral numbers at the int64 limit") {
+    // 2^63 does not fit, 2^63-1024 (the largest double below it) does
+    jsonld_test_positive(R"({"@id": "http://example.com/s", "http://example.com/p": 9223372036854775808, "http://example.com/q": 9223372036854774784})",
+                         R"(<http://example.com/s> <http://example.com/p> "9223372036854775808"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.com/s> <http://example.com/q> "9223372036854774784"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+    jsonld_test_positive(R"({"@id": "http://example.com/s", "http://example.com/p": -9223372036854775808})",
+                         R"(<http://example.com/s> <http://example.com/p> "-9223372036854775808"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("a parsing error after valid quads") {
+    // the invalid escape is in the second array element, the first one still produces its quad
+    std::stringstream json{R"([{"@id": "http://example.com/s", "http://example.com/p": "ok"}, {"@id": "http://example.com/s2", "http://example.com/p": "\ux"}])"};
+    IStreamQuadIterator it{json, ParsingFlag::JsonLd};
+
+    size_t values = 0;
+    bool had_error = false;
+    for (; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            ++values;
+        } else {
+            had_error = true;
+        }
+    }
+    CHECK(values == 1);
+    CHECK(had_error);
+}
+
+// checks that an unsupported context feature is reported and that no quad is produced from a
+// document whose context could not be applied
+void jsonld_test_unsupported(std::string json_str, std::string_view message_part) {
+    CAPTURE(message_part);
+    std::stringstream json{std::move(json_str)};
+    IStreamQuadIterator it{json, ParsingFlag::JsonLd};
+
+    size_t quads = 0;
+    std::string first_message;
+    for (; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            ++quads;
+        } else if (first_message.empty()) {
+            first_message = it->error().message;
+        }
+    }
+    CAPTURE(first_message);
+    // expanding with an unapplied context would produce plausible but wrong quads
+    CHECK(quads == 0);
+    REQUIRE(!first_message.empty());
+    CHECK(first_message.find(message_part) != std::string::npos);
+}
+
+TEST_CASE("remote contexts are reported as unsupported") {
+    // the w3c tests for this are the deactivated c031, c034, e077, e126, e127 and e128
+    SUBCASE("context is a string") {
+        jsonld_test_unsupported(R"({"@context": "http://example.com/ctx.jsonld", "http://example.com/p": "v"})", "remote context not supported");
+    }
+    SUBCASE("context is a relative string") {
+        jsonld_test_unsupported(R"({"@context": "ctx.jsonld", "http://example.com/p": "v"})", "remote context not supported");
+    }
+    SUBCASE("context array contains a string") {
+        jsonld_test_unsupported(R"({"@context": ["http://example.com/ctx.jsonld", {"t": "http://example.com/p"}], "t": "v"})", "remote context not supported");
+    }
+    SUBCASE("property scoped context is a string") {
+        jsonld_test_unsupported(R"({"@context": {"t": {"@id": "http://example.com/p", "@context": "http://example.com/ctx.jsonld"}},
+          "@id": "http://example.com/s", "t": {"x": "v"}})",
+                                "invalid scoped context, remote");
+    }
+    SUBCASE("type scoped context is a string") {
+        jsonld_test_unsupported(R"({"@context": {"T": {"@id": "http://example.com/T", "@context": "http://example.com/ctx.jsonld"}},
+          "@id": "http://example.com/s", "@type": "T", "http://example.com/p": "v"})",
+                                "invalid scoped context, remote");
+    }
+}
+
+TEST_CASE("@import is reported as unsupported") {
+    // the w3c tests for this are the deactivated so05, so06, so08, so09 and so11
+    jsonld_test_unsupported(R"({"@context": {"@import": "http://example.com/ctx.jsonld", "t": "http://example.com/p"},
+      "@id": "http://example.com/s", "t": "v"})",
+                            "import context not supported");
+}
+
+TEST_CASE("a free floating scalar is no json-ld document") {
+    jsonld_test_negative("42", "http://example.com/");
+    jsonld_test_negative(R"("hello")", "http://example.com/");
+    jsonld_test_negative("true", "http://example.com/");
+}
+
+TEST_CASE("a document label that is no valid blank node label") {
+    // KeepBlankNodeIds passes the label of the document to BlankNode::make, which rejects it
+    jsonld_test_negative_flags(R"({"@id": "_:a b", "http://example.com/p": "v"})", "http://example.com/",
+                               ParsingFlag::JsonLd | ParsingFlag::KeepBlankNodeIds);
+}
+
+TEST_CASE("a literal that cannot be created reports an error") {
+    // the i18n form builds the datatype from the language, "a b" does not fit into an IRI
+    jsonld_test_negative_flags(R"({"@context": {"@language": "a b", "@direction": "ltr"}, "@id": "http://example.com/s", "http://example.com/p": "v"})",
+                               "http://example.com/", ParsingFlag::JsonLd | ParsingFlag::JsonLdDirectionI18n);
+}
+
+TEST_CASE("a language tag outside of the rdf grammar") {
+    // such a literal cannot be written to n-triples, it is reported instead of emitted
+    jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": {"@value": "v", "@language": "a b"}})", "http://example.com/");
+    jsonld_test_negative(R"({"@context": {"@language": "de_DE"}, "@id": "http://example.com/s", "http://example.com/p": "v"})", "http://example.com/");
+    // valid tags stay valid
+    jsonld_test_positive(R"({"@id": "http://example.com/s", "http://example.com/p": {"@value": "v", "@language": "de-DE-1996"}})",
+                         R"(<http://example.com/s> <http://example.com/p> "v"@de-DE-1996 .)", "http://example.com/");
+}
+
+TEST_CASE("a relative iri that stays invalid after resolving") {
+    jsonld_test_negative(R"({"@context": {"@base": "http://example.com/"}, "@id": "a<b>", "http://example.com/p": "v"})", "http://example.com/");
+}
+
+TEST_CASE("index container with a type mapping") {
+    // the values of an index map are expanded before the quads are emitted
+    jsonld_test_positive(R"({"@context": {"t": {"@id": "http://example.com/p", "@container": "@index", "@type": "http://www.w3.org/2001/XMLSchema#integer"}},
+      "@id": "http://example.com/s", "t": {"k1": "42", "k2": "43"}})",
+                         R"(<http://example.com/s> <http://example.com/p> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.com/s> <http://example.com/p> "43"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("index container with an index property") {
+    // @index in the term definition names the property that receives the keys of the index map.
+    // those keys are expanded before the quads are emitted, once as a plain and once as a typed literal
+    jsonld_test_positive(R"({"@context": {
+        "idx": {"@id": "http://example.com/idx", "@type": "http://www.w3.org/2001/XMLSchema#integer"},
+        "t": {"@id": "http://example.com/p", "@container": "@index", "@index": "idx"}},
+      "@id": "http://example.com/s", "t": {"42": {"@id": "http://example.com/o"}}})",
+                         R"(<http://example.com/s> <http://example.com/p> <http://example.com/o> .
+<http://example.com/o> <http://example.com/idx> "42"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                         "http://example.com/");
+
+    jsonld_test_positive(R"({"@context": {
+        "t": {"@id": "http://example.com/p", "@container": "@index", "@index": "http://example.com/idx"}},
+      "@id": "http://example.com/s", "t": {"key": {"@id": "http://example.com/o"}}})",
+                         R"(<http://example.com/s> <http://example.com/p> <http://example.com/o> .
+<http://example.com/o> <http://example.com/idx> "key" .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("a null context is supported") {
+    // @context null resets the context, it is not a remote reference
+    jsonld_test_positive(R"({"@context": null, "@id": "http://example.com/s", "http://example.com/p": "v"})",
+                         R"(<http://example.com/s> <http://example.com/p> "v" .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("a term with a type mapping and a string value") {
+    // the value overload of value_expansion delegates strings to the string_view overload
+    jsonld_test_positive(R"({"@context": {"d": {"@id": "http://example.com/p", "@type": "http://www.w3.org/2001/XMLSchema#date"}},
+      "@id": "http://example.com/s", "d": "2012-03-31"})",
+                         R"(<http://example.com/s> <http://example.com/p> "2012-03-31"^^<http://www.w3.org/2001/XMLSchema#date> .)",
+                         "http://example.com/");
+}
+
+TEST_CASE("test deduplication keeps terms that are only value equal") {
+    parse_test_helpers::parser_test_positive(R"({
+  "@context": {"d": {"@id": "http://example.com/p", "@type": "http://www.w3.org/2001/XMLSchema#double"}},
+  "@id": "http://example.com/s",
+  "d": 1,
+  "http://example.com/p": 1
+})",
+                                             R"(<http://example.com/s> <http://example.com/p> "1.0E0"^^<http://www.w3.org/2001/XMLSchema#double> .
+<http://example.com/s> <http://example.com/p> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
+                                             "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, true);
 }

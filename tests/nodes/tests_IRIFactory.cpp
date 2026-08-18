@@ -160,8 +160,17 @@ TEST_CASE("base") {
     CHECK(fact.from_maybe_relative("http://ex.com/a/./b/../c").identifier() == "http://ex.com/a/./b/../c");
     CHECK(fact.from_maybe_relative("/x/./b/../c").identifier() == "http://a/x/c");
 
+    // a base path without a '/' contributes nothing to the merge, see rfc 3986 5.2.3
     CHECK_NOTHROW(fact.set_base("tag:example"));
     CHECK(fact.from_relative("a").identifier() == "tag:a");
+
+    CHECK_NOTHROW(fact.set_base("urn:example:name"));
+    CHECK(fact.from_relative("x").identifier() == "urn:x");
+    CHECK(fact.from_relative("").identifier() == "urn:example:name");
+
+    // a base path with a '/' keeps everything up to the last one
+    CHECK_NOTHROW(fact.set_base("urn:example:dir/name"));
+    CHECK(fact.from_relative("x").identifier() == "urn:example:dir/x");
 }
 
 TEST_CASE("base reassign") {

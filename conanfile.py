@@ -13,7 +13,7 @@ class Recipe(ConanFile):
     url = "https://github.com/rdf4cpp/rdf4cpp"
     license = "MIT"
     description = "rdf4cpp aims to be a stable, modern RDF library for C++."
-    topics = "rdf", "semantic-web", "sparql", "knowledge-graphs", "C++20"
+    topics = "rdf", "semantic-web", "sparql", "knowledge-graphs", "C++23"
     settings = "os", "compiler", "build_type", "arch"
     options = {
         "shared": [True, False],
@@ -30,17 +30,17 @@ class Recipe(ConanFile):
     generators = ("CMakeDeps", "CMakeToolchain")
 
     def requirements(self):
-        self.requires("boost/1.86.0", transitive_headers=True, libs=False)
-        self.requires("expected-lite/0.8.0", transitive_headers=True)
-        self.requires("pcre2/10.44", options={"support_jit": True})
+        self.requires("boost/1.90.0", transitive_headers=True, libs=False)
+        self.requires("expected-lite/0.9.0", transitive_headers=True)
+        self.requires("pcre2/10.47", options={"support_jit": True})
         self.requires("openssl/3.6.3")
         self.requires("uni-algo/1.2.0")
-        self.requires("highway/1.2.0")
-        self.requires("dice-hash/0.4.11", transitive_headers=True)
-        self.requires("dice-sparse-map/0.2.9", transitive_headers=True)
+        self.requires("highway/1.4.0")
+        self.requires("dice-hash/0.5.0", transitive_headers=True)
+        self.requires("dice-sparse-map/0.3.0", transitive_headers=True)
         self.requires("dice-template-library/2.8.0", transitive_headers=True)
-        self.requires("libxml2/2.15.0", options={"iconv": False})
-        self.requires("simdjson/4.2.4")
+        self.requires("libxml2/2.15.3", options={"iconv": False})
+        self.requires("simdjson/4.6.3")
 
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")

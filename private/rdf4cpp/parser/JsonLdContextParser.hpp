@@ -37,8 +37,28 @@ namespace rdf4cpp::parser {
     namespace json_ld {
         struct ContextParser {
             using error_type = ParsingError;
+            /**
+             * Resolves document relative IRIs. This is the IRIFactory of the ParsingState, so a base set
+             * by the document stays in the state after parsing, like in the other parsers.
+             */
             IRIFactory *iri_factory;
             std::string original_base_iri;
+            /**
+             * If set, blank node labels of the document are used as they are. Otherwise they get
+             * document_bnode_prefix, which keeps them apart from the labels the parser generates.
+             */
+            bool keep_document_bnode_labels;
+
+            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IRIFactory *iri_factory)
+                : iri_factory(iri_factory),
+                  original_base_iri(std::move(base_iri)),
+                  keep_document_bnode_labels(keep_document_bnode_labels) {
+            }
+
+            /**
+             * Sets the base of iri_factory, skipping the validation if it is already set to base.
+             */
+            void set_resolution_base(std::string_view base);
 
             nonstd::expected<Context, error_type> parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p);
             std::optional<error_type> parse_context_term(params::ParseContextTermParams p);

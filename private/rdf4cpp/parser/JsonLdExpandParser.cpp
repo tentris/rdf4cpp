@@ -1,6 +1,16 @@
 #include "JsonLdExpandParser.hpp"
 
 namespace rdf4cpp::parser::json_ld {
+    /**
+     * Removes what raw_json_token appends to a token: the separator of the next token and json whitespace.
+     */
+    static std::string_view trim_raw_token(std::string_view token) {
+        static constexpr std::string_view trailing = "\n\r\t ,";
+        while (!token.empty() && trailing.find(token.back()) != std::string_view::npos) {
+            token.remove_suffix(1);
+        }
+        return token;
+    }
     nonstd::expected<ExpandedValue, ExpandParser::error_type>
     ExpandParser::value_expansion(Context const &active_conext,
                                   IRIMapping const &active_property,
@@ -20,24 +30,19 @@ namespace rdf4cpp::parser::json_ld {
         if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_json) {
             return to_json_literal(value);
         }
+        // the string_view overload covers the remaining steps for a string
+        if (value.is_string()) {
+            return value_expansion(active_conext, active_property, value.get_string());
+        }
         static constexpr std::array inv_type = {keyword_id, keyword_vocab, keyword_none};
         if (active_term != nullptr && active_term->type_mapping.has_value() && !std::ranges::any_of(inv_type, [&](std::string_view a) {
                 return a == *active_term->type_mapping;
             })) {
             auto t = *value.type();
-            if (t != simdjson::ondemand::json_type::number && t != simdjson::ondemand::json_type::boolean && t != simdjson::ondemand::json_type::string) {
+            if (t != simdjson::ondemand::json_type::number && t != simdjson::ondemand::json_type::boolean) {
                 return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid type for literal")};
             }
             return TypedLiteralMapping{stringify(value, true, std::string_view(*active_term->type_mapping) == datatypes::registry::xsd_double).value, *active_term->type_mapping};
-        }
-        // 5
-        if (value.is_string()) {
-            auto const &l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
-            return StringLikeLiteralMapping{
-                std::string(static_cast<std::string_view>(value.get_string())),
-                l.output(),
-                active_term != nullptr && active_term->direction_mapping != BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
-            };
         }
         // https://www.w3.org/TR/json-ld11-api/#object-to-rdf-conversion
         // 9
@@ -70,14 +75,13 @@ namespace rdf4cpp::parser::json_ld {
             })) {
             return TypedLiteralMapping{std::string{value}, *active_term->type_mapping};
         }
-        // 5 (condition always true)
+        // 5, the condition of the step is always true for a string
         auto const &l = active_term != nullptr ? active_term->language_mapping || active_conext.language : active_conext.language;
         return StringLikeLiteralMapping{
             std::string(value),
             l.output(),
             active_term != nullptr && active_term->direction_mapping != BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
         };
-        // rest unreachable
     }
     StringifyResult ExpandParser::stringify(simdjson::ondemand::value v, bool normalize, bool force_double, bool escape_string) {
         auto t = *v.type();
@@ -85,10 +89,7 @@ namespace rdf4cpp::parser::json_ld {
             return {std::string{v.get_bool() ? "true" : "false"}, datatypes::registry::xsd_boolean};
         }
         if (t == simdjson::ondemand::json_type::number) {
-            auto str = v.raw_json_token();
-            while (str.ends_with('\n') || str.ends_with(',') || str.ends_with(' ') || str.ends_with('\t')) {
-                str = str.substr(0, str.length() - 1);
-            }
+            auto str = trim_raw_token(v.raw_json_token());
             auto d = datatypes::registry::util::from_chars<double, "">(str);
             if (!normalize && d == 0.0) {
                 return {"0", datatypes::registry::xsd_integer};
@@ -103,10 +104,16 @@ namespace rdf4cpp::parser::json_ld {
                 return {std::string(str), datatypes::registry::xsd_double};
             }
             if (normalize) {
-                return {writer::StringWriter::oneshot([&](writer::StringWriter &w) {
-                            return datatypes::registry::util::to_chars_canonical(static_cast<int64_t>(d), w);
-                        }),
-                        datatypes::registry::xsd_integer};
+                // 2^63, the first double that int64_t cannot represent
+                static constexpr double int64_limit = 9223372036854775808.0;
+                if (std::abs(d) < int64_limit) {
+                    return {writer::StringWriter::oneshot([&](writer::StringWriter &w) {
+                                return datatypes::registry::util::to_chars_canonical(static_cast<int64_t>(d), w);
+                            }),
+                            datatypes::registry::xsd_integer};
+                }
+                // d is integral and below 1e21, so this is the canonical form of an integer
+                return {std::format("{:.0f}", d), datatypes::registry::xsd_integer};
             }
             return {std::string(str), datatypes::registry::xsd_integer};
         }
@@ -117,11 +124,7 @@ namespace rdf4cpp::parser::json_ld {
         if (v.is_null()) {
             return {std::string{"null"}, ""};
         }
-        auto str = *v.raw_json();
-        while (str.ends_with('\n') || str.ends_with(',') || str.ends_with(' ') || str.ends_with('\t')) {
-            str = str.substr(0, str.length() - 1);
-        }
-        return {std::string{str}, ""};
+        return {std::string{trim_raw_token(*v.raw_json())}, ""};
     }
     TypedLiteralMapping ExpandParser::to_json_literal(simdjson::ondemand::value v) {
         return TypedLiteralMapping{stringify(v, false, false, true).value, std::string{rdf_json_datatype}};
@@ -530,7 +533,6 @@ namespace rdf4cpp::parser::json_ld {
                 else if (expanded_property->data == keyword_graph) {
                     expanded_value.path = p.active_path;
                     expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                    expanded_value.active_property = keyword_graph;
                 }
                 // 13.4.6
                 else if (expanded_property->data == keyword_included) { // NOLINT(*-branch-clone)
@@ -720,7 +722,6 @@ namespace rdf4cpp::parser::json_ld {
                     for (ValueArrayIter iter{w}; iter != iter.end(); ++iter) {
                         auto index_value = *iter;
                         auto ex = expanded_value;
-                        ex.active_property = k;
                         ex.active_context = map_context;
                         ExpandedMap *next_lvl = nullptr;
                         std::optional<simdjson::ondemand::object> index_value_obj = std::nullopt;
@@ -822,7 +823,6 @@ namespace rdf4cpp::parser::json_ld {
             else {
                 expanded_value.path = p.active_path;
                 expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
-                expanded_value.active_property = k;
             }
             // 13.10
             if (expanded_value.path.keys.empty() && expanded_value.keyword_values.empty()) {

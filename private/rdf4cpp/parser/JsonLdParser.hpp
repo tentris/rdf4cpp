@@ -10,6 +10,7 @@
 #include <rdf4cpp/parser/JsonLdParserTypes.hpp>
 
 #include <generator>
+#include <memory>
 
 #include <simdjson.h>
 
@@ -54,12 +55,13 @@ namespace rdf4cpp::parser {
 
     struct IStreamQuadIterator::ImplJsonLd final : Impl {
     private:
+        // holds the state only if it was not provided by the caller
+        std::unique_ptr<state_type> owned_state_;
         state_type *state_;
-        bool state_is_owned_;
         std::string json_data_;
         uint64_t blank_node_index_ = 0;
         json_ld::ExpandParser expand_parser_;
-        ParsingFlag direction_;
+        ParsingFlags flags_;
 
         json_ld::IRIMapping make_new_bn();
         nonstd::expected<IRI, error_type> make_iri(std::string_view iri);
@@ -72,6 +74,25 @@ namespace rdf4cpp::parser {
 
         using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
 
+        /**
+         * Yields the quads of a literal object: the quad for the literal itself, plus the extra quads
+         * of the compound direction form. Writes the literal to obj_out, if that is not null.
+         * Nothing is yielded for the quad itself if subject or predicate is not set.
+         * @param failed set to true if the literal could not be created, the error is yielded then
+         */
+        result_generator emit_literal(json_ld::IRIMapping const &graph,
+                                     json_ld::IRIMapping const &subject,
+                                     json_ld::IRIMapping const &predicate,
+                                     json_ld::StringLikeLiteralMapping const &lit,
+                                     params::ListObjOut *obj_out,
+                                     bool &failed);
+        result_generator emit_literal(json_ld::IRIMapping const &graph,
+                                     json_ld::IRIMapping const &subject,
+                                     json_ld::IRIMapping const &predicate,
+                                     json_ld::TypedLiteralMapping const &lit,
+                                     params::ListObjOut *obj_out,
+                                     bool &failed);
+
         result_generator parse(params::ParseParams p);
         result_generator parse(params::ParseParams p, json_ld::ExpandedLevel &expanded);
         result_generator parse_list(params::ParseListParams p);
@@ -81,7 +102,20 @@ namespace rdf4cpp::parser {
         result_generator active_generator_;
         std::ranges::iterator_t<result_generator> current_iter_;
 
+        /**
+         * Factor between the document size and the simdjson parser capacity.
+         * simdjson keeps one string buffer per document and advances it on every get_string and
+         * unescaped_key, without ever reusing the space. This parser reads the same fields again in
+         * every pass over an object, so the buffer has to hold the strings of the document several
+         * times over. Exceeding it writes past the buffer, the check for that is only compiled in
+         * with SIMDJSON_DEVELOPMENT_CHECKS.
+         */
         static constexpr size_t BufferSizeMult = 5;
+
+        /**
+         * Size of the blocks the stream constructor reads.
+         */
+        static constexpr size_t StreamChunkSize = 64 * 1024;
 
     public:
         [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
@@ -96,7 +130,7 @@ namespace rdf4cpp::parser {
                    ParsingFlags flags,
                    state_type *initial_state = nullptr);
 
-        ~ImplJsonLd() override;
+        ~ImplJsonLd() override = default;
     };
 }  // namespace rdf4cpp::parser
 
