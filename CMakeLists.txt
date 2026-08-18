@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.24)
 project(rdf4cpp VERSION 0.2.1)
 set(POBR_VERSION 3)  # Persisted Object Binary Representation
 
@@ -28,55 +28,48 @@ find_package(simdjson REQUIRED)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/rdf4cpp/version.hpp)
 
+include(FetchContent)
+
 set(serd_rev 44ed1719e80ef4cc833d1f7d8087fb506f9a55bf)
+set(serd_sha256 9bcded952a6dbb7b4f1cd5a08cdbf07f24272e17f62b75bad0b227932a4a23e0)
+
+# serd is compiled directly into rdf4cpp, we only need its sources.
+# SOURCE_SUBDIR intentionally points to a non-existent directory so that
+# FetchContent_MakeAvailable does not add serd's own CMakeLists.txt to this build,
+# which would create a second library target that we cannot export.
+FetchContent_Declare(serd
+        URL "https://github.com/dice-group/serd/archive/${serd_rev}.tar.gz"
+        URL_HASH SHA256=${serd_sha256}
+        SOURCE_SUBDIR do-not-add-serd-to-this-build
+)
+FetchContent_MakeAvailable(serd)
+
+# keep serd's license at a stable path, it is picked up from there while packaging (see conanfile.py)
+file(COPY "${serd_SOURCE_DIR}/COPYING" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/serd")
+
 set(serd_source_files
-        include/serd/serd.h
-        src/attributes.h
         src/base64.c
-        src/base64.h
-        src/byte_sink.h
         src/byte_source.c
-        src/byte_source.h
         src/env.c
         src/n3.c
         src/node.c
-        src/node.h
         src/reader.c
-        src/reader.h
-        src/serd_config.h
-        src/serd_internal.h
-        src/stack.h
         src/string.c
-        src/string_utils.h
         src/system.c
-        src/system.h
-        src/try.h
         src/uri.c
-        src/uri_utils.h
-        src/warnings.h
         src/writer.c
 )
+list(TRANSFORM serd_source_files PREPEND "${serd_SOURCE_DIR}/")
+
 set(style_files
     .clang-format
     .clang-tidy
 )
-
-foreach(serd_source_file ${serd_source_files})
-    file(DOWNLOAD "https://raw.githubusercontent.com/dice-group/serd/${serd_rev}/${serd_source_file}"
-            "${CMAKE_CURRENT_BINARY_DIR}/serd/${serd_source_file}"
-            TLS_VERIFY ON)
-endforeach()
-file(DOWNLOAD "https://raw.githubusercontent.com/dice-group/serd/${serd_rev}/COPYING"
-        "${CMAKE_CURRENT_BINARY_DIR}/serd/COPYING"
-        TLS_VERIFY ON)
 foreach(style_file ${style_files})
     file(DOWNLOAD "https://raw.githubusercontent.com/dice-group/tentris-cpp-coding-guidelines/main/${style_file}"
             "${CMAKE_SOURCE_DIR}/${style_file}"
             TLS_VERIFY ON)
 endforeach()
-
-list(FILTER serd_source_files INCLUDE REGEX "^.+\\.c$")
-list(TRANSFORM serd_source_files PREPEND "${CMAKE_CURRENT_BINARY_DIR}/serd/")
 
 ## Create the main rdf4cpp library target
 add_library(rdf4cpp
@@ -179,8 +172,8 @@ target_include_directories(
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
         PRIVATE
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/private>"
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/serd/include>"
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/serd/src>"
+        "$<BUILD_INTERFACE:${serd_SOURCE_DIR}/include>"
+        "$<BUILD_INTERFACE:${serd_SOURCE_DIR}/src>"
 )
 
 target_link_libraries(rdf4cpp
