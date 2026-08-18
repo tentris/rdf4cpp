@@ -1161,16 +1161,22 @@ std::partial_ordering Literal::compare_impl(Literal const &other, std::strong_or
     auto const this_entry = DatatypeRegistry::get_entry(this_datatype);
 
     if (datatype_cmp_res == std::strong_ordering::equal) {
-        if (out_alternative_ordering != nullptr) {
-            // types equal, fallback to lexical form ordering
-            *out_alternative_ordering = this->lexical_form() <=> other.lexical_form();
-        }
+        auto calc_alt_ordering = [&]() {
+            if (out_alternative_ordering != nullptr) {
+                // types equal, fallback to lexical form ordering
+                *out_alternative_ordering = this->lexical_form() <=> other.lexical_form();
+            }
+        };
 
         if (this_entry == nullptr || this_entry->compare_fptr == nullptr) {
+            calc_alt_ordering();
             return std::partial_ordering::unordered;
         }
-
-        return this_entry->compare_fptr(this->value(), other.value());
+        auto const res = this_entry->compare_fptr(this->value(), other.value());
+        if (res == std::partial_ordering::unordered) {
+            calc_alt_ordering();
+        }
+        return res;
     } else {
         if (out_alternative_ordering != nullptr) {
             // types are different, the only useful alternative ordering is the type ordering
