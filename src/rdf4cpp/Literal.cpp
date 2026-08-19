@@ -1119,10 +1119,10 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
     return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
 }
 
-std::partial_ordering compare_values_of_same_datatype(datatypes::registry::DatatypeRegistry::DatatypeEntry const &entry,
-                                                      datatypes::registry::DatatypeIDView const &datatype,
-                                                      Literal const &lhs,
-                                                      Literal const &rhs) {
+std::partial_ordering Literal::compare_values_of_same_datatype(datatypes::registry::DatatypeRegistry::DatatypeEntry const &entry,
+                                                               datatypes::registry::DatatypeIDView const &datatype,
+                                                               Literal const &lhs,
+                                                               Literal const &rhs) {
     // rdf:langString does not inline its value, it inlines the language tag,
     // so its from_inlined is not usable here (see Literal::value)
     if (lhs.is_inlined() && rhs.is_inlined() && datatype != datatypes::rdf::LangString::datatype_id) {
@@ -1132,6 +1132,33 @@ std::partial_ordering compare_values_of_same_datatype(datatypes::registry::Datat
                                                             rhs.backend_handle().node_id().literal_id());
         }
     }
+
+    if (datatype == datatypes::xsd::String::datatype_id) {
+        // xsd:String has no compare of its own, so this is the generic <=> on cpp_type = std::string_view
+        auto const &lhs_backend = lhs.handle_.literal_backend();
+        auto const &rhs_backend = rhs.handle_.literal_backend();
+        return lhs_backend.get_lexical().lexical_form <=> rhs_backend.get_lexical().lexical_form;
+    }
+
+    if (datatype == datatypes::rdf::LangString::datatype_id) {
+        // the lexical form of an inlined lang tagged literal lives under the de-inlined handle
+        auto const de_inlined = [](Literal const &literal) noexcept {
+            return literal.is_inlined() ? literal.lang_tagged_get_de_inlined() : literal;
+        };
+
+        auto const &lhs_backend = de_inlined(lhs).handle_.literal_backend();
+        auto const &rhs_backend = de_inlined(rhs).handle_.literal_backend();
+        auto const &lhs_lexical = lhs_backend.get_lexical();
+        auto const &rhs_lexical = rhs_backend.get_lexical();
+        auto const &lhs_lang_repr = datatypes::registry::LangStringRepr{
+            .lexical_form = lhs_lexical.lexical_form, .language_tag = lhs_lexical.language_tag
+        };
+        auto const &rhs_lang_repr = datatypes::registry::LangStringRepr{
+            .lexical_form = rhs_lexical.lexical_form, .language_tag = rhs_lexical.language_tag
+        };
+        return lhs_lang_repr <=> rhs_lang_repr;
+    }
+
     return entry.compare_fptr(lhs.value(), rhs.value());
 }
 
