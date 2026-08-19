@@ -2,7 +2,26 @@ set(CMAKE_CXX_STANDARD 23)
 
 find_package(doctest REQUIRED)
 find_package(nanobench REQUIRED)
-find_package(CURL REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(
+        rdf-tests
+        GIT_REPOSITORY https://github.com/w3c/rdf-tests.git
+        GIT_TAG        main
+)
+FetchContent_MakeAvailable(rdf-tests)
+
+FetchContent_Declare(
+        json-ld-streaming
+        GIT_REPOSITORY https://github.com/w3c/json-ld-streaming
+        GIT_TAG        main
+)
+FetchContent_MakeAvailable(json-ld-streaming)
+
+configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests_DataDirConfig.hpp.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/parser/tests_DataDirConfig.hpp"
+)
 
 # add the executable for all tests
 add_executable(tests_Variable query/tests_Variable.cpp)
@@ -372,7 +391,6 @@ add_executable(tests_XMLParser parser/tests_XMLParser.cpp)
 target_link_libraries(tests_XMLParser
         doctest::doctest
         rdf4cpp
-        CURL::libcurl
 )
 add_test(NAME tests_XMLParser COMMAND tests_XMLParser)
 
@@ -380,7 +398,6 @@ add_executable(tests_JSON_LD_Parser parser/tests_JSON_LD_Parser.cpp)
 target_link_libraries(tests_JSON_LD_Parser
         doctest::doctest
         rdf4cpp
-        CURL::libcurl
 )
 add_test(NAME tests_JSON_LD_Parser COMMAND tests_JSON_LD_Parser)
 
