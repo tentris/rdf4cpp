@@ -1117,7 +1117,20 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
     return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
 }
 
-
+std::partial_ordering compare_values_of_same_datatype(datatypes::registry::DatatypeRegistry::DatatypeEntry const &entry,
+                                                      datatypes::registry::DatatypeIDView const datatype,
+                                                      Literal const &lhs,
+                                                      Literal const &rhs) {
+    // rdf:langString does not inline its value, it inlines the language tag,
+    // so its from_inlined is not usable here (see Literal::value)
+    if (lhs.is_inlined() && rhs.is_inlined() && datatype != datatypes::rdf::LangString::datatype_id) {
+        if (entry.inlining_ops.has_value() && entry.inlining_ops->compare_inlined_fptr != nullptr) {
+            return entry.inlining_ops->compare_inlined_fptr(lhs.backend_handle().node_id().literal_id(),
+                                                            rhs.backend_handle().node_id().literal_id());
+        }
+    }
+    return entry.compare_fptr(lhs.value(), rhs.value());
+}
 
 std::partial_ordering Literal::compare_impl(Literal const &other, std::strong_ordering *out_alternative_ordering) const {
     using datatypes::registry::DatatypeRegistry;
@@ -1172,8 +1185,10 @@ std::partial_ordering Literal::compare_impl(Literal const &other, std::strong_or
             calc_alt_ordering();
             return std::partial_ordering::unordered;
         }
-        auto const res = this_entry->compare_fptr(this->value(), other.value());
-        if (res == std::partial_ordering::unordered) {
+
+        auto const res = compare_values_of_same_datatype(*this_entry, this_datatype, *this, other);
+        if (res == std::partial_ordering::equivalent || res == std::partial_ordering::unordered) {
+            // std::partial_ordering::equivalent is needed for cases like `"0.0"^^xsd:double <=? "-0.0"^^xsd:double`
             calc_alt_ordering();
         }
         return res;
