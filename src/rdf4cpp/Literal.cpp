@@ -859,7 +859,7 @@ std::any Literal::value() const {
         return ops->from_inlined_fptr(inlined_value);
     }
 
-    auto const backend = handle_.literal_backend();
+    auto backend = handle_.literal_backend();
 
     if (datatype == rdf::LangString::datatype_id) {
         auto const &lex = backend.get_lexical();
@@ -874,7 +874,9 @@ std::any Literal::value() const {
         return std::any{lex.lexical_form};
     }
 
-    return backend.visit(
+    // backend is a local that dies with this call, so the stored value can be moved out of it
+    // instead of copied; for datatypes with a specialized (value) storage that copy is a heap allocation
+    return std::move(backend).visit(
             [&datatype](storage::view::LexicalFormLiteralBackendView const &lexical_backend) noexcept {
                 if (auto const factory = registry::DatatypeRegistry::get_factory(datatype); factory != nullptr) {
                     return factory(lexical_backend.lexical_form);
@@ -882,11 +884,11 @@ std::any Literal::value() const {
 
                 return std::any{};
             },
-            [&datatype](storage::view::ValueLiteralBackendView const &value_backend) noexcept {
+            [&datatype](storage::view::ValueLiteralBackendView &&value_backend) noexcept {
                 RDF4CPP_ASSERT(value_backend.datatype == datatype);
                 (void)datatype;
 
-                return value_backend.value;
+                return std::move(value_backend.value);
             });
 }
 
@@ -1118,13 +1120,14 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
 }
 
 std::partial_ordering compare_values_of_same_datatype(datatypes::registry::DatatypeRegistry::DatatypeEntry const &entry,
-                                                      datatypes::registry::DatatypeIDView const datatype,
+                                                      datatypes::registry::DatatypeIDView const &datatype,
                                                       Literal const &lhs,
                                                       Literal const &rhs) {
     // rdf:langString does not inline its value, it inlines the language tag,
     // so its from_inlined is not usable here (see Literal::value)
     if (lhs.is_inlined() && rhs.is_inlined() && datatype != datatypes::rdf::LangString::datatype_id) {
         if (entry.inlining_ops.has_value() && entry.inlining_ops->compare_inlined_fptr != nullptr) {
+            RDF4CPP_DEBUG_ASSERT(entry.inlining_ops->compare_inlined_fptr != nullptr);
             return entry.inlining_ops->compare_inlined_fptr(lhs.backend_handle().node_id().literal_id(),
                                                             rhs.backend_handle().node_id().literal_id());
         }

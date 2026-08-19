@@ -610,8 +610,10 @@ inline void DatatypeRegistry::add() noexcept {
     auto const compare_fptr = []() -> compare_fptr_t {
         if constexpr (datatypes::ComparableLiteralDatatype<LiteralDatatype_t>) {
             return [](std::any const &lhs, std::any const &rhs) noexcept -> std::partial_ordering {
-                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+                // cast to a reference: std::any_cast<T> returns by value, so binding its result to
+                // `auto const &` would only extend the lifetime of a copy of the stored value
+                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
                 return LiteralDatatype_t::compare(lhs_val, rhs_val);
             };
