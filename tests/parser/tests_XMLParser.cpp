@@ -147,7 +147,7 @@ void xml_test_negative(std::string xml_str, std::string_view base_iri) {
 }
 
 std::string remote_test_file_to_str(std::string_view file_name) {
-    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, "https://raw.githubusercontent.com/w3c/rdf-tests/refs/heads/main/rdf/rdf11/rdf-xml", "./xml_test_cache");
+    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, RDF_TESTS_TEST_DATA_DIR / "rdf/rdf11/rdf-xml");
 }
 
 TEST_CASE("test cases from rdf-tests") {

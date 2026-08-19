@@ -20,7 +20,7 @@ void jsonld_test_negative_flags(std::string json_str, std::string_view base_iri,
 }
 
 std::string remote_test_file_to_str(std::string_view file_name) {
-    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, "https://raw.githubusercontent.com/w3c/json-ld-streaming/refs/heads/main/tests/stream-toRdf", "./jsonld_test_cache");
+    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, JSON_LD_STREAMING_TEST_DATA_DIR / "tests/stream-toRdf");
 }
 
 TEST_CASE("test cases from json-ld-streaming") {

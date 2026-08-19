@@ -2,9 +2,10 @@
 #define RDF4CPP_PARSER_TEST_HELPERS_HPP
 
 #include <rdf4cpp.hpp>
+#include "tests_DataDirConfig.hpp"
 
 #include <filesystem>
-#include <curl/curl.h>
+#include <fstream>
 
 namespace rdf4cpp::parse_test_helpers {
     inline void parser_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, bool deduplicate = false) {
@@ -100,45 +101,14 @@ namespace rdf4cpp::parse_test_helpers {
         CHECK(had_error);
     }
 
-    // source: https://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c/9786295#9786295
-    inline size_t write_callback(void const *contents, size_t size, size_t nmemb, void *userp) {
-        static_cast<std::string *>(userp)->append(static_cast<char const *>(contents), size * nmemb);
-        return size * nmemb;
-    }
+    inline std::string parser_test_remote_test_file_to_str(std::string_view file_name, std::filesystem::path const &base_path) {
+        std::ifstream ifs{base_path / file_name};
+        REQUIRE(ifs);
 
-    std::string inline parser_test_remote_test_file_to_str(std::string_view file_name, std::string_view base_url, std::string_view cache_file) {
-        if (!std::filesystem::exists(cache_file)) { // this ends up in the cmake folder, next to the executable
-            std::filesystem::create_directories(cache_file);
-        }
-        auto cache = std::filesystem::path(cache_file) / file_name;
-        if (std::filesystem::exists(cache)) {
-            std::ifstream ifs(cache);
-            return std::string{std::istreambuf_iterator{ifs}, {}};
-        }
-        CURLcode curl_res = CURLE_FAILED_INIT;
-        long response_code = 0;
-        auto const url = std::format("{}/{}", base_url, file_name);
-        std::string file_contents_as_str;
-        CURL *curl = curl_easy_init();
-        REQUIRE(curl != nullptr);
-        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file_contents_as_str);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // for https
-        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-        curl_res = curl_easy_perform(curl);
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
-        curl_easy_cleanup(curl);
-        CAPTURE(url);
-        CAPTURE(response_code);
-        // an error page must not end up in the cache, it would be replayed by every later run
-        REQUIRE_EQ(curl_res, CURLE_OK);
-        REQUIRE_EQ(response_code, 200);
-        std::filesystem::create_directories(cache.parent_path());
-        std::ofstream ofs(cache);
-        ofs << file_contents_as_str;
-        return file_contents_as_str;
+        std::string buf;
+        std::copy(std::istreambuf_iterator<char>{ifs}, std::istreambuf_iterator<char>{}, std::back_inserter(buf));
+
+        return buf;
     }
 }  // namespace rdf4cpp::parse_test_helpers
 
