@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.22)
 project(rdf4cpp VERSION 0.2.1)
 set(POBR_VERSION 3)  # Persisted Object Binary Representation
 
@@ -29,18 +29,12 @@ find_package(simdjson REQUIRED)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/rdf4cpp/version.hpp)
 
 include(FetchContent)
-
-set(serd_rev 44ed1719e80ef4cc833d1f7d8087fb506f9a55bf)
-set(serd_sha256 9bcded952a6dbb7b4f1cd5a08cdbf07f24272e17f62b75bad0b227932a4a23e0)
-
 # serd is compiled directly into rdf4cpp, we only need its sources.
-# SOURCE_SUBDIR intentionally points to a non-existent directory so that
-# FetchContent_MakeAvailable does not add serd's own CMakeLists.txt to this build,
-# which would create a second library target that we cannot export.
+# serd builds with meson and ships no CMakeLists.txt, so FetchContent_MakeAvailable
+# only makes the sources available and adds no target of its own.
 FetchContent_Declare(serd
-        URL "https://github.com/dice-group/serd/archive/${serd_rev}.tar.gz"
-        URL_HASH SHA256=${serd_sha256}
-        SOURCE_SUBDIR do-not-add-serd-to-this-build
+        GIT_REPOSITORY https://github.com/dice-group/serd.git
+        GIT_TAG 12321d54430b4e9caf30903eff0203a372c94fd0 # v0.32.10+dice
 )
 FetchContent_MakeAvailable(serd)
 
@@ -54,6 +48,7 @@ set(serd_source_files
         src/n3.c
         src/node.c
         src/reader.c
+        src/read_utf8.c
         src/string.c
         src/system.c
         src/uri.c
