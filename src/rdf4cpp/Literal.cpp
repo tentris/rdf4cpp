@@ -823,7 +823,7 @@ bool Literal::is_timepoint() const {
         return is_tp;
     }
 
-    return !this->null() && datatypes::registry::DatatypeRegistry::get_timepoint_ops(this->datatype_id()) == nullptr;
+    return !this->null() && datatypes::registry::DatatypeRegistry::get_timepoint_ops(this->datatype_id()) != nullptr;
 }
 
 bool Literal::is_duration() const {
@@ -831,7 +831,7 @@ bool Literal::is_duration() const {
         return is_dur;
     }
 
-    return !this->null() && datatypes::registry::DatatypeRegistry::get_duration_ops(this->datatype_id()) == nullptr;
+    return !this->null() && datatypes::registry::DatatypeRegistry::get_duration_ops(this->datatype_id()) != nullptr;
 }
 
 std::ostream &operator<<(std::ostream &os, Literal const &literal) {
