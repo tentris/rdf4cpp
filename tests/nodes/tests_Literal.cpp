@@ -1640,3 +1640,10 @@ TEST_CASE("trigonometry/exponential funcs") {
         CHECK(make(1.0).math_atan2(str).null());
     }
 }
+
+TEST_CASE("is_numeric/is_timepoint/is_duration regression") {
+    auto const l = Literal::make_typed("x", IRI{"http://example.org/mytype"});
+    CHECK_FALSE(l.is_timepoint());
+    CHECK_FALSE(l.is_duration());
+    CHECK_FALSE(l.is_numeric());
+}
