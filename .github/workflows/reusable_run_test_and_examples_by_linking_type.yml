@@ -107,7 +107,7 @@ jobs:
       - name: Install compiler
         id: install_cc
         if: ${{ !contains(inputs.os, 'macos') }}
-        uses: rlalik/setup-cpp-compiler@2
+        uses: rlalik/setup-cpp-compiler@v2
         with:
           compiler: ${{ inputs.compiler }}
 
