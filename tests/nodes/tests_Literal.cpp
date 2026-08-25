@@ -1649,8 +1649,8 @@ TEST_CASE("is_numeric/is_timepoint/is_duration regression") {
 
     auto const t = Literal::make_typed_from_value<datatypes::xsd::DateTime>({});
     CHECK(t.is_timepoint());
-    CHECK_FALSE(l.is_duration());
-    CHECK_FALSE(l.is_numeric());
+    CHECK_FALSE(t.is_duration());
+    CHECK_FALSE(t.is_numeric());
 
     auto const d = Literal::make_typed_from_value<datatypes::xsd::Duration>({});
     CHECK_FALSE(d.is_timepoint());
