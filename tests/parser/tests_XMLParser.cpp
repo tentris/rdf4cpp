@@ -139,7 +139,7 @@ TEST_CASE("sanity test") {
 }
 
 void xml_test_positive(std::string xml_str, std::string nt_str, std::string_view base_iri) {
-    parse_test_helpers::parser_test_positive(std::move(xml_str), std::move(nt_str), base_iri, ParsingFlag::RdfXml, ParsingFlag::NTriples);
+    parse_test_helpers::parser_test_positive(std::move(xml_str), std::move(nt_str), base_iri, ParsingFlag::RdfXml, ParsingFlag::NTriples, std::nullopt);
 }
 
 void xml_test_negative(std::string xml_str, std::string_view base_iri) {
