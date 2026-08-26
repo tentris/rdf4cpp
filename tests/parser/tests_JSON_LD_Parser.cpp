@@ -7,8 +7,21 @@
 using namespace rdf4cpp;
 using namespace rdf4cpp::parser;
 
+std::string remote_test_file_to_str(std::string_view file_name) {
+    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, JSON_LD_STREAMING_TEST_DATA_DIR / "tests/stream-toRdf");
+}
+
+nonstd::expected<std::string, std::string> resolve_test_url(std::string_view url) {
+    static constexpr std::string_view pre = "https://w3c.github.io/json-ld-streaming/tests/";
+    if (url.starts_with(pre)) {
+        url.remove_prefix(pre.size());
+        return remote_test_file_to_str(url);
+    }
+    return nonstd::unexpected{std::format("unexpected url {}", url)};
+}
+
 void jsonld_test_positive(std::string json_str, std::string nt_str, std::string_view base_iri, bool dedup = false, ParsingFlag dir = ParsingFlag::JsonLdDirectionNone) {
-    parse_test_helpers::parser_test_positive(std::move(json_str), std::move(nt_str), base_iri, ParsingFlag::JsonLd | dir, ParsingFlag::NQuads, dedup);
+    parse_test_helpers::parser_test_positive(std::move(json_str), std::move(nt_str), base_iri, ParsingFlag::JsonLd | dir, ParsingFlag::NQuads, &resolve_test_url, dedup);
 }
 
 void jsonld_test_negative(std::string json_str, std::string_view base_iri) {
@@ -17,10 +30,6 @@ void jsonld_test_negative(std::string json_str, std::string_view base_iri) {
 
 void jsonld_test_negative_flags(std::string json_str, std::string_view base_iri, ParsingFlags flags) {
     parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, flags);
-}
-
-std::string remote_test_file_to_str(std::string_view file_name) {
-    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, JSON_LD_STREAMING_TEST_DATA_DIR / "tests/stream-toRdf");
 }
 
 TEST_CASE("test cases from json-ld-streaming") {
@@ -76,7 +85,7 @@ TEST_CASE("test cases from json-ld-streaming") {
 })", R"(_:b0 <http://example.com/double> "1.0E0"^^<http://www.w3.org/2001/XMLSchema#double> .
 _:b0 <http://example.com/double> "2.2E0"^^<http://www.w3.org/2001/XMLSchema#double> .
 _:b0 <http://example.com/integer> "8"^^<http://www.w3.org/2001/XMLSchema#integer> .
-_:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer> .)", "https://w3c.github.io/json-ld-streaming/tests/t0035", ParsingFlag::JsonLd, ParsingFlag::NQuads);
+_:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer> .)", "https://w3c.github.io/json-ld-streaming/tests/t0035", ParsingFlag::JsonLd, ParsingFlag::NQuads, &resolve_test_url);
 
     jsonld_test_positive(remote_test_file_to_str("0036-in.jsonld"), remote_test_file_to_str("0036-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0036");
     jsonld_test_positive(remote_test_file_to_str("0113-in.jsonld"), remote_test_file_to_str("0113-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0113");
@@ -130,9 +139,8 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("c026-in.jsonld"), remote_test_file_to_str("c026-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc026");
     jsonld_test_positive(remote_test_file_to_str("c027-in.jsonld"), remote_test_file_to_str("c027-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc027");
     jsonld_test_positive(remote_test_file_to_str("c028-in.jsonld"), remote_test_file_to_str("c028-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc028");
-    // remote context
-    //jsonld_test_positive(remote_test_file_to_str("c031-in.jsonld"), remote_test_file_to_str("c031-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc031");
-    //jsonld_test_positive(remote_test_file_to_str("c034-in.jsonld"), remote_test_file_to_str("c034-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc034");
+    jsonld_test_positive(remote_test_file_to_str("c031-in.jsonld"), remote_test_file_to_str("c031-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc031");
+    jsonld_test_positive(remote_test_file_to_str("c034-in.jsonld"), remote_test_file_to_str("c034-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc034");
     jsonld_test_positive(remote_test_file_to_str("c035-in.jsonld"), remote_test_file_to_str("c035-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc035");
     jsonld_test_positive(remote_test_file_to_str("di01-in.jsonld"), remote_test_file_to_str("di01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi01");
     jsonld_test_positive(remote_test_file_to_str("di02-in.jsonld"), remote_test_file_to_str("di02-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi02");
@@ -232,7 +240,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // bn vocab is deprecated
     //jsonld_test_positive(remote_test_file_to_str("e075-in.jsonld"), remote_test_file_to_str("e075-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te075");
     jsonld_test_positive(remote_test_file_to_str("e076-in.jsonld"), remote_test_file_to_str("e076-out.nq"), "http://example/base/");
-    // uses a remote context
+    // uses a remote context already loaded before processing
     //jsonld_test_positive(remote_test_file_to_str("e077-in.jsonld"), remote_test_file_to_str("e077-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te077");
     jsonld_test_positive(remote_test_file_to_str("e078-in.jsonld"), remote_test_file_to_str("e078-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/stream-toRdf/e078-in.jsonld");
     jsonld_test_positive(remote_test_file_to_str("e079-in.jsonld"), remote_test_file_to_str("e079-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te079");
@@ -280,10 +288,9 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e120-in.jsonld"), remote_test_file_to_str("e120-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te120");
     jsonld_test_positive(remote_test_file_to_str("e121-in.jsonld"), remote_test_file_to_str("e121-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te121");
     jsonld_test_positive(remote_test_file_to_str("e122-in.jsonld"), remote_test_file_to_str("e122-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te122");
-    // remote context
-    //jsonld_test_positive(remote_test_file_to_str("e126-in.jsonld"), remote_test_file_to_str("e126-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te126");
-    //jsonld_test_positive(remote_test_file_to_str("e127-in.jsonld"), remote_test_file_to_str("e127-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te127");
-    //jsonld_test_positive(remote_test_file_to_str("e128-in.jsonld"), remote_test_file_to_str("e128-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te128");
+    jsonld_test_positive(remote_test_file_to_str("e126-in.jsonld"), remote_test_file_to_str("e126-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te126");
+    jsonld_test_positive(remote_test_file_to_str("e127-in.jsonld"), remote_test_file_to_str("e127-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te127");
+    jsonld_test_positive(remote_test_file_to_str("e128-in.jsonld"), remote_test_file_to_str("e128-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te128");
     jsonld_test_positive(remote_test_file_to_str("e129-in.jsonld"), remote_test_file_to_str("e129-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te129");
     jsonld_test_positive(remote_test_file_to_str("e130-in.jsonld"), remote_test_file_to_str("e130-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te130");
     jsonld_test_positive(remote_test_file_to_str("in01-in.jsonld"), remote_test_file_to_str("in01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tin01");
@@ -744,29 +751,6 @@ void jsonld_test_unsupported(std::string json_str, std::string_view message_part
     CHECK(first_message.find(message_part) != std::string::npos);
 }
 
-TEST_CASE("remote contexts are reported as unsupported") {
-    // the w3c tests for this are the deactivated c031, c034, e077, e126, e127 and e128
-    SUBCASE("context is a string") {
-        jsonld_test_unsupported(R"({"@context": "http://example.com/ctx.jsonld", "http://example.com/p": "v"})", "remote context not supported");
-    }
-    SUBCASE("context is a relative string") {
-        jsonld_test_unsupported(R"({"@context": "ctx.jsonld", "http://example.com/p": "v"})", "remote context not supported");
-    }
-    SUBCASE("context array contains a string") {
-        jsonld_test_unsupported(R"({"@context": ["http://example.com/ctx.jsonld", {"t": "http://example.com/p"}], "t": "v"})", "remote context not supported");
-    }
-    SUBCASE("property scoped context is a string") {
-        jsonld_test_unsupported(R"({"@context": {"t": {"@id": "http://example.com/p", "@context": "http://example.com/ctx.jsonld"}},
-          "@id": "http://example.com/s", "t": {"x": "v"}})",
-                                "invalid scoped context, remote");
-    }
-    SUBCASE("type scoped context is a string") {
-        jsonld_test_unsupported(R"({"@context": {"T": {"@id": "http://example.com/T", "@context": "http://example.com/ctx.jsonld"}},
-          "@id": "http://example.com/s", "@type": "T", "http://example.com/p": "v"})",
-                                "invalid scoped context, remote");
-    }
-}
-
 TEST_CASE("@import is reported as unsupported") {
     // the w3c tests for this are the deactivated so05, so06, so08, so09 and so11
     jsonld_test_unsupported(R"({"@context": {"@import": "http://example.com/ctx.jsonld", "t": "http://example.com/p"},
@@ -857,5 +841,5 @@ TEST_CASE("test deduplication keeps terms that are only value equal") {
 })",
                                              R"(<http://example.com/s> <http://example.com/p> "1.0E0"^^<http://www.w3.org/2001/XMLSchema#double> .
 <http://example.com/s> <http://example.com/p> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
-                                             "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, true);
+                                             "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, std::nullopt, true);
 }

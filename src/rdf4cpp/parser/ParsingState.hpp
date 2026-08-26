@@ -54,6 +54,15 @@ struct ParsingState {
      * To discard a triple throw an exception from this function.
      */
     std::function<void(Node const &)> inspect_node_func = []([[maybe_unused]] Node const &n) { /* noop */ };
+
+    /**
+     * A function that is called for each URL requested by a parser (currently only JSON_LD remote contexts).
+     * The function should return the result of querying that URL or an error message.
+     * Default behavior is to always return an error.
+     */
+    std::function<nonstd::expected<std::string, std::string>(std::string_view)> request_url = [](std::string_view) {
+        return nonstd::unexpected{"remote context not supported"};
+    };
 };
 
 }  //namespace rdf4cpp::parser

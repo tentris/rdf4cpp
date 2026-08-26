@@ -3,20 +3,24 @@
 
 #include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
+#include <rdf4cpp/parser/IStreamQuadIterator.hpp>
 
 #include <rdf4cpp/parser/JsonLdParserTypes.hpp>
 
 #include <vector>
+#include <map>
 
 #include <simdjson.h>
 
 namespace rdf4cpp::parser {
     namespace params {
         struct ParseContextParams {
-            json_ld::Context const &active_context;
+            json_ld::Context const &active_context; // NOLINT(*-avoid-const-or-ref-data-members)
             std::string_view base_iri;
+            std::string_view base_url;
             bool override_protected = false;
             bool propagate = true;
+            bool validate_scoped_contexts = true;
         };
         struct ParseContextTermParams {
             simdjson::ondemand::object local_context;
@@ -24,8 +28,10 @@ namespace rdf4cpp::parser {
             json_ld::TermDefinition &term;                               // NOLINT(*-avoid-const-or-ref-data-members)
             std::vector<json_ld::TermDefinition> const &previous_terms;  // NOLINT(*-avoid-const-or-ref-data-members)
             std::string_view base_iri;
+            std::string_view base_url;
             bool is_protected = false;
             bool override_protected = false;
+            bool validate_scoped_contexts = true;
         };
         struct ParseContextIRIExpansionParams {
             json_ld::Context &active_context;  // NOLINT(*-avoid-const-or-ref-data-members)
@@ -35,22 +41,29 @@ namespace rdf4cpp::parser {
     }  // namespace params
 
     namespace json_ld {
+        struct RemoteContextCache {
+            std::map<std::string, RemoteContextEntry, std::less<>> contexts;
+
+            [[nodiscard]] size_t num_active_entries() const noexcept;
+            std::pair<RemoteContextEntry&, bool> get(std::string_view url);
+            RemoteContextEntry* try_get(std::string_view url);
+        };
+
         struct ContextParser {
             using error_type = ParsingError;
-            /**
-             * Resolves document relative IRIs. This is the IRIFactory of the ParsingState, so a base set
-             * by the document stays in the state after parsing, like in the other parsers.
-             */
-            IRIFactory *iri_factory;
+            IStreamQuadIterator::state_type* parse_state;
             std::string original_base_iri;
+            RemoteContextCache remote_contexts;
             /**
              * If set, blank node labels of the document are used as they are. Otherwise they get
              * document_bnode_prefix, which keeps them apart from the labels the parser generates.
              */
             bool keep_document_bnode_labels;
 
-            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IRIFactory *iri_factory)
-                : iri_factory(iri_factory),
+            static constexpr size_t remote_context_size_limit = 100;
+
+            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IStreamQuadIterator::state_type *parse_state)
+                : parse_state(parse_state),
                   original_base_iri(std::move(base_iri)),
                   keep_document_bnode_labels(keep_document_bnode_labels) {
             }
@@ -63,7 +76,7 @@ namespace rdf4cpp::parser {
             nonstd::expected<Context, error_type> parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p);
             std::optional<error_type> parse_context_term(params::ParseContextTermParams p);
 
-            nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p);
+            nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p, bool skip_to_context = false);
 
 
             nonstd::expected<IRIMapping, error_type> iri_expansion(Context const &active_context,

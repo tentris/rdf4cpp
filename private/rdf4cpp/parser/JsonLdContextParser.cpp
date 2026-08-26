@@ -1,12 +1,40 @@
 #include "JsonLdContextParser.hpp"
 
 namespace rdf4cpp::parser::json_ld {
+    size_t RemoteContextCache::num_active_entries() const noexcept {
+        size_t r = 0;
+        for (const auto& [_,e] : contexts) {
+            if (e.active) {
+                ++r;
+            }
+        }
+        return r;
+    }
+
+    std::pair<RemoteContextEntry &, bool> RemoteContextCache::get(std::string_view url) {
+        auto it = contexts.find(url);
+        if (it == contexts.end()) {
+            auto [i,_] = contexts.emplace(std::piecewise_construct, std::tuple{url}, std::tuple{"", true});
+            return {i->second, true};
+        }
+        return {it->second, false};
+    }
+
+    RemoteContextEntry *RemoteContextCache::try_get(std::string_view url) {
+        auto it = contexts.find(url);
+        if (it == contexts.end()) {
+            return nullptr;
+        }
+        return &it->second;
+    }
+
     void ContextParser::set_resolution_base(std::string_view const base) {
-        if (iri_factory->get_base() == base) {
+        if (parse_state->iri_factory.get_base() == base) {
             return;
         }
-        return iri_factory->set_base(base);
+        return parse_state->iri_factory.set_base(base);
     }
+
     nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p) {
         // https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
         // 1
@@ -43,7 +71,7 @@ namespace rdf4cpp::parser::json_ld {
                         try {
                             if (IRIView{*v}.is_relative()) {
                                 set_resolution_base(result->base_iri);
-                                result->base_iri = iri_factory->from_maybe_relative_as_string(*v);
+                                result->base_iri = parse_state->iri_factory.from_maybe_relative_as_string(*v);
                             } else {
                                 IRIView{*v}.quick_validate();
                                 result->base_iri = *v;
@@ -172,8 +200,10 @@ namespace rdf4cpp::parser::json_ld {
                         .term = term,
                         .previous_terms = previous_terms,
                         .base_iri = p.base_iri,
+                        .base_url = p.base_url,
                         .is_protected = prot,
                         .override_protected = p.override_protected,
+                        .validate_scoped_contexts = p.validate_scoped_contexts,
                     });
                     if (e.has_value()) {
                         result = nonstd::unexpected{e.value()};
@@ -198,6 +228,56 @@ namespace rdf4cpp::parser::json_ld {
             };
         };
 
+        auto handle_remote = [&](std::string_view url) -> nonstd::expected<Context, error_type> {
+            // 5.2.1
+            try {
+                set_resolution_base(p.base_url);
+                url = parse_state->iri_factory.from_maybe_relative_as_string(url);
+            }
+            catch (InvalidIRI const&) {
+                return nonstd::unexpected{make_error(ParsingError::Type::BadIri, "loading document failed")};
+            }
+
+            // 5.2.2
+            if (!p.validate_scoped_contexts) {
+                if (auto* e = remote_contexts.try_get(url)) {
+                    if (e->active) {
+                        return result;
+                    }
+                }
+            }
+
+            // 5.2.3
+            if (remote_contexts.num_active_entries() > remote_context_size_limit) {
+                return nonstd::unexpected{make_error(ParsingError::Type::BadIri, "context overflow")};
+            }
+
+            // 5.2.4
+            auto [context, inserted] = remote_contexts.get(url);
+
+            // 5.2.5
+            if (inserted) {
+                auto data = parse_state->request_url(url);
+                if (!data.has_value()) {
+                    return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::format("loading remote context failed {}", data.error()))};
+                }
+                context.data = std::move(*data);
+                simdjson::pad(context.data);
+            }
+
+            // 5.2.6
+            result = parse_local_context(simdjson::padded_string_view(context.data), {
+                .active_context = *result,
+                .base_iri = p.base_iri,
+                .base_url = url,
+                .override_protected = p.override_protected,
+                .propagate = p.propagate,
+                .validate_scoped_contexts = p.validate_scoped_contexts,
+            }, true);
+
+            return result;
+        };
+
         if (local_context.type() == simdjson::ondemand::json_type::object) {
             // 2 & 3
             simdjson::ondemand::object const o = local_context.get_object();
@@ -213,7 +293,7 @@ namespace rdf4cpp::parser::json_ld {
             return handle_null();
         } else if (local_context.type() == simdjson::ondemand::json_type::string) {  // 5.2
             // a string names a remote context, the same case as inside the array below
-            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
+            return handle_remote(*local_context.get_string());
         } else {
             if (!p.propagate && result->previous_context == nullptr) {
                 result->previous_context = &p.active_context;
@@ -241,8 +321,14 @@ namespace rdf4cpp::parser::json_ld {
                         }
                         break;
                     case simdjson::ondemand::json_type::string:  // 5.2
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
-                        return result;
+                    {
+                        auto r = handle_remote(*v.get_string());
+                        if (!r.has_value()) {
+                            return r;
+                        }
+                        result = r;
+                        break;
+                    }
                     default:  // 5.3
                         result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid local context")};
                         return result;
@@ -256,10 +342,12 @@ namespace rdf4cpp::parser::json_ld {
         if (result.has_value()) {
             for (auto const &t : result->terms) {
                 if (t.needs_context_check && t.context.has_value()) {
-                    auto lc = parse_local_context(simdjson::padded_string_view{*t.context}, {
+                    auto lc = parse_local_context(simdjson::padded_string_view{t.context->context}, {
                         .active_context = *result,
                         .base_iri = p.base_iri,
+                        .base_url = t.context->base_url,
                         .override_protected = true,
+                        .validate_scoped_contexts = false,
                     });
                     if (!lc.has_value()) {
                         return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, std::format("invalid scoped context ({})", lc.error().message)));
@@ -567,8 +655,10 @@ namespace rdf4cpp::parser::json_ld {
                                     .term = *other_term,
                                     .previous_terms = p.previous_terms,
                                     .base_iri = p.base_iri,
+                                    .base_url = p.base_url,
                                     .is_protected = p.is_protected,
                                     .override_protected = p.override_protected,
+                                    .validate_scoped_contexts = p.validate_scoped_contexts,
                                 });
                                 if (rec.has_value()) {
                                     return rec;
@@ -710,14 +800,12 @@ namespace rdf4cpp::parser::json_ld {
                         return make_error(ParsingError::Type::BadSyntax, "invalid scoped context");
                     }
                     auto t = *v.type();
-                    if (t == simdjson::ondemand::json_type::string) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid scoped context, remote");
-                    }
-                    p.term.context = std::string{static_cast<std::string_view>(v.raw_json())};
+                    std::string data{static_cast<std::string_view>(v.raw_json())};
                     if (t != simdjson::ondemand::json_type::array && t != simdjson::ondemand::json_type::object) {
-                        p.term.context = std::format("[{}]", *p.term.context);
+                        data = std::format("[{}]", data);
                     }
-                    simdjson::pad(*p.term.context);
+                    p.term.context = {std::move(data), std::string{p.base_url}};
+                    simdjson::pad(p.term.context->context);
                     // the context itself is validated at the end of context processing
                     p.term.needs_context_check = true;
                 }
@@ -803,11 +891,18 @@ namespace rdf4cpp::parser::json_ld {
         p.term.parse_state = ParseState::Done;
         return std::nullopt;
     }
-    nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p) {
+    nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p, bool skip_to_context) {
         simdjson::ondemand::parser parser{};
         simdjson::ondemand::document doc = parser.iterate(json);
+        if (skip_to_context) {
+            auto ctx = doc.find_field(keyword_context);
+            if (!ctx.has_value()) {
+                nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid remote context")};
+            }
+            return parse_context(*ctx, p);
+        }
         if (doc.is_scalar()) {
-            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, doc.is_string() ? "remote context not supported" : "context free floating scalar")};
+            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "context free floating scalar")};
         }
         return parse_context(doc, p);
     }
@@ -839,6 +934,7 @@ namespace rdf4cpp::parser::json_ld {
                     .term = *i,
                     .previous_terms = parse_ctx->previous_terms,
                     .base_iri = "",
+                    .base_url = "",
                 });
                 if (e.has_value()) {
                     return nonstd::make_unexpected(*e);
@@ -878,6 +974,7 @@ namespace rdf4cpp::parser::json_ld {
                             .term = *term,
                             .previous_terms = parse_ctx->previous_terms,
                             .base_iri = "",
+                            .base_url = "",
                         });
                         if (e.has_value()) {
                             return nonstd::make_unexpected(*e);
@@ -920,7 +1017,7 @@ namespace rdf4cpp::parser::json_ld {
             }
 
             try {
-                auto r = iri_factory->from_maybe_relative_as_string(*value);
+                auto r = parse_state->iri_factory.from_maybe_relative_as_string(*value);
                 return IRIMapping{std::string(r), IRIMappingType::IRI};
             } catch (InvalidIRI const &ii) {
                 return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid relative iri: {}", ii.what())));

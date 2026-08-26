@@ -8,13 +8,16 @@
 #include <fstream>
 
 namespace rdf4cpp::parse_test_helpers {
-    inline void parser_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, bool deduplicate = false) {
+    inline void parser_test_positive(std::string check_str, std::string truth_str, std::string_view base_iri, parser::ParsingFlags check_flags, parser::ParsingFlags truth_flags, std::optional<decltype(parser::ParsingState::request_url)> request_url, bool deduplicate = false) {
         using namespace rdf4cpp::parser;
 
         CAPTURE(base_iri);
 
         IStreamQuadIterator::state_type state{};
         CHECK_NOTHROW(state.iri_factory.set_base(base_iri));
+        if (request_url.has_value()) {
+            state.request_url = std::move(*request_url);
+        }
         std::stringstream check_stream{std::move(check_str)};
         IStreamQuadIterator check_iter{check_stream, check_flags, &state};
         std::vector<Quad> check_results;
