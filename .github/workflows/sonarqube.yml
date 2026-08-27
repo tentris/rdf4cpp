@@ -23,7 +23,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action/install-build-wrapper@v8.2.1
 
       - name: Add compiler repos
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@v2.1.0
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@v2.1.1
 
       - name: Get minimum cmake version
         uses: lukka/get-cmake@v4.4.2
@@ -40,7 +40,7 @@ jobs:
         uses: rui314/setup-mold@v1
 
       - name: Configure conan
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@v2.1.0
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/configure_conan@v2.1.1
         with:
           conan-version: ${{ matrix.config.conan-version }}
 
@@ -60,7 +60,7 @@ jobs:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
       - name: Get dependency provider
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@v2.1.0
+        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@v2.1.1
 
       - name: Configure CMake
         env:
