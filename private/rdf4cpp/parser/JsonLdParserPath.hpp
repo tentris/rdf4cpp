@@ -92,6 +92,35 @@ namespace rdf4cpp::parser {
         error_code = val.get(result);
         return std::tuple(error_code, result);
     }
+    template<typename T>
+    // ReSharper disable once CppDFAUnreachableFunctionCall
+    static auto try_get_field(simdjson::ondemand::object obj, std::optional<simdjson::ondemand::object> merge_obj, std::string_view key) {
+        T result{};
+        auto error_code = obj[key].get(result);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        if (error_code == simdjson::NO_SUCH_FIELD && merge_obj.has_value()) {
+            error_code = (*merge_obj)[key].get(result);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        }
+        return std::tuple(error_code, result);
+    }
+    template<typename T>
+    static std::tuple<simdjson::error_code, std::optional<T>> try_get_optional_field(simdjson::ondemand::object obj,
+                                                                                     std::optional<simdjson::ondemand::object> merge_obj,
+                                                                                     std::string_view key) {
+        simdjson::ondemand::value val;
+        auto error_code = obj[key].get(val);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        if (error_code == simdjson::NO_SUCH_FIELD && merge_obj.has_value()) {
+            error_code = (*merge_obj)[key].get(val);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        }
+        if (error_code != simdjson::SUCCESS) {
+            return std::tuple(error_code, std::nullopt);
+        }
+        if (val.is_null()) {
+            return std::tuple(error_code, std::nullopt);
+        }
+        T result{};
+        error_code = val.get(result);
+        return std::tuple(error_code, result);
+    }
 }  // namespace rdf4cpp::parser
 
 #endif  //RDF4CPP_JSONLDPARSERPATH_HPP

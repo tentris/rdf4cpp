@@ -397,12 +397,11 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("pr39-in.jsonld"), remote_test_file_to_str("pr39-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr39");
     jsonld_test_positive(remote_test_file_to_str("pr40-in.jsonld"), remote_test_file_to_str("pr40-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr40");
     jsonld_test_positive(remote_test_file_to_str("rt01-in.jsonld"), remote_test_file_to_str("rt01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/trt01");
-    // uses @import
-    // jsonld_test_positive(remote_test_file_to_str("so05-in.jsonld"), remote_test_file_to_str("so05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso05");
-    // jsonld_test_positive(remote_test_file_to_str("so06-in.jsonld"), remote_test_file_to_str("so06-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso06");
-    // jsonld_test_positive(remote_test_file_to_str("so08-in.jsonld"), remote_test_file_to_str("so08-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso08");
-    // jsonld_test_positive(remote_test_file_to_str("so09-in.jsonld"), remote_test_file_to_str("so09-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso09");
-    // jsonld_test_positive(remote_test_file_to_str("so11-in.jsonld"), remote_test_file_to_str("so11-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso11");
+    jsonld_test_positive(remote_test_file_to_str("so05-in.jsonld"), remote_test_file_to_str("so05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso05");
+    jsonld_test_positive(remote_test_file_to_str("so06-in.jsonld"), remote_test_file_to_str("so06-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso06");
+    jsonld_test_positive(remote_test_file_to_str("so08-in.jsonld"), remote_test_file_to_str("so08-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso08");
+    jsonld_test_positive(remote_test_file_to_str("so09-in.jsonld"), remote_test_file_to_str("so09-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso09");
+    jsonld_test_positive(remote_test_file_to_str("so11-in.jsonld"), remote_test_file_to_str("so11-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso11");
     jsonld_test_positive(remote_test_file_to_str("tn02-in.jsonld"), remote_test_file_to_str("tn02-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/ttn02", true);
     jsonld_test_positive(remote_test_file_to_str("v001-in.jsonld"), remote_test_file_to_str("v001-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tv001");
     jsonld_test_positive(remote_test_file_to_str("v002-in.jsonld"), remote_test_file_to_str("v002-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tv002");
@@ -726,36 +725,6 @@ TEST_CASE("a parsing error after valid quads") {
     }
     CHECK(values == 1);
     CHECK(had_error);
-}
-
-// checks that an unsupported context feature is reported and that no quad is produced from a
-// document whose context could not be applied
-void jsonld_test_unsupported(std::string json_str, std::string_view message_part) {
-    CAPTURE(message_part);
-    std::stringstream json{std::move(json_str)};
-    IStreamQuadIterator it{json, ParsingFlag::JsonLd};
-
-    size_t quads = 0;
-    std::string first_message;
-    for (; it != std::default_sentinel; ++it) {
-        if (it->has_value()) {
-            ++quads;
-        } else if (first_message.empty()) {
-            first_message = it->error().message;
-        }
-    }
-    CAPTURE(first_message);
-    // expanding with an unapplied context would produce plausible but wrong quads
-    CHECK(quads == 0);
-    REQUIRE(!first_message.empty());
-    CHECK(first_message.find(message_part) != std::string::npos);
-}
-
-TEST_CASE("@import is reported as unsupported") {
-    // the w3c tests for this are the deactivated so05, so06, so08, so09 and so11
-    jsonld_test_unsupported(R"({"@context": {"@import": "http://example.com/ctx.jsonld", "t": "http://example.com/p"},
-      "@id": "http://example.com/s", "t": "v"})",
-                            "import context not supported");
 }
 
 TEST_CASE("a free floating scalar is no json-ld document") {

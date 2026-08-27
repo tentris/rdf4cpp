@@ -24,6 +24,7 @@ namespace rdf4cpp::parser {
         };
         struct ParseContextTermParams {
             simdjson::ondemand::object local_context;
+            std::optional<simdjson::ondemand::object> local_context_merge;
             json_ld::Context &active_context;                            // NOLINT(*-avoid-const-or-ref-data-members)
             json_ld::TermDefinition &term;                               // NOLINT(*-avoid-const-or-ref-data-members)
             std::vector<json_ld::TermDefinition> const &previous_terms;  // NOLINT(*-avoid-const-or-ref-data-members)
@@ -36,6 +37,7 @@ namespace rdf4cpp::parser {
         struct ParseContextIRIExpansionParams {
             json_ld::Context &active_context;  // NOLINT(*-avoid-const-or-ref-data-members)
             simdjson::ondemand::object local_context;
+            std::optional<simdjson::ondemand::object> local_context_merge;
             std::vector<json_ld::TermDefinition> const &previous_terms;  // NOLINT(*-avoid-const-or-ref-data-members)
         };
     }  // namespace params
