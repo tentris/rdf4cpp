@@ -12,7 +12,6 @@ jobs:
     with:
       os: ubuntu-24.04
       cc: clang-20
-      cmake-version: 4.4.0
       base-branch: ${{ github.base_ref }}
       setup_tools: true
       search-path: >
