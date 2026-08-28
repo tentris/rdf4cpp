@@ -7,13 +7,11 @@ concurrency:
 
 jobs:
   publish-release:
-    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-conan-branch-package.yml@v2.1.0
+    uses: dice-group/cpp-conan-release-reusable-workflow/.github/workflows/publish-conan-branch-package.yml@v2.1.1
     with:
       public_artifactory: true
       os: ubuntu-24.04
       compiler: clang-21
-      cmake-version: 4.4.0
-      conan-version: 2.31.2
       conan-options: -o boost/*:header_only=True
     secrets:
       CONAN_CICD_USERNAME: ${{ secrets.CONAN_CICD_USERNAME }}
