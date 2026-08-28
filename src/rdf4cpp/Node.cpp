@@ -128,7 +128,10 @@ TriBool Node::eq_impl(Node const &other) const {
     }
 
     if (handle_.type() != other.handle_.type()) {
-        return TriBool::Err;
+        // "produces a type error if the arguments are both literal but are not the same RDF term; returns FALSE otherwise"
+        // - https://www.w3.org/TR/sparql11-query/#func-RDFterm-equal
+        // Two nodes of different kinds are not both literal, so the type error does not apply.
+        return TriBool::False;
     }
 
     using storage::identifier::RDFNodeType;
