@@ -31,7 +31,7 @@ jobs:
     with:
       os: ${{ matrix.config.os }}
       compiler: ${{ matrix.config.compiler }}
-      cmake-version: 4.4.0
+      cmake-version: 4.4.3
       conan-version: 2.31.2
       with-coverage: false
       with-sanitizer: ${{ matrix.config.compiler == 'clang-20' }}
