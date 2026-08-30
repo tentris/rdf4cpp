@@ -43,7 +43,7 @@ class Recipe(ConanFile):
         self.requires("simdjson/4.6.3")
 
         if self.options.with_test_deps:
-            self.test_requires("doctest/2.4.11")
+            self.test_requires("doctest/2.5.3")
             self.test_requires("nanobench/4.3.11")
 
     def set_name(self):
