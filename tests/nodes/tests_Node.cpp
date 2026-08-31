@@ -217,6 +217,27 @@ TEST_CASE("effective boolean value") {
     CHECK(null_bnode.ebv() == TriBool::Err);
 }
 
+TEST_CASE("RDFterm-equal: mixed term kinds give a boolean, not an error") {
+    // SPARQL 1.1 section 17.4.1.7: RDFterm-equal returns TRUE for the same term.
+    // It produces a type error only when both arguments are literals.
+    // It returns FALSE otherwise. A blank node compared with an IRI is FALSE,
+    // and != is fn:not(RDFterm-equal), so != must be TRUE there.
+    Node const bnode = BlankNode{"b0"};
+    Node const iri = IRI{"http://example.org/Person"};
+    Node const lit = Literal::make_simple("hello");
+
+    CHECK(bnode.eq(iri) == TriBool::False);
+    CHECK(bnode.ne(iri) == TriBool::True);
+    CHECK(iri.eq(bnode) == TriBool::False);
+    CHECK(iri.ne(bnode) == TriBool::True);
+    CHECK(iri.eq(lit) == TriBool::False);
+    CHECK(lit.ne(bnode) == TriBool::True);
+
+    // the FILTER path: as_ne must produce "true"^^xsd:boolean, not the null literal
+    CHECK(!bnode.as_ne(iri).null());
+    CHECK(bnode.as_ne(iri).ebv() == TriBool::True);
+}
+
 TEST_CASE("IRI UUID") {
     IRI uuid = IRI::make_uuid();
     IRI uuid2 = IRI::make_uuid();
