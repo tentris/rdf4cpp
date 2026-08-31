@@ -114,7 +114,10 @@ std::vector<DatatypeGroup> make_datatype_groups() {
     groups.push_back(make_typed_group("integer", {"0", "1", "-1", "99999999999999999999999999"}));
     groups.push_back(make_typed_group("int", {"0", "1", "-2147483648", "2147483647"}));
     groups.push_back(make_typed_group("boolean", {"true", "false"}));
-    groups.push_back(make_typed_group("string", {"", "abc", "ABC", "abd", "zzz"}));
+    // the escaped forms interleave with the plain ones in byte order, so an ordering that
+    // grouped by "needs escaping" instead of by lexical form would break the total order
+    groups.push_back(make_typed_group("string", {"", "abc", "ABC", "abd", "zzz",
+                                                 "\n", "\"quoted\"", "a\"b", "a\\b", "z\rz"}));
     groups.push_back(make_typed_group("anyURI", {"http://example.org/", "http://example.org/a",
                                                  "http://example.org/b", "https://example.org/a",
                                                  "urn:isbn:0451450523"}));
@@ -435,6 +438,63 @@ TEST_SUITE("literal ordering") {
             REQUIRE(terms.size() == 2);
             CHECK(terms[0] == Node{make_typed_literal(pair.smaller, pair.datatype)});
             CHECK(terms[1] == Node{make_typed_literal(pair.greater, pair.datatype)});
+        }
+    }
+
+    TEST_CASE("ordering/comparing std:string and needs_escape") {
+        struct EscapeData {
+            char const *lexical_form;
+            bool needs_escape;
+        };
+
+        // interleaved in byte order: '\n' 0x0A, '\r' 0x0D, '"' 0x22, '\\' 0x5C, 'A' 0x41, 'a' 0x61, 'z' 0x7A
+        constexpr EscapeData test_data[] = {
+                {"", false},
+                {"\n", true},
+                {"\"quoted\"", true},
+                {"ABC", false},
+                {"a\"b", true},
+                {"a\\b", true},
+                {"abc", false},
+                {"abd", false},
+                {"z\rz", true},
+                {"zzz", false},
+        };
+
+        SUBCASE("xsd:string compares by lexical form regardless of escaping") {
+            for (auto const &lhs_sample : test_data) {
+                for (auto const &rhs_sample : test_data) {
+                    CAPTURE(std::string_view{lhs_sample.lexical_form});
+                    CAPTURE(std::string_view{rhs_sample.lexical_form});
+
+                    Literal const lhs = make_typed_literal(lhs_sample.lexical_form, "string");
+                    Literal const rhs = make_typed_literal(rhs_sample.lexical_form, "string");
+
+                    // the expectation comes from the raw lexical forms, not from compare
+                    auto const expected = std::string_view{lhs_sample.lexical_form} <=> std::string_view{rhs_sample.lexical_form};
+
+                    CHECK(lhs.compare(rhs) == expected);
+                    CHECK(Node{lhs}.order(Node{rhs}) == expected);
+                }
+            }
+        }
+
+        SUBCASE("rdf:langString compares by lexical form regardless of escaping") {
+            for (auto const &lhs_sample : test_data) {
+                for (auto const &rhs_sample : test_data) {
+                    CAPTURE(std::string_view{lhs_sample.lexical_form});
+                    CAPTURE(std::string_view{rhs_sample.lexical_form});
+
+                    Literal const lhs = Literal::make_lang_tagged(lhs_sample.lexical_form, "en");
+                    Literal const rhs = Literal::make_lang_tagged(rhs_sample.lexical_form, "en");
+
+                    // same language tag, so the lexical forms decide
+                    auto const expected = std::string_view{lhs_sample.lexical_form} <=> std::string_view{rhs_sample.lexical_form};
+
+                    CHECK(lhs.compare(rhs) == expected);
+                    CHECK(Node{lhs}.order(Node{rhs}) == expected);
+                }
+            }
         }
     }
 
