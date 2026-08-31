@@ -56,6 +56,11 @@ struct DatatypeRegistry {
 
     using compare_fptr_t = std::partial_ordering (*)(std::any const &, std::any const &) noexcept;
 
+    /**
+     * Compares two inlined values of the same datatype directly from their payloads.
+     */
+    using compare_inlined_fptr_t = std::partial_ordering (*)(storage::identifier::LiteralID, storage::identifier::LiteralID) noexcept;
+
     struct NumericOpsImpl {
         nullop_fptr_t zero_value_fptr; // 0
         nullop_fptr_t one_value_fptr; // 1
@@ -124,6 +129,7 @@ struct DatatypeRegistry {
     struct InliningOps {
         try_into_inlined_fptr_t try_into_inlined_fptr;
         from_inlined_fptr_t from_inlined_fptr;
+        compare_inlined_fptr_t compare_inlined_fptr; // nullptr if the datatype is not comparable
     };
 
     struct DatatypeEntry {
@@ -604,8 +610,10 @@ inline void DatatypeRegistry::add() noexcept {
     auto const compare_fptr = []() -> compare_fptr_t {
         if constexpr (datatypes::ComparableLiteralDatatype<LiteralDatatype_t>) {
             return [](std::any const &lhs, std::any const &rhs) noexcept -> std::partial_ordering {
-                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+                // cast to a reference: std::any_cast<T> returns by value, so binding its result to
+                // `auto const &` would only extend the lifetime of a copy of the stored value
+                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
                 return LiteralDatatype_t::compare(lhs_val, rhs_val);
             };
@@ -871,14 +879,26 @@ DatatypeRegistry::DurationOps DatatypeRegistry::make_duration_ops() noexcept {
 
 template<datatypes::InlineableLiteralDatatype LiteralDatatype_t>
 DatatypeRegistry::InliningOps DatatypeRegistry::make_inlining_ops() noexcept {
-    return InliningOps {
-            .try_into_inlined_fptr = [](std::any const &value) noexcept -> std::optional<storage::identifier::LiteralID> {
-                auto const &val = std::any_cast<typename LiteralDatatype_t::cpp_type>(value);
-                return LiteralDatatype_t::try_into_inlined(val);
-            },
-            .from_inlined_fptr = [](storage::identifier::LiteralID inlined_value) noexcept -> std::any {
-                return LiteralDatatype_t::from_inlined(inlined_value);
-            }};
+    return InliningOps{
+        .try_into_inlined_fptr = [](std::any const &value) noexcept -> std::optional<storage::identifier::LiteralID> {
+            auto const &val = std::any_cast<typename LiteralDatatype_t::cpp_type>(value);
+            return LiteralDatatype_t::try_into_inlined(val);
+        },
+        .from_inlined_fptr = [](storage::identifier::LiteralID inlined_value) noexcept -> std::any {
+            return LiteralDatatype_t::from_inlined(inlined_value);
+        },
+        .compare_inlined_fptr = []() -> compare_inlined_fptr_t {
+            if constexpr (datatypes::ComparableLiteralDatatype<LiteralDatatype_t>) {
+                return [](storage::identifier::LiteralID lhs,
+                          storage::identifier::LiteralID rhs) noexcept -> std::partial_ordering {
+                    return LiteralDatatype_t::compare(LiteralDatatype_t::from_inlined(lhs),
+                                                      LiteralDatatype_t::from_inlined(rhs));
+                };
+            } else {
+                return nullptr;
+            }
+        }()
+    };
 }
 
 }  // namespace rdf4cpp::datatypes::registry

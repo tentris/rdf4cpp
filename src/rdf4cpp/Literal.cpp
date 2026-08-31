@@ -859,7 +859,7 @@ std::any Literal::value() const {
         return ops->from_inlined_fptr(inlined_value);
     }
 
-    auto const backend = handle_.literal_backend();
+    auto backend = handle_.literal_backend();
 
     if (datatype == rdf::LangString::datatype_id) {
         auto const &lex = backend.get_lexical();
@@ -874,7 +874,9 @@ std::any Literal::value() const {
         return std::any{lex.lexical_form};
     }
 
-    return backend.visit(
+    // backend is a local that dies with this call, so the stored value can be moved out of it
+    // instead of copied; for datatypes with a specialized (value) storage that copy is a heap allocation
+    return std::move(backend).visit(
             [&datatype](storage::view::LexicalFormLiteralBackendView const &lexical_backend) noexcept {
                 if (auto const factory = registry::DatatypeRegistry::get_factory(datatype); factory != nullptr) {
                     return factory(lexical_backend.lexical_form);
@@ -882,11 +884,11 @@ std::any Literal::value() const {
 
                 return std::any{};
             },
-            [&datatype](storage::view::ValueLiteralBackendView const &value_backend) noexcept {
+            [&datatype](storage::view::ValueLiteralBackendView &&value_backend) noexcept {
                 RDF4CPP_ASSERT(value_backend.datatype == datatype);
                 (void)datatype;
 
-                return value_backend.value;
+                return std::move(value_backend.value);
             });
 }
 
@@ -1117,7 +1119,48 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
     return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
 }
 
+std::partial_ordering Literal::compare_values_of_same_datatype(datatypes::registry::DatatypeRegistry::DatatypeEntry const &entry,
+                                                               datatypes::registry::DatatypeIDView const &datatype,
+                                                               Literal const &lhs,
+                                                               Literal const &rhs) {
+    // rdf:langString does not inline its value, it inlines the language tag,
+    // so its from_inlined is not usable here (see Literal::value)
+    if (lhs.is_inlined() && rhs.is_inlined() && datatype != datatypes::rdf::LangString::datatype_id) {
+        if (entry.inlining_ops.has_value() && entry.inlining_ops->compare_inlined_fptr != nullptr) {
+            RDF4CPP_DEBUG_ASSERT(entry.inlining_ops->compare_inlined_fptr != nullptr);
+            return entry.inlining_ops->compare_inlined_fptr(lhs.backend_handle().node_id().literal_id(),
+                                                            rhs.backend_handle().node_id().literal_id());
+        }
+    }
 
+    if (datatype == datatypes::xsd::String::datatype_id) {
+        // xsd:String has no compare of its own, so this is the generic <=> on cpp_type = std::string_view
+        auto const &lhs_backend = lhs.handle_.literal_backend();
+        auto const &rhs_backend = rhs.handle_.literal_backend();
+        return lhs_backend.get_lexical().lexical_form <=> rhs_backend.get_lexical().lexical_form;
+    }
+
+    if (datatype == datatypes::rdf::LangString::datatype_id) {
+        // the lexical form of an inlined lang tagged literal lives under the de-inlined handle
+        auto const de_inlined = [](Literal const &literal) noexcept {
+            return literal.is_inlined() ? literal.lang_tagged_get_de_inlined() : literal;
+        };
+
+        auto const &lhs_backend = de_inlined(lhs).handle_.literal_backend();
+        auto const &rhs_backend = de_inlined(rhs).handle_.literal_backend();
+        auto const &lhs_lexical = lhs_backend.get_lexical();
+        auto const &rhs_lexical = rhs_backend.get_lexical();
+        auto const &lhs_lang_repr = datatypes::registry::LangStringRepr{
+            .lexical_form = lhs_lexical.lexical_form, .language_tag = lhs_lexical.language_tag
+        };
+        auto const &rhs_lang_repr = datatypes::registry::LangStringRepr{
+            .lexical_form = rhs_lexical.lexical_form, .language_tag = rhs_lexical.language_tag
+        };
+        return lhs_lang_repr <=> rhs_lang_repr;
+    }
+
+    return entry.compare_fptr(lhs.value(), rhs.value());
+}
 
 std::partial_ordering Literal::compare_impl(Literal const &other, std::strong_ordering *out_alternative_ordering) const {
     using datatypes::registry::DatatypeRegistry;
@@ -1161,16 +1204,24 @@ std::partial_ordering Literal::compare_impl(Literal const &other, std::strong_or
     auto const this_entry = DatatypeRegistry::get_entry(this_datatype);
 
     if (datatype_cmp_res == std::strong_ordering::equal) {
-        if (out_alternative_ordering != nullptr) {
-            // types equal, fallback to lexical form ordering
-            *out_alternative_ordering = this->lexical_form() <=> other.lexical_form();
-        }
+        auto calc_alt_ordering = [&]() {
+            if (out_alternative_ordering != nullptr) {
+                // types equal, fallback to lexical form ordering
+                *out_alternative_ordering = this->lexical_form() <=> other.lexical_form();
+            }
+        };
 
         if (this_entry == nullptr || this_entry->compare_fptr == nullptr) {
+            calc_alt_ordering();
             return std::partial_ordering::unordered;
         }
 
-        return this_entry->compare_fptr(this->value(), other.value());
+        auto const res = compare_values_of_same_datatype(*this_entry, this_datatype, *this, other);
+        if (res == std::partial_ordering::equivalent || res == std::partial_ordering::unordered) {
+            // std::partial_ordering::equivalent is needed for cases like `"0.0"^^xsd:double <=? "-0.0"^^xsd:double`
+            calc_alt_ordering();
+        }
+        return res;
     } else {
         if (out_alternative_ordering != nullptr) {
             // types are different, the only useful alternative ordering is the type ordering

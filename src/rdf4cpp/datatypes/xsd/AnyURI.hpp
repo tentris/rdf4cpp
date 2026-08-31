@@ -13,7 +13,7 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
     template<>
     struct DatatypeMapping<xsd_any_uri> {
-        using cpp_datatype = std::string;
+        using cpp_datatype = std::string_view;
     };
 
     template<>

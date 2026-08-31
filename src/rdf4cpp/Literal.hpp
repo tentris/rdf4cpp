@@ -175,6 +175,19 @@ private:
     std::partial_ordering compare_impl(Literal const &other, std::strong_ordering *out_alternative_ordering = nullptr) const;
 
     /**
+     * @brief compares the values of two non-null literals that are known to share a datatype
+     * @param entry the already looked up registry entry of the shared datatype
+     * @param datatype the shared datatype of lhs and rhs
+     * @param lhs the left-hand side literal of the comparison
+     * @param rhs the right-hand side literal of the comparison
+     * @return the ordering of the values of lhs and rhs
+     */
+    static std::partial_ordering compare_values_of_same_datatype(datatypes::registry::DatatypeRegistry::DatatypeEntry const &entry,
+                                                                 datatypes::registry::DatatypeIDView const &datatype,
+                                                                 Literal const &lhs,
+                                                                 Literal const &rhs);
+
+    /**
      * get the DatatypeIDView for the datatype of *this,
      * it will always contain the appropriate id type
      * and can be used to index the registry
