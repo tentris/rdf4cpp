@@ -161,16 +161,17 @@ std::partial_ordering Node::compare_impl(Node const &other) const {
         return std::partial_ordering::unordered;
     }
 
-    if (handle_ == other.handle_) {
-        return std::partial_ordering::equivalent;
-    }
-
     if (handle_.type() != other.handle_.type() || handle_.type() != storage::identifier::RDFNodeType::Literal) {
-        // mismatched node types are not comparable
-        // and nodes other than literals are not comparable with <,<=,>,>=
+        // "Operators invoked without appropriate operands result in a type error."
+        // - https://www.w3.org/TR/sparql11-query/#OperatorMapping
+        // The operator table lists <, <=, > and >= only for literal operands, so an IRI,
+        // a blank node or a variable is a type error. This also holds when both operands
+        // are the same node. Mismatched node types have no row either.
         return std::partial_ordering::unordered;
     }
 
+    // two identical literals are handled by Literal::compare, which reports a datatype
+    // without a defined order as unordered even for a literal and itself
     return Literal{handle_}.compare(Literal{other.handle_});
 }
 
