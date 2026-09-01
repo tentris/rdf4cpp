@@ -543,20 +543,12 @@ TEST_CASE("null ops") {
 }
 
 TEST_SUITE("deferred numeric ops") {
-    DeferredValue deferred(Literal const &lit) {
-        return DeferredValue{lit.value(), lit.datatype()};
-    }
-
-    Literal materialize(DeferredValue &&value, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
-        return Literal::make_typed_from_value(std::move(value.first), value.second, node_storage);
-    }
-
     /**
      * checks that all deferred ops on lhs and rhs produce exactly what the corresponding Literal ops produce
      */
     void check_matches_eager(Literal const &lhs, Literal const &rhs) {
         auto const check = [](Literal const &expected, DeferredValue &&res) {
-            auto const got = materialize(std::move(res));
+            auto const got = materialize_deferred_literal(std::move(res));
 
             if (expected.null()) {
                 CHECK(got.null());
@@ -566,10 +558,10 @@ TEST_SUITE("deferred numeric ops") {
             }
         };
 
-        check(lhs.add(rhs), numeric_add_deferred(deferred(lhs), deferred(rhs)));
-        check(lhs.sub(rhs), numeric_sub_deferred(deferred(lhs), deferred(rhs)));
-        check(lhs.mul(rhs), numeric_mul_deferred(deferred(lhs), deferred(rhs)));
-        check(lhs.div(rhs), numeric_div_deferred(deferred(lhs), deferred(rhs)));
+        check(lhs.add(rhs), numeric_add_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)));
+        check(lhs.sub(rhs), numeric_sub_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)));
+        check(lhs.mul(rhs), numeric_mul_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)));
+        check(lhs.div(rhs), numeric_div_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)));
     }
 
     template<datatypes::LiteralDatatype T>
@@ -617,13 +609,13 @@ TEST_SUITE("deferred numeric ops") {
         auto const one = Literal::make_typed_from_value<datatypes::xsd::Integer>(1);
         auto const zero = Literal::make_typed_from_value<datatypes::xsd::Integer>(0);
 
-        CHECK(materialize(DeferredValue{}).null());
-        CHECK(numeric_add_deferred(DeferredValue{}, deferred(one)).second.null());
-        CHECK(numeric_add_deferred(deferred(one), DeferredValue{}).second.null());
+        CHECK(materialize_deferred_literal(DeferredValue{}).null());
+        CHECK(numeric_add_deferred(DeferredValue{}, make_deferred_literal(one)).second.null());
+        CHECK(numeric_add_deferred(make_deferred_literal(one), DeferredValue{}).second.null());
 
-        auto const div_by_zero = numeric_div_deferred(deferred(one), deferred(zero));
+        auto const div_by_zero = numeric_div_deferred(make_deferred_literal(one), make_deferred_literal(zero));
         CHECK(div_by_zero.second.null());
-        CHECK(numeric_add_deferred(div_by_zero, deferred(one)).second.null());
+        CHECK(numeric_add_deferred(div_by_zero, make_deferred_literal(one)).second.null());
     }
 
     TEST_CASE("folding does not store the intermediate results") {
@@ -643,11 +635,11 @@ TEST_SUITE("deferred numeric ops") {
         auto eager = Literal::make_typed_from_value<xsd::Integer>(0, eager_storage);
 
         for (auto const &summand : summands) {
-            acc = numeric_add_deferred(acc, deferred(summand));
+            acc = numeric_add_deferred(acc, make_deferred_literal(summand));
             eager = eager.add(summand, eager_storage);
         }
 
-        CHECK(materialize(std::move(acc), deferred_storage).order_eq(eager));
+        CHECK(materialize_deferred_literal(std::move(acc), deferred_storage).order_eq(eager));
         CHECK_EQ(deferred_storage.size(), empty_size + 1);  // only the result
         CHECK_GT(eager_storage.size(), deferred_storage.size());
     }
@@ -694,7 +686,7 @@ TEST_SUITE("deferred numeric ops") {
         auto const lhs = Literal::make_typed_from_value<datatypes::xsd::B>(1);
         auto const rhs = Literal::make_typed_from_value<datatypes::xsd::Y>(1.f);
 
-        auto const sum = materialize(numeric_add_deferred(deferred(lhs), deferred(rhs)), node_storage);
+        auto const sum = materialize_deferred_literal(numeric_add_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)), node_storage);
 
         CHECK_EQ(sum.backend_handle().storage(), storage::DynNodeStoragePtr{node_storage});
         CHECK(sum.order_eq(lhs.add(rhs, node_storage)));

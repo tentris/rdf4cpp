@@ -1106,11 +1106,23 @@ Literal Literal::numeric_binop_impl(OpSelect op_select, Literal const &other, st
     }
 
     auto res = numeric_binop_deferred_impl(op_select,
-                                           DeferredValue{this->value(), this->datatype()},
-                                           DeferredValue{other.value(), other.datatype()},
+                                           make_deferred_literal(*this),
+                                           make_deferred_literal(other),
                                            node_storage);
 
-    return Literal::make_typed_from_value(std::move(res.first), res.second, node_storage);
+    return materialize_deferred_literal(std::move(res), node_storage);
+}
+
+DeferredValue make_deferred_literal(Literal const &lit) {
+    if (lit.null()) {
+        return DeferredValue{};
+    }
+
+    return DeferredValue{lit.value(), lit.datatype()};
+}
+
+Literal materialize_deferred_literal(DeferredValue value, storage::DynNodeStoragePtr node_storage) {
+    return Literal::make_typed_from_value(std::move(value.first), value.second, node_storage);
 }
 
 DeferredValue numeric_add_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {

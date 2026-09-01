@@ -1702,6 +1702,18 @@ public:
 using DeferredValue = std::pair<std::any, IRI>;
 
 /**
+ * @return the value and the datatype of lit, or the null-value if lit is the null-literal
+ */
+[[nodiscard]] DeferredValue make_deferred_literal(Literal const &lit);
+
+/**
+ * Places value into node_storage
+ * @return the resulting literal, or the null-literal if value is the null-value
+ */
+[[nodiscard]] Literal materialize_deferred_literal(DeferredValue value,
+                                                   storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+/**
  * Numeric operations that do not place their result into a node storage.
  * They behave like the corresponding Literal member functions, except that
  *  - they do not store their (intermediate) results, and
@@ -1713,9 +1725,9 @@ using DeferredValue = std::pair<std::any, IRI>;
  * @code
  * DeferredValue acc{std::any{datatypes::xsd::Integer::cpp_type{0}}, IRI::datatype<datatypes::xsd::Integer>()};
  * for (Literal const &lit : literals) {
- *     acc = numeric_add_deferred(acc, DeferredValue{lit.value(), lit.datatype()});
+ *     acc = numeric_add_deferred(acc, make_deferred_literal(lit));
  * }
- * Literal const sum = Literal::make_typed_from_value(std::move(acc.first), acc.second);
+ * Literal const sum = materialize_deferred_literal(std::move(acc));
  * @endcode
  */
 [[nodiscard]] DeferredValue numeric_add_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
