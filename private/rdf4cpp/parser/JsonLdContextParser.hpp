@@ -47,8 +47,8 @@ namespace rdf4cpp::parser {
             std::map<std::string, RemoteContextEntry, std::less<>> contexts;
 
             [[nodiscard]] size_t num_active_entries() const noexcept;
-            std::pair<RemoteContextEntry&, bool> get(std::string_view url);
-            RemoteContextEntry* try_get(std::string_view url);
+            [[nodiscard]] bool has_active_cache(std::string_view url) const;
+            nonstd::expected<simdjson::padded_string_view, std::string> resolve(std::string_view url, IStreamQuadIterator::state_type* parse_state);
         };
 
         struct ContextParser {

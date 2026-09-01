@@ -11,21 +11,25 @@ namespace rdf4cpp::parser::json_ld {
         return r;
     }
 
-    std::pair<RemoteContextEntry &, bool> RemoteContextCache::get(std::string_view url) {
+    bool RemoteContextCache::has_active_cache(std::string_view url) const {
         auto it = contexts.find(url);
         if (it == contexts.end()) {
-            auto [i,_] = contexts.emplace(std::piecewise_construct, std::tuple{url}, std::tuple{"", true});
-            return {i->second, true};
+            return false;
         }
-        return {it->second, false};
+        return it->second.active;
     }
 
-    RemoteContextEntry *RemoteContextCache::try_get(std::string_view url) {
+    nonstd::expected<simdjson::padded_string_view, std::string> RemoteContextCache::resolve(std::string_view url, IStreamQuadIterator::state_type* parse_state) {
         auto it = contexts.find(url);
-        if (it == contexts.end()) {
-            return nullptr;
+        if (it != contexts.end()) {
+            return simdjson::padded_string_view{it->second.data};
         }
-        return &it->second;
+        auto data = parse_state->request_url(url);
+        if (!data.has_value()) {
+            return nonstd::unexpected{std::format("loading remote context failed {}", data.error())};
+        }
+        auto [e, _] = contexts.emplace(std::piecewise_construct, std::tuple{url}, std::tuple{std::move(*data), true});
+        return simdjson::pad(e->second.data);
     }
 
     void ContextParser::set_resolution_base(std::string_view const base) {
@@ -71,20 +75,14 @@ namespace rdf4cpp::parser::json_ld {
                         return true;
                     }
 
-                    auto [context, inserted] = remote_contexts.get(url);
-
-                    if (inserted) {
-                        auto data = parse_state->request_url(url);
-                        if (!data.has_value()) {
-                            result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::format("loading remote context failed {}", data.error()))};
-                            return true;
-                        }
-                        context.data = std::move(*data);
-                        simdjson::pad(context.data);
+                    auto resolved = remote_contexts.resolve(url, parse_state);
+                    if (!resolved.has_value()) {
+                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::move(resolved.error()))};
+                        return true;
                     }
 
                     import_parser = simdjson::ondemand::parser{};
-                    import_doc = import_parser->iterate(simdjson::padded_string_view(context.data));
+                    import_doc = import_parser->iterate(*resolved);
                     auto ctx = import_doc->find_field(keyword_context);
                     if (!ctx.has_value()) {
                         result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid remote context")};
@@ -287,12 +285,8 @@ namespace rdf4cpp::parser::json_ld {
             }
 
             // 5.2.2
-            if (!p.validate_scoped_contexts) {
-                if (auto* e = remote_contexts.try_get(url)) {
-                    if (e->active) {
-                        return result;
-                    }
-                }
+            if (!p.validate_scoped_contexts && remote_contexts.has_active_cache(url)) {
+                return result;
             }
 
             // 5.2.3
@@ -300,21 +294,14 @@ namespace rdf4cpp::parser::json_ld {
                 return nonstd::unexpected{make_error(ParsingError::Type::BadIri, "context overflow")};
             }
 
-            // 5.2.4
-            auto [context, inserted] = remote_contexts.get(url);
-
-            // 5.2.5
-            if (inserted) {
-                auto data = parse_state->request_url(url);
-                if (!data.has_value()) {
-                    return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::format("loading remote context failed {}", data.error()))};
-                }
-                context.data = std::move(*data);
-                simdjson::pad(context.data);
+            // 5.2.4 & 5.2.5
+            auto resolved = remote_contexts.resolve(url, parse_state);
+            if (!resolved.has_value()) {
+                return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::move(resolved.error()))};
             }
 
             // 5.2.6
-            result = parse_local_context(simdjson::padded_string_view(context.data), {
+            result = parse_local_context(*resolved, {
                 .active_context = *result,
                 .base_iri = p.base_iri,
                 .base_url = url,
