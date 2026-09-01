@@ -701,8 +701,8 @@ TEST_SUITE("deferred numeric ops") {
         CHECK_EQ(make_typed_from_value_sandboxed(std::any{xsd::Integer::cpp_type{1}}, IRI::datatype<xsd::Int>()), SubProcessResult::Aborted);
 
         // the string like datatypes are cast in make_typed_from_value itself, which does report the mismatch
-        CHECK_THROWS_AS(Literal::make_typed_from_value(std::any{1}, IRI::datatype<xsd::String>()), std::bad_any_cast);
-        CHECK_THROWS_AS(Literal::make_typed_from_value(std::any{1}, IRI::datatype<rdf::LangString>()), std::bad_any_cast);
+        CHECK_THROWS_AS((void) Literal::make_typed_from_value(std::any{1}, IRI::datatype<xsd::String>()), std::bad_any_cast);
+        CHECK_THROWS_AS((void) Literal::make_typed_from_value(std::any{1}, IRI::datatype<rdf::LangString>()), std::bad_any_cast);
     }
 
     TEST_CASE("materializing into another node storage") {
