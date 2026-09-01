@@ -238,6 +238,96 @@ TEST_CASE("RDFterm-equal: mixed term kinds give a boolean, not an error") {
     CHECK(bnode.as_ne(iri).ebv() == TriBool::True);
 }
 
+TEST_CASE("ordering comparison of a term with itself") {
+    // "Operators invoked without appropriate operands result in a type error."
+    // - https://www.w3.org/TR/sparql11-query/#OperatorMapping
+    // The operator table lists <, <=, > and >= only for numeric, simple literal,
+    // xsd:string, xsd:boolean and xsd:dateTime operands. IRIs, blank nodes and
+    // variables give a type error, also when both operands are the same term.
+    Node const iri = IRI{"http://example.org/Person"};
+    Node const bnode = BlankNode{"b0"};
+    Node const var = query::Variable{"x"};
+    Node const lit = Literal::make_typed_from_value<datatypes::xsd::Int>(42);
+    Node const simple_lit = Literal::make_simple("hello");
+    Node const incomparable_lit = Literal::make_typed_from_value<datatypes::xsd::Incomparable>(1);
+
+    SUBCASE("IRI") {
+        CHECK(iri.lt(iri) == TriBool::Err);
+        CHECK(iri.le(iri) == TriBool::Err);
+        CHECK(iri.gt(iri) == TriBool::Err);
+        CHECK(iri.ge(iri) == TriBool::Err);
+    }
+
+    SUBCASE("blank node") {
+        CHECK(bnode.lt(bnode) == TriBool::Err);
+        CHECK(bnode.le(bnode) == TriBool::Err);
+        CHECK(bnode.gt(bnode) == TriBool::Err);
+        CHECK(bnode.ge(bnode) == TriBool::Err);
+    }
+
+    SUBCASE("variable") {
+        CHECK(var.lt(var) == TriBool::Err);
+        CHECK(var.le(var) == TriBool::Err);
+        CHECK(var.gt(var) == TriBool::Err);
+        CHECK(var.ge(var) == TriBool::Err);
+    }
+
+    SUBCASE("literal of a comparable datatype") {
+        CHECK(lit.lt(lit) == TriBool::False);
+        CHECK(lit.le(lit) == TriBool::True);
+        CHECK(lit.gt(lit) == TriBool::False);
+        CHECK(lit.ge(lit) == TriBool::True);
+
+        CHECK(simple_lit.lt(simple_lit) == TriBool::False);
+        CHECK(simple_lit.le(simple_lit) == TriBool::True);
+        CHECK(simple_lit.gt(simple_lit) == TriBool::False);
+        CHECK(simple_lit.ge(simple_lit) == TriBool::True);
+    }
+
+    SUBCASE("literal of a datatype without a defined order") {
+        // the datatype has no compare function, so no pair of its literals is ordered,
+        // not even a literal and itself
+        Literal const l = Literal::make_typed_from_value<datatypes::xsd::Incomparable>(1);
+        CHECK(l.compare(l) == std::partial_ordering::unordered);
+
+        CHECK(incomparable_lit.lt(incomparable_lit) == TriBool::Err);
+        CHECK(incomparable_lit.le(incomparable_lit) == TriBool::Err);
+        CHECK(incomparable_lit.gt(incomparable_lit) == TriBool::Err);
+        CHECK(incomparable_lit.ge(incomparable_lit) == TriBool::Err);
+    }
+
+    SUBCASE("the FILTER path") {
+        // a type error becomes the null literal, a boolean becomes a boolean literal
+        CHECK(iri.as_lt(iri).null());
+        CHECK(iri.as_le(iri).null());
+        CHECK(iri.as_gt(iri).null());
+        CHECK(iri.as_ge(iri).null());
+        CHECK(bnode.as_le(bnode).null());
+        CHECK(incomparable_lit.as_le(incomparable_lit).null());
+
+        CHECK(!lit.as_le(lit).null());
+        CHECK(lit.as_le(lit).ebv() == TriBool::True);
+        CHECK(!lit.as_ge(lit).null());
+        CHECK(lit.as_ge(lit).ebv() == TriBool::True);
+        CHECK(!lit.as_lt(lit).null());
+        CHECK(lit.as_lt(lit).ebv() == TriBool::False);
+    }
+
+    SUBCASE("ORDER BY keeps a total order") {
+        // ORDER BY needs a total order over all terms, so every term is equivalent to itself
+        CHECK(iri.order_le(iri));
+        CHECK(iri.order_ge(iri));
+        CHECK(!iri.order_lt(iri));
+        CHECK(!iri.order_gt(iri));
+        CHECK(bnode.order_le(bnode));
+        CHECK(bnode.order_ge(bnode));
+        CHECK(var.order_le(var));
+        CHECK(var.order_ge(var));
+        CHECK(incomparable_lit.order_le(incomparable_lit));
+        CHECK(incomparable_lit.order_ge(incomparable_lit));
+    }
+}
+
 TEST_CASE("IRI UUID") {
     IRI uuid = IRI::make_uuid();
     IRI uuid2 = IRI::make_uuid();
