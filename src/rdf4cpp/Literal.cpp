@@ -226,19 +226,6 @@ Literal Literal::make_typed_from_value(std::any value, IRI const &datatype, stor
 
     registry::DatatypeIDView const datatype_identifier{datatype};
 
-    auto const *entry = registry::DatatypeRegistry::get_entry(datatype_identifier);
-    if (entry == nullptr) {
-        return Literal{};
-    }
-
-    // NOTE: the type erased functions of the registry are `noexcept`; ensuring compatibility here
-    if (entry->cpp_type != nullptr && value.type() != *entry->cpp_type) {
-        throw InvalidNode{
-            std::format("value of type {} does not match value type {} of datatype {}",
-                        value.type().name(), entry->cpp_type->name(), entry->datatype_iri)
-        };
-    }
-
     if (datatype_identifier == rdf::LangString::datatype_id) {
         auto const &repr = std::any_cast<registry::LangStringRepr const &>(value);
         return Literal::make_lang_tagged(repr.lexical_form, repr.language_tag, node_storage);
@@ -246,6 +233,11 @@ Literal Literal::make_typed_from_value(std::any value, IRI const &datatype, stor
 
     if (datatype_identifier == xsd::String::datatype_id) {
         return Literal::make_simple(std::any_cast<xsd::String::cpp_type const &>(value), node_storage);
+    }
+
+    auto const *entry = registry::DatatypeRegistry::get_entry(datatype_identifier);
+    if (entry == nullptr) {
+        return Literal{};
     }
 
     return Literal::make_typed_unchecked(std::move(value), datatype_identifier, *entry, node_storage);
@@ -1106,14 +1098,22 @@ Literal Literal::numeric_binop_impl(OpSelect op_select, Literal const &other, st
     }
 
     auto res = numeric_binop_deferred_impl(op_select,
-                                           make_deferred_literal(*this),
-                                           make_deferred_literal(other),
+                                           make_deferred_from_literal(*this),
+                                           make_deferred_from_literal(other),
                                            node_storage);
 
-    return materialize_deferred_literal(std::move(res), node_storage);
+    return materialize_deferred(std::move(res), node_storage);
 }
 
-DeferredValue make_deferred_literal(Literal const &lit) {
+namespace deferred_detail {
+DeferredValue make_deferred_from_value(std::any value,
+                                       datatypes::registry::DatatypeIDView datatype,
+                                       storage::DynNodeStoragePtr node_storage) {
+    return DeferredValue{std::move(value), IRI::from_datatype_id(datatype, node_storage)};
+}
+}  // namespace deferred_detail
+
+DeferredValue make_deferred_from_literal(Literal const &lit) {
     if (lit.null()) {
         return DeferredValue{};
     }
@@ -1121,7 +1121,7 @@ DeferredValue make_deferred_literal(Literal const &lit) {
     return DeferredValue{lit.value(), lit.datatype()};
 }
 
-Literal materialize_deferred_literal(DeferredValue value, storage::DynNodeStoragePtr node_storage) {
+Literal materialize_deferred(DeferredValue value, storage::DynNodeStoragePtr node_storage) {
     return Literal::make_typed_from_value(std::move(value.first), value.second, node_storage);
 }
 

@@ -7,6 +7,8 @@
 #include <limits>
 #include <vector>
 
+#include <dice/template-library/sandbox.hpp>
+
 #include <rdf4cpp/storage/reference_node_storage/UnsyncReferenceNodeStorage.hpp>
 
 using namespace rdf4cpp;
@@ -548,7 +550,7 @@ TEST_SUITE("deferred numeric ops") {
      */
     void check_matches_eager(Literal const &lhs, Literal const &rhs) {
         auto const check = [](Literal const &expected, DeferredValue &&res) {
-            auto const got = materialize_deferred_literal(std::move(res));
+            auto const got = materialize_deferred(std::move(res));
 
             if (expected.null()) {
                 CHECK(got.null());
@@ -558,10 +560,16 @@ TEST_SUITE("deferred numeric ops") {
             }
         };
 
-        check(lhs.add(rhs), numeric_add_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)));
-        check(lhs.sub(rhs), numeric_sub_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)));
-        check(lhs.mul(rhs), numeric_mul_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)));
-        check(lhs.div(rhs), numeric_div_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)));
+        check(lhs.add(rhs), numeric_add_deferred(make_deferred_from_literal(lhs), make_deferred_from_literal(rhs)));
+        check(lhs.sub(rhs), numeric_sub_deferred(make_deferred_from_literal(lhs), make_deferred_from_literal(rhs)));
+        check(lhs.mul(rhs), numeric_mul_deferred(make_deferred_from_literal(lhs), make_deferred_from_literal(rhs)));
+        check(lhs.div(rhs), numeric_div_deferred(make_deferred_from_literal(lhs), make_deferred_from_literal(rhs)));
+    }
+
+    dice::template_library::SubProcessResult make_typed_from_value_sandboxed(std::any value, IRI const &datatype) {
+        return DICE_SANDBOX {
+            return Literal::make_typed_from_value(std::move(value), datatype).null() ? 1 : 0;
+        };
     }
 
     template<datatypes::LiteralDatatype T>
@@ -609,13 +617,13 @@ TEST_SUITE("deferred numeric ops") {
         auto const one = Literal::make_typed_from_value<datatypes::xsd::Integer>(1);
         auto const zero = Literal::make_typed_from_value<datatypes::xsd::Integer>(0);
 
-        CHECK(materialize_deferred_literal(DeferredValue{}).null());
-        CHECK(numeric_add_deferred(DeferredValue{}, make_deferred_literal(one)).second.null());
-        CHECK(numeric_add_deferred(make_deferred_literal(one), DeferredValue{}).second.null());
+        CHECK(materialize_deferred(DeferredValue{}).null());
+        CHECK(numeric_add_deferred(DeferredValue{}, make_deferred_from_literal(one)).second.null());
+        CHECK(numeric_add_deferred(make_deferred_from_literal(one), DeferredValue{}).second.null());
 
-        auto const div_by_zero = numeric_div_deferred(make_deferred_literal(one), make_deferred_literal(zero));
+        auto const div_by_zero = numeric_div_deferred(make_deferred_from_literal(one), make_deferred_from_literal(zero));
         CHECK(div_by_zero.second.null());
-        CHECK(numeric_add_deferred(div_by_zero, make_deferred_literal(one)).second.null());
+        CHECK(numeric_add_deferred(div_by_zero, make_deferred_from_literal(one)).second.null());
     }
 
     TEST_CASE("folding does not store the intermediate results") {
@@ -631,17 +639,31 @@ TEST_SUITE("deferred numeric ops") {
         storage::reference_node_storage::UnsyncReferenceNodeStorage deferred_storage{};
         auto const empty_size = deferred_storage.size();
 
-        DeferredValue acc{std::any{xsd::Integer::cpp_type{0}}, IRI::datatype<xsd::Integer>()};
+        auto acc = make_deferred_from_value<xsd::Integer>(0);
         auto eager = Literal::make_typed_from_value<xsd::Integer>(0, eager_storage);
 
         for (auto const &summand : summands) {
-            acc = numeric_add_deferred(acc, make_deferred_literal(summand));
+            acc = numeric_add_deferred(acc, make_deferred_from_literal(summand));
             eager = eager.add(summand, eager_storage);
         }
 
-        CHECK(materialize_deferred_literal(std::move(acc), deferred_storage).order_eq(eager));
+        CHECK(materialize_deferred(std::move(acc), deferred_storage).order_eq(eager));
         CHECK_EQ(deferred_storage.size(), empty_size + 1);  // only the result
         CHECK_GT(eager_storage.size(), deferred_storage.size());
+    }
+
+    TEST_CASE("make_deferred_value") {
+        using namespace datatypes;
+
+        // the value is converted to the cpp_type by the compiler, so it cannot disagree with the datatype
+        auto const check = [](DeferredValue const &got, Literal const &expected) {
+            CHECK(materialize_deferred(got).order_eq(expected));
+        };
+
+        check(make_deferred_from_value<xsd::Integer>(42), Literal::make_typed_from_value<xsd::Integer>(42));
+        check(make_deferred_from_value<xsd::Double>(1.5), Literal::make_typed_from_value<xsd::Double>(1.5));
+        check(make_deferred_from_value<xsd::Decimal>(BigDecimal{1.5}), Literal::make_typed_from_value<xsd::Decimal>(BigDecimal{1.5}));
+        check(make_deferred_from_value<xsd::Z>(1.0), Literal::make_typed_from_value<xsd::Z>(1.0));  // dynamic datatype
     }
 
     TEST_CASE("make_typed_from_value") {
@@ -662,22 +684,25 @@ TEST_SUITE("deferred numeric ops") {
 
     TEST_CASE("make_typed_from_value with a value that does not match its datatype") {
         using namespace datatypes;
+        using dice::template_library::SubProcessResult;
 
-        auto const check_rejects = [](std::any value, IRI const &datatype) {
-            CHECK_THROWS_AS((void) Literal::make_typed_from_value(std::move(value), datatype), InvalidNode);
-        };
+        // a matching value constructs a Literal, so the checks below are not vacuous
+        CHECK_EQ(make_typed_from_value_sandboxed(std::any{xsd::Integer::cpp_type{1}}, IRI::datatype<xsd::Integer>()), SubProcessResult::ExitSuccess);
 
-        check_rejects(std::any{1.0}, IRI::datatype<xsd::Integer>());
-        check_rejects(std::any{1}, IRI::datatype<xsd::Double>());
-        check_rejects(std::any{1.0}, IRI::datatype<xsd::Decimal>());
-        check_rejects(std::any{1}, IRI::datatype<xsd::Boolean>());
-        check_rejects(std::any{1}, IRI::datatype<xsd::String>());
-        check_rejects(std::any{1}, IRI::datatype<rdf::LangString>());
-        check_rejects(std::any{1}, IRI::datatype<xsd::Z>()); // dynamic datatype
-        check_rejects(std::any{}, IRI::datatype<xsd::Integer>());  // empty any
-
+        // violating the precondition is undefined behaviour; in practice the noexcept registry functions
+        // std::any_cast the value, so it terminates instead of yielding a Literal holding the wrong type
+        CHECK_EQ(make_typed_from_value_sandboxed(std::any{1.0}, IRI::datatype<xsd::Integer>()), SubProcessResult::Aborted);
+        CHECK_EQ(make_typed_from_value_sandboxed(std::any{1}, IRI::datatype<xsd::Double>()), SubProcessResult::Aborted);
+        CHECK_EQ(make_typed_from_value_sandboxed(std::any{1.0}, IRI::datatype<xsd::Decimal>()), SubProcessResult::Aborted);
+        CHECK_EQ(make_typed_from_value_sandboxed(std::any{1}, IRI::datatype<xsd::Boolean>()), SubProcessResult::Aborted);
+        CHECK_EQ(make_typed_from_value_sandboxed(std::any{}, IRI::datatype<xsd::Integer>()), SubProcessResult::Aborted);
+        CHECK_EQ(make_typed_from_value_sandboxed(std::any{1}, IRI::datatype<xsd::Z>()), SubProcessResult::Aborted);
         // a stub-numeric datatype does not share its cpp_type with its impl supertype
-        check_rejects(std::any{xsd::Integer::cpp_type{1}}, IRI::datatype<xsd::Int>());
+        CHECK_EQ(make_typed_from_value_sandboxed(std::any{xsd::Integer::cpp_type{1}}, IRI::datatype<xsd::Int>()), SubProcessResult::Aborted);
+
+        // the string like datatypes are cast in make_typed_from_value itself, which does report the mismatch
+        CHECK_THROWS_AS(Literal::make_typed_from_value(std::any{1}, IRI::datatype<xsd::String>()), std::bad_any_cast);
+        CHECK_THROWS_AS(Literal::make_typed_from_value(std::any{1}, IRI::datatype<rdf::LangString>()), std::bad_any_cast);
     }
 
     TEST_CASE("materializing into another node storage") {
@@ -686,7 +711,7 @@ TEST_SUITE("deferred numeric ops") {
         auto const lhs = Literal::make_typed_from_value<datatypes::xsd::B>(1);
         auto const rhs = Literal::make_typed_from_value<datatypes::xsd::Y>(1.f);
 
-        auto const sum = materialize_deferred_literal(numeric_add_deferred(make_deferred_literal(lhs), make_deferred_literal(rhs)), node_storage);
+        auto const sum = materialize_deferred(numeric_add_deferred(make_deferred_from_literal(lhs), make_deferred_from_literal(rhs)), node_storage);
 
         CHECK_EQ(sum.backend_handle().storage(), storage::DynNodeStoragePtr{node_storage});
         CHECK(sum.order_eq(lhs.add(rhs, node_storage)));

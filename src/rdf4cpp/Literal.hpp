@@ -463,7 +463,7 @@ public:
      * @param datatype the datatype of value
      * @param node_storage NodeStorage used
      * @return literal instance representing value, or the null-literal if datatype is null or not registered
-     * @throws InvalidNode if the dynamic type of value is not the cpp_type of datatype
+     * @warning the dynamic type of value must be the cpp_type of datatype, otherwise the behaviour is undefined
      */
     [[nodiscard]] static Literal make_typed_from_value(std::any value, IRI const &datatype,
                                                        storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
@@ -1693,25 +1693,45 @@ public:
 [[nodiscard]] Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage);
 
 /**
- * The value of a Literal that is not (yet) placed into a node storage, together with the IRI of its datatype.
+ * @brief The value of a Literal that is not (yet) placed into a node storage, together with the IRI of its datatype.
  * A DeferredValue with a null datatype IRI is the null-value; it is what the numeric_*_deferred functions
  * return on error and it propagates through them, just like the null-Literal does for Literal::add and friends.
+ * @warning the dynamic type of the value must be the cpp_type of the datatype, otherwise it is undefined behaviour
+ * @note Use make_deferred_from_value or make_deferred_from_literal to construct one to avoid UB.
  *
  * @warning IRI is an incomplete type in this header (see dynamic_datatype_eq_impl), so this must not be instantiated here.
  */
 using DeferredValue = std::pair<std::any, IRI>;
 
+namespace deferred_detail {
+[[nodiscard]] DeferredValue make_deferred_from_value(std::any value,
+                                                     datatypes::registry::DatatypeIDView datatype,
+                                                     storage::DynNodeStoragePtr node_storage);
+}  // namespace deferred_detail
+
+/**
+ * @brief Constructs a DeferredValue from a compatible type.
+ * The datatype is specified at compile time, which guarantees that the value and the datatype match.
+ * @tparam T the datatype
+ * @param value instance for which the DeferredValue is created
+ * @param node_storage node storage the datatype IRI is placed in
+ */
+template<datatypes::LiteralDatatype T>
+[[nodiscard]] auto make_deferred_from_value(typename T::cpp_type const &value,
+                                            storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
+    return deferred_detail::make_deferred_from_value(std::any{value}, T::datatype_id, node_storage);
+}
+
 /**
  * @return the value and the datatype of lit, or the null-value if lit is the null-literal
  */
-[[nodiscard]] DeferredValue make_deferred_literal(Literal const &lit);
+[[nodiscard]] DeferredValue make_deferred_from_literal(Literal const &lit);
 
 /**
- * Places value into node_storage
+ * @brief Places a DeferredValue into node_storage
  * @return the resulting literal, or the null-literal if value is the null-value
  */
-[[nodiscard]] Literal materialize_deferred_literal(DeferredValue value,
-                                                   storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+[[nodiscard]] Literal materialize_deferred(DeferredValue value, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
 /**
  * Numeric operations that do not place their result into a node storage.
@@ -1723,7 +1743,7 @@ using DeferredValue = std::pair<std::any, IRI>;
  *
  * @example folding without storing the intermediate results
  * @code
- * DeferredValue acc{std::any{datatypes::xsd::Integer::cpp_type{0}}, IRI::datatype<datatypes::xsd::Integer>()};
+ * auto acc = make_deferred_value<datatypes::xsd::Integer>(0);
  * for (Literal const &lit : literals) {
  *     acc = numeric_add_deferred(acc, make_deferred_literal(lit));
  * }

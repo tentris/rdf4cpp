@@ -14,7 +14,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <typeinfo>
 #include <variant>
 #include <vector>
 
@@ -135,7 +134,6 @@ struct DatatypeRegistry {
 
     struct DatatypeEntry {
         std::string datatype_iri;                   // datatype IRI string
-        std::type_info const *cpp_type;             // typeid of cpp_type, nullptr if unknown
         factory_fptr_t factory_fptr;                // construct from string
         serialize_fptr_t serialize_canonical_string_fptr;  // convert to canonical string
         serialize_fptr_t serialize_simplified_string_fptr; // convert to simplified string (e.g. for casting to xsd:string)
@@ -154,7 +152,6 @@ struct DatatypeRegistry {
         inline static DatatypeEntry placeholder() noexcept {
             return DatatypeEntry{
                     .datatype_iri = "",
-                    .cpp_type = nullptr,
                     .factory_fptr = nullptr,
                     .serialize_canonical_string_fptr = nullptr,
                     .serialize_simplified_string_fptr = nullptr,
@@ -170,7 +167,6 @@ struct DatatypeRegistry {
         inline static DatatypeEntry for_search(std::string_view const datatype_iri) noexcept {
             return DatatypeEntry{
                     .datatype_iri = std::string{datatype_iri},
-                    .cpp_type = nullptr,
                     .factory_fptr = nullptr,
                     .serialize_canonical_string_fptr = nullptr,
                     .serialize_simplified_string_fptr = nullptr,
@@ -636,7 +632,6 @@ inline void DatatypeRegistry::add() noexcept {
 
     DatatypeEntry entry{
             .datatype_iri = std::string{LiteralDatatype_t::identifier},
-            .cpp_type = &typeid(typename LiteralDatatype_t::cpp_type),
             .factory_fptr = [](std::string_view string_repr) -> std::any {
                 return LiteralDatatype_t::from_string(string_repr);
             },
