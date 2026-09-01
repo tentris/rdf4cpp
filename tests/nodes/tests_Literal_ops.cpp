@@ -652,7 +652,7 @@ TEST_SUITE("deferred numeric ops") {
         CHECK_GT(eager_storage.size(), deferred_storage.size());
     }
 
-    TEST_CASE("make_deferred_value") {
+    TEST_CASE("make_deferred_from_value") {
         using namespace datatypes;
 
         // the value is converted to the cpp_type by the compiler, so it cannot disagree with the datatype

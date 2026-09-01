@@ -1739,15 +1739,15 @@ template<datatypes::LiteralDatatype T>
  *  - they do not store their (intermediate) results, and
  *  - only numeric datatypes are supported, timepoints and durations yield the null-value.
  *
- * Results are turned into Literals via Literal::make_typed_from_value.
+ * Results are turned into Literals via materialize_deferred.
  *
  * @example folding without storing the intermediate results
  * @code
- * auto acc = make_deferred_value<datatypes::xsd::Integer>(0);
+ * auto acc = make_deferred_from_value<datatypes::xsd::Integer>(0);
  * for (Literal const &lit : literals) {
- *     acc = numeric_add_deferred(acc, make_deferred_literal(lit));
+ *     acc = numeric_add_deferred(acc, make_deferred_from_literal(lit));
  * }
- * Literal const sum = materialize_deferred_literal(std::move(acc));
+ * Literal const sum = materialize_deferred(std::move(acc));
  * @endcode
  */
 [[nodiscard]] DeferredValue numeric_add_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
