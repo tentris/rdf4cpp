@@ -108,16 +108,18 @@ namespace rdf4cpp::parser {
     }
 
     IRI XMLOutputQueue::make_id(std::string_view const local_name, std::string_view const base, XMLStateInfo const &i) {
+        auto iri = IRI::make_null();;
         if (!is_ncname(local_name)) {
             add_error(ParsingError::Type::BadIri, std::format("{}: is not a valid NCName (required for rdf:ID)", local_name), i);
-            return IRI::make_null();
+            return iri;
         }
         std::string local = "#";
         local.append(local_name);
-        auto iri = make_iri(local, base, i);
+        iri = make_iri(local, base, i);
         if (reserved_ids_.contains(iri.backend_handle().id())) {
             add_error(ParsingError::Type::BadIri, std::format("{}: is already used as a rdf:ID", iri), i);
-            return IRI::make_null();
+            iri = IRI::make_null();
+            return iri;
         }
         reserved_ids_.insert(iri.backend_handle().id());
         return iri;

@@ -1759,11 +1759,13 @@ std::optional<Literal> Literal::chrono_div_impl(Literal const &other, storage::D
 
     RDF4CPP_ASSERT(!this->null() && !other.null());
 
+    std::optional<Literal> res = std::nullopt;
+
     if (this->is_fixed_not_duration() || (other.is_fixed_not_duration() && other.is_fixed_not_numeric())) {
         // is not any of
         // duration / duration
         // duration / scalar
-        return std::nullopt;
+        return res;
     }
 
     auto const this_datatype = this->datatype_id();
@@ -1771,37 +1773,39 @@ std::optional<Literal> Literal::chrono_div_impl(Literal const &other, storage::D
     auto const *this_entry = DatatypeRegistry::get_entry(this_datatype);
     if (this_entry == nullptr || !this_entry->duration_ops.has_value()) {
         // lhs is not registered or not duration
-        return std::nullopt;
+        return res;
     }
 
     auto const other_datatype = other.datatype_id();
     auto const *other_entry = DatatypeRegistry::get_entry(other_datatype);
     if (other_entry == nullptr) {
-        return std::nullopt; // other is not registered
+        return res; // other is not registered
     }
 
     if (other_entry->duration_ops.has_value()) {
         // this & other are durations
 
-        auto const binop_res = run_binop(other, this_datatype, *this_entry, other_datatype, *other_entry, node_storage,
+        res = run_binop(other, this_datatype, *this_entry, other_datatype, *other_entry, node_storage,
             [](DatatypeRegistry::DatatypeEntry const &entry, std::any const &lhs, std::any const &rhs) noexcept {
                 RDF4CPP_ASSERT(entry.duration_ops.has_value());
                 return entry.duration_ops->duration_div(lhs, rhs);
             });
-        if (binop_res.has_value()) {
-            return binop_res;
+        if (res.has_value()) {
+            return res;
         }
+        res = std::nullopt;
     }
 
     if (other_entry->numeric_ops.has_value()) {
         // this is duration & other is scalar
-        return run_binop_cast_rhs(other, *other_entry, this_entry->duration_ops->duration_scalar_type, node_storage,
+        res = run_binop_cast_rhs(other, *other_entry, this_entry->duration_ops->duration_scalar_type, node_storage,
             [this_entry](std::any const &lhs, std::any const &rhs) noexcept {
                 return this_entry->duration_ops->duration_scalar_div(lhs, rhs);
             });
+        return res;
     }
 
-    return std::nullopt;
+    return res;
 }
 
 Literal Literal::div(Literal const &other, storage::DynNodeStoragePtr node_storage) const {

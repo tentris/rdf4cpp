@@ -614,9 +614,9 @@ public:
      * @return
      */
     [[nodiscard]] constexpr BigDecimal div(const BigDecimal &other, Exponent_t max_scale_increase, RoundingMode mode = RoundingMode::Floor) const noexcept {
+        BigDecimal res{0, 0};
         if (other.unscaled_value == 0)
-            return BigDecimal{0, 0};  // undefined behavior (cpp_int throws)
-        BigDecimal res{0};
+            return res;  // undefined behavior (cpp_int throws)
         div<OverflowMode::UndefinedBehavior>(other, max_scale_increase, mode, res);
         return res;
     }
