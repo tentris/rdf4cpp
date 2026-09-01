@@ -217,6 +217,40 @@ Literal Literal::make_typed(std::string_view lexical_form, IRI const &datatype, 
     }
 }
 
+Literal Literal::make_typed_from_value(std::any value, IRI const &datatype, storage::DynNodeStoragePtr node_storage) {
+    using namespace datatypes;
+
+    if (datatype.null()) {
+        return Literal{};
+    }
+
+    registry::DatatypeIDView const datatype_identifier{datatype};
+
+    auto const *entry = registry::DatatypeRegistry::get_entry(datatype_identifier);
+    if (entry == nullptr) {
+        return Literal{};
+    }
+
+    // NOTE: the type erased functions of the registry are `noexcept`; ensuring compatibility here
+    if (entry->cpp_type != nullptr && value.type() != *entry->cpp_type) {
+        throw InvalidNode{
+            std::format("value of type {} does not match value type {} of datatype {}",
+                        value.type().name(), entry->cpp_type->name(), entry->datatype_iri)
+        };
+    }
+
+    if (datatype_identifier == rdf::LangString::datatype_id) {
+        auto const &repr = std::any_cast<registry::LangStringRepr const &>(value);
+        return Literal::make_lang_tagged(repr.lexical_form, repr.language_tag, node_storage);
+    }
+
+    if (datatype_identifier == xsd::String::datatype_id) {
+        return Literal::make_simple(std::any_cast<xsd::String::cpp_type const &>(value), node_storage);
+    }
+
+    return Literal::make_typed_unchecked(std::move(value), datatype_identifier, *entry, node_storage);
+}
+
 Literal Literal::make_boolean(TriBool const b, storage::DynNodeStoragePtr node_storage) {
     if (b == TriBool::Err) {
         return Literal{};
@@ -990,87 +1024,125 @@ Literal Literal::cast(IRI const &target, storage::DynNodeStoragePtr node_storage
 }
 
 template<typename OpSelect>
-    requires std::is_nothrow_invocable_r_v<datatypes::registry::DatatypeRegistry::binop_fptr_t, OpSelect, datatypes::registry::DatatypeRegistry::NumericOpsImpl const &>
-Literal Literal::numeric_binop_impl(OpSelect op_select, Literal const &other, storage::DynNodeStoragePtr node_storage) const {
+requires std::is_nothrow_invocable_r_v<datatypes::registry::DatatypeRegistry::binop_fptr_t,
+                                       OpSelect,
+                                       datatypes::registry::DatatypeRegistry::NumericOpsImpl const &>
+static DeferredValue numeric_binop_deferred_impl(OpSelect op_select,
+                                                 DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage) {
     using namespace datatypes::registry;
 
+    if (lhs.second.null() || rhs.second.null()) {
+        return DeferredValue{};
+    }
+
+    DatatypeIDView const lhs_datatype{lhs.second};
+    auto const *lhs_entry = DatatypeRegistry::get_entry(lhs_datatype);
+    if (lhs_entry == nullptr || !lhs_entry->numeric_ops.has_value()) {
+        return DeferredValue{};  // not registered or not numeric
+    }
+
+    DatatypeIDView const rhs_datatype{rhs.second};
+
+    auto const make_result = [&](DatatypeRegistry::OpResult &&op_res) -> DeferredValue {
+        if (!op_res.result_value.has_value()) {
+            return DeferredValue{};
+        }
+
+        auto result_datatype = [&]() {
+            if (op_res.result_type_id == lhs_datatype) [[likely]] {
+                return lhs.second;
+            }
+            if (op_res.result_type_id == rhs_datatype) {
+                return rhs.second;
+            }
+            return IRI::from_datatype_id(op_res.result_type_id, node_storage);
+        }();
+
+        return DeferredValue{std::move(*op_res.result_value), std::move(result_datatype)};
+    };
+
+    if (lhs_datatype == rhs_datatype && lhs_entry->numeric_ops->is_impl()) {
+        return make_result(op_select(lhs_entry->numeric_ops->get_impl())(lhs.first, rhs.first));
+    }
+
+    auto const *rhs_entry = DatatypeRegistry::get_entry(rhs_datatype);
+    if (rhs_entry == nullptr || !rhs_entry->numeric_ops.has_value()) {
+        return DeferredValue{};  // not registered, or not numeric
+    }
+
+    auto const equalizer = DatatypeRegistry::get_common_numeric_op_type_conversion(*lhs_entry, *rhs_entry);
+    if (!equalizer.has_value()) {
+        return DeferredValue{};  // not convertible
+    }
+
+    auto const *equalized_entry = [&]() {
+        if (equalizer->target_type_id == lhs_datatype) {
+            return lhs_entry;
+        }
+        if (equalizer->target_type_id == rhs_datatype) {
+            return rhs_entry;
+        }
+        return DatatypeRegistry::get_entry(equalizer->target_type_id);
+    }();
+
+    RDF4CPP_ASSERT(equalized_entry != nullptr);
+    RDF4CPP_ASSERT(equalized_entry->numeric_ops.has_value());
+    RDF4CPP_ASSERT(equalized_entry->numeric_ops->is_impl());
+
+    return make_result(op_select(equalized_entry->numeric_ops->get_impl())(equalizer->convert_lhs(lhs.first), equalizer->convert_rhs(rhs.first)));
+}
+
+template<typename OpSelect>
+requires std::is_nothrow_invocable_r_v<datatypes::registry::DatatypeRegistry::binop_fptr_t,
+                                       OpSelect,
+                                       datatypes::registry::DatatypeRegistry::NumericOpsImpl const &>
+Literal Literal::numeric_binop_impl(OpSelect op_select, Literal const &other, storage::DynNodeStoragePtr node_storage) const {
     RDF4CPP_ASSERT(!this->null() && !other.null());
 
     if (this->is_fixed_not_numeric() || other.is_fixed_not_numeric()) {
         return Literal{};
     }
 
-    auto const this_datatype = this->datatype_id();
-    auto const *this_entry = DatatypeRegistry::get_entry(this_datatype);
-    if (this_entry == nullptr || !this_entry->numeric_ops.has_value()) {
-        return Literal{};  // not registered or not numeric
-    }
+    auto res = numeric_binop_deferred_impl(op_select,
+                                           DeferredValue{this->value(), this->datatype()},
+                                           DeferredValue{other.value(), other.datatype()},
+                                           node_storage);
 
-    auto const other_datatype = other.datatype_id();
+    return Literal::make_typed_from_value(std::move(res.first), res.second, node_storage);
+}
 
-    if (this_datatype == other_datatype && this_entry->numeric_ops->is_impl()) {
-        DatatypeRegistry::OpResult op_res = op_select(this_entry->numeric_ops->get_impl())(this->value(),
-                                                                                           other.value());
+DeferredValue numeric_add_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {
+    return numeric_binop_deferred_impl(
+            [](auto const &num_ops) noexcept {
+                return num_ops.add_fptr;
+            },
+            lhs, rhs, lhs.second.backend_handle().storage());
+}
 
-        if (!op_res.result_value.has_value()) {
-            return Literal{};
-        }
+DeferredValue numeric_sub_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {
+    return numeric_binop_deferred_impl(
+            [](auto const &num_ops) noexcept {
+                return num_ops.sub_fptr;
+            },
+            lhs, rhs, lhs.second.backend_handle().storage());
+}
 
-        auto const *result_entry = [&]() {
-            if (op_res.result_type_id == this_datatype) [[likely]] {
-                return this_entry;
-            } else [[unlikely]] {
-                return DatatypeRegistry::get_entry(op_res.result_type_id);
-            }
-        }();
+DeferredValue numeric_mul_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {
+    return numeric_binop_deferred_impl(
+            [](auto const &num_ops) noexcept {
+                return num_ops.mul_fptr;
+            },
+            lhs, rhs, lhs.second.backend_handle().storage());
+}
 
-        RDF4CPP_ASSERT(result_entry != nullptr);
-        return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
-    } else {
-        auto const *other_entry = DatatypeRegistry::get_entry(other_datatype);
-        if (other_entry == nullptr || !other_entry->numeric_ops.has_value()) {
-            return Literal{}; // not registered, or not numeric
-        }
-
-        auto const equalizer = DatatypeRegistry::get_common_numeric_op_type_conversion(*this_entry,
-                                                                                       *other_entry);
-
-        if (!equalizer.has_value()) {
-            return Literal{};  // not convertible
-        }
-
-        auto const [equalized_entry, equalized_id] = [&]() {
-            if (equalizer->target_type_id == this_datatype) {
-                return std::make_pair(this_entry, this_datatype);
-            } else if (equalizer->target_type_id == other_datatype) {
-                return std::make_pair(other_entry, other_datatype);
-            } else {
-                return std::make_pair(DatatypeRegistry::get_entry(equalizer->target_type_id), equalizer->target_type_id);
-            }
-        }();
-
-        RDF4CPP_ASSERT(equalized_entry != nullptr);
-        RDF4CPP_ASSERT(equalized_entry->numeric_ops.has_value());
-        RDF4CPP_ASSERT(equalized_entry->numeric_ops->is_impl());
-
-        DatatypeRegistry::OpResult op_res = op_select(equalized_entry->numeric_ops->get_impl())(equalizer->convert_lhs(this->value()),
-                                                                                                equalizer->convert_rhs(other.value()));
-
-        if (!op_res.result_value.has_value()) {
-            return Literal{};
-        }
-
-        auto const *result_entry = [&, equalized_id = std::ref(equalized_id), equalized_entry = equalized_entry]() {
-            if (op_res.result_type_id == equalized_id.get()) [[likely]] {
-                return equalized_entry;
-            } else [[unlikely]] {
-                return DatatypeRegistry::get_entry(op_res.result_type_id);
-            }
-        }();
-
-        RDF4CPP_ASSERT(result_entry != nullptr);
-        return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
-    }
+DeferredValue numeric_div_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {
+    return numeric_binop_deferred_impl(
+            [](auto const &num_ops) noexcept {
+                return num_ops.div_fptr;
+            },
+            lhs, rhs, lhs.second.backend_handle().storage());
 }
 
 template<typename OpSelect>

@@ -6,6 +6,7 @@
 #include <optional>
 #include <ostream>
 #include <random>
+#include <utility>
 #include <rdf4cpp/Node.hpp>
 #include <rdf4cpp/datatypes/LiteralDatatype.hpp>
 #include <rdf4cpp/datatypes/owl.hpp>
@@ -454,6 +455,18 @@ public:
                                                         IRI{T::datatype_id, node_storage},
                                                         node_storage);
     }
+
+    /**
+     * Constructs a literal from a value and its datatype, both given at runtime.
+     *
+     * @param value instance for which the literal is created
+     * @param datatype the datatype of value
+     * @param node_storage NodeStorage used
+     * @return literal instance representing value, or the null-literal if datatype is null or not registered
+     * @throws InvalidNode if the dynamic type of value is not the cpp_type of datatype
+     */
+    [[nodiscard]] static Literal make_typed_from_value(std::any value, IRI const &datatype,
+                                                       storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * Constructs a literal from a tri-bool with the following mappings
@@ -1678,6 +1691,37 @@ public:
  *      - lang_range is not xsd:string
  */
 [[nodiscard]] Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage);
+
+/**
+ * The value of a Literal that is not (yet) placed into a node storage, together with the IRI of its datatype.
+ * A DeferredValue with a null datatype IRI is the null-value; it is what the numeric_*_deferred functions
+ * return on error and it propagates through them, just like the null-Literal does for Literal::add and friends.
+ *
+ * @warning IRI is an incomplete type in this header (see dynamic_datatype_eq_impl), so this must not be instantiated here.
+ */
+using DeferredValue = std::pair<std::any, IRI>;
+
+/**
+ * Numeric operations that do not place their result into a node storage.
+ * They behave like the corresponding Literal member functions, except that
+ *  - they do not store their (intermediate) results, and
+ *  - only numeric datatypes are supported, timepoints and durations yield the null-value.
+ *
+ * Results are turned into Literals via Literal::make_typed_from_value.
+ *
+ * @example folding without storing the intermediate results
+ * @code
+ * DeferredValue acc{std::any{datatypes::xsd::Integer::cpp_type{0}}, IRI::datatype<datatypes::xsd::Integer>()};
+ * for (Literal const &lit : literals) {
+ *     acc = numeric_add_deferred(acc, DeferredValue{lit.value(), lit.datatype()});
+ * }
+ * Literal const sum = Literal::make_typed_from_value(std::move(acc.first), acc.second);
+ * @endcode
+ */
+[[nodiscard]] DeferredValue numeric_add_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
+[[nodiscard]] DeferredValue numeric_sub_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
+[[nodiscard]] DeferredValue numeric_mul_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
+[[nodiscard]] DeferredValue numeric_div_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
 
 inline namespace shorthands {
 

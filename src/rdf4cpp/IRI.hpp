@@ -64,6 +64,15 @@ public:
     [[nodiscard]] static IRI make_unchecked(std::string_view iri, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
+     * Constructs the corresponding IRI from a given datatype id and places it into node_storage if
+     * it does not exist already.
+     * @param id datatype id
+     * @param node_storage optional custom node_storage used to store the IRI
+     */
+    [[nodiscard]] static IRI from_datatype_id(datatypes::registry::DatatypeIDView id,
+                                              storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+    /**
      * creates a new IRI containing a random UUID (Universally Unique IDentifier)
      * @return UUID IRI
      */
