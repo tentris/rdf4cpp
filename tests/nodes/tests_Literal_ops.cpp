@@ -716,4 +716,23 @@ TEST_SUITE("deferred numeric ops") {
         CHECK_EQ(sum.backend_handle().storage(), storage::DynNodeStoragePtr{node_storage});
         CHECK(sum.order_eq(lhs.add(rhs, node_storage)));
     }
+
+    TEST_CASE("the result datatype lives in the given node storage") {
+        using namespace datatypes;
+
+        storage::reference_node_storage::UnsyncReferenceNodeStorage node_storage{};
+
+        // B + Y -> Z, so the result datatype is that of neither operand and has to be created
+        auto const lhs = make_deferred_from_literal(Literal::make_typed_from_value<xsd::B>(1));
+        auto const rhs = make_deferred_from_literal(Literal::make_typed_from_value<xsd::Y>(1.f));
+        CHECK_EQ(numeric_add_deferred(lhs, rhs, node_storage).second.backend_handle().storage(),
+                 storage::DynNodeStoragePtr{node_storage});
+
+        // this also holds if the result datatype is that of an operand
+        auto const same = make_deferred_from_literal(Literal::make_typed_from_value<xsd::Z>(2.0));
+        CHECK_EQ(numeric_add_deferred(same, same).second.backend_handle().storage(),
+                 storage::default_node_storage);
+        CHECK_EQ(numeric_add_deferred(same, same, node_storage).second.backend_handle().storage(),
+                 storage::DynNodeStoragePtr{node_storage});
+    }
 }

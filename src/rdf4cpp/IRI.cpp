@@ -46,10 +46,6 @@ IRI IRI::make_unchecked(std::string_view iri, storage::DynNodeStoragePtr node_st
                                                       node_storage}};
 }
 
-IRI IRI::from_datatype_id(datatypes::registry::DatatypeIDView const id, storage::DynNodeStoragePtr node_storage) {
-    return IRI{id, node_storage};
-}
-
 IRI IRI::make_uuid(storage::DynNodeStoragePtr node_storage) {
     boost::uuids::random_generator_mt19937 gen{};
     boost::uuids::uuid u = gen();

@@ -1741,6 +1741,9 @@ template<datatypes::LiteralDatatype T>
  *
  * Results are turned into Literals via materialize_deferred.
  *
+ * @param node_storage the node storage the datatype IRI of the result lives in. Only the IRI is
+ *      placed there, never the result value itself, and only if it is not already available there.
+ *
  * @example folding without storing the intermediate results
  * @code
  * auto acc = make_deferred_from_value<datatypes::xsd::Integer>(0);
@@ -1750,10 +1753,18 @@ template<datatypes::LiteralDatatype T>
  * Literal const sum = materialize_deferred(std::move(acc));
  * @endcode
  */
-[[nodiscard]] DeferredValue numeric_add_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
-[[nodiscard]] DeferredValue numeric_sub_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
-[[nodiscard]] DeferredValue numeric_mul_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
-[[nodiscard]] DeferredValue numeric_div_deferred(DeferredValue const &lhs, DeferredValue const &rhs);
+[[nodiscard]] DeferredValue numeric_add_deferred(DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+[[nodiscard]] DeferredValue numeric_sub_deferred(DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+[[nodiscard]] DeferredValue numeric_mul_deferred(DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+[[nodiscard]] DeferredValue numeric_div_deferred(DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
 inline namespace shorthands {
 

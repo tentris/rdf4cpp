@@ -1042,17 +1042,7 @@ static DeferredValue numeric_binop_deferred_impl(OpSelect op_select,
             return DeferredValue{};
         }
 
-        auto result_datatype = [&]() {
-            if (op_res.result_type_id == lhs_datatype) [[likely]] {
-                return lhs.second;
-            }
-            if (op_res.result_type_id == rhs_datatype) {
-                return rhs.second;
-            }
-            return IRI::from_datatype_id(op_res.result_type_id, node_storage);
-        }();
-
-        return DeferredValue{std::move(*op_res.result_value), std::move(result_datatype)};
+        return DeferredValue{std::move(*op_res.result_value), IRI{op_res.result_type_id, node_storage}};
     };
 
     if (lhs_datatype == rhs_datatype && lhs_entry->numeric_ops->is_impl()) {
@@ -1109,7 +1099,7 @@ namespace deferred_detail {
 DeferredValue make_deferred_from_value(std::any value,
                                        datatypes::registry::DatatypeIDView datatype,
                                        storage::DynNodeStoragePtr node_storage) {
-    return DeferredValue{std::move(value), IRI::from_datatype_id(datatype, node_storage)};
+    return DeferredValue{std::move(value), IRI{datatype, node_storage}};
 }
 }  // namespace deferred_detail
 
@@ -1125,36 +1115,36 @@ Literal materialize_deferred(DeferredValue value, storage::DynNodeStoragePtr nod
     return Literal::make_typed_from_value(std::move(value.first), value.second, node_storage);
 }
 
-DeferredValue numeric_add_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {
+DeferredValue numeric_add_deferred(DeferredValue const &lhs, DeferredValue const &rhs, storage::DynNodeStoragePtr node_storage) {
     return numeric_binop_deferred_impl(
             [](auto const &num_ops) noexcept {
                 return num_ops.add_fptr;
             },
-            lhs, rhs, lhs.second.backend_handle().storage());
+            lhs, rhs, node_storage);
 }
 
-DeferredValue numeric_sub_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {
+DeferredValue numeric_sub_deferred(DeferredValue const &lhs, DeferredValue const &rhs, storage::DynNodeStoragePtr node_storage) {
     return numeric_binop_deferred_impl(
             [](auto const &num_ops) noexcept {
                 return num_ops.sub_fptr;
             },
-            lhs, rhs, lhs.second.backend_handle().storage());
+            lhs, rhs, node_storage);
 }
 
-DeferredValue numeric_mul_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {
+DeferredValue numeric_mul_deferred(DeferredValue const &lhs, DeferredValue const &rhs, storage::DynNodeStoragePtr node_storage) {
     return numeric_binop_deferred_impl(
             [](auto const &num_ops) noexcept {
                 return num_ops.mul_fptr;
             },
-            lhs, rhs, lhs.second.backend_handle().storage());
+            lhs, rhs, node_storage);
 }
 
-DeferredValue numeric_div_deferred(DeferredValue const &lhs, DeferredValue const &rhs) {
+DeferredValue numeric_div_deferred(DeferredValue const &lhs, DeferredValue const &rhs, storage::DynNodeStoragePtr node_storage) {
     return numeric_binop_deferred_impl(
             [](auto const &num_ops) noexcept {
                 return num_ops.div_fptr;
             },
-            lhs, rhs, lhs.second.backend_handle().storage());
+            lhs, rhs, node_storage);
 }
 
 template<typename OpSelect>
