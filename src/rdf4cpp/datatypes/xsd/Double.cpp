@@ -77,7 +77,7 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_doubl
         return std::nullopt;
     }
 
-    return util::pack<storage::identifier::LiteralID>(shortened);
+    return util::pack<storage::identifier::LiteralID>(*shortened);
 }
 
 template<>
