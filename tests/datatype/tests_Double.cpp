@@ -133,17 +133,27 @@ TEST_CASE("double inlining round-trip") {
 TEST_CASE("double inlining large") {
     size_t total = 0;
     size_t num_inlined = 0;
+    size_t num_sums_inlined = 0;
+
+    Literal sum = 0.0_xsd_double;
 
     for (auto const &quad : parser::RDFFileParser{"doubles.ttl"}) {
         CHECK(quad.has_value());
         CHECK(quad->object().is_literal());
 
+        auto const dbl = quad->object().as_literal();
+
         total += 1;
-        num_inlined += quad->object().is_inlined();
+        num_inlined += dbl.is_inlined();
+
+        sum += dbl;
+        num_sums_inlined += sum.is_inlined();
     }
 
     auto const inlining_percentage = static_cast<double>(num_inlined) / static_cast<double>(total) * 100.0;
+    auto const sum_inlining_percentage = static_cast<double>(num_sums_inlined) / static_cast<double>(total) * 100.0;
 
     CHECK_GE(inlining_percentage, 90.0);
-    std::cout << std::format("{:.2f}% inlined ({}/{})", inlining_percentage, num_inlined, total) << std::endl;
+    std::cout << std::format("{:.2f}% of values inlined ({}/{})\n", inlining_percentage, num_inlined, total)
+              << std::format("{:.2f}% of sums inlined ({}/{})\n", sum_inlining_percentage, num_sums_inlined, total);
 }
