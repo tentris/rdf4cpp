@@ -22,9 +22,10 @@ namespace rdf4cpp {
  */
 struct CompensatedSum {
 private:
-    DeferredValue sum_;   // running total
-    DeferredValue comp_;  // low-order bits lost by the additions so far
     storage::DynNodeStoragePtr node_storage_;
+
+    std::optional<DeferredValue> sum_;  // running total (initially zero)
+    DeferredValue comp_;                // low-order bits lost by the additions so far, only valid if !empty_
 
     // latched as soon as an inexact datatype is involved, and never cleared because the numeric
     // hierarchy only ever widens: once the total is a double it stays one

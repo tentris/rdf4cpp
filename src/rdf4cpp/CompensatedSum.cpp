@@ -6,9 +6,7 @@
 namespace rdf4cpp {
 
 CompensatedSum::CompensatedSum(storage::DynNodeStoragePtr node_storage)
-    : sum_{make_deferred_from_value<datatypes::xsd::Integer>(0, node_storage)},
-      comp_{make_deferred_from_value<datatypes::xsd::Integer>(0, node_storage)},
-      node_storage_{node_storage} {
+    : node_storage_{node_storage} {
 }
 
 bool CompensatedSum::is_exact(IRI const &datatype) {
@@ -32,9 +30,18 @@ void CompensatedSum::add(Literal const &lit) {
 }
 
 void CompensatedSum::add(DeferredValue const &value) {
+    if (!sum_.has_value()) {
+        // the first value seeds the sum; adding it to a "0"^^xsd:integer instead would poison
+        // owl:rational and owl:real, which have no common numeric type with xsd:integer
+        sum_ = value;
+        comp_ = numeric_sub_deferred(value, value, node_storage_);  // zero, in the datatype of value
+        compensating_ = !this->is_exact(value.second);
+        return;
+    }
+
     if (!compensating_ && this->is_exact(value.second)) {
         // arbitrary precision, so there is no rounding error to carry
-        sum_ = numeric_add_deferred(sum_, value, node_storage_);
+        sum_ = numeric_add_deferred(*sum_, value, node_storage_);
         return;
     }
 
@@ -42,17 +49,21 @@ void CompensatedSum::add(DeferredValue const &value) {
 
     // Kahan: add back what the previous steps lost, then record what this step loses
     auto const y = numeric_sub_deferred(value, comp_, node_storage_);
-    auto const t = numeric_add_deferred(sum_, y, node_storage_);
-    comp_ = numeric_sub_deferred(numeric_sub_deferred(t, sum_, node_storage_), y, node_storage_);
+    auto const t = numeric_add_deferred(*sum_, y, node_storage_);
+    comp_ = numeric_sub_deferred(numeric_sub_deferred(t, *sum_, node_storage_), y, node_storage_);
     sum_ = t;
 }
 
 Literal CompensatedSum::value() const {
-    if (!compensating_) {
-        return materialize_deferred(sum_, node_storage_);
+    if (!sum_.has_value()) {
+        return Literal::make_typed_from_value<datatypes::xsd::Integer>(0);
     }
 
-    return materialize_deferred(numeric_add_deferred(sum_, comp_, node_storage_), node_storage_);
+    if (!compensating_) {
+        return materialize_deferred(*sum_, node_storage_);
+    }
+
+    return materialize_deferred(numeric_add_deferred(*sum_, comp_, node_storage_), node_storage_);
 }
 
 }  // namespace rdf4cpp
