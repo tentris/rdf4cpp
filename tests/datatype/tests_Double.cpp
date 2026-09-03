@@ -153,7 +153,9 @@ TEST_CASE("double inlining large") {
     auto const inlining_percentage = static_cast<double>(num_inlined) / static_cast<double>(total) * 100.0;
     auto const sum_inlining_percentage = static_cast<double>(num_sums_inlined) / static_cast<double>(total) * 100.0;
 
-    CHECK_GE(inlining_percentage, 90.0);
+    CHECK_GE(inlining_percentage, 99.0); // :)
+    CHECK_GE(sum_inlining_percentage, 4.0); // :(
+
     std::cout << std::format("{:.2f}% of values inlined ({}/{})\n", inlining_percentage, num_inlined, total)
               << std::format("{:.2f}% of sums inlined ({}/{})\n", sum_inlining_percentage, num_sums_inlined, total);
 }
