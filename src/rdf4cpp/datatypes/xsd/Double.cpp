@@ -67,6 +67,9 @@ struct __attribute__((packed)) CompressedDoubleLayout {
     uint64_t exponent : 6;  // re-biased into a window around 1.0, see exponent_offset
     uint64_t sign : 1;      // kept as is
 
+    // explicit padding so that the bits above a LiteralID are guaranteed to be zero when packing
+    [[maybe_unused]] uint64_t pad : 64 - storage::identifier::LiteralID::width = 0;
+
     static_assert(43 + 6 + 1 == storage::identifier::LiteralID::width);
 
     // number of least significant mantissa bits that do not fit; they must be unused
@@ -90,7 +93,7 @@ struct __attribute__((packed)) CompressedDoubleLayout {
                                       .sign = dbl.sign};
     }
 };
-static_assert(sizeof(CompressedDoubleLayout) == sizeof(storage::identifier::LiteralID));
+static_assert(sizeof(CompressedDoubleLayout) == sizeof(uint64_t));
 
 template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_double>::try_into_inlined(cpp_type const &value) noexcept {

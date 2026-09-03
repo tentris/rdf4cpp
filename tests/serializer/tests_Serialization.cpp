@@ -189,8 +189,8 @@ TEST_CASE("basic ntriple") {
     // reordered because graph is unordered_map
     CHECK_EQ(res,
             "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> \"5\"^^<http://www.w3.org/2001/XMLSchema#int> .\n"
-            "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/obj> .\n"
             "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> \"7\"^^<http://www.w3.org/2001/XMLSchema#int> .\n"
+            "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/obj> .\n"
             );
 }
 
@@ -210,9 +210,9 @@ TEST_CASE("basic nquad") {
 
     // reordered because dataset is unordered_map
     CHECK_EQ(res,
+             "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> \"7\"^^<http://www.w3.org/2001/XMLSchema#int> .\n"
              "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> \"5\"^^<http://www.w3.org/2001/XMLSchema#int> <http://ex/graph2> .\n"
-             "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/obj> <http://ex/graph> .\n"
-             "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> \"7\"^^<http://www.w3.org/2001/XMLSchema#int> .\n");
+             "<http://ex/sub> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/obj> <http://ex/graph> .\n");
 }
 
 TEST_CASE("basic turtle") {
@@ -236,8 +236,8 @@ TEST_CASE("basic turtle") {
              "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
              "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
              "<http://ex/sub> a \"5\"^^xsd:int ,\n"
-             "<http://ex/obj> ,\n"
-             "\"7\"^^xsd:int .\n");
+             "\"7\"^^xsd:int ,\n"
+             "<http://ex/obj> .\n");
 }
 
 TEST_CASE("basic trig") {
@@ -264,13 +264,13 @@ TEST_CASE("basic trig") {
     CHECK_EQ(res,
              "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
              "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
+             "<http://ex/sub> a \"7\"^^xsd:int .\n"
              "<http://ex/graph2> {\n"
              "<http://ex/sub> a \"5\"^^xsd:int .\n"
              "}\n"
              "<http://ex/graph> {\n"
              "<http://ex/sub> a <http://ex/obj> .\n"
-             "}\n"
-             "<http://ex/sub> a \"7\"^^xsd:int .\n");
+             "}\n");
 }
 
 TEST_CASE("nquads bnode graph") {

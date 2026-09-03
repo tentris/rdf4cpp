@@ -25,7 +25,7 @@ public:
 
     /**
      * Constructor
-     * @param underlying literal ID. MUST be smaller than 2^42. Bounds are not checked.
+     * @param underlying literal ID. MUST be smaller than 2^width. Bounds are not checked.
      */
     explicit constexpr LiteralID(underlying_type const underlying) noexcept : underlying{underlying} {
         RDF4CPP_ASSERT(underlying < (1UL << width));

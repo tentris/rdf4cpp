@@ -103,3 +103,20 @@ TEST_CASE("double inlining") {
     CHECK(lit.backend_handle().is_inlined());
     CHECK(lit.value<datatypes::xsd::Double>() == value);
 }
+
+TEST_CASE("double inlining large") {
+    size_t total = 0;
+    size_t num_inlined = 0;
+
+    for (auto const &quad : parser::RDFFileParser{"doubles.ttl"}) {
+        CHECK(quad.has_value());
+        CHECK(quad->object().is_literal());
+
+        total += 1;
+        num_inlined += quad->object().is_inlined();
+    }
+
+    auto const inlining_percentage = static_cast<double>(num_inlined) / static_cast<double>(total) * 100.0;
+
+    std::cout << std::format("{:.2f}% inlined ({}/{})", inlining_percentage, num_inlined, total) << std::endl;
+}

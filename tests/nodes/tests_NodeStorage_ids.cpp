@@ -39,7 +39,8 @@ TEST_SUITE("node storage identifier output") {
     }
 
     TEST_CASE("NodeID") {
-        check_string_repr(NodeID{LiteralID{1}, LiteralType::from_parts(LiteralTypeTag::Default, 1)}, "{ .underlying = 4398046511105 }");
+        check_string_repr(NodeID{LiteralID{1}, LiteralType::from_parts(LiteralTypeTag::Default, 1)},
+                          std::format("{{ .underlying = {} }}", (1UL << LiteralID::width) + 1));
         check_string_repr(NodeID{123}, "{ .underlying = 123 }");
     }
 
