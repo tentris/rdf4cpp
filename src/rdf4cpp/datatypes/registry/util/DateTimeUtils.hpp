@@ -289,7 +289,7 @@ struct __attribute__((__packed__)) InliningHelperPacked {
     static constexpr std::size_t tv_width = width - 11;
 
     uint16_t tz_offset : 11;
-    uint32_t time_value : tv_width;
+    uint64_t time_value : tv_width;
 
 private:
     [[maybe_unused]] uint32_t padding : 64 - width = 0;  // to make sure the rest of the int64 is 0
@@ -305,7 +305,7 @@ public:
             return 0;
     }
 
-    constexpr InliningHelperPacked(uint32_t t, rdf4cpp::OptionalTimezone tz) noexcept : tz_offset(encode_tz(tz)), time_value(t) {
+    constexpr InliningHelperPacked(uint64_t t, rdf4cpp::OptionalTimezone tz) noexcept : tz_offset(encode_tz(tz)), time_value(t) {
     }
 
     [[nodiscard]] rdf4cpp::OptionalTimezone decode_tz() const noexcept {
@@ -315,6 +315,7 @@ public:
             return rdf4cpp::Timezone{std::chrono::minutes{static_cast<int>(tz_offset) - tz_shift}};
     }
 };
+static_assert(sizeof(InliningHelperPacked) == 8);
 
 inline YearMonthDay normalize(YearMonthDay const &i) {
     // normalize

@@ -17,7 +17,7 @@ namespace rdf4cpp::storage::identifier {
  */
 struct __attribute__((__packed__)) NodeID {
     using underlying_type = uint64_t;
-    static constexpr size_t width = 48;
+    static constexpr size_t width = 56;
 
     static NodeID const min_bnode_id;
     static NodeID const min_iri_id;
@@ -30,7 +30,7 @@ private:
         LiteralType::underlying_type type_: LiteralType::width;
     };
 
-    static_assert(sizeof(literal_id_parts) == 6);
+    static_assert(sizeof(literal_id_parts) == 7);
 
     union __attribute__((__packed__)) {
         underlying_type underlying_: width;
@@ -89,7 +89,7 @@ public:
     }
 };
 
-static_assert(sizeof(NodeID) == 6);
+static_assert(sizeof(NodeID) == 7);
 
 inline constexpr NodeID NodeID::min_bnode_id{1};
 inline constexpr NodeID NodeID::min_iri_id{datatypes::registry::min_dynamic_datatype_id};
