@@ -6,6 +6,7 @@
 #include <optional>
 #include <ostream>
 #include <random>
+#include <utility>
 #include <rdf4cpp/Node.hpp>
 #include <rdf4cpp/datatypes/LiteralDatatype.hpp>
 #include <rdf4cpp/datatypes/owl.hpp>
@@ -454,6 +455,18 @@ public:
                                                         IRI{T::datatype_id, node_storage},
                                                         node_storage);
     }
+
+    /**
+     * Constructs a literal from a value and its datatype, both given at runtime.
+     *
+     * @param value instance for which the literal is created
+     * @param datatype the datatype of value
+     * @param node_storage NodeStorage used
+     * @return literal instance representing value, or the null-literal if datatype is null or not registered
+     * @warning the dynamic type of value must be the cpp_type of datatype, otherwise the behaviour is undefined
+     */
+    [[nodiscard]] static Literal make_typed_from_value(std::any value, IRI const &datatype,
+                                                       storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
     /**
      * Constructs a literal from a tri-bool with the following mappings
@@ -1678,6 +1691,80 @@ public:
  *      - lang_range is not xsd:string
  */
 [[nodiscard]] Literal lang_matches(Literal const &lang_tag, Literal const &lang_range, storage::DynNodeStoragePtr node_storage = keep_node_storage);
+
+/**
+ * @brief The value of a Literal that is not (yet) placed into a node storage, together with the IRI of its datatype.
+ * A DeferredValue with a null datatype IRI is the null-value; it is what the numeric_*_deferred functions
+ * return on error and it propagates through them, just like the null-Literal does for Literal::add and friends.
+ * @warning the dynamic type of the value must be the cpp_type of the datatype, otherwise it is undefined behaviour
+ * @note Use make_deferred_from_value or make_deferred_from_literal to construct one to avoid UB.
+ *
+ * @warning IRI is an incomplete type in this header (see dynamic_datatype_eq_impl), so this must not be instantiated here.
+ */
+using DeferredValue = std::pair<std::any, IRI>;
+
+namespace deferred_detail {
+[[nodiscard]] DeferredValue make_deferred_from_value(std::any value,
+                                                     datatypes::registry::DatatypeIDView datatype,
+                                                     storage::DynNodeStoragePtr node_storage);
+}  // namespace deferred_detail
+
+/**
+ * @brief Constructs a DeferredValue from a compatible type.
+ * The datatype is specified at compile time, which guarantees that the value and the datatype match.
+ * @tparam T the datatype
+ * @param value instance for which the DeferredValue is created
+ * @param node_storage node storage the datatype IRI is placed in
+ */
+template<datatypes::LiteralDatatype T>
+[[nodiscard]] auto make_deferred_from_value(typename T::cpp_type const &value,
+                                            storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
+    return deferred_detail::make_deferred_from_value(std::any{value}, T::datatype_id, node_storage);
+}
+
+/**
+ * @return the value and the datatype of lit, or the null-value if lit is the null-literal
+ */
+[[nodiscard]] DeferredValue make_deferred_from_literal(Literal const &lit);
+
+/**
+ * @brief Places a DeferredValue into node_storage
+ * @return the resulting literal, or the null-literal if value is the null-value
+ */
+[[nodiscard]] Literal materialize_deferred(DeferredValue value, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+/**
+ * Numeric operations that do not place their result into a node storage.
+ * They behave like the corresponding Literal member functions, except that
+ *  - they do not store their (intermediate) results, and
+ *  - only numeric datatypes are supported, timepoints and durations yield the null-value.
+ *
+ * Results are turned into Literals via materialize_deferred.
+ *
+ * @param node_storage the node storage the datatype IRI of the result lives in. Only the IRI is
+ *      placed there, never the result value itself, and only if it is not already available there.
+ *
+ * @example folding without storing the intermediate results
+ * @code
+ * auto acc = make_deferred_from_value<datatypes::xsd::Integer>(0);
+ * for (Literal const &lit : literals) {
+ *     acc = numeric_add_deferred(acc, make_deferred_from_literal(lit));
+ * }
+ * Literal const sum = materialize_deferred(std::move(acc));
+ * @endcode
+ */
+[[nodiscard]] DeferredValue numeric_add_deferred(DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+[[nodiscard]] DeferredValue numeric_sub_deferred(DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+[[nodiscard]] DeferredValue numeric_mul_deferred(DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+[[nodiscard]] DeferredValue numeric_div_deferred(DeferredValue const &lhs,
+                                                 DeferredValue const &rhs,
+                                                 storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
 
 inline namespace shorthands {
 
