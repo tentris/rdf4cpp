@@ -114,8 +114,9 @@ TEST_CASE_TEMPLATE("NodeStorage specialization big positive numbers", T,
 
 TEST_CASE_TEMPLATE("NodeStorage specialization uninlineable doubles", T, xsd::Double) {
     std::array<xsd::Double::cpp_type, 2> const test_values{
-            1.23141321,
-            54234.12378312};
+            1.0 / 3.0,       // significand needs all 16 significant digits
+            1.23141321e-300  // power of ten far outside the inlinable range
+    };
 
     check_specialized_storage_usage<T>(syncns, test_values);
     check_specialized_storage_usage<T>(unsyncns, test_values);

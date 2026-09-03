@@ -2,6 +2,7 @@
 
 #include <doctest/doctest.h>
 #include <rdf4cpp.hpp>
+#include <bit>
 #include <cmath>
 
 using namespace rdf4cpp;
@@ -104,6 +105,31 @@ TEST_CASE("double inlining") {
     CHECK(lit.value<datatypes::xsd::Double>() == value);
 }
 
+TEST_CASE("double inlining round-trip") {
+    auto const check = [](double const value) {
+        auto const lit = Literal::make_typed_from_value<datatypes::xsd::Double>(value);
+        // comparing bit patterns instead of values, so that a lost sign on zero is caught as well
+        CHECK_EQ(std::bit_cast<uint64_t>(lit.value<datatypes::xsd::Double>()), std::bit_cast<uint64_t>(value));
+        return lit.is_inlined();
+    };
+
+    // short decimals inline, 2^43 - 1 and 10^+-22 are the exact limits of the layout
+    for (double const value : {0.0, -0.0, 1.0, -1.0, 0.5, 4.2, -1961.5, 8796093022207.0, 1e22, 1e-22}) {
+        CHECK(check(value));
+    }
+
+    // values needing a longer significand or a bigger power of ten do not
+    static constexpr auto inf = std::numeric_limits<double>::infinity();
+    for (double const value : {1.0 / 3.0, 0.1 + 0.2, 8796093022208.0, 1e23, 1e-23, inf, -inf}) {
+        CHECK_FALSE(check(value));
+    }
+
+    // two decimal places, the shape of most real world rdf data
+    for (int i = -10000; i <= 10000; ++i) {
+        CHECK(check(static_cast<double>(i) / 100.0));
+    }
+}
+
 TEST_CASE("double inlining large") {
     size_t total = 0;
     size_t num_inlined = 0;
@@ -118,5 +144,6 @@ TEST_CASE("double inlining large") {
 
     auto const inlining_percentage = static_cast<double>(num_inlined) / static_cast<double>(total) * 100.0;
 
+    CHECK_GE(inlining_percentage, 90.0);
     std::cout << std::format("{:.2f}% inlined ({}/{})", inlining_percentage, num_inlined, total) << std::endl;
 }

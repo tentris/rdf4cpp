@@ -41,6 +41,7 @@ class Recipe(ConanFile):
         self.requires("dice-template-library/2.8.0", transitive_headers=True)
         self.requires("libxml2/2.15.3", options={"iconv": False})
         self.requires("simdjson/4.6.3")
+        self.requires("dragonbox/1.1.3")
 
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")

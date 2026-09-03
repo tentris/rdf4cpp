@@ -1,6 +1,8 @@
 #include "Double.hpp"
 #include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
+#include <dragonbox/dragonbox.h>
+
 #include <cmath>
 
 namespace rdf4cpp::datatypes::registry {
@@ -46,75 +48,81 @@ nonstd::expected<capabilities::Numeric<xsd_double>::ceil_result_cpp_type, Dynami
     return std::ceil(operand);
 }
 
-// both layouts below declare their fields from least to most significant bit
-// (see https://en.wikipedia.org/wiki/Double-precision_floating-point_format)
-static_assert(std::endian::native == std::endian::little, "This does not work on big endian");
+// A double stored as its shortest round-tripping decimal, i.e. as significand * 10^exponent.
+struct __attribute__((packed)) DecimalDoubleLayout {
+    static constexpr size_t exponent_width = 6;
+    static constexpr size_t significand_width = storage::identifier::LiteralID::width - exponent_width - 1;
 
-struct DoubleLayout {
-    uint64_t mantissa : 52; // fraction, the leading 1 is implicit
-    uint64_t exponent : 11; // biased by 1023, 0 means zero/subnormal
+    static constexpr int max_exponent = 22; // 10^n is exactly representable as a double up to n == 22
+    static_assert(max_exponent < 1uz << (exponent_width - 1));
+
+    static constexpr auto pow10 = [] {
+        std::array<double, max_exponent + 1> powers{};
+        std::ranges::generate(powers, [power = 1.0] mutable { return std::exchange(power, power * 10); });
+        return powers;
+    }();
+    static_assert(pow10[max_exponent] == 1e22);  // repeated multiplication stays exact this far
+
+    uint64_t significand : significand_width;  // the decimal digits as a binary integer
+    int64_t exponent : exponent_width;         // power of ten (signed)
     uint64_t sign : 1;
-
-    static_assert(52 + 11 + 1 == 64);
-};
-static_assert(sizeof(DoubleLayout) == sizeof(double));
-
-// A DoubleLayout squeezed into the bits of a LiteralID. Lossless only for doubles that need at most
-// 44 significant bits and whose magnitude is in [2^-31, 2^32) (plus zero and subnormals);
-// everything else cannot be inlined.
-struct __attribute__((packed)) CompressedDoubleLayout {
-    uint64_t mantissa : 43; // least significant bits dropped
-    uint64_t exponent : 6;  // re-biased into a window around 1.0, see exponent_offset
-    uint64_t sign : 1;      // kept as is
 
     // explicit padding so that the bits above a LiteralID are guaranteed to be zero when packing
     [[maybe_unused]] uint64_t pad : 64 - storage::identifier::LiteralID::width = 0;
 
-    static_assert(43 + 6 + 1 == storage::identifier::LiteralID::width);
-
-    // number of least significant mantissa bits that do not fit; they must be unused
-    static constexpr uint64_t dropped_mantissa_bits = 52 - 43;
-
-    // exponent 0 (zero and subnormals) is compressed to 0, the biased exponents
-    // [exponent_offset + 1, exponent_offset + 63] (i.e. unbiased [-31, 31]) to themselves minus exponent_offset
-    static constexpr uint64_t exponent_offset = 1023 - 32;
-
-    static std::optional<CompressedDoubleLayout> try_compress(DoubleLayout const dbl) noexcept {
-        if ((dbl.mantissa & ((1UL << dropped_mantissa_bits) - 1)) != 0) {
-            return std::nullopt; // needs more precision than the shortened mantissa provides
-        }
-
-        if (dbl.exponent != 0 && (dbl.exponent <= exponent_offset || dbl.exponent > exponent_offset + 63)) {
-            return std::nullopt; // magnitude outside the window (this also excludes inf and nan)
-        }
-
-        return CompressedDoubleLayout{.mantissa = dbl.mantissa >> dropped_mantissa_bits,
-                                      .exponent = dbl.exponent == 0 ? 0 : dbl.exponent - exponent_offset,
-                                      .sign = dbl.sign};
+    [[nodiscard]] static constexpr bool can_fit(auto decimal) noexcept {
+        return decimal.significand >> significand_width == 0
+               && decimal.exponent >= -max_exponent
+               && decimal.exponent <= max_exponent;
     }
 };
-static_assert(sizeof(CompressedDoubleLayout) == sizeof(uint64_t));
-
-template<>
-std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_double>::try_into_inlined(cpp_type const &value) noexcept {
-    auto const packed = std::bit_cast<DoubleLayout>(value);
-    auto const shortened = CompressedDoubleLayout::try_compress(packed);
-
-    if (!shortened.has_value()) {
-        return std::nullopt;
-    }
-
-    return util::pack<storage::identifier::LiteralID>(*shortened);
-}
+static_assert(sizeof(DecimalDoubleLayout) == sizeof(uint64_t));
 
 template<>
 capabilities::Inlineable<xsd_double>::cpp_type capabilities::Inlineable<xsd_double>::from_inlined(storage::identifier::LiteralID inlined) noexcept {
-    auto const shortened = util::unpack<CompressedDoubleLayout>(inlined);
-    return std::bit_cast<cpp_type>(DoubleLayout{.mantissa = shortened.mantissa << CompressedDoubleLayout::dropped_mantissa_bits,
-                                                .exponent = shortened.exponent == 0
-                                                                    ? 0
-                                                                    : shortened.exponent + CompressedDoubleLayout::exponent_offset,
-                                                .sign = shortened.sign});
+    auto const decimal = util::unpack<DecimalDoubleLayout>(inlined);
+
+    auto const significand = static_cast<cpp_type>(decimal.significand);
+
+    // dragonbox promised that the nearest double to significand * 10^exponent is the original value, so
+    // we only have to compute that nearest double: one IEEE operation on two exactly representable
+    // operands (integer < 2^53, 10^n where n < max_exponent) rounds once and lands on it.
+    // Multiplying by 10^-n would round twice, since that is not representable.
+    auto const value = [&] {
+        if (decimal.exponent < 0) {
+            return significand / DecimalDoubleLayout::pow10[-decimal.exponent];
+        }
+
+        return significand * DecimalDoubleLayout::pow10[decimal.exponent];
+    }();
+
+    return decimal.sign ? -value : value;
+}
+
+template<>
+std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_double>::try_into_inlined(cpp_type const &value) noexcept {
+    if (!std::isfinite(value)) {
+        return std::nullopt;  // inf and nan have no decimal representation
+    }
+
+    DecimalDoubleLayout decimal{};
+    if (value == 0) {
+        // dragonbox does not support zero input
+        decimal.sign = std::signbit(value);
+    } else {
+        // shortest representation that still round-trips
+        auto const dec_float = jkj::dragonbox::to_decimal(value);
+
+        if (!DecimalDoubleLayout::can_fit(dec_float)) {
+            return std::nullopt;
+        }
+
+        decimal.significand = dec_float.significand;
+        decimal.exponent = dec_float.exponent;
+        decimal.sign = dec_float.is_negative;
+    }
+
+    return util::pack<storage::identifier::LiteralID>(decimal);
 }
 #endif
 
