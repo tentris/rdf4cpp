@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <any>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -91,6 +92,13 @@ struct DatatypeRegistry {
     };
 
     struct NumericOps : public std::variant<NumericOpsStub, NumericOpsImpl> {
+        /**
+         * Whether arithmetic on this datatype is lossless. False for the IEEE-754 types
+         * (xsd:float, xsd:double, owl:real), true for the arbitrary precision ones.
+         * For a stub this is the exactness of its numeric_impl_type, which performs the arithmetic.
+         */
+        bool is_exact;
+
         [[nodiscard]] constexpr bool is_stub() const noexcept {
             return this->index() == 0;
         }
@@ -569,12 +577,15 @@ inline void DatatypeRegistry::add() noexcept {
     using conversion_table_t = decltype(make_conversion_table_for<LiteralDatatype_t>());
 
     auto const num_ops = []() -> std::optional<NumericOps> {
+        // note: not std::floating_point, that would miss owl:real whose cpp_type is a class type
         if constexpr (datatypes::NumericImpl<LiteralDatatype_t>) {
-            return NumericOps{make_numeric_ops_impl<LiteralDatatype_t>()};
+            return NumericOps{make_numeric_ops_impl<LiteralDatatype_t>(),
+                              std::numeric_limits<typename LiteralDatatype_t::cpp_type>::is_exact};
         } else if constexpr (datatypes::NumericStub<LiteralDatatype_t>) {
             // a stub-numeric type must define a linearly reachable supertype that is impl-numeric as numeric_impl_type
             constexpr auto soff = conversion_detail::calculate_subtype_offset<typename LiteralDatatype_t::numeric_impl_type, conversion_table_t>();
-            return NumericOps{NumericOpsStub{.start_s_off = soff}};
+            return NumericOps{NumericOpsStub{.start_s_off = soff},
+                              std::numeric_limits<typename LiteralDatatype_t::numeric_impl_type::cpp_type>::is_exact};
         } else {
             return std::nullopt;
         }

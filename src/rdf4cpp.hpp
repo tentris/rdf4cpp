@@ -2,6 +2,7 @@
 #define RDF4CPP_RDF4CPP_HPP
 
 #include <rdf4cpp/ClosedNamespace.hpp>
+#include <rdf4cpp/CompensatedSum.hpp>
 #include <rdf4cpp/Dataset.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
 #include <rdf4cpp/InvalidNode.hpp>
