@@ -55,23 +55,23 @@ struct DoubleLayout {
 };
 static_assert(sizeof(DoubleLayout) == sizeof(double));
 
-struct __attribute__((packed)) InlinedDoubleLayout {
+struct __attribute__((packed)) CompressedDoubleLayout {
     uint64_t sign : 1;
     uint64_t exponent : 6;
     uint64_t mantissa : 43;
 
     static_assert(1 + 6 + 43 == storage::identifier::LiteralID::width);
 
-    static std::optional<InlinedDoubleLayout> try_pack(DoubleLayout const dbl) noexcept {
+    static std::optional<CompressedDoubleLayout> try_compress(DoubleLayout const dbl) noexcept {
         return std::nullopt; // TODO
     }
 };
-static_assert(sizeof(InlinedDoubleLayout) == sizeof(storage::identifier::LiteralID));
+static_assert(sizeof(CompressedDoubleLayout) == sizeof(storage::identifier::LiteralID));
 
 template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_double>::try_into_inlined(cpp_type const &value) noexcept {
-    auto const packed = util::pack<DoubleLayout>(value);
-    auto const shortened = InlinedDoubleLayout::try_pack(packed);
+    auto const packed = std::bit_cast<DoubleLayout>(value);
+    auto const shortened = CompressedDoubleLayout::try_compress(packed);
 
     if (!shortened.has_value()) {
         return std::nullopt;
@@ -82,10 +82,10 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_doubl
 
 template<>
 capabilities::Inlineable<xsd_double>::cpp_type capabilities::Inlineable<xsd_double>::from_inlined(storage::identifier::LiteralID inlined) noexcept {
-    auto const shortened = util::unpack<InlinedDoubleLayout>(inlined);
-    return util::unpack<cpp_type>(DoubleLayout{.sign = shortened.sign,
-                                               .exponent = shortened.exponent,
-                                               .mantissa = shortened.mantissa});
+    auto const shortened = util::unpack<CompressedDoubleLayout>(inlined);
+    return std::bit_cast<cpp_type>(DoubleLayout{.sign = shortened.sign,
+                                                .exponent = shortened.exponent,
+                                                .mantissa = shortened.mantissa});
 }
 #endif
 
