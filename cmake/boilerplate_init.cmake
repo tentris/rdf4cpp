@@ -13,7 +13,7 @@ macro(boilerplate_init)
         if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             # -Wdangling-reference seems to have false positives atm
             # We run sanitizers in the CI anyway, so should be fine
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-dangling-reference")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-dangling-reference -Wnrvo")
         endif ()
     endif ()
 

@@ -247,13 +247,15 @@ template<typename NS>
 void test_rdf_lang_string_non_specialization(NS &ns) {
     auto extract_backend_handle = [](Literal l) {
         auto h = l.backend_handle();
-        if (!h.is_inlined())
+        if (!h.is_inlined()) {
             return h;
+        }
         auto [_, id] = rdf4cpp::datatypes::registry::DatatypeRegistry::LangTagInlines::from_inlined(h.node_id().literal_id());
         auto node_id = storage::identifier::NodeID{id, h.node_id().literal_type()};
-        return rdf4cpp::storage::identifier::NodeBackendHandle{node_id,
-                                                                          storage::identifier::RDFNodeType::Literal,
-                                                                          h.storage()};
+        h = rdf4cpp::storage::identifier::NodeBackendHandle{node_id,
+                                                            storage::identifier::RDFNodeType::Literal,
+                                                            h.storage()};
+        return h;
     };
 
     CHECK(!ns.has_specialized_storage_for(rdf::LangString::fixed_id));

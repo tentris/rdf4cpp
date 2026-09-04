@@ -464,6 +464,7 @@ namespace rdf4cpp::parser::json_ld {
         return result;
     }
     std::optional<ExpandParser::error_type> ExpandParser::expand_level_nested_recursive(params::ExpandNestedParams p) {
+        std::optional<ExpandParser::error_type> res = std::nullopt;
         for (auto kv : p.elem_obj) {
             // 13.1
             std::string_view k = kv.unescaped_key();
@@ -474,7 +475,8 @@ namespace rdf4cpp::parser::json_ld {
             // 13.2
             auto expanded_property = context_parser.iri_expansion(p.active_ctx, k, false, true);
             if (!expanded_property.has_value()) {
-                return expanded_property.error();
+                res = expanded_property.error();
+                return res;
             }
             // 13.3
             if (expanded_property->type == IRIMappingType::None
@@ -486,13 +488,15 @@ namespace rdf4cpp::parser::json_ld {
             if (expanded_property->type == IRIMappingType::Keyword) {
                 // 13.4.1
                 if (p.active_property.is_keyword(keyword_reverse)) {
-                    return make_error(ParsingError::Type::BadSyntax, "invalid reverse property map (expanding map)");
+                    res = make_error(ParsingError::Type::BadSyntax, "invalid reverse property map (expanding map)");
+                    return res;
                 }
                 // 13.4.2
                 auto existing_entry = p.result.try_find_entry(*expanded_property);
                 {
                     if (existing_entry != nullptr && expanded_property->data != keyword_type && expanded_property->data != keyword_included) {
-                        return make_error(ParsingError::Type::BadSyntax, "colliding keywords");
+                        res = make_error(ParsingError::Type::BadSyntax, "colliding keywords");
+                        return res;
                     }
                 }
                 // 13.4.3
@@ -500,11 +504,13 @@ namespace rdf4cpp::parser::json_ld {
                 expanded_value.is_reverse = p.reverse;
                 if (expanded_property->data == keyword_id) {
                     if (!v.is_string()) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @id value");
+                        res = make_error(ParsingError::Type::BadSyntax, "invalid @id value");
+                        return res;
                     }
                     auto r = context_parser.iri_expansion(p.active_ctx, static_cast<std::string_view>(v), true, false);
                     if (!r.has_value()) {
-                        return r.error();
+                        res =  r.error();
+                        return res;
                     }
                     expanded_value.keyword_values.emplace_back(std::move(*r));
                 }
@@ -514,19 +520,22 @@ namespace rdf4cpp::parser::json_ld {
                     if (v.is_string()) {
                         auto r = context_parser.iri_expansion(p.type_scoped_context, static_cast<std::string_view>(v), true, true);
                         if (!r.has_value()) {
-                            return r.error();
+                            res =  r.error();
+                            return res;
                         }
                         ent.keyword_values.emplace_back(std::move(*r));
                     } else if (v.type() == simdjson::ondemand::json_type::array) {
                         for (auto e : static_cast<simdjson::ondemand::array>(v)) {
                             auto r = context_parser.iri_expansion(p.type_scoped_context, e, true, true);
                             if (!r.has_value()) {
-                                return r.error();
+                                res =  r.error();
+                                return res;
                             }
                             ent.keyword_values.emplace_back(std::move(*r));
                         }
                     } else {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid type value");
+                        res = make_error(ParsingError::Type::BadSyntax, "invalid type value");
+                        return res;
                     }
                 }
                 // 13.4.5
@@ -542,20 +551,23 @@ namespace rdf4cpp::parser::json_ld {
                 // 13.4.7
                 else if (expanded_property->data == keyword_value) {
                     if (p.value_is_error) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @nest value (contains @value)");
+                        res = make_error(ParsingError::Type::BadSyntax, "invalid @nest value (contains @value)");
+                        return res;
                     }
                     if (p.input_type == keyword_json || v.is_scalar()) {
                         expanded_value.path = p.active_path;
                         expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
                         expanded_value.is_json_literal = p.input_type == keyword_json;
                     } else {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid value object value");
+                        res = make_error(ParsingError::Type::BadSyntax, "invalid value object value");
+                        return res;
                     }
                 }
                 // 13.4.8
                 else if (expanded_property->data == keyword_language) {
                     if (!v.is_string()) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
+                        res = make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
+                        return res;
                     }
                     expanded_value.path = p.active_path;
                     expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
@@ -563,18 +575,21 @@ namespace rdf4cpp::parser::json_ld {
                 // 13.4.9
                 else if (expanded_property->data == keyword_direction) {
                     if (!v.is_string()) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
+                        res = make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
+                        return res;
                     }
                     auto s = static_cast<std::string_view>(v);
                     if (s != "ltr" && s != "rtl") {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
+                        res = make_error(ParsingError::Type::BadSyntax, "invalid language-tagged string");
+                        return res;
                     }
                     expanded_value.keyword_values.emplace_back(std::string{s}, IRIMappingType::None);
                 }
                 // 13.4.10
                 else if (expanded_property->data == keyword_index) {
                     if (!v.is_string()) {
-                        return make_error(ParsingError::Type::BadSyntax, " invalid @index value");
+                        res = make_error(ParsingError::Type::BadSyntax, " invalid @index value");
+                        return res;
                     }
                     expanded_value.path = p.active_path;
                     expanded_value.path.keys.emplace_back(std::in_place_type<std::string>, k);
@@ -596,11 +611,12 @@ namespace rdf4cpp::parser::json_ld {
                 else if (expanded_property->data == keyword_reverse) {
                     simdjson::ondemand::object v_obj;
                     if (v.get(v_obj) != simdjson::SUCCESS) {
-                        return make_error(ParsingError::Type::BadSyntax, "invalid @reverse value (not a object)");
+                        res = make_error(ParsingError::Type::BadSyntax, "invalid @reverse value (not a object)");
+                        return res;
                     }
                     KeyPath path = p.active_path;
                     path.keys.emplace_back(std::in_place_type<std::string>, k);
-                    auto e = expand_level_nested_recursive({
+                    res = expand_level_nested_recursive({
                         .result = p.result,
                         .elem_obj = v_obj,
                         .active_ctx = p.active_ctx,
@@ -612,21 +628,23 @@ namespace rdf4cpp::parser::json_ld {
                         .reverse = !p.reverse,
                         .value_is_error = true,
                     });
-                    if (e.has_value()) {
-                        return e;
+                    if (res.has_value()) {
+                        return res;
                     }
+                    res = std::nullopt;
                 }
                 // 13.4.14 + 14
                 else if (expanded_property->data == keyword_nest) {
                     for (ValueArrayIter iter{v}; iter != iter.end(); ++iter) {
                         simdjson::ondemand::object iter_obj;
                         if (iter->get(iter_obj) != simdjson::SUCCESS) {
-                            return make_error(ParsingError::Type::BadSyntax, "invalid @nest value (not a object)");
+                            res = make_error(ParsingError::Type::BadSyntax, "invalid @nest value (not a object)");
+                            return res;
                         }
                         KeyPath path = p.active_path;
                         path.keys.emplace_back(std::in_place_type<std::string>, k);
                         iter.push_index(path);
-                        auto e = expand_level_nested_recursive({
+                        res = expand_level_nested_recursive({
                             .result = p.result,
                             .elem_obj = iter_obj,
                             .active_ctx = p.active_ctx,
@@ -638,9 +656,10 @@ namespace rdf4cpp::parser::json_ld {
                             .reverse = p.reverse,
                             .value_is_error = true,
                         });
-                        if (e.has_value()) {
-                            return e;
+                        if (res.has_value()) {
+                            return res;
                         }
+                        res = std::nullopt;
                     }
                 }
                 // 13.4.16
@@ -706,7 +725,8 @@ namespace rdf4cpp::parser::json_ld {
                                 .base_iri = index_term->base_iri.value_or(""),
                             });
                             if (!r.has_value()) {
-                                return r.error();
+                                res = r.error();
+                                return res;
                             }
                             map_context = &p.result.context_storage.emplace_front(std::move(*r));
                         }
@@ -715,7 +735,8 @@ namespace rdf4cpp::parser::json_ld {
                     // 13.8.3.4
                     auto expanded_index = context_parser.iri_expansion(p.active_ctx, index, false, true);
                     if (!expanded_index.has_value()) {
-                        return expanded_index.error();
+                        res = expanded_index.error();
+                        return res;
                     }
 
                     // 13.8.3.7
@@ -746,7 +767,8 @@ namespace rdf4cpp::parser::json_ld {
                                 .element_obj = index_value_obj,
                             });
                             if (!nl.has_value()) {
-                                return nl.error();
+                                res = nl.error();
+                                return res;
                             }
                             ex.next_level_pre_expanded = std::move(*nl);
                             if (std::holds_alternative<ExpandedMap>(*ex.next_level_pre_expanded)) {
@@ -765,14 +787,17 @@ namespace rdf4cpp::parser::json_ld {
                         if (term_definition->has_container_mapping(ContainerMapping::Index) && !index_key.is_keyword(keyword_index) && !expanded_index->is_keyword(keyword_none)) {
                             auto reexpanded_index = value_expansion(p.active_ctx, index_key, index);
                             if (!reexpanded_index.has_value()) {
-                                return reexpanded_index.error();
+                                res = reexpanded_index.error();
+                                return res;
                             }
                             auto expanded_index_key = context_parser.iri_expansion(p.active_ctx, index_key.data, false, true);
                             if (!expanded_index_key.has_value()) {
-                                return expanded_index_key.error();
+                                res = expanded_index_key.error();
+                                return res;
                             }
                             if (next_lvl == nullptr) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid index)");
+                                res = make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid index)");
+                                return res;
                             }
                             auto &e = next_lvl->entries.emplace_back(std::move(*expanded_index_key));
                             e.pre_expanded_value = std::move(*reexpanded_index);
@@ -787,10 +812,12 @@ namespace rdf4cpp::parser::json_ld {
                                  && !expanded_index->is_keyword(keyword_none)) {
                             auto id = context_parser.iri_expansion(p.active_ctx, index, true, false);
                             if (!id.has_value()) {
-                                return id.error();
+                                res = id.error();
+                                return res;
                             }
                             if (next_lvl == nullptr) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid id)");
+                                res =  make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid id)");
+                                return res;
                             }
                             auto &e = next_lvl->entries.emplace_back(IRIMapping{std::string{keyword_id}, IRIMappingType::Keyword});
                             e.keyword_values.emplace_back(std::move(*id));
@@ -798,7 +825,8 @@ namespace rdf4cpp::parser::json_ld {
                         // 13.8.3.7.5
                         else if (term_definition->has_container_mapping(ContainerMapping::Type) && !expanded_index->is_keyword(keyword_none)) {
                             if (next_lvl == nullptr) {
-                                return make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid type)");
+                                res = make_error(ParsingError::Type::BadSyntax, "invalid value object (attempting to add invalid type)");
+                                return res;
                             }
                             auto &e = next_lvl->entries.emplace_back(IRIMapping{std::string{keyword_type}, IRIMappingType::Keyword});
                             e.keyword_values.emplace_back(*expanded_index);
@@ -851,7 +879,8 @@ namespace rdf4cpp::parser::json_ld {
             }
         }
 
-        return std::nullopt;
+        res = std::nullopt;
+        return res;
     }
     bool ExpandParser::is_list_object(simdjson::ondemand::value v, Context const &active_context) {
         if (v.type() != simdjson::ondemand::json_type::object) {
