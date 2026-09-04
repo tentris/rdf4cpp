@@ -13,7 +13,8 @@
 
 namespace rdf4cpp::storage::identifier {
 /**
- * NodeID is an 48 bit identifier for a Node given a NodeManager. If the Node is a Literal, The 48 bits consist of a LiteralID (42 bits) and a LiteralType (6 bits).
+ * NodeID is an 56 bit identifier for a Node given a NodeManager.
+ * If the Node is a Literal, The 56 bits consist of a LiteralID (50 bits) and a LiteralType (6 bits).
  */
 struct __attribute__((__packed__)) NodeID {
     using underlying_type = uint64_t;

@@ -13,23 +13,23 @@ The following figure gives an overview of its memory layout.
 ```
 LSB                                                          MSB
 ┣━━━━━━━━━━━━━━━━━━━━ NodeBackendID (64 bit) ━━━━━━━━━━━━━━━━━━━━┫
-├────────────── NodeID (48 bit) ───────────────┤├─┤├┤├───────────┤
-├───────── LiteralID (42 bit) ───────────┤├────┤^  ^        ^
-                                            ^   |  |        |
-                                            |   |  |        free tagging bits (13 bit)
-                          LiteralType (6 bit)   |  |        
-                                                |  | 
-                                                |  |   
-                                                |  | inlining tagging bit (1 bit)
-                                                |   
-                                                RDFNodeType (2 bit)
+├────────────── NodeID (56 bit) ───────────────────────┤├─┤├┤├───┤
+├───────── LiteralID (50 bit) ───────────────────┤├────┤^  ^  ^
+                                                    ^   |  |  |
+                                                    |   |  |  free tagging bits (5 bit)
+                                  LiteralType (6 bit)   |  |        
+                                                        |  | 
+                                                        |  |   
+                                                        |  inlining tagging bit (1 bit)
+                                                        |   
+                                                        RDFNodeType (2 bit)
 ```
 
 `NodeID` is the most frequently used identifier and is thus aligned with the LSB.
 In the following, the bit-fields of `NodeBackendID` will be explained starting from the
 most significant bits because the parts in the less significant depend on the bits in the more significant bits.
 
-## Free Tagging Bits (13 bit)
+## Free Tagging Bits (5 bit)
 The _free tagging bits_ can be used by the internal storage to store 13 bit of information in the `NodeBackendID`.
 The IRIs of fixed-id datatypes can not have any tagging bits set, since the `NodeBackendID`s will be determined
 by their `LiteralType`.
@@ -41,7 +41,7 @@ instead of the node storage.
 ## `RDFNodeType` (2 bit)
 The `RDFNodeType` specifies if the `Node` is a `BlankNode`, `IRI`, `Literal` or `Variable`.
 
-## `NodeID` (48 bit)
+## `NodeID` (56 bit)
 The `NodeID` identifies a `Node` given `NodeType` inside a node storage.
 A `NodeID` of 0 is considered a null `NodeID` which must not identify any resource.
 
@@ -55,7 +55,7 @@ If the type is directly encoded, the two MSB of the `LiteralType` are used to de
 type category the type belongs to (`Default`, `Numeric`, `Duration` or `Timepoint`).
 For all other types, `LiteralType` is set to `0`. In that case, the type information must be retrieved from backend if needed.
 
-### `LiteralID` (42 bit)
+### `LiteralID` (50 bit)
 The `LiteralID` identifies a literal in a node storage, given `NodeType == Literal`.
 
 #### `LiteralID` with inlined language tag
