@@ -9,7 +9,7 @@ namespace rdf4cpp::storage::identifier {
 struct alignas(uint64_t) NodeBackendID {
     using underlying_type = uint64_t;
     static constexpr size_t width = 64;
-    static constexpr size_t tagging_bits_width = 13;
+    static constexpr size_t tagging_bits_width = 5;
 
     static std::pair<NodeBackendID, std::string_view> const default_graph_iri;
     static std::pair<NodeBackendID, std::string_view> const xsd_string_iri;

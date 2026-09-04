@@ -142,6 +142,7 @@ target_link_libraries(tests_AnyURI
 )
 add_test(NAME tests_AnyURI COMMAND tests_AnyURI)
 
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/datatype/doubles.ttl" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 add_executable(tests_Double datatype/tests_Double.cpp)
 target_link_libraries(tests_Double
         doctest::doctest

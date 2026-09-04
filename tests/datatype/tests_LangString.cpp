@@ -59,5 +59,5 @@ TEST_CASE("rdf::langString inlining") {
     CHECK(Literal::make_lang_tagged("hello world", "de").is_inlined());
     CHECK(!Literal::make_lang_tagged("hello world", "en-us").is_inlined());
 
-    CHECK(!DatatypeRegistry::LangTagInlines::try_into_inlined(storage::identifier::LiteralID{1l << 41}, 0).has_value());
+    CHECK(!DatatypeRegistry::LangTagInlines::try_into_inlined(storage::identifier::LiteralID{1ul << (storage::identifier::LiteralID::width - 1)}, 0).has_value());
 }

@@ -629,9 +629,11 @@ TEST_SUITE("deferred numeric ops") {
     TEST_CASE("folding does not store the intermediate results") {
         using namespace datatypes;
 
+        // 1/3 makes every intermediate sum need all 16 significant digits, i.e. uninlineable,
+        // so that the eager fold actually has to store them
         std::vector<Literal> const summands{Literal::make_typed_from_value<xsd::Int>(3),
                                             Literal::make_typed_from_value<xsd::Integer>(4),
-                                            Literal::make_typed_from_value<xsd::Double>(0.1),
+                                            Literal::make_typed_from_value<xsd::Double>(1.0 / 3.0),
                                             Literal::make_typed_from_value<xsd::Double>(1.5),
                                             Literal::make_typed_from_value<xsd::Float>(2.f)};
 

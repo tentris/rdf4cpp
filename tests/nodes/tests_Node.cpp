@@ -367,8 +367,9 @@ struct get_find_values<IRI> {
 };
 template<>
 struct get_find_values<BlankNode> {
-    static constexpr std::string_view t = "bl1aaaa";
-    static constexpr std::string_view v = "bl2aaaa";
+    // too long to be inlined, so that find actually has to hit the node storage
+    static constexpr std::string_view t = "bl1aaaaa";
+    static constexpr std::string_view v = "bl2aaaaa";
 };
 
 TEST_CASE_TEMPLATE("IRI/BlankNode::find", T, IRI, BlankNode) {
@@ -555,17 +556,18 @@ TEST_CASE("variable inlining") {
     check_node_storage_transfer(v3);
     check_fetch_or_serialize(v3);
 
-    auto v4 = query::Variable::make_named("abcdef");
+    // one char longer than what fits into a NodeID (minus the anonymous tagging bit)
+    auto v4 = query::Variable::make_named("abcdefg");
     CHECK_FALSE(v4.is_inlined());
     CHECK_FALSE(v4.is_anonymous());
-    CHECK_EQ(v4.name(), "abcdef");
+    CHECK_EQ(v4.name(), "abcdefg");
     CHECK_EQ(v4.order(v1), std::strong_ordering::greater);
     check_fetch_or_serialize(v4);
 
-    auto v5 = query::Variable::make_anonymous("fghijk");
+    auto v5 = query::Variable::make_anonymous("fghijkl");
     CHECK_FALSE(v5.is_inlined());
     CHECK(v5.is_anonymous());
-    CHECK_EQ(v5.name(), "fghijk");
+    CHECK_EQ(v5.name(), "fghijkl");
     CHECK_EQ(v5.order(v4), std::strong_ordering::greater);
     check_fetch_or_serialize(v5);
 
@@ -582,7 +584,7 @@ TEST_CASE("variable inlining") {
     CHECK_EQ(v7.order(v6), std::strong_ordering::greater);
     check_fetch_or_serialize(v7);
 
-    auto v8 = query::Variable::make_named("aaaaaa");
+    auto v8 = query::Variable::make_named("aaaaaaa");
     CHECK_FALSE(v8.is_inlined());
     CHECK_FALSE(v8.is_anonymous());
     CHECK_GT(v8.name().size(), v1.name().size());
@@ -646,9 +648,10 @@ TEST_CASE("bnode inlining") {
     check_node_storage_transfer(v2);
     check_fetch_or_serialize(v2);
 
-    auto v3 = BlankNode::make("abcdefg");
+    // one char longer than what fits into a NodeID
+    auto v3 = BlankNode::make("abcdefgh");
     CHECK_FALSE(v3.is_inlined());
-    CHECK_EQ(v3.identifier(), "abcdefg");
+    CHECK_EQ(v3.identifier(), "abcdefgh");
     CHECK_EQ(v3.order(v1), std::strong_ordering::greater);
     check_fetch_or_serialize(v3);
 
@@ -658,7 +661,7 @@ TEST_CASE("bnode inlining") {
     CHECK_EQ(v4.order(v1), std::strong_ordering::less);
     check_fetch_or_serialize(v4);
 
-    auto v5 = BlankNode::make("aaaaaaa");
+    auto v5 = BlankNode::make("aaaaaaaa");
     CHECK_FALSE(v5.is_inlined());
     CHECK_GT(v5.identifier().size(), v1.identifier().size());
     CHECK_EQ(v5.order(v1), std::strong_ordering::less);

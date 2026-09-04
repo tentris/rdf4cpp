@@ -185,6 +185,9 @@ TEST_CASE("decimal inlining sanity check") {
 
     SUBCASE("limits") {
         SUBCASE("unscaled value") {
+            // mirrors InlinedDecimal in Decimal.cpp: a 10 bit exponent, the rest of the LiteralID is the signed unscaled value
+            static constexpr int64_t unscaled_limit = int64_t{1} << (storage::identifier::LiteralID::width - 10 - 1);
+
             boost::multiprecision::cpp_int const very_big_value{"99999999999999999999999999999999999999999999999"};
             CHECK_GT(very_big_value, std::numeric_limits<int64_t>::max());
 
@@ -198,22 +201,22 @@ TEST_CASE("decimal inlining sanity check") {
             CHECK(l2.value<Decimal>() == Decimal::cpp_type{-very_big_value, 1U});
 
             // right above the inlining limit
-            auto const l3 = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type(1L << 31, 0));
+            auto const l3 = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type(unscaled_limit, 0));
             CHECK(!l3.is_inlined());
-            CHECK(l3.value<Decimal>() == Decimal::cpp_type(1L << 31, 0));
+            CHECK(l3.value<Decimal>() == Decimal::cpp_type(unscaled_limit, 0));
 
-            auto const l4 = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type(-(1L << 31) - 1, 0));
+            auto const l4 = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type(-unscaled_limit - 1, 0));
             CHECK(!l4.is_inlined());
-            CHECK(l4.value<Decimal>() == Decimal::cpp_type(-(1L << 31) - 1, 0));
+            CHECK(l4.value<Decimal>() == Decimal::cpp_type(-unscaled_limit - 1, 0));
 
             // right below the inlining limit
-            auto const l5 = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type((1L << 31) - 1, 0));
+            auto const l5 = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type(unscaled_limit - 1, 0));
             CHECK(l5.is_inlined());
-            CHECK(l5.value<Decimal>() == Decimal::cpp_type((1L << 31) - 1, 0));
+            CHECK(l5.value<Decimal>() == Decimal::cpp_type(unscaled_limit - 1, 0));
 
-            auto const l6 = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type(-(1L << 31), 0));
+            auto const l6 = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type(-unscaled_limit, 0));
             CHECK(l6.is_inlined());
-            CHECK(l6.value<Decimal>() == Decimal::cpp_type(-(1L << 31), 0));
+            CHECK(l6.value<Decimal>() == Decimal::cpp_type(-unscaled_limit, 0));
         }
 
         SUBCASE("exponent") {
