@@ -62,6 +62,13 @@ target_link_libraries(tests_Literal_ops
         )
 add_test(NAME tests_Literal_ops COMMAND tests_Literal_ops)
 
+add_executable(tests_CompensatedSum nodes/tests_CompensatedSum.cpp)
+target_link_libraries(tests_CompensatedSum
+        doctest::doctest
+        rdf4cpp
+        )
+add_test(NAME tests_CompensatedSum COMMAND tests_CompensatedSum)
+
 add_executable(tests_Literal_order nodes/tests_Literal_order.cpp)
 target_link_libraries(tests_Literal_order
         doctest::doctest

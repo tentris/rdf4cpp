@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <limits>
 
 #include <boost/multiprecision/cpp_int.hpp>
 #include <dice/hash.hpp>
