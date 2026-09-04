@@ -194,13 +194,13 @@ namespace rdf4cpp::parser {
 
         enum struct ContainerMapping : uint8_t {
             None = 0,
-            Graph = 1 << 0,
-            Id = 1 << 1,
-            Index = 1 << 2,
-            Language = 1 << 3,
-            List = 1 << 4,
-            Set = 1 << 5,
-            Type = 1 << 6,
+            Graph = 1u << 0u,
+            Id = 1u << 1u,
+            Index = 1u << 2u,
+            Language = 1u << 3u,
+            List = 1u << 4u,
+            Set = 1u << 5u,
+            Type = 1u << 6u,
         };
         // ReSharper disable once CppDFAUnreachableFunctionCall
         constexpr ContainerMapping operator|(ContainerMapping a, ContainerMapping b) {
@@ -241,13 +241,20 @@ namespace rdf4cpp::parser {
             return ContainerMapping::None;
         }
 
+        struct LocalContext {
+            // needs to be padded during parent context parse
+            std::string context;
+            std::string base_url;
+
+            constexpr auto operator<=>(LocalContext const &) const = default;
+        };
+
         // part of the term definition that needs to be compared for protection checks
         struct TermDefinitionBase {
             std::string key;
             IRIMapping iri_mapping;
             std::optional<std::string> base_iri;
-            // needs to be padded during parent context parse
-            std::optional<std::string> context;
+            std::optional<LocalContext> context;
             IRIMapping index_mapping;
             LanguageMapping language_mapping = NotSet{};
             std::optional<std::string> nest_value;
@@ -400,6 +407,13 @@ namespace rdf4cpp::parser {
         struct StringifyResult {
             std::string value;
             std::string_view datatype;
+        };
+
+        struct RemoteContextEntry {
+            // needs to be padded on writing
+            std::string data;
+            bool active;
+            bool skip_to_context = true;
         };
 
         // if passed in value is an array, iterates over its content

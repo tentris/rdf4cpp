@@ -4,7 +4,6 @@
 #include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
 #include <rdf4cpp/Quad.hpp>
-#include <rdf4cpp/parser/IStreamQuadIterator.hpp>
 
 #include <rdf4cpp/parser/JsonLdExpandParser.hpp>
 #include <rdf4cpp/parser/JsonLdParserTypes.hpp>
