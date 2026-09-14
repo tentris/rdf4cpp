@@ -1087,3 +1087,26 @@ TEST_CASE("a scoped context before a remote context is validated against the com
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/a> _:bn_0 .\n_:bn_0 <http://ex/x> \"v\"^^<http://ex/b> .\n");
 }
+
+TEST_CASE("a null scoped context that does not propagate keeps the previous context") {
+    // the type scoped context of T is null and does not propagate,
+    // so the nested node object uses the context from before T
+    auto const r = parse_with_remote_documents(R"({"@context": {"T": {"@id": "http://ex/T", "@context": null}, "p": "http://ex/p"},
+      "@id": "http://ex/s", "@type": "T", "http://ex/q": {"@id": "http://ex/o", "p": "v"}})",
+                                               "http://ex/doc", {});
+    CAPTURE(r.errors);
+    CAPTURE(r.quads);
+    CHECK(r.errors == "");
+    CHECK(r.quad_count == 3);
+    CHECK(r.quads.contains("<http://ex/o> <http://ex/p> \"v\" .\n"));
+
+    // the same for a null entry at the start of a scoped context array:
+    // a is defined after the null entry, so the nested node object does not know it
+    auto const r2 = parse_with_remote_documents(R"({"@context": {"T": {"@id": "http://ex/T", "@context": [null, {"a": "http://ex/a"}]}},
+      "@id": "http://ex/s", "@type": "T", "a": {"@id": "http://ex/o", "a": "v"}})",
+                                                "http://ex/doc", {});
+    CAPTURE(r2.errors);
+    CAPTURE(r2.quads);
+    CHECK(r2.errors == "");
+    CHECK(!r2.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
+}
