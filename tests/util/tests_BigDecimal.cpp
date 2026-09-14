@@ -341,6 +341,15 @@ TEST_CASE("arithmetic") {
         // digits stop being added once they do not fit anymore, the last one is still rounded
         CHECK(DecI{1, 0}.div_checked(DecI{3, 0}, 1000, RoundingMode::Floor) == DecI{333333333, 9});
         CHECK(Dec{2, 0}.div_checked(Dec{3, 0}, 1000, RoundingMode::Round) == Dec{"0.66666666666666666666666666666666666667"});
+        // divisors close to (or at) the limits of Int128, where |rem| * 10 does not fit
+        CHECK(Dec{"20000000000000000000000000000000000000"} / Dec{"30000000000000000000000000000000000000"} == Dec{"0.66666666666666666666"});
+        CHECK(Dec{"17014118346046923173168730371588410572"} / Dec{"99999999999999999999999999999999999999"} == Dec{"0.17014118346046923173"});
+        CHECK(Dec{1, 0}.div(Dec{std::numeric_limits<rdf4cpp::Int128>::min(), 0}, 20, RoundingMode::Floor) == Dec{-1, 20});
+        // rounding the last digit up must not overflow silently
+        CHECK(!Dec{"119098828422328462212181112601118874009"}.div_checked(Dec{7, 0}, 1, RoundingMode::Ceil).has_value());
+        // scaling to the larger exponent happens in the unscaled type
+        CHECK(Dec{1, 0} / Dec{1, 10} == Dec{10000000000, 0});
+        CHECK(Dec{1, 0}.div_checked(Dec{1, 0} / Dec{3, 0}, 20) == Dec{"3.00000000000000000003"});
         Dec d{5, 0};
         d /= Dec{2, 0};
         CHECK_EQ(d, Dec{25, 1});
@@ -390,6 +399,9 @@ TEST_CASE("arithmetic") {
             CHECK(Dec{"-0.5"}.round(RoundingMode::Round) == Dec{"-1.0"});
             CHECK(Dec{"-0.4"}.round(RoundingMode::Round) == Dec{"0.0"});
             CHECK(Dec{5, 39}.round(RoundingMode::Round) == Dec{0, 0});
+            CHECK(DecI{2000000000, 10}.round(RoundingMode::Round) == DecI{0, 0});  // 0.2, 10^10 does not fit int32
+            CHECK(DecI{-2000000000, 10}.round(RoundingMode::Floor) == DecI{-1, 0});
+            CHECK(Dec{5, std::numeric_limits<uint32_t>::max()}.round(RoundingMode::Ceil) == Dec{1, 0});  // must not take forever
         }
 
         SUBCASE("trunc") {
@@ -450,7 +462,10 @@ TEST_CASE("conversion") {
         CHECK(Dec{5000000000000000000.0} == Dec{5000000000000000000, 0});
         CHECK(Dec{0.0009765625} == Dec{"0.0009765625"});
         CHECK(Dec{1.0} == Dec{1, 0});
-        CHECK(Dec{1.2} != Dec{12, 1}); // 1.2 can not be exactly represented as double but can be as decimal
+        CHECK(Dec{1.2} == Dec{12, 1});  // shortest round-tripping representation, not the exact value of the double
+        CHECK(Dec{0.1f} == Dec{1, 1});
+        CHECK(Dec{0.1}.add_checked(Dec{1, 0}) == Dec{11, 1});
+        CHECK(Dec{1e-300} == Dec{1, 300});
         CHECK_EQ(static_cast<float>(Dec{1.0}), 1.0f);
         CHECK_THROWS_AS([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::max()), std::overflow_error);
         CHECK(Dec(std::numeric_limits<double>::min()) > Dec(0, 0));

@@ -63,12 +63,12 @@ namespace rdf4cpp {
             requires IntegralExt<T>
             static constexpr bool pow_checked(T const &a, unsigned int b, T &result) noexcept {
                 T r = 1;
-                bool over = false;
                 for (unsigned int i = 0; i < b; ++i) {
-                    over |= mul_checked<m, T>(r, a, r);
+                    if (mul_checked<m, T>(r, a, r))
+                        return true;
                 }
                 result = r;
-                return over;
+                return false;
             }
 
             template<typename T>

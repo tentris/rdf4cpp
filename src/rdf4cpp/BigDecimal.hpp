@@ -1,6 +1,7 @@
 #ifndef RDF4CPP_BIGDECIMAL_H
 #define RDF4CPP_BIGDECIMAL_H
 
+#include <array>
 #include <cmath>
 #include <format>
 #include <functional>
@@ -9,6 +10,7 @@
 #include <string>
 #include <string_view>
 
+#include <boost/charconv.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <dice/hash.hpp>
 
@@ -158,16 +160,6 @@ namespace rdf4cpp {
                 : BigDecimal(value, 0) {
             }
 
-            /**
-             * converts a float to a BigDecimal.
-             * this conversion might not be exact, due to the built in limitations of floats.
-             * if you have the possibility, use one of the other constructors.
-             * @param value
-             * @throw std::overflow_error on exceeding the types numeric limits
-             */
-            constexpr explicit BigDecimal(float value) : BigDecimal(static_cast<double>(value)) {
-            }
-
         private:
             void from_double_direct(double value)
             requires(std::numeric_limits<UnscaledValue_t>::digits >= std::numeric_limits<boost::multiprecision::int1024_t>::digits)
@@ -218,32 +210,40 @@ namespace rdf4cpp {
                 normalize();
             }
 
-        public:
-            /**
-             * converts a double to a BigDecimal.
-             * this conversion might not be exact, due to the built in limitations of doubles.
-             * if you have the possibility, use one of the other constructors.
-             * @param value
-             * @throw std::overflow_error on exceeding the types numeric limits
-             */
-            explicit BigDecimal(double value) : unscaled_value(0), exponent(0) {
+            template<std::floating_point F>
+            void from_floating(F value) {
                 if constexpr (!std::numeric_limits<UnscaledValue_t>::is_bounded) {
                     from_double_direct(value);
                 } else {
-                    // convert exactly first, then drop the least significant digits that do not fit
-                    BigDecimal<boost::multiprecision::checked_cpp_int> const v{value};
-                    auto uns = v.get_unscaled_value();
-                    auto ex = v.get_exponent();
-                    static boost::multiprecision::checked_cpp_int const max{std::numeric_limits<UnscaledValue_t>::max()};
-                    while (boost::multiprecision::abs(uns) > max) {  // compare instead of cast_checked: no exception per dropped digit
-                        if (ex == 0)
-                            throw std::overflow_error{"double -> decimal unscaled value overflow"};
-                        uns /= base;
-                        --ex;
+                    if (std::isinf(value) || std::isnan(value))
+                        throw std::invalid_argument{"value is NaN or infinity"};
+                    // use the shortest representation that round-trips (<= 17 significant digits) instead of the exact one,
+                    // as the exact one would use up all available digits and make the result useless for further arithmetic
+                    std::array<char, 350> buf;  // fixed notation of the smallest denormal double needs 326 chars
+                    auto const res = boost::charconv::to_chars(buf.data(), buf.data() + buf.size(), value, boost::charconv::chars_format::fixed);
+                    RDF4CPP_ASSERT(res.ec == std::errc{});
+                    try {
+                        *this = BigDecimal{std::string_view{buf.data(), res.ptr}};
+                    } catch (InvalidNode const &) {
+                        throw std::overflow_error{"double -> decimal overflow"};
                     }
-                    unscaled_value = static_cast<UnscaledValue_t>(uns);
-                    exponent = static_cast<Exponent_t>(ex);
                 }
+            }
+
+        public:
+            /**
+             * converts a float/double to a BigDecimal.
+             * this conversion might not be exact, due to the built in limitations of floating point numbers.
+             * if you have the possibility, use one of the other constructors.
+             * @param value
+             * @throw std::overflow_error on exceeding the types numeric limits
+             * @throw std::invalid_argument on NaN or infinity
+             */
+            explicit BigDecimal(float value) : unscaled_value(0), exponent(0) {
+                from_floating(value);
+            }
+            explicit BigDecimal(double value) : unscaled_value(0), exponent(0) {
+                from_floating(value);
             }
 
             /**
@@ -320,18 +320,22 @@ namespace rdf4cpp {
                 return false;
             }
 
-            // rounds the truncated quotient v (of a division with remainder rem by div) according to m
-            static constexpr BigDecimal handle_rounding(UnscaledValue_t v, Exponent_t e, UnscaledValue_t const &rem, UnscaledValue_t const &div, RoundingMode m) noexcept {
+            // whether a truncated quotient (neg: its sign) with a non-zero remainder (half: |rem / div| >= 0.5) is moved away from zero by rounding mode m
+            static constexpr bool round_away_from_zero(bool neg, bool half, RoundingMode m) noexcept {
+                return m == RoundingMode::Round ? half : m == RoundingMode::Floor ? neg : m == RoundingMode::Ceil && !neg;
+            }
+
+            // rounds the truncated quotient v (of a division with remainder rem by div) according to mode
+            template<OverflowMode m>
+            static constexpr bool handle_rounding(UnscaledValue_t v, Exponent_t e, UnscaledValue_t const &rem, UnscaledValue_t const &div, RoundingMode mode, BigDecimal &result) noexcept {
                 if (rem != 0) {
-                    bool const neg = (rem < 0) != (div < 0);  // sign of the exact quotient
-                    bool const away_from_zero = m == RoundingMode::Round ? abs(rem) >= abs(div / 2) + abs(div % 2)  // |rem / div| >= 0.5, overflow free
-                                              : m == RoundingMode::Floor ? neg
-                                              : m == RoundingMode::Ceil  ? !neg
-                                                                         : false;
-                    if (away_from_zero)
-                        v += neg ? -1 : 1;
+                    bool const neg = (rem < 0) != (div < 0);
+                    bool const half = abs(rem) >= abs(div / 2) + abs(div % 2);  // overflow free
+                    if (round_away_from_zero(neg, half, mode) && detail::add_checked<m>(v, UnscaledValue_t{neg ? -1 : 1}, v))
+                        return true;
                 }
-                return BigDecimal{v, e};
+                result = BigDecimal{v, e};
+                return false;
             }
 
             template<OverflowMode m>
@@ -347,15 +351,8 @@ namespace rdf4cpp {
                     if (detail::sub_checked<m>(ex, other.exponent, ex))
                         return true;
                 } else {
-                    Exponent_t tmp{0};
-                    if (detail::sub_checked<m>(other.exponent, ex, tmp))
-                        return true;
-                    if (detail::pow_checked<m>(Exponent_t{base}, tmp, tmp))
-                        return true;
-                    UnscaledValue_t tmp2{0};
-                    if (detail::cast_checked<m>(tmp, tmp2))
-                        return true;
-                    if (detail::mul_checked<m>(t, tmp2, t))
+                    UnscaledValue_t scale{0};
+                    if (detail::pow_checked<m>(UnscaledValue_t{base}, other.exponent - ex, scale) || detail::mul_checked<m>(t, scale, t))
                         return true;
                     ex = 0;
                 }
@@ -364,27 +361,39 @@ namespace rdf4cpp {
                         return true;
                     }
                 }
+                bool const neg = (t < 0) != (div < 0);
                 UnscaledValue_t res = t / div;
-                UnscaledValue_t rem = t % div;
+                UnscaledValue_t rem = t % div;  // keeps the sign of t
                 while (rem != 0 && max_scale_increase > 0) {
                     if constexpr (IntegralExt<Exponent_t>) {
                         if (ex == std::numeric_limits<Exponent_t>::max())
                             break;
                     }
+                    // next digit (|rem| * base) / |div| and remainder (|rem| * base) % |div| of the long division,
+                    // computed by repeated addition, because |rem| * base (or even |div|) might not fit
+                    UnscaledValue_t const r0 = abs(rem);
+                    UnscaledValue_t const step = abs(div < 0 ? div + r0 : div - r0);  // |div| - |rem|
+                    UnscaledValue_t r = r0;
+                    UnscaledValue_t digit = 0;
+                    for (uint32_t i = 1; i < base; ++i) {
+                        if (r >= step) {  // r + r0 >= |div|
+                            r -= step;
+                            ++digit;
+                        } else {
+                            r += r0;
+                        }
+                    }
                     // stop adding digits (and round) once the next one does not fit anymore
                     UnscaledValue_t next_res;
-                    UnscaledValue_t next_rem;
                     if (detail::mul_checked<OverflowMode::Checked>(res, UnscaledValue_t{base}, next_res)
-                        || detail::mul_checked<OverflowMode::Checked>(rem, UnscaledValue_t{base}, next_rem)
-                        || detail::add_checked<OverflowMode::Checked>(next_res, next_rem / div, next_res))
+                        || detail::add_checked<OverflowMode::Checked>(next_res, neg ? -digit : digit, next_res))
                         break;
                     ++ex;
                     res = next_res;
-                    rem = next_rem % div;
+                    rem = rem < 0 ? -r : r;
                     --max_scale_increase;
                 }
-                result = handle_rounding(res, ex, rem, div, mode);
-                return false;
+                return handle_rounding<m>(res, ex, rem, div, mode, result);
             }
 
             template<OverflowMode m>
@@ -632,20 +641,20 @@ namespace rdf4cpp {
              * @return
              */
             [[nodiscard]] constexpr BigDecimal round(RoundingMode mode) const noexcept {
-                UnscaledValue_t uns = unscaled_value;
-                Exponent_t ex = exponent;
+                BigDecimal res{0, 0};
                 UnscaledValue_t v{0};
-                bool lost = false;  // a non-zero digit was dropped below
-                while (detail::pow_checked<OverflowMode::Checked>(UnscaledValue_t{base}, ex, v)) {
-                    // base^ex does not fit, so |*this| < 1: dropping the last digit of uns does not change the result
-                    lost |= uns % base != 0;
-                    uns /= base;
-                    --ex;
+                if (detail::pow_checked<OverflowMode::Checked>(UnscaledValue_t{base}, exponent, v)) {
+                    // base^exponent does not fit while unscaled_value does, so |*this| < 1 and the result is 0 or +-1.
+                    // |*this| >= 0.5 iff |unscaled_value| >= 5 * base^(exponent - 1)
+                    bool const half = !detail::pow_checked<OverflowMode::Checked>(UnscaledValue_t{base}, exponent - 1, v)
+                                      && !detail::mul_checked<OverflowMode::Checked>(v, UnscaledValue_t{5}, v)
+                                      && (unscaled_value >= v || unscaled_value <= -v);
+                    if (unscaled_value != 0 && round_away_from_zero(!positive(), half, mode))
+                        res = BigDecimal{positive() ? 1 : -1, 0};
+                } else {
+                    handle_rounding<OverflowMode::UndefinedBehavior>(unscaled_value / v, 0, unscaled_value % v, v, mode, res);
                 }
-                UnscaledValue_t rem = uns % v;
-                if (rem == 0 && lost)
-                    rem = positive() ? 1 : -1;  // only the sign and non-zeroness matter for rounding here
-                return handle_rounding(uns / v, 0, rem, v, mode);
+                return res;
             }
 
             /**

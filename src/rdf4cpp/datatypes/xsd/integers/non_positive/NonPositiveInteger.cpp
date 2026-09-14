@@ -52,12 +52,11 @@ nonstd::expected<capabilities::Default<xsd_non_positive_integer>::cpp_type, Dyna
 
 template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_non_positive_integer>::try_into_inlined(cpp_type const &value) noexcept {
-    auto const to_pack_value = -value;
-    if (to_pack_value >= (uint64_t{1} << storage::identifier::LiteralID::width)) {
+    if (value <= -(cpp_type{1} << storage::identifier::LiteralID::width)) {  // check before negating, -min would overflow
         return std::nullopt;
     }
 
-    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<uint64_t>(to_pack_value));
+    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<uint64_t>(-value));
 }
 
 template<>

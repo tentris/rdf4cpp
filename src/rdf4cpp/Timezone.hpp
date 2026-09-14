@@ -10,6 +10,7 @@
 #include <rdf4cpp/datatypes/rdf.hpp>
 #include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 #include <rdf4cpp/Assert.hpp>
+#include <rdf4cpp/util/boost_int.hpp>  // hash for checked_int128_t
 
 #include <boost/multiprecision/cpp_int.hpp>
 

@@ -69,4 +69,8 @@ TEST_CASE("xsd:nonPositiveInteger inlining") {
     auto large_lit = Literal::make_typed_from_value<NonPositiveInteger>(-(1l << 42) + 1);
     CHECK(large_lit.backend_handle().is_inlined());
     CHECK(large_lit.value<NonPositiveInteger>() == (-(1l << 42) + 1));
+
+    auto min_lit = Literal::make_typed_from_value<NonPositiveInteger>(std::numeric_limits<rdf4cpp::Int128>::min());
+    CHECK(!min_lit.backend_handle().is_inlined());
+    CHECK(min_lit.value<NonPositiveInteger>() == std::numeric_limits<rdf4cpp::Int128>::min());
 }
