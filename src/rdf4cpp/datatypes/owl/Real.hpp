@@ -36,6 +36,10 @@ nonstd::expected<capabilities::Numeric<owl_real>::floor_result_cpp_type, Dynamic
 
 template<>
 nonstd::expected<capabilities::Numeric<owl_real>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::ceil(cpp_type const &operand) noexcept;
+
+template<>
+nonstd::expected<capabilities::Default<owl_real>::cpp_type, DynamicError> capabilities::Numeric<owl_real>::from_multiplicity(uint64_t multiplicity) noexcept;
+
 #endif
 
 extern template struct LiteralDatatypeImpl<owl_real,

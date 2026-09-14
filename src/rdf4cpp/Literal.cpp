@@ -252,6 +252,10 @@ Literal Literal::make_boolean(TriBool const b, storage::DynNodeStoragePtr node_s
     return Literal::make_typed_from_value<datatypes::xsd::Boolean>(b == TriBool::True, node_storage);
 }
 
+Literal Literal::make_from_multiplicity(uint64_t multiplicity, IRI const &datatype, storage::DynNodeStoragePtr node_storage) {
+    return materialize_deferred(make_deferred_from_multiplicity(multiplicity, datatype), node_storage);
+}
+
 Literal Literal::make_string_uuid(storage::DynNodeStoragePtr node_storage) {
     boost::uuids::random_generator_mt19937 gen{};
     boost::uuids::uuid u = gen();

@@ -64,6 +64,8 @@ struct DatatypeRegistry {
      */
     using compare_inlined_fptr_t = std::partial_ordering (*)(storage::identifier::LiteralID, storage::identifier::LiteralID) noexcept;
 
+    using from_multiplicity_fptr_t = nonstd::expected<std::any, DynamicError> (*)(uint64_t multiplicity) noexcept;
+
     struct NumericOpsImpl {
         nullop_fptr_t zero_value_fptr; // 0
         nullop_fptr_t one_value_fptr; // 1
@@ -84,6 +86,8 @@ struct DatatypeRegistry {
         predicate_fptr_t is_inf_fptr; // is_inf(a)
 
         compare_fptr_t magnitude_compare_fptr; // compare(abs(a), abs(b)), only available if the datatype is also comparable
+
+        from_multiplicity_fptr_t from_multiplicity_fptr; // from_multiplicity(n)
     };
 
     struct NumericOpsStub {
@@ -829,7 +833,10 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
                 } else {
                     return nullptr;
                 }
-            }()};
+            }(),
+            .from_multiplicity_fptr = [](uint64_t multiplicity) noexcept -> nonstd::expected<std::any, DynamicError> {
+                return detail::map_expected(LiteralDatatype_t::from_multiplicity(multiplicity));
+            }};
 }
 
 template<datatypes::TimepointLiteralDatatype LiteralDatatype_t>

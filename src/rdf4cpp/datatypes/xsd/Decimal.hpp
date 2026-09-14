@@ -68,6 +68,9 @@ template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::ceil(cpp_type const &operand) noexcept;
 
 template<>
+nonstd::expected<capabilities::Default<xsd_decimal>::cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::from_multiplicity(uint64_t multiplicity) noexcept;
+
+template<>
 bool capabilities::Logical<xsd_decimal>::effective_boolean_value(cpp_type const &value) noexcept;
 
 template<>

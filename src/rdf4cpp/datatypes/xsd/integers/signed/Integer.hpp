@@ -48,6 +48,9 @@ template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::ceil(cpp_type const &operand) noexcept;
 
 template<>
+nonstd::expected<capabilities::Default<xsd_integer>::cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::from_multiplicity(uint64_t multiplicity) noexcept;
+
+template<>
 std::partial_ordering capabilities::Comparable<xsd_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>

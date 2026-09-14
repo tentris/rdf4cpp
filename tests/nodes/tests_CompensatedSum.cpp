@@ -421,6 +421,33 @@ TEST_CASE("near max") {
     CHECK_EQ(s.value(), manual_sum);
 }
 
+TEST_CASE_TEMPLATE("a term dwarfed by max is only kept by the compensation", T, datatypes::xsd::Double, datatypes::xsd::Float) {
+    using F = typename T::cpp_type;
+    auto const lit = [](F v) { return Literal::make_typed_from_value<T>(v); };
+
+    F const max = std::numeric_limits<F>::max();
+    // a quarter ULP of max: max + eps rounds back to max, so the naive fold forgets eps entirely
+    F const eps = std::ldexp(F{1}, std::numeric_limits<F>::max_exponent - std::numeric_limits<F>::digits - 2);
+
+    SUBCASE("recovered once max is cancelled away") {
+        for (F const sign : {F{1}, F{-1}}) {
+            CAPTURE(sign);
+            std::vector<Literal> const lits{lit(sign * max), lit(sign * eps), lit(-sign * max)};
+
+            CHECK_EQ(naive_sum(lits).value<T>(), F{0});
+            CHECK_EQ(compensated_sum(lits).value<T>(), sign * eps);
+        }
+    }
+
+    SUBCASE("the carried losses reveal an overflow the naive fold rounds away") {
+        // three quarters of an ULP is past the half that rounds down, so inf is the correctly rounded total
+        std::vector<Literal> const lits{lit(max), lit(eps), lit(eps), lit(eps)};
+
+        CHECK_EQ(naive_sum(lits).value<T>(), max);
+        CHECK(std::isinf(compensated_sum(lits).value<T>()));
+    }
+}
+
 TEST_CASE("poisoned") {
     CompensatedSum s;
     s.add(1_xsd_integer);
@@ -429,4 +456,31 @@ TEST_CASE("poisoned") {
     s.add("hello"_xsd_string);
     CHECK(s.poisoned());
     CHECK(s.value().null());
+}
+
+TEST_CASE("zero mult") {
+    SUBCASE("exact") {
+        CompensatedSum s;
+        s.add(1_xsd_integer);
+        s.add(2_xsd_integer, 0);
+
+        CHECK_EQ(s.value(), 1_xsd_integer);
+    }
+
+    SUBCASE("non-exact") {
+        CompensatedSum s;
+        s.add(1.0_xsd_double);
+        s.add(1.0_xsd_double, 0);
+
+        CHECK_EQ(s.value(), 1.0_xsd_double);
+    }
+
+    SUBCASE("type change avoided") {
+        CompensatedSum s;
+        s.add("1.5"_xsd_decimal, 0);
+
+        auto const res = s.value();
+        CHECK(res.template datatype_eq<datatypes::xsd::Integer>());
+        CHECK_EQ(res, 0_xsd_integer);
+    }
 }

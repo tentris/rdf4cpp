@@ -300,6 +300,10 @@ struct Numeric {
             return false;
         }
     }
+
+    static nonstd::expected<cpp_type, DynamicError> from_multiplicity([[maybe_unused]] uint64_t multiplicity) noexcept {
+        return nonstd::make_unexpected(DynamicError::Unsupported);
+    }
 };
 
 /**

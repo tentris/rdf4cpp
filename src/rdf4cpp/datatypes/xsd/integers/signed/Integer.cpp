@@ -61,6 +61,11 @@ nonstd::expected<capabilities::Numeric<xsd_integer>::ceil_result_cpp_type, Dynam
 }
 
 template<>
+nonstd::expected<capabilities::Default<xsd_integer>::cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::from_multiplicity(uint64_t multiplicity) noexcept {
+    return multiplicity; // any 64bit integer is exactly representable in boost::multiprecision::cpp_int
+}
+
+template<>
 std::partial_ordering capabilities::Comparable<xsd_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     if (lhs < rhs) {
         return std::partial_ordering::less;
