@@ -1121,3 +1121,34 @@ TEST_CASE("an absolute remote context url that is no valid iri is rejected") {
     CHECK(r.errors == "loading document failed\n");
     CHECK(r.quads == "");
 }
+
+TEST_CASE("a remote context that is no valid json only fails its own node object") {
+    // the document has three node objects, the second one loads a broken remote context.
+    // that is a parsing error for the second node object, the other two still produce their quads
+    static constexpr std::string_view remote = R"([{"@id": "http://ex/s1", "http://ex/p": "v1"},
+      {"@context": "http://ex/bad.jsonld", "@id": "http://ex/s2", "http://ex/p": "v2"},
+      {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
+    static constexpr std::string_view imported = R"([{"@id": "http://ex/s1", "http://ex/p": "v1"},
+      {"@context": {"@version": 1.1, "@import": "http://ex/bad.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v2"},
+      {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
+    static constexpr std::string_view expected_quads = "<http://ex/s1> <http://ex/p> \"v1\" .\n<http://ex/s3> <http://ex/p> \"v3\" .\n";
+
+    SUBCASE("an empty body") {
+        std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", ""}};
+        auto const r = parse_with_remote_documents(std::string{remote}, "http://ex/doc", docs);
+        CHECK(r.errors == "invalid remote context\n");
+        CHECK(r.quads == expected_quads);
+    }
+    SUBCASE("a truncated body") {
+        std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", R"({"@context": {"a": "http://ex/)"}};
+        auto const r = parse_with_remote_documents(std::string{remote}, "http://ex/doc", docs);
+        CHECK(r.errors == "invalid remote context\n");
+        CHECK(r.quads == expected_quads);
+    }
+    SUBCASE("an empty body behind @import") {
+        std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", ""}};
+        auto const r = parse_with_remote_documents(std::string{imported}, "http://ex/doc", docs);
+        CHECK(r.errors == "invalid remote context\n");
+        CHECK(r.quads == expected_quads);
+    }
+}
