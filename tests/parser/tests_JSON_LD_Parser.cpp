@@ -984,3 +984,27 @@ TEST_CASE("disabled remote context & import") {
     parse_test_helpers::parser_test_negative(remote_test_file_to_str("c031-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc031", nullptr, ParsingFlag::JsonLd);
     parse_test_helpers::parser_test_negative(remote_test_file_to_str("so05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso05", nullptr, ParsingFlag::JsonLd);
 }
+
+TEST_CASE("a prefix term defined on demand is parsed with the base url of the document") {
+    // A uses the prefix B before the definition of B, so B gets defined while A is defined.
+    // the scoped context of B is a relative url, it resolves against the base url of the document
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": {"A": {"@id": "B:x"}, "B": {"@id": "http://ex/b/", "@prefix": true, "@context": "ctx.jsonld"}},
+      "@id": "http://ex/s", "B": {"@id": "http://ex/o"}})",
+                                               "http://ex/doc", docs);
+    CHECK(r.requested == "http://ex/ctx.jsonld\n");
+    CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/b/> <http://ex/o> .\n");
+
+    // s uses the prefix t before the second definition of t, so t gets defined while s is defined.
+    // both definitions of t are the same, so the redefinition of the protected term is allowed
+    jsonld_test_positive(R"({"@context": [
+        {"s": "http://ex/s", "t": {"@id": "http://ex/t/", "@prefix": true, "@protected": true, "@context": {"@vocab": "http://ex/v/"}}},
+        {"s": {"@id": "t:x"}, "t": {"@id": "http://ex/t/", "@prefix": true, "@protected": true, "@context": {"@vocab": "http://ex/v/"}}}
+      ], "s": "v"})",
+                         R"(_:b0 <http://ex/t/x> "v" .)",
+                         "http://example.org/");
+}
