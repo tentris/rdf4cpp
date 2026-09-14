@@ -39,6 +39,7 @@ static DeferredLiteral make_deferred_from_multiplicity_impl(uint64_t multiplicit
 }
 
 DeferredLiteral make_deferred_from_multiplicity(uint64_t multiplicity, IRI const &datatype) {
+    RDF4CPP_DEBUG_ASSERT(!datatype.null());
     return make_deferred_from_multiplicity_impl(multiplicity, datatype, datatype.backend_handle().storage());
 }
 
