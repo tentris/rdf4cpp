@@ -811,13 +811,13 @@ TEST_CASE("test deduplication keeps terms that are only value equal") {
 })",
                                              R"(<http://example.com/s> <http://example.com/p> "1.0E0"^^<http://www.w3.org/2001/XMLSchema#double> .
 <http://example.com/s> <http://example.com/p> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
-                                             "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, std::nullopt, true);
+                                             "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, nullptr, true);
 }
 
 /**
  * Output of parse_with_remote_documents. Each string holds one entry per line.
  */
-struct RemoteDocumentsParse {
+struct ParseWithRemotesResult {
     std::string quads;      // the parsed quads in n-quads syntax
     std::string errors;     // the messages of the parsing errors
     std::string requested;  // the urls passed to request_url, in the order of the calls
@@ -828,8 +828,8 @@ struct RemoteDocumentsParse {
  * Parses the json-ld document doc with the base IRI base. request_url answers from docs,
  * any other url gets the error "not found".
  */
-RemoteDocumentsParse parse_with_remote_documents(std::string doc, std::string_view base, std::map<std::string, std::string, std::less<>> const &docs) {
-    RemoteDocumentsParse r;
+ParseWithRemotesResult parse_with_remote_documents(std::string doc, std::string_view base, std::map<std::string, std::string, std::less<>> const &docs) {
+    ParseWithRemotesResult r;
     IStreamQuadIterator::state_type state{};
     state.iri_factory.set_base(base);
     state.request_url = [&](std::string_view url) -> nonstd::expected<ParsingState::RequestResult, std::string> {
@@ -981,6 +981,6 @@ TEST_CASE("an exception from request_url becomes a parsing error") {
 }
 
 TEST_CASE("disabled remote context & import") {
-    parse_test_helpers::parser_test_negative(remote_test_file_to_str("c031-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc031", std::nullopt, ParsingFlag::JsonLd);
-    parse_test_helpers::parser_test_negative(remote_test_file_to_str("so05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso05", std::nullopt, ParsingFlag::JsonLd);
+    parse_test_helpers::parser_test_negative(remote_test_file_to_str("c031-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc031", nullptr, ParsingFlag::JsonLd);
+    parse_test_helpers::parser_test_negative(remote_test_file_to_str("so05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso05", nullptr, ParsingFlag::JsonLd);
 }
