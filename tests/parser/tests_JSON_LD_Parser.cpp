@@ -1025,3 +1025,37 @@ TEST_CASE("@propagate false in a remote context falls back to the earlier entrie
     CHECK(r.quads.contains("<http://ex/s> <http://ex/a> <http://ex/o> .\n"));
     CHECK(r.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
 }
+
+TEST_CASE("two node objects that import the same context request it only once") {
+    // the url of an @import is the key of the remote context cache, it stays valid
+    // after request_url returned, also when the buffer of the IRIFactory is reused
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base("http://ex/dir/doc");
+    size_t calls = 0;
+    state.request_url = [&](std::string_view url) -> nonstd::expected<ParsingState::RequestResult, std::string> {
+        std::string const requested{url};
+        ++calls;
+        // every IRIFactory resolves into the same thread local buffer
+        IRIFactory f{"http://ex/dir/"};
+        (void) f.from_maybe_relative_as_string("some/much/longer/relative/path/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        if (!requested.ends_with("imp.jsonld")) {
+            return nonstd::unexpected{std::format("unexpected url {}", requested)};
+        }
+        return ParsingState::RequestResult{R"({"@context": {"t": "http://ex/t"}})", requested};
+    };
+
+    std::stringstream json{R"([{"@context": {"@version": 1.1, "@import": "imp.jsonld"}, "@id": "http://ex/s1", "http://ex/p": "v"},
+       {"@context": {"@version": 1.1, "@import": "imp.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v"}])"};
+    size_t values = 0;
+    std::string errors;
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            ++values;
+        } else {
+            errors += std::format("{}\n", it->error().message);
+        }
+    }
+    CAPTURE(errors);
+    CHECK(calls == 1);
+    CHECK(values == 2);
+}
