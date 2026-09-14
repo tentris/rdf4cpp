@@ -1059,3 +1059,17 @@ TEST_CASE("two node objects that import the same context request it only once") 
     CHECK(calls == 1);
     CHECK(values == 2);
 }
+
+TEST_CASE("an absolute @import url is loaded without a base url") {
+    // B is defined on demand while A is defined, the @import of its scoped context is absolute
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/imp.jsonld", R"({"@context": {"t": "http://ex/t"}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": {"A": {"@id": "B:x"}, "B": {"@id": "http://ex/b/", "@prefix": true, "@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}}},
+      "@id": "http://ex/s", "B": {"@id": "http://ex/o"}})",
+                                               "http://ex/doc", docs);
+    CHECK(r.requested == "http://ex/imp.jsonld\n");
+    CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/b/> <http://ex/o> .\n");
+}
