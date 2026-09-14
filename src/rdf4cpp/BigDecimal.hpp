@@ -4,6 +4,7 @@
 #include <cmath>
 #include <format>
 #include <functional>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <string_view>

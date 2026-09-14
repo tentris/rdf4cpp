@@ -17,7 +17,7 @@ struct SpecializedLiteralBackend {
     typename T::cpp_type value;
 
     explicit SpecializedLiteralBackend(view_type const &view) noexcept : hash{view.hash<literal_type>()},
-                                                                         value{std::any_cast<typename T::cpp_type>(view.value)} {
+                                                                         value{std::any_cast<typename T::cpp_type const &>(view.value)} {
         RDF4CPP_ASSERT(view.datatype == SpecializedLiteralBackend::datatype);
     }
 

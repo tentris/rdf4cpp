@@ -263,10 +263,12 @@ std::optional<DatatypeRegistry::DatatypeConverter> DatatypeRegistry::get_common_
     };
 
     // call find_conv_impl with entries in correct order (lesser s rank, greater s rank)
+    std::optional<DatatypeConverter> res;
     if (lhs_conv.subtype_rank() - lhs_init_soff < rhs_conv.subtype_rank() - rhs_init_soff) {
-        return find_conv_impl(lhs_conv, rhs_conv, lhs_init_soff, rhs_init_soff);
+        res = find_conv_impl(lhs_conv, rhs_conv, lhs_init_soff, rhs_init_soff);
+        return res;
     } else {
-        auto res = find_conv_impl(rhs_conv, lhs_conv, rhs_init_soff, lhs_init_soff);
+        res = find_conv_impl(rhs_conv, lhs_conv, rhs_init_soff, lhs_init_soff);
 
         if (res.has_value()) {
             // swap functions to reverse the ordering change

@@ -11,6 +11,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <sstream>
 #include <string_view>
 #include <type_traits>
@@ -190,16 +191,16 @@ struct Numeric {
     using floor_result_cpp_type = typename detail::SelectOpResult<floor_result, cpp_type>::type;
     using ceil_result_cpp_type = typename detail::SelectOpResult<ceil_result, cpp_type>::type;
 
-    inline static cpp_type zero_value() noexcept {
+    static cpp_type zero_value() noexcept {
         return cpp_type{0};
     }
 
-    inline static cpp_type one_value() noexcept {
+    static cpp_type one_value() noexcept {
         return cpp_type{1};
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-add
-    inline static nonstd::expected<add_result_cpp_type, DynamicError> add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    static nonstd::expected<add_result_cpp_type, DynamicError> add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
         if constexpr (std::is_integral_v<cpp_type>) {
             cpp_type res;
             bool const overflowed = __builtin_add_overflow(lhs, rhs, &res);
@@ -215,7 +216,7 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-subtract
-    inline static nonstd::expected<sub_result_cpp_type, DynamicError> sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    static nonstd::expected<sub_result_cpp_type, DynamicError> sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
         if constexpr (std::is_integral_v<cpp_type>) {
             cpp_type res;
             bool const overflowed = __builtin_sub_overflow(lhs, rhs, &res);
@@ -231,7 +232,7 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-multiply
-    inline static nonstd::expected<mul_result_cpp_type, DynamicError> mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    static nonstd::expected<mul_result_cpp_type, DynamicError> mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
         if constexpr (std::is_integral_v<cpp_type>) {
             cpp_type res;
             bool const overflowed = __builtin_mul_overflow(lhs, rhs, &res);
@@ -247,7 +248,7 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-divide
-    inline static nonstd::expected<div_result_cpp_type, DynamicError> div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    static nonstd::expected<div_result_cpp_type, DynamicError> div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
         if constexpr (std::is_integral_v<cpp_type>) {
             if (rhs == 0) {
                 return nonstd::make_unexpected(DynamicError::DivideByZero);
@@ -258,12 +259,12 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-unary-plus
-    inline static nonstd::expected<pos_result_cpp_type, DynamicError> pos(cpp_type const &operand) noexcept {
+    static nonstd::expected<pos_result_cpp_type, DynamicError> pos(cpp_type const &operand) noexcept {
         return +operand;
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-unary-minus
-    inline static nonstd::expected<neg_result_cpp_type, DynamicError> neg(cpp_type const &operand) noexcept {
+    static nonstd::expected<neg_result_cpp_type, DynamicError> neg(cpp_type const &operand) noexcept {
         if constexpr (std::is_unsigned_v<cpp_type>) {
             return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
         } else {
@@ -272,23 +273,32 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-abs
-    inline static nonstd::expected<abs_result_cpp_type, DynamicError> abs([[maybe_unused]] cpp_type const &operand) noexcept {
+    static nonstd::expected<abs_result_cpp_type, DynamicError> abs([[maybe_unused]] cpp_type const &operand) noexcept {
         return nonstd::make_unexpected(DynamicError::Unsupported);
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-round
-    inline static nonstd::expected<round_result_cpp_type, DynamicError> round([[maybe_unused]] cpp_type const &operand) noexcept {
+    static nonstd::expected<round_result_cpp_type, DynamicError> round([[maybe_unused]] cpp_type const &operand) noexcept {
         return nonstd::make_unexpected(DynamicError::Unsupported);
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-floor
-    inline static nonstd::expected<floor_result_cpp_type, DynamicError> floor([[maybe_unused]] cpp_type const &operand) noexcept {
+    static nonstd::expected<floor_result_cpp_type, DynamicError> floor([[maybe_unused]] cpp_type const &operand) noexcept {
         return nonstd::make_unexpected(DynamicError::Unsupported);
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-ceiling
-    inline static nonstd::expected<ceil_result_cpp_type, DynamicError> ceil([[maybe_unused]] cpp_type const &operand) noexcept {
+    static nonstd::expected<ceil_result_cpp_type, DynamicError> ceil([[maybe_unused]] cpp_type const &operand) noexcept {
         return nonstd::make_unexpected(DynamicError::Unsupported);
+    }
+
+    static bool is_inf([[maybe_unused]] cpp_type const &operand) noexcept {
+        if constexpr (std::numeric_limits<cpp_type>::has_infinity) {
+            using std::isinf;
+            return isinf(operand);
+        } else {
+            return false;
+        }
     }
 };
 

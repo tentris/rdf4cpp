@@ -62,11 +62,12 @@ public:
     }
 
     [[nodiscard]] Node get_or_generate_node(std::string_view label, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
-        if (auto const node = try_get_node(label); !node.null()) {
+        auto node = try_get_node(label);
+        if (!node.null()) {
             return node;
         }
 
-        auto const node = generate_node(node_storage);
+        node = generate_node(node_storage);
 
         std::unique_lock lock{mutex_};
         auto [it, inserted] = label_to_handle_.emplace(label, node.backend_handle());

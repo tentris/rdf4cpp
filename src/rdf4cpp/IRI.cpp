@@ -192,6 +192,18 @@ FetchOrSerializeResult IRI::fetch_or_serialize_identifier(std::string_view &out,
     return FetchOrSerializeResult::Fetched;
 }
 
+TriBool IRI::is_numeric_datatype() const {
+    if (null()) {
+        return TriBool::Err;
+    }
+
+    if (auto is_num = storage::identifier::iri_node_id_to_literal_type(backend_handle().id()).is_numeric(); is_num != TriBool::Err) {
+        return is_num;
+    }
+
+    return datatypes::registry::DatatypeRegistry::get_numerical_ops(*this) != nullptr;
+}
+
 inline namespace shorthands {
 
 IRI operator""_iri(char const *str, size_t const len) {

@@ -15,13 +15,15 @@ storage::DynNodeStoragePtr Namespace::node_storage() const {
 }
 
 IRI Namespace::operator+(std::string_view suffix) const {
+    IRI iri;
     if (auto found = cache_.find(suffix); found != cache_.end()) {
-        return IRI{storage::identifier::NodeBackendHandle{found->second, node_storage_}};
+        iri = IRI{storage::identifier::NodeBackendHandle{found->second, node_storage_}};
+        return iri;
     } else {
         std::string namespace_iri{namespace_iri_};
         namespace_iri.append(suffix);
 
-        IRI iri{namespace_iri, node_storage_};
+        iri = IRI{namespace_iri, node_storage_};
         cache_.emplace(suffix, iri.backend_handle().id());
         return iri;
     }

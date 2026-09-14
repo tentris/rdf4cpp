@@ -134,8 +134,10 @@ TEST_CASE("double inlining large") {
     size_t total = 0;
     size_t num_inlined = 0;
     size_t num_sums_inlined = 0;
+    size_t num_comp_sums_inlined = 0;
 
     Literal sum = 0.0_xsd_double;
+    CompensatedSum comp_sum;
 
     for (auto const &quad : parser::RDFFileParser{"doubles.ttl"}) {
         CHECK(quad.has_value());
@@ -148,14 +150,20 @@ TEST_CASE("double inlining large") {
 
         sum += dbl;
         num_sums_inlined += sum.is_inlined();
+
+        comp_sum.add(dbl);
+        num_comp_sums_inlined += comp_sum.value().is_inlined();
     }
 
     auto const inlining_percentage = static_cast<double>(num_inlined) / static_cast<double>(total) * 100.0;
     auto const sum_inlining_percentage = static_cast<double>(num_sums_inlined) / static_cast<double>(total) * 100.0;
+    auto const comp_sum_inlining_percentage = static_cast<double>(num_comp_sums_inlined) / static_cast<double>(total) * 100.0;
+
+    std::cout << std::format("{:.2f}% of values inlined ({}/{})\n", inlining_percentage, num_inlined, total)
+              << std::format("{:.2f}% of sums inlined ({}/{})\n", sum_inlining_percentage, num_sums_inlined, total)
+              << std::format("{:.2f}% of compensated sums inlined ({}/{})\n", comp_sum_inlining_percentage, num_comp_sums_inlined, total);
 
     CHECK_GE(inlining_percentage, 99.0); // :)
     CHECK_GE(sum_inlining_percentage, 4.0); // :(
-
-    std::cout << std::format("{:.2f}% of values inlined ({}/{})\n", inlining_percentage, num_inlined, total)
-              << std::format("{:.2f}% of sums inlined ({}/{})\n", sum_inlining_percentage, num_sums_inlined, total);
+    CHECK_GE(comp_sum_inlining_percentage, 99.0); // :)
 }

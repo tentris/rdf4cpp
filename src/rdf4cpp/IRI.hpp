@@ -180,6 +180,11 @@ public:
 
         return identifier() == T::identifier;
     }
+
+    /**
+     * @return err if this is null, otherwise true iff this IRI is the datatype IRI for a numeric literal
+     */
+    [[nodiscard]] TriBool is_numeric_datatype() const;
 };
 
 inline namespace shorthands {

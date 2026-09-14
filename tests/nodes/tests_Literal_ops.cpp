@@ -549,7 +549,7 @@ TEST_SUITE("deferred numeric ops") {
      * checks that all deferred ops on lhs and rhs produce exactly what the corresponding Literal ops produce
      */
     void check_matches_eager(Literal const &lhs, Literal const &rhs) {
-        auto const check = [](Literal const &expected, DeferredValue &&res) {
+        auto const check = [](Literal const &expected, DeferredLiteral &&res) {
             auto const got = materialize_deferred(std::move(res));
 
             if (expected.null()) {
@@ -617,13 +617,13 @@ TEST_SUITE("deferred numeric ops") {
         auto const one = Literal::make_typed_from_value<datatypes::xsd::Integer>(1);
         auto const zero = Literal::make_typed_from_value<datatypes::xsd::Integer>(0);
 
-        CHECK(materialize_deferred(DeferredValue{}).null());
-        CHECK(numeric_add_deferred(DeferredValue{}, make_deferred_from_literal(one)).second.null());
-        CHECK(numeric_add_deferred(make_deferred_from_literal(one), DeferredValue{}).second.null());
+        CHECK(materialize_deferred(DeferredLiteral{}).null());
+        CHECK(numeric_add_deferred(DeferredLiteral{}, make_deferred_from_literal(one)).null());
+        CHECK(numeric_add_deferred(make_deferred_from_literal(one), DeferredLiteral{}).null());
 
         auto const div_by_zero = numeric_div_deferred(make_deferred_from_literal(one), make_deferred_from_literal(zero));
-        CHECK(div_by_zero.second.null());
-        CHECK(numeric_add_deferred(div_by_zero, make_deferred_from_literal(one)).second.null());
+        CHECK(div_by_zero.null());
+        CHECK(numeric_add_deferred(div_by_zero, make_deferred_from_literal(one)).null());
     }
 
     TEST_CASE("folding does not store the intermediate results") {
@@ -658,7 +658,7 @@ TEST_SUITE("deferred numeric ops") {
         using namespace datatypes;
 
         // the value is converted to the cpp_type by the compiler, so it cannot disagree with the datatype
-        auto const check = [](DeferredValue const &got, Literal const &expected) {
+        auto const check = [](DeferredLiteral const &got, Literal const &expected) {
             CHECK(materialize_deferred(got).order_eq(expected));
         };
 
@@ -727,14 +727,14 @@ TEST_SUITE("deferred numeric ops") {
         // B + Y -> Z, so the result datatype is that of neither operand and has to be created
         auto const lhs = make_deferred_from_literal(Literal::make_typed_from_value<xsd::B>(1));
         auto const rhs = make_deferred_from_literal(Literal::make_typed_from_value<xsd::Y>(1.f));
-        CHECK_EQ(numeric_add_deferred(lhs, rhs, node_storage).second.backend_handle().storage(),
+        CHECK_EQ(numeric_add_deferred(lhs, rhs, node_storage).datatype.backend_handle().storage(),
                  storage::DynNodeStoragePtr{node_storage});
 
         // this also holds if the result datatype is that of an operand
         auto const same = make_deferred_from_literal(Literal::make_typed_from_value<xsd::Z>(2.0));
-        CHECK_EQ(numeric_add_deferred(same, same).second.backend_handle().storage(),
+        CHECK_EQ(numeric_add_deferred(same, same).datatype.backend_handle().storage(),
                  storage::default_node_storage);
-        CHECK_EQ(numeric_add_deferred(same, same, node_storage).second.backend_handle().storage(),
+        CHECK_EQ(numeric_add_deferred(same, same, node_storage).datatype.backend_handle().storage(),
                  storage::DynNodeStoragePtr{node_storage});
     }
 }

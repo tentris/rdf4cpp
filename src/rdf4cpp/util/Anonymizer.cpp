@@ -64,22 +64,26 @@ storage::DynNodeStoragePtr Anonymizer::node_storage() const noexcept {
 IRI Anonymizer::anonymize(Node const &non_anon) {
     using namespace storage::identifier;
 
+    IRI ret;
+
     if (non_anon.null() || non_anon.as_iri().is_default_graph()) {
-        return non_anon.as_iri();
+        ret = non_anon.as_iri();
+        return ret;
     }
 
     if (auto it = lookup_.find(non_anon.backend_handle()); it != lookup_.end()) {
-        return IRI{NodeBackendHandle{it->second, node_storage_}};
+        ret = IRI{NodeBackendHandle{it->second, node_storage_}};
+        return ret;
     }
 
     std::array<char, IRIFactory::default_base.size() + 16> buf;
     std::ranges::copy(IRIFactory::default_base, buf.begin());
     gen_random_id(std::span{buf}.subspan(IRIFactory::default_base.size()));
 
-    auto anon = IRI::make(std::string_view{buf.data(), buf.size()}, node_storage_);
-    lookup_.emplace(non_anon.backend_handle(), anon.backend_handle().id());
+    ret = IRI::make(std::string_view{buf.data(), buf.size()}, node_storage_);
+    lookup_.emplace(non_anon.backend_handle(), ret.backend_handle().id());
 
-    return anon;
+    return ret;
 }
 
 Statement Anonymizer::anonymize(Statement const &non_anon) {
