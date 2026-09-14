@@ -412,8 +412,8 @@ namespace rdf4cpp::parser {
         struct RemoteContextEntry {
             // needs to be padded on writing
             std::string data;
-            bool active;
-            bool skip_to_context = true;
+            // possibly redirected
+            std::string final_url;
         };
 
         // if passed in value is an array, iterates over its content

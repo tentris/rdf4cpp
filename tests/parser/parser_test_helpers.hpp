@@ -84,13 +84,18 @@ namespace rdf4cpp::parse_test_helpers {
         }
     }
 
-    inline void parser_test_negative(std::string check_str, std::string_view base_iri, parser::ParsingFlags flags) {
+    inline void parser_test_negative(std::string check_str, std::string_view base_iri, std::optional<decltype(parser::ParsingState::request_url)> request_url, parser::ParsingFlags flags) {
         using namespace rdf4cpp::parser;
 
         CAPTURE(base_iri);
+        IStreamQuadIterator::state_type state{};
+        CHECK_NOTHROW(state.iri_factory.set_base(base_iri));
+        if (request_url.has_value()) {
+            state.request_url = std::move(*request_url);
+        }
 
         std::stringstream xml{std::move(check_str)};
-        IStreamQuadIterator xml_iter{xml, flags};
+        IStreamQuadIterator xml_iter{xml, flags, &state};
 
         bool had_error = false;
         while (xml_iter != std::default_sentinel) {

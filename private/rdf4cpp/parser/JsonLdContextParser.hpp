@@ -33,13 +33,13 @@ namespace rdf4cpp::parser {
             std::string_view base_url;
             bool is_protected = false;
             bool override_protected = false;
-            bool validate_scoped_contexts = true;
         };
         struct ParseContextIRIExpansionParams {
             json_ld::Context &active_context;  // NOLINT(*-avoid-const-or-ref-data-members)
             simdjson::ondemand::object local_context;
             std::optional<simdjson::ondemand::object> local_context_merge;
             std::vector<json_ld::TermDefinition> const &previous_terms;  // NOLINT(*-avoid-const-or-ref-data-members)
+            std::string_view base_url;
         };
     }  // namespace params
 
@@ -47,13 +47,20 @@ namespace rdf4cpp::parser {
         struct RemoteContextCache {
             std::map<std::string, RemoteContextEntry, std::less<>> contexts;
 
-            [[nodiscard]] size_t num_active_entries() const noexcept;
+            struct ResolveResult {
+                simdjson::padded_string_view data;
+                std::string_view final_url;
+            };
+
             [[nodiscard]] bool has_active_cache(std::string_view url) const;
-            nonstd::expected<simdjson::padded_string_view, std::string> resolve(std::string_view url, IStreamQuadIterator::state_type* parse_state);
+            nonstd::expected<ResolveResult, std::string> resolve(std::string_view url, IStreamQuadIterator::state_type* parse_state);
         };
 
         struct ContextParser {
             using error_type = ParsingError;
+            /**
+             * A base set by the document stays in the state after parsing, like in the other parsers.
+             */
             IStreamQuadIterator::state_type* parse_state;
             std::string original_base_iri;
             RemoteContextCache remote_context_cache;
@@ -72,7 +79,7 @@ namespace rdf4cpp::parser {
             }
 
             /**
-             * Sets the base of iri_factory, skipping the validation if it is already set to base.
+             * Sets the base of parse_state->iri_factory, skipping the validation if it is already set to base.
              */
             void set_resolution_base(std::string_view base);
 

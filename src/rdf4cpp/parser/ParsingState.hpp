@@ -55,12 +55,20 @@ struct ParsingState {
      */
     std::function<void(Node const &)> inspect_node_func = []([[maybe_unused]] Node const &n) { /* noop */ };
 
+    struct RequestResult {
+        std::string data;
+        std::string final_url;
+    };
+
     /**
-     * A function that is called for each URL requested by a parser (currently only JSON_LD remote contexts).
+     * A function that is called for each URL requested by a parser (currently only JSON_LD remote context & import).
      * The function should return the result of querying that URL or an error message.
+     * The passed URL is already absolute and no pre-parsing of the servers data is necessary
+     * (like stripping the top level object and only passing its context member).
+     * Results are cached only per IStreamQuadIterator.
      * Default behavior is to always return an error.
      */
-    std::function<nonstd::expected<std::string, std::string>(std::string_view)> request_url = [](std::string_view) {
+    std::function<nonstd::expected<RequestResult, std::string>(std::string_view)> request_url = [](std::string_view) {
         return nonstd::unexpected{"remote context not supported"};
     };
 };

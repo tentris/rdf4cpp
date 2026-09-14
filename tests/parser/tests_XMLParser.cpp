@@ -143,7 +143,7 @@ void xml_test_positive(std::string xml_str, std::string nt_str, std::string_view
 }
 
 void xml_test_negative(std::string xml_str, std::string_view base_iri) {
-    parse_test_helpers::parser_test_negative(std::move(xml_str), base_iri, ParsingFlag::RdfXml);
+    parse_test_helpers::parser_test_negative(std::move(xml_str), base_iri, std::nullopt, ParsingFlag::RdfXml);
 }
 
 std::string remote_test_file_to_str(std::string_view file_name) {
