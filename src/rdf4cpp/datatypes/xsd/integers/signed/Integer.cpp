@@ -24,47 +24,10 @@ bool capabilities::Logical<xsd_integer>::effective_boolean_value(cpp_type const 
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_integer>::add_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    // https://www.w3.org/TR/xpath-functions/#op.numeric
-    // needs overflow protection
-    cpp_type r;
-    if (rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
-    }
-    return r;
-}
-
-template<>
-nonstd::expected<capabilities::Numeric<xsd_integer>::sub_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    // https://www.w3.org/TR/xpath-functions/#op.numeric
-    // needs overflow protection
-    cpp_type r;
-    if (rdf4cpp::util::detail::sub_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
-    }
-    return r;
-}
-
-template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::div_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    if (rhs == 0) {
-        return nonstd::make_unexpected(DynamicError::DivideByZero);
-    }
-
     // https://www.w3.org/TR/xpath-functions/#func-numeric-divide
-    // integer needs to return decimal on division
-    return static_cast<div_result_cpp_type>(lhs) / static_cast<div_result_cpp_type>(rhs);
-}
-
-template<>
-nonstd::expected<capabilities::Numeric<xsd_integer>::mul_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    // https://www.w3.org/TR/xpath-functions/#op.numeric
-    // decimal needs overflow protection
-    cpp_type r;
-    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
-    }
-    return r;
+    // integer needs to return decimal on division, decimal handles division by zero and overflow
+    return capabilities::Numeric<xsd_decimal>::div(div_result_cpp_type{lhs}, div_result_cpp_type{rhs});
 }
 
 template<>

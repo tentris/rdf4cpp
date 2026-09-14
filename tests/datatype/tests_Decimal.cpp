@@ -231,10 +231,15 @@ TEST_CASE("decimal limits") {
         CHECK((Literal::make_typed<Decimal>("10000000000000000000") / Literal::make_typed<Decimal>("3")) == Literal::make_typed<Decimal>("3333333333333333333.3333333333333333333"));
         CHECK((Literal::make_typed<Decimal>("1000000000000000000") / Literal::make_typed<Decimal>("3")) == Literal::make_typed<Decimal>("333333333333333333.33333333333333333333"));
         CHECK((Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal::cpp_type>::min()) / Literal::make_typed<Decimal>("-1")).null());
+        CHECK((Literal::make_typed<Integer>("10000000000000000000") / Literal::make_typed<Integer>("3")) == Literal::make_typed<Decimal>("3333333333333333333.3333333333333333333"));
+        CHECK((Literal::make_typed_from_value<Integer>(std::numeric_limits<Integer::cpp_type>::min()) / Literal::make_typed<Integer>("-1")).null());
     }
     SUBCASE("cast") {
         CHECK(Literal::make_typed_from_value<Double>(1.8e38).cast<Decimal>().null());
         CHECK(Literal::make_typed_from_value<Float>(1.8e38f).cast<Decimal>().null());
+        CHECK(Literal::make_typed_from_value<Double>(std::numeric_limits<double>::quiet_NaN()).cast<Decimal>().null());
+        CHECK(Literal::make_typed_from_value<Double>(std::numeric_limits<double>::infinity()).cast<Decimal>().null());
+        CHECK(Literal::make_typed_from_value<Float>(-std::numeric_limits<float>::infinity()).cast<Decimal>().null());
     }
     SUBCASE("unm") {
         CHECK((-Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal::cpp_type>::min())).null());

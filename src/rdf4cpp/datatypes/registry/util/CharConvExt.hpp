@@ -83,14 +83,8 @@ F from_chars(std::string_view s) {
 
     if (res.ec != std::errc{}) {
         if (res.ec == std::errc::invalid_argument) {
-            bool neg = true;
-            if constexpr(std::numeric_limits<F>::is_signed) {
-                neg = *res.ptr != '-';
-            }
-
-            if (res.ptr != s.data() + s.size() && neg) {
-                // fallthrough to data check
-            } else {
+            // nothing parsed (res.ptr at end, e.g. "" or "+") or only a sign, otherwise fall through to the data check
+            if (res.ptr == s.data() + s.size() || (std::numeric_limits<F>::is_signed && *res.ptr == '-')) {
                 throw rdf4cpp::InvalidNode{std::format("{} parsing error: literal is empty", datatype)};
             }
         } else if (res.ec == std::errc::result_out_of_range) {

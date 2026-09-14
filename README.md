@@ -169,7 +169,7 @@ For `http://www.w3.org/2001/XMLSchema#integer`
 with the usual range of `[-2^127,2^127-1]`
 
 And `http://www.w3.org/2001/XMLSchema#decimal` is composed of the following parts: `i/10^k`,
-where `i` is a signed 128-bit integer (`[-2^127,2^127-1]`) and `k` is an unsigned 64-bit integer (`[0,2^64]`).
+where `i` is a signed 128-bit integer (`[-2^127,2^127-1]`) and `k` is an unsigned 32-bit integer (`[0,2^32-1]`).
 
 For `http://www.w3.org/2001/XMLSchema#dateTime` (and all derived types) there are 2 limits:
 - represented as a time point with nanosecond precision with a 128-bit signed integer

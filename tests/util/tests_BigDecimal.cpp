@@ -212,6 +212,10 @@ TEST_CASE("int128 from_chars") {
     CHECK(rdf4cpp::datatypes::registry::util::from_chars<rdf4cpp::Int128, s>("-5000000000000000000005") == Make128(-5000, -5));
     CHECK(rdf4cpp::datatypes::registry::util::from_chars<rdf4cpp::Int128, s>("-1000000000000000005") == Make128(-1, -5));
     CHECK(rdf4cpp::datatypes::registry::util::from_chars<rdf4cpp::Int128, s>("-5000000000000000500000") == Make128(-5000, -500000));
+    auto parse = [](std::string_view str) { return rdf4cpp::datatypes::registry::util::from_chars<rdf4cpp::Int128, s>(str); };
+    CHECK_THROWS_AS(parse(""), rdf4cpp::InvalidNode);
+    CHECK_THROWS_AS(parse("+"), rdf4cpp::InvalidNode);
+    CHECK_THROWS_AS(parse("-"), rdf4cpp::InvalidNode);
 
     std::random_device rd{};
     std::default_random_engine r{rd()};
@@ -333,7 +337,10 @@ TEST_CASE("arithmetic") {
         CHECK((Dec{1, 0}.div(Dec{3, 0}, 2, RoundingMode::Round)) == Dec{33, 2});
         CHECK((Dec{2, 0}.div(Dec{3, 0}, 2, RoundingMode::Round)) == Dec{67, 2});
         CHECK((Dec{1, 0}.div(Dec{-3, 0}, 2, RoundingMode::Floor)) == Dec{-34, 2});
-        CHECK(!DecI{1, 0}.div_checked(DecI{3, 0}, 1000, RoundingMode::Floor).has_value());
+        CHECK((Dec{-1, 0}.div(Dec{3, 0}, 0, RoundingMode::Floor)) == Dec{-1, 0});
+        // digits stop being added once they do not fit anymore, the last one is still rounded
+        CHECK(DecI{1, 0}.div_checked(DecI{3, 0}, 1000, RoundingMode::Floor) == DecI{333333333, 9});
+        CHECK(Dec{2, 0}.div_checked(Dec{3, 0}, 1000, RoundingMode::Round) == Dec{"0.66666666666666666666666666666666666667"});
         Dec d{5, 0};
         d /= Dec{2, 0};
         CHECK_EQ(d, Dec{25, 1});
@@ -350,6 +357,8 @@ TEST_CASE("arithmetic") {
             CHECK(Dec{"-1.4"}.round(RoundingMode::Floor) == Dec{"-2.0"});
             CHECK(Dec{"-1.0"}.round(RoundingMode::Floor) == Dec{"-1.0"});
             CHECK(Dec{"0.0"}.round(RoundingMode::Floor) == Dec{"0.0"});
+            CHECK(Dec{"-0.5"}.round(RoundingMode::Floor) == Dec{"-1.0"});
+            CHECK(Dec{-5, 39}.round(RoundingMode::Floor) == Dec{-1, 0});  // 10^39 does not fit into Int128
         }
 
         SUBCASE("ceil") {
@@ -360,6 +369,9 @@ TEST_CASE("arithmetic") {
             CHECK(Dec{"-1.0"}.round(RoundingMode::Ceil) == Dec{"-1.0"});
             CHECK(Dec{"0.0"}.round(RoundingMode::Ceil) == Dec{"0.0"});
             CHECK(Dec{"-1.4"}.round(RoundingMode::Ceil) == Dec{"-1.0"});
+            CHECK(Dec{"-0.5"}.round(RoundingMode::Ceil) == Dec{"0.0"});
+            CHECK(Dec{"1.01"}.round(RoundingMode::Ceil) == Dec{"2.0"});
+            CHECK(Dec{5, 39}.round(RoundingMode::Ceil) == Dec{1, 0});
         }
 
         SUBCASE("round") {
@@ -375,6 +387,9 @@ TEST_CASE("arithmetic") {
             CHECK(Dec{"-1.4"}.round(RoundingMode::Round) == Dec{"-1.0"});
             CHECK(Dec{"-1.0"}.round(RoundingMode::Round) == Dec{"-1.0"});
             CHECK(Dec{"0.0"}.round(RoundingMode::Round) == Dec{"0.0"});
+            CHECK(Dec{"-0.5"}.round(RoundingMode::Round) == Dec{"-1.0"});
+            CHECK(Dec{"-0.4"}.round(RoundingMode::Round) == Dec{"0.0"});
+            CHECK(Dec{5, 39}.round(RoundingMode::Round) == Dec{0, 0});
         }
 
         SUBCASE("trunc") {

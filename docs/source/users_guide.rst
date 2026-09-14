@@ -48,8 +48,8 @@ For :code:`http://www.w3.org/2001/XMLSchema#integer`
 with the usual range of :code:`[-2^127,2^127-1]`
 
 And :code:`http://www.w3.org/2001/XMLSchema#decimal` is composed of the following parts: :code:`i/10^k`,
-where :code:`i` is a signed 128-bit integer (:code:`[-2^127,2^127-1]`) and :code:`k` is an unsigned 64-bit integer (:code:`[0,2^64]`).
-ss
+where :code:`i` is a signed 128-bit integer (:code:`[-2^127,2^127-1]`) and :code:`k` is an unsigned 32-bit integer (:code:`[0,2^32-1]`).
+
 For :code:`http://www.w3.org/2001/XMLSchema#dateTime` (and all derived types) there are 2 limits:
 
 * represented as a time point with nanosecond precision with a 128-bit signed integer

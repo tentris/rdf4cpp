@@ -181,26 +181,15 @@ capabilities::Inlineable<xsd_decimal>::cpp_type capabilities::Inlineable<xsd_dec
     return cpp_type{unscaled_value, exponent};
 }
 
-template<>
-template<>
-capabilities::Promotable<xsd_decimal>::promoted_cpp_type<0> capabilities::Promotable<xsd_decimal>::promote<0>(cpp_type const &value) noexcept {
-    return static_cast<promoted_cpp_type<0>>(value);
-}
-
+// BigDecimal(double) throws std::overflow_error for too large and std::invalid_argument for NaN/inf values
 template<>
 template<>
 nonstd::expected<capabilities::Promotable<xsd_decimal>::cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     try {
         return static_cast<cpp_type>(value);
-    } catch (std::overflow_error const&) {
+    } catch (std::exception const &) {
         return nonstd::unexpected{DynamicError::InvalidValueForCast};
     }
-}
-
-template<>
-template<>
-capabilities::Promotable<xsd_decimal>::promoted_cpp_type<1> capabilities::Promotable<xsd_decimal>::promote<1>(cpp_type const &value) noexcept {
-    return static_cast<promoted_cpp_type<1>>(value);
 }
 
 template<>
@@ -208,7 +197,7 @@ template<>
 nonstd::expected<capabilities::Promotable<xsd_decimal>::cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<1>(promoted_cpp_type<1> const &value) noexcept {
     try {
         return static_cast<cpp_type>(value);
-    } catch (std::overflow_error const&) {
+    } catch (std::exception const &) {
         return nonstd::unexpected{DynamicError::InvalidValueForCast};
     }
 }

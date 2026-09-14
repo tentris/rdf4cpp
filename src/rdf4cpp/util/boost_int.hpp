@@ -23,7 +23,7 @@ namespace rdf4cpp::util::detail {
     static constexpr bool add_checked(cpp_int_checked<min_bits, max_bits, sign_type, Alloc> const &a,
                                       cpp_int_checked<min_bits, max_bits, sign_type, Alloc> const &b,
                                       cpp_int_checked<min_bits, max_bits, sign_type, Alloc> &result) noexcept {
-        if (m == OverflowMode::Checked) {
+        if constexpr (m == OverflowMode::Checked) {
             try {
                 result = a + b;
             } catch (std::overflow_error const &) {
@@ -43,7 +43,7 @@ namespace rdf4cpp::util::detail {
     static constexpr bool sub_checked(cpp_int_checked<min_bits, max_bits, sign_type, Alloc> const &a,
                                       cpp_int_checked<min_bits, max_bits, sign_type, Alloc> const &b,
                                       cpp_int_checked<min_bits, max_bits, sign_type, Alloc> &result) noexcept {
-        if (m == OverflowMode::Checked) {
+        if constexpr (m == OverflowMode::Checked) {
             try {
                 result = a - b;
             } catch (std::overflow_error const &) {
@@ -63,7 +63,7 @@ namespace rdf4cpp::util::detail {
     static constexpr bool mul_checked(cpp_int_checked<min_bits, max_bits, sign_type, Alloc> const &a,
                                       cpp_int_checked<min_bits, max_bits, sign_type, Alloc> const &b,
                                       cpp_int_checked<min_bits, max_bits, sign_type, Alloc> &result) noexcept {
-        if (m == OverflowMode::Checked) {
+        if constexpr (m == OverflowMode::Checked) {
             try {
                 result = a * b;
             } catch (std::overflow_error const &) {
@@ -83,7 +83,7 @@ namespace rdf4cpp::util::detail {
     static constexpr bool pow_checked(cpp_int_checked<min_bits, max_bits, sign_type, Alloc> const &a,
                                       unsigned int b,
                                       cpp_int_checked<min_bits, max_bits, sign_type, Alloc> &result) noexcept {
-        if (m == OverflowMode::Checked) {
+        if constexpr (m == OverflowMode::Checked) {
             try {
                 result = boost::multiprecision::pow(a, b);
             } catch (std::overflow_error const &) {
