@@ -1073,3 +1073,17 @@ TEST_CASE("an absolute @import url is loaded without a base url") {
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/b/> <http://ex/o> .\n");
 }
+
+TEST_CASE("a scoped context before a remote context is validated against the complete context") {
+    // the scoped context of a uses the term b, which the third array entry defines.
+    // the remote context in between does not make the check happen earlier
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/r.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": [{"a": {"@id": "http://ex/a", "@context": {"x": {"@id": "http://ex/x", "@type": "b"}}}}, "http://ex/r.jsonld", {"b": "http://ex/b"}],
+      "@id": "http://ex/s", "a": {"x": "v"}})",
+                                               "http://ex/doc", docs);
+    CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/a> _:bn_0 .\n_:bn_0 <http://ex/x> \"v\"^^<http://ex/b> .\n");
+}
