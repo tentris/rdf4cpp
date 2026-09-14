@@ -1008,3 +1008,20 @@ TEST_CASE("a prefix term defined on demand is parsed with the base url of the do
                          R"(_:b0 <http://ex/t/x> "v" .)",
                          "http://example.org/");
 }
+
+TEST_CASE("@propagate false in a remote context falls back to the earlier entries of the context array") {
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {"@propagate": false, "t": "http://ex/t"}})"},
+    };
+    // the nested node object uses the context from before the remote context,
+    // that is the context of the first array entry, which defines a
+    auto const r = parse_with_remote_documents(R"({"@context": [{"a": "http://ex/a"}, "http://ex/ctx.jsonld"],
+      "@id": "http://ex/s", "a": {"@id": "http://ex/o", "a": "v"}})",
+                                               "http://ex/doc", docs);
+    CAPTURE(r.errors);
+    CAPTURE(r.quads);
+    CHECK(r.errors == "");
+    CHECK(r.quad_count == 2);
+    CHECK(r.quads.contains("<http://ex/s> <http://ex/a> <http://ex/o> .\n"));
+    CHECK(r.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
+}
