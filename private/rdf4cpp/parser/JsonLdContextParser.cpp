@@ -75,7 +75,7 @@ namespace rdf4cpp::parser::json_ld {
                         return true;
                     }
 
-                    auto resolved = remote_contexts.resolve(url, parse_state);
+                    auto resolved = remote_context_cache.resolve(url, parse_state);
                     if (!resolved.has_value()) {
                         result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::move(resolved.error()))};
                         return true;
@@ -285,17 +285,18 @@ namespace rdf4cpp::parser::json_ld {
             }
 
             // 5.2.2
-            if (!p.validate_scoped_contexts && remote_contexts.has_active_cache(url)) {
+            if (!p.validate_scoped_contexts && std::ranges::any_of(p.remote_contexts, [&](std::string const &e) { return e == url; } )) {
                 return result;
             }
 
             // 5.2.3
-            if (remote_contexts.num_active_entries() > remote_context_size_limit) {
+            if (p.remote_contexts.size() > remote_context_size_limit) {
                 return nonstd::unexpected{make_error(ParsingError::Type::BadIri, "context overflow")};
             }
+            p.remote_contexts.emplace_back(url);
 
             // 5.2.4 & 5.2.5
-            auto resolved = remote_contexts.resolve(url, parse_state);
+            auto resolved = remote_context_cache.resolve(url, parse_state);
             if (!resolved.has_value()) {
                 return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::move(resolved.error()))};
             }
@@ -305,6 +306,7 @@ namespace rdf4cpp::parser::json_ld {
                 .active_context = *result,
                 .base_iri = p.base_iri,
                 .base_url = url,
+                .remote_contexts = p.remote_contexts,
                 .override_protected = p.override_protected,
                 .propagate = p.propagate,
                 .validate_scoped_contexts = p.validate_scoped_contexts,
@@ -381,6 +383,7 @@ namespace rdf4cpp::parser::json_ld {
                         .active_context = *result,
                         .base_iri = p.base_iri,
                         .base_url = t.context->base_url,
+                        .remote_contexts = p.remote_contexts,
                         .override_protected = true,
                         .validate_scoped_contexts = false,
                     });

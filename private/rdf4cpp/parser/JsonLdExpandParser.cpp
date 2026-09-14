@@ -157,6 +157,7 @@ namespace rdf4cpp::parser::json_ld {
                     .active_context = p.active_context,
                     .base_iri = active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri,
                     .base_url = property_scoped_context->base_url,
+                    .remote_contexts = {},
                 });
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
@@ -221,6 +222,7 @@ namespace rdf4cpp::parser::json_ld {
                 .active_context = *active_ctx_for_local,
                 .base_iri = active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri,
                 .base_url = property_scoped_context->base_url,
+                .remote_contexts = {},
                 .override_protected = true,
             });
             if (!r.has_value()) {
@@ -240,6 +242,7 @@ namespace rdf4cpp::parser::json_ld {
                     .active_context = *active_ctx,
                     .base_iri = p.base_iri,
                     .base_url = context_parser.original_base_iri,
+                    .remote_contexts = {},
                 });
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
@@ -280,6 +283,7 @@ namespace rdf4cpp::parser::json_ld {
                     .active_context = *active_ctx,
                     .base_iri = p.base_iri,
                     .base_url = term->context->base_url,
+                    .remote_contexts = {},
                     .override_protected = false,
                     .propagate = false,
                 });
@@ -728,6 +732,7 @@ namespace rdf4cpp::parser::json_ld {
                                 .active_context = *map_context,
                                 .base_iri = index_term->base_iri.value_or(""),
                                 .base_url = index_term->context->base_url,
+                                .remote_contexts = {},
                             });
                             if (!r.has_value()) {
                                 res = r.error();

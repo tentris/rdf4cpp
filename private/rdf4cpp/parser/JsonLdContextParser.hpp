@@ -18,6 +18,7 @@ namespace rdf4cpp::parser {
             json_ld::Context const &active_context; // NOLINT(*-avoid-const-or-ref-data-members)
             std::string_view base_iri;
             std::string_view base_url;
+            std::vector<std::string> remote_contexts;
             bool override_protected = false;
             bool propagate = true;
             bool validate_scoped_contexts = true;
@@ -55,7 +56,7 @@ namespace rdf4cpp::parser {
             using error_type = ParsingError;
             IStreamQuadIterator::state_type* parse_state;
             std::string original_base_iri;
-            RemoteContextCache remote_contexts;
+            RemoteContextCache remote_context_cache;
             /**
              * If set, blank node labels of the document are used as they are. Otherwise they get
              * document_bnode_prefix, which keeps them apart from the labels the parser generates.

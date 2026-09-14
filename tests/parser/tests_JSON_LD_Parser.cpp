@@ -812,3 +812,59 @@ TEST_CASE("test deduplication keeps terms that are only value equal") {
 <http://example.com/s> <http://example.com/p> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
                                              "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, std::nullopt, true);
 }
+
+/**
+ * Output of parse_with_remote_documents. Each string holds one entry per line.
+ */
+struct RemoteDocumentsParse {
+    std::string quads;      // the parsed quads in n-quads syntax
+    std::string errors;     // the messages of the parsing errors
+    std::string requested;  // the urls passed to request_url, in the order of the calls
+    size_t quad_count = 0;
+};
+
+/**
+ * Parses the json-ld document doc with the base IRI base. request_url answers from docs,
+ * any other url gets the error "not found".
+ */
+RemoteDocumentsParse parse_with_remote_documents(std::string doc, std::string_view base, std::map<std::string, std::string, std::less<>> const &docs) {
+    RemoteDocumentsParse r;
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base(base);
+    state.request_url = [&](std::string_view url) -> nonstd::expected<std::string, std::string> {
+        r.requested += std::format("{}\n", url);
+        auto it = docs.find(url);
+        if (it == docs.end()) {
+            return nonstd::unexpected{std::string{"not found"}};
+        }
+        return it->second;
+    };
+
+    std::stringstream json{std::move(doc)};
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            r.quads += std::format("{}\n", static_cast<std::string>(it->value()));
+            ++r.quad_count;
+        } else {
+            r.errors += std::format("{}\n", it->error().message);
+        }
+    }
+    return r;
+}
+
+TEST_CASE("remote contexts of sibling node objects do not add up to a context overflow") {
+    // the limit on remote contexts applies to one chain of remote contexts that load each other.
+    // every node object here loads its own remote context, so each chain has length one.
+    static constexpr size_t nodes = 102;
+    std::map<std::string, std::string, std::less<>> docs;
+    std::string doc = "[";
+    for (size_t i = 0; i < nodes; ++i) {
+        docs.emplace(std::format("http://ex/c{}", i), R"({"@context": {}})");
+        doc += std::format(R"({}{{"@context": "http://ex/c{}", "@id": "http://ex/s{}", "http://ex/p": "v"}})", i == 0 ? "" : ", ", i, i);
+    }
+    doc += ']';
+
+    auto const r = parse_with_remote_documents(std::move(doc), "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quad_count == nodes);
+}
