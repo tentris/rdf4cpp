@@ -1110,3 +1110,14 @@ TEST_CASE("a null scoped context that does not propagate keeps the previous cont
     CHECK(r2.errors == "");
     CHECK(!r2.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
 }
+
+TEST_CASE("an absolute remote context url that is no valid iri is rejected") {
+    // the url contains a space, it is not requested
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex ample/ctx.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": "http://ex ample/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    CHECK(r.requested == "");
+    CHECK(r.errors == "loading document failed\n");
+    CHECK(r.quads == "");
+}
