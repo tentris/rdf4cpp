@@ -252,6 +252,12 @@ TEST_CASE("decimal limits") {
         CHECK(Literal::make_typed_from_value<Double>(1e-41).cast<Decimal>().ceil() == Literal::make_typed<Decimal>("1"));
         CHECK(Literal::make_typed_from_value<Double>(-1e-41).cast<Decimal>().floor() == Literal::make_typed<Decimal>("-1"));
     }
+    SUBCASE("parse") {
+        CHECK(Literal::make_typed<Decimal>("170141183460469231731687303715884105727.0") == Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal128>::max()));
+        Literal l{};
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("170141183460469231731687303715884105727.01"));
+        CHECK(l.null());
+    }
 }
 
 TEST_CASE("decimal possible bug") {

@@ -82,6 +82,7 @@ namespace rdf4cpp {
                 bool begin = true;
                 bool decimal = false;
                 bool neg = false;
+                bool overflow_decimal = false;
                 for (char const c : value) {
                     if (begin) {
                         begin = false;
@@ -99,21 +100,33 @@ namespace rdf4cpp {
                         decimal = true;
                         continue;
                     }
+                    if (overflow_decimal) {
+                        if (c != '0') {
+                            throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
+                        }
+                        continue;
+                    }
                     if (c < '0' || c > '9') {
                         throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found"};
                     }
                     auto n = c - '0';
-                    if (detail::mul_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{base}, unscaled_value)) {
-                        throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
-                    }
-                    if (detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{n}, unscaled_value)) {
+                    UnscaledValue_t next_unscaled;
+                    if (detail::mul_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{base}, next_unscaled)
+                        || detail::add_checked<OverflowMode::Checked>(next_unscaled, UnscaledValue_t{n}, next_unscaled)) {
+                        if (decimal && n == 0) {
+                            overflow_decimal = true;
+                            continue;
+                        }
                         throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
                     }
                     if (decimal) {
-                        if (detail::add_checked<OverflowMode::Checked>(exponent, Exponent_t{1}, exponent)) {
+                        Exponent_t next_exponent;
+                        if (detail::add_checked<OverflowMode::Checked>(exponent, Exponent_t{1}, next_exponent)) {
                             throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: exponent overflow"};
                         }
+                        exponent = next_exponent;
                     }
+                    unscaled_value = next_unscaled;
                 }
                 if (unscaled_value == 0) {
                     neg = false;

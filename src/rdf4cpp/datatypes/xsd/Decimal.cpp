@@ -71,7 +71,7 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::div_result_cpp_type, Dynami
         return nonstd::make_unexpected(DynamicError::DivideByZero);
     }
 
-    auto r = lhs.div_checked(rhs, cpp_type::default_max_scale_increase);
+    auto r = lhs.div_checked(rhs, cpp_type::default_max_scale_increase, rdf4cpp::util::RoundingMode::Trunc);
     if (r.has_value())
         return r.value();
     else
