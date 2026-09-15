@@ -1,7 +1,6 @@
 #include "Decimal.hpp"
 
 #include <cmath>
-#include <dragonbox/dragonbox.h>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
