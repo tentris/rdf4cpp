@@ -22,6 +22,7 @@ namespace rdf4cpp::parser {
             bool override_protected = false;
             bool propagate = true;
             bool validate_scoped_contexts = true;
+            bool remote_context_do_not_validate_scoped_contexts = false;
         };
         struct ParseContextTermParams {
             simdjson::ondemand::object local_context;
@@ -52,7 +53,6 @@ namespace rdf4cpp::parser {
                 std::string_view final_url;
             };
 
-            [[nodiscard]] bool has_active_cache(std::string_view url) const;
             nonstd::expected<ResolveResult, std::string> resolve(std::string_view url, IStreamQuadIterator::state_type* parse_state);
         };
 
@@ -69,8 +69,8 @@ namespace rdf4cpp::parser {
              * document_bnode_prefix, which keeps them apart from the labels the parser generates.
              */
             bool keep_document_bnode_labels;
-
-            static constexpr size_t remote_context_size_limit = 100;
+            // moving the contained objects is not allowed
+            std::forward_list<Context> context_storage;
 
             inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IStreamQuadIterator::state_type *parse_state)
                 : parse_state(parse_state),
