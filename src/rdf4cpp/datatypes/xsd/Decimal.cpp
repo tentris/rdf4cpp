@@ -189,8 +189,8 @@ capabilities::Promotable<xsd_decimal>::promoted_cpp_type<0> capabilities::Promot
     // If ST is xs:decimal then TV is xs:float(SV cast as xs:string) and the conversion is complete.
     // https://www.w3.org/TR/xpath-functions/#casting-to-float
     auto const str = writer::StringWriter::oneshot([&value](auto &w) {
-            return Default<xsd_decimal>::serialize_canonical_string(value, w);
-        });
+        return Default<xsd_decimal>::serialize_canonical_string(value, w);
+    });
 
     return Default<xsd_float>::from_string(str);
 }
