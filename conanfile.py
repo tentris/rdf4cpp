@@ -19,11 +19,13 @@ class Recipe(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "with_test_deps": [True, False],
+        "is_top_level": [True, False],
     }
     default_options = {
         "shared": False,
         "fPIC": True,
         "with_test_deps": False,
+        "is_top_level": False,
     }
     exports = "LICENSE",
     exports_sources = "src/*", "private/*", "CMakeLists.txt", "cmake/*"
@@ -46,6 +48,10 @@ class Recipe(ConanFile):
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")
             self.test_requires("nanobench/4.3.11")
+
+    def configure(self):
+        if self.options.is_top_level:
+            self.options["botan"].enable_modules = "md5,sha1,sha2_32,sha2_64,auto_rng,system_rng"
 
     def set_name(self):
         if not hasattr(self, 'name') or self.version is None:

@@ -6,7 +6,7 @@ include(cmake/boilerplate_init.cmake)
 boilerplate_init()
 
 if (PROJECT_IS_TOP_LEVEL)
-    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=boost/*:header_only=True")
+    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=boost/*:header_only=True;-o=&:is_top_level=True")
 
     if (BUILD_TESTING)
         set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=&:with_test_deps=True")
