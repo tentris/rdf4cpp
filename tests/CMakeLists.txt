@@ -171,6 +171,13 @@ target_link_libraries(tests_owl_Rational
         )
 add_test(NAME tests_owl_Rational COMMAND tests_owl_Rational)
 
+add_executable(tests_owl_Real datatype/tests_owl_Real.cpp)
+target_link_libraries(tests_owl_Real
+        doctest::doctest
+        rdf4cpp
+        )
+add_test(NAME tests_owl_Real COMMAND tests_owl_Real)
+
 add_executable(tests_Byte datatype/tests_Byte.cpp)
 target_link_libraries(tests_Byte
         doctest::doctest

@@ -111,11 +111,10 @@ TEST_CASE("exact datatypes match the naive fold") {
 }
 
 TEST_CASE("owl:real is inexact, so it takes the compensated path") {
-    auto const lits = repeat<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{0.1}, 10);
+    using boost::multiprecision::cpp_bin_float_quad;
+    auto const lits = repeat<datatypes::owl::Real>(cpp_bin_float_quad{"0.1"}, 10);
 
-    // the drift is not observable in the result: owl:real has no serializer of its own, so its
-    // canonical form is whatever operator<< writes at the default precision of 6 significant digits
-    CHECK_EQ(compensated_sum(lits), naive_sum(lits));
+    CHECK_EQ(naive_sum(lits).value<datatypes::owl::Real>(), cpp_bin_float_quad{"0.999999999999999999999999999999999904"});
     CHECK_EQ(compensated_sum(lits).value<datatypes::owl::Real>(), 1);
 }
 
@@ -276,7 +275,7 @@ TEST_CASE("multiplicity") {
 
         // no common type with xsd:integer, so the multiplicity must never become one
         CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Rational>(boost::multiprecision::cpp_rational{1, 3}), 3).value<datatypes::owl::Rational>(), 1);
-        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{0.1}), 10).value<datatypes::owl::Real>(), 1);
+        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{"0.1"}), 10).value<datatypes::owl::Real>(), 1);
     }
 
     SUBCASE("xsd:int is a numeric stub, its arithmetic is exact xsd:integer") {
