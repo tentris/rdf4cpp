@@ -17,7 +17,7 @@ endif ()
 find_package(expected-lite REQUIRED)
 find_package(Boost REQUIRED)
 find_package(PCRE2 REQUIRED)
-find_package(OpenSSL REQUIRED)
+find_package(botan REQUIRED)
 find_package(uni-algo REQUIRED)
 find_package(highway REQUIRED)
 find_package(dice-hash REQUIRED)
@@ -183,7 +183,7 @@ target_link_libraries(rdf4cpp
         dice-template-library::dice-template-library
         PRIVATE
         pcre2::pcre2
-        OpenSSL::Crypto
+        botan::botan
         uni-algo::uni-algo
         highway::highway
         LibXml2::LibXml2

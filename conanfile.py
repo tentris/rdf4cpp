@@ -33,7 +33,7 @@ class Recipe(ConanFile):
         self.requires("boost/1.90.0", transitive_headers=True, libs=False)
         self.requires("expected-lite/0.9.0", transitive_headers=True)
         self.requires("pcre2/10.47", options={"support_jit": True})
-        self.requires("openssl/3.6.3")
+        self.requires("botan/3.13.0")
         self.requires("uni-algo/1.2.0")
         self.requires("highway/1.4.0")
         self.requires("dice-hash/0.5.0", transitive_headers=True)
