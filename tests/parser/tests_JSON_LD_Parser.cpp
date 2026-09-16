@@ -7,20 +7,30 @@
 using namespace rdf4cpp;
 using namespace rdf4cpp::parser;
 
+std::string remote_test_file_to_str(std::string_view file_name) {
+    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, JSON_LD_STREAMING_TEST_DATA_DIR / "tests/stream-toRdf");
+}
+
+nonstd::expected<ParsingState::RequestResult, std::string> resolve_test_url(std::string_view url) {
+    static constexpr std::string_view pre = "https://w3c.github.io/json-ld-streaming/tests/";
+    if (url.starts_with(pre)) {
+        auto path = url;
+        path.remove_prefix(pre.size());
+        return ParsingState::RequestResult{remote_test_file_to_str(path), std::string{url}};
+    }
+    return nonstd::unexpected{std::format("unexpected url {}", url)};
+}
+
 void jsonld_test_positive(std::string json_str, std::string nt_str, std::string_view base_iri, bool dedup = false, ParsingFlag dir = ParsingFlag::JsonLdDirectionNone) {
-    parse_test_helpers::parser_test_positive(std::move(json_str), std::move(nt_str), base_iri, ParsingFlag::JsonLd | dir, ParsingFlag::NQuads, dedup);
+    parse_test_helpers::parser_test_positive(std::move(json_str), std::move(nt_str), base_iri, ParsingFlag::JsonLd | dir, ParsingFlag::NQuads, &resolve_test_url, dedup);
 }
 
 void jsonld_test_negative(std::string json_str, std::string_view base_iri) {
-    parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, ParsingFlag::JsonLd);
+    parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, &resolve_test_url, ParsingFlag::JsonLd);
 }
 
 void jsonld_test_negative_flags(std::string json_str, std::string_view base_iri, ParsingFlags flags) {
-    parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, flags);
-}
-
-std::string remote_test_file_to_str(std::string_view file_name) {
-    return parse_test_helpers::parser_test_remote_test_file_to_str(file_name, JSON_LD_STREAMING_TEST_DATA_DIR / "tests/stream-toRdf");
+    parse_test_helpers::parser_test_negative(std::move(json_str), base_iri, &resolve_test_url, flags);
 }
 
 TEST_CASE("test cases from json-ld-streaming") {
@@ -76,7 +86,7 @@ TEST_CASE("test cases from json-ld-streaming") {
 })", R"(_:b0 <http://example.com/double> "1.0E0"^^<http://www.w3.org/2001/XMLSchema#double> .
 _:b0 <http://example.com/double> "2.2E0"^^<http://www.w3.org/2001/XMLSchema#double> .
 _:b0 <http://example.com/integer> "8"^^<http://www.w3.org/2001/XMLSchema#integer> .
-_:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer> .)", "https://w3c.github.io/json-ld-streaming/tests/t0035", ParsingFlag::JsonLd, ParsingFlag::NQuads);
+_:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer> .)", "https://w3c.github.io/json-ld-streaming/tests/t0035", ParsingFlag::JsonLd, ParsingFlag::NQuads, &resolve_test_url);
 
     jsonld_test_positive(remote_test_file_to_str("0036-in.jsonld"), remote_test_file_to_str("0036-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0036");
     jsonld_test_positive(remote_test_file_to_str("0113-in.jsonld"), remote_test_file_to_str("0113-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/t0113");
@@ -130,9 +140,8 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("c026-in.jsonld"), remote_test_file_to_str("c026-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc026");
     jsonld_test_positive(remote_test_file_to_str("c027-in.jsonld"), remote_test_file_to_str("c027-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc027");
     jsonld_test_positive(remote_test_file_to_str("c028-in.jsonld"), remote_test_file_to_str("c028-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc028");
-    // remote context
-    //jsonld_test_positive(remote_test_file_to_str("c031-in.jsonld"), remote_test_file_to_str("c031-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc031");
-    //jsonld_test_positive(remote_test_file_to_str("c034-in.jsonld"), remote_test_file_to_str("c034-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc034");
+    jsonld_test_positive(remote_test_file_to_str("c031-in.jsonld"), remote_test_file_to_str("c031-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc031");
+    jsonld_test_positive(remote_test_file_to_str("c034-in.jsonld"), remote_test_file_to_str("c034-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc034");
     jsonld_test_positive(remote_test_file_to_str("c035-in.jsonld"), remote_test_file_to_str("c035-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tc035");
     jsonld_test_positive(remote_test_file_to_str("di01-in.jsonld"), remote_test_file_to_str("di01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi01");
     jsonld_test_positive(remote_test_file_to_str("di02-in.jsonld"), remote_test_file_to_str("di02-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tdi02");
@@ -232,7 +241,7 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     // bn vocab is deprecated
     //jsonld_test_positive(remote_test_file_to_str("e075-in.jsonld"), remote_test_file_to_str("e075-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te075");
     jsonld_test_positive(remote_test_file_to_str("e076-in.jsonld"), remote_test_file_to_str("e076-out.nq"), "http://example/base/");
-    // uses a remote context
+    // uses a remote context already loaded before processing
     //jsonld_test_positive(remote_test_file_to_str("e077-in.jsonld"), remote_test_file_to_str("e077-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te077");
     jsonld_test_positive(remote_test_file_to_str("e078-in.jsonld"), remote_test_file_to_str("e078-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/stream-toRdf/e078-in.jsonld");
     jsonld_test_positive(remote_test_file_to_str("e079-in.jsonld"), remote_test_file_to_str("e079-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te079");
@@ -280,10 +289,9 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("e120-in.jsonld"), remote_test_file_to_str("e120-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te120");
     jsonld_test_positive(remote_test_file_to_str("e121-in.jsonld"), remote_test_file_to_str("e121-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te121");
     jsonld_test_positive(remote_test_file_to_str("e122-in.jsonld"), remote_test_file_to_str("e122-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te122");
-    // remote context
-    //jsonld_test_positive(remote_test_file_to_str("e126-in.jsonld"), remote_test_file_to_str("e126-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te126");
-    //jsonld_test_positive(remote_test_file_to_str("e127-in.jsonld"), remote_test_file_to_str("e127-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te127");
-    //jsonld_test_positive(remote_test_file_to_str("e128-in.jsonld"), remote_test_file_to_str("e128-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te128");
+    jsonld_test_positive(remote_test_file_to_str("e126-in.jsonld"), remote_test_file_to_str("e126-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te126");
+    jsonld_test_positive(remote_test_file_to_str("e127-in.jsonld"), remote_test_file_to_str("e127-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te127");
+    jsonld_test_positive(remote_test_file_to_str("e128-in.jsonld"), remote_test_file_to_str("e128-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te128");
     jsonld_test_positive(remote_test_file_to_str("e129-in.jsonld"), remote_test_file_to_str("e129-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te129");
     jsonld_test_positive(remote_test_file_to_str("e130-in.jsonld"), remote_test_file_to_str("e130-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/te130");
     jsonld_test_positive(remote_test_file_to_str("in01-in.jsonld"), remote_test_file_to_str("in01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tin01");
@@ -390,12 +398,11 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_positive(remote_test_file_to_str("pr39-in.jsonld"), remote_test_file_to_str("pr39-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr39");
     jsonld_test_positive(remote_test_file_to_str("pr40-in.jsonld"), remote_test_file_to_str("pr40-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tpr40");
     jsonld_test_positive(remote_test_file_to_str("rt01-in.jsonld"), remote_test_file_to_str("rt01-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/trt01");
-    // uses @import
-    // jsonld_test_positive(remote_test_file_to_str("so05-in.jsonld"), remote_test_file_to_str("so05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso05");
-    // jsonld_test_positive(remote_test_file_to_str("so06-in.jsonld"), remote_test_file_to_str("so06-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso06");
-    // jsonld_test_positive(remote_test_file_to_str("so08-in.jsonld"), remote_test_file_to_str("so08-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso08");
-    // jsonld_test_positive(remote_test_file_to_str("so09-in.jsonld"), remote_test_file_to_str("so09-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso09");
-    // jsonld_test_positive(remote_test_file_to_str("so11-in.jsonld"), remote_test_file_to_str("so11-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso11");
+    jsonld_test_positive(remote_test_file_to_str("so05-in.jsonld"), remote_test_file_to_str("so05-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso05");
+    jsonld_test_positive(remote_test_file_to_str("so06-in.jsonld"), remote_test_file_to_str("so06-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso06");
+    jsonld_test_positive(remote_test_file_to_str("so08-in.jsonld"), remote_test_file_to_str("so08-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso08");
+    jsonld_test_positive(remote_test_file_to_str("so09-in.jsonld"), remote_test_file_to_str("so09-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso09");
+    jsonld_test_positive(remote_test_file_to_str("so11-in.jsonld"), remote_test_file_to_str("so11-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tso11");
     jsonld_test_positive(remote_test_file_to_str("tn02-in.jsonld"), remote_test_file_to_str("tn02-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/ttn02", true);
     jsonld_test_positive(remote_test_file_to_str("v001-in.jsonld"), remote_test_file_to_str("v001-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tv001");
     jsonld_test_positive(remote_test_file_to_str("v002-in.jsonld"), remote_test_file_to_str("v002-out.nq"), "https://w3c.github.io/json-ld-streaming/tests/tv002");
@@ -721,59 +728,6 @@ TEST_CASE("a parsing error after valid quads") {
     CHECK(had_error);
 }
 
-// checks that an unsupported context feature is reported and that no quad is produced from a
-// document whose context could not be applied
-void jsonld_test_unsupported(std::string json_str, std::string_view message_part) {
-    CAPTURE(message_part);
-    std::stringstream json{std::move(json_str)};
-    IStreamQuadIterator it{json, ParsingFlag::JsonLd};
-
-    size_t quads = 0;
-    std::string first_message;
-    for (; it != std::default_sentinel; ++it) {
-        if (it->has_value()) {
-            ++quads;
-        } else if (first_message.empty()) {
-            first_message = it->error().message;
-        }
-    }
-    CAPTURE(first_message);
-    // expanding with an unapplied context would produce plausible but wrong quads
-    CHECK(quads == 0);
-    REQUIRE(!first_message.empty());
-    CHECK(first_message.find(message_part) != std::string::npos);
-}
-
-TEST_CASE("remote contexts are reported as unsupported") {
-    // the w3c tests for this are the deactivated c031, c034, e077, e126, e127 and e128
-    SUBCASE("context is a string") {
-        jsonld_test_unsupported(R"({"@context": "http://example.com/ctx.jsonld", "http://example.com/p": "v"})", "remote context not supported");
-    }
-    SUBCASE("context is a relative string") {
-        jsonld_test_unsupported(R"({"@context": "ctx.jsonld", "http://example.com/p": "v"})", "remote context not supported");
-    }
-    SUBCASE("context array contains a string") {
-        jsonld_test_unsupported(R"({"@context": ["http://example.com/ctx.jsonld", {"t": "http://example.com/p"}], "t": "v"})", "remote context not supported");
-    }
-    SUBCASE("property scoped context is a string") {
-        jsonld_test_unsupported(R"({"@context": {"t": {"@id": "http://example.com/p", "@context": "http://example.com/ctx.jsonld"}},
-          "@id": "http://example.com/s", "t": {"x": "v"}})",
-                                "invalid scoped context, remote");
-    }
-    SUBCASE("type scoped context is a string") {
-        jsonld_test_unsupported(R"({"@context": {"T": {"@id": "http://example.com/T", "@context": "http://example.com/ctx.jsonld"}},
-          "@id": "http://example.com/s", "@type": "T", "http://example.com/p": "v"})",
-                                "invalid scoped context, remote");
-    }
-}
-
-TEST_CASE("@import is reported as unsupported") {
-    // the w3c tests for this are the deactivated so05, so06, so08, so09 and so11
-    jsonld_test_unsupported(R"({"@context": {"@import": "http://example.com/ctx.jsonld", "t": "http://example.com/p"},
-      "@id": "http://example.com/s", "t": "v"})",
-                            "import context not supported");
-}
-
 TEST_CASE("a free floating scalar is no json-ld document") {
     jsonld_test_negative("42", "http://example.com/");
     jsonld_test_negative(R"("hello")", "http://example.com/");
@@ -857,5 +811,383 @@ TEST_CASE("test deduplication keeps terms that are only value equal") {
 })",
                                              R"(<http://example.com/s> <http://example.com/p> "1.0E0"^^<http://www.w3.org/2001/XMLSchema#double> .
 <http://example.com/s> <http://example.com/p> "1"^^<http://www.w3.org/2001/XMLSchema#integer> .)",
-                                             "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, true);
+                                             "http://example.com/", ParsingFlag::JsonLd, ParsingFlag::NQuads, nullptr, true);
+}
+
+/**
+ * Output of parse_with_remote_documents. Each string holds one entry per line.
+ */
+struct ParseWithRemotesResult {
+    std::string quads;      // the parsed quads in n-quads syntax
+    std::string errors;     // the messages of the parsing errors
+    std::string requested;  // the urls passed to request_url, in the order of the calls
+    size_t quad_count = 0;
+};
+
+/**
+ * Parses the json-ld document doc with the base IRI base. request_url answers from docs,
+ * any other url gets the error "not found".
+ */
+ParseWithRemotesResult parse_with_remote_documents(std::string doc, std::string_view base, std::map<std::string, std::string, std::less<>> const &docs) {
+    ParseWithRemotesResult r;
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base(base);
+    state.request_url = [&](std::string_view url) -> nonstd::expected<ParsingState::RequestResult, std::string> {
+        r.requested += std::format("{}\n", url);
+        auto it = docs.find(url);
+        if (it == docs.end()) {
+            return nonstd::unexpected{std::string{"not found"}};
+        }
+        return ParsingState::RequestResult{it->second, std::string{url}};
+    };
+
+    std::stringstream json{std::move(doc)};
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            r.quads += std::format("{}\n", static_cast<std::string>(it->value()));
+            ++r.quad_count;
+        } else {
+            r.errors += std::format("{}\n", it->error().message);
+        }
+    }
+    return r;
+}
+
+TEST_CASE("remote contexts of sibling node objects do not add up to a context overflow") {
+    // the limit on remote contexts applies to one chain of remote contexts that load each other.
+    // every node object here loads its own remote context, so each chain has length one.
+    static constexpr size_t nodes = 102;
+    std::map<std::string, std::string, std::less<>> docs;
+    std::string doc = "[";
+    for (size_t i = 0; i < nodes; ++i) {
+        docs.emplace(std::format("http://ex/c{}", i), R"({"@context": {}})");
+        doc += std::format(R"({}{{"@context": "http://ex/c{}", "@id": "http://ex/s{}", "http://ex/p": "v"}})", i == 0 ? "" : ", ", i, i);
+    }
+    doc += ']';
+
+    auto const r = parse_with_remote_documents(std::move(doc), "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quad_count == nodes);
+}
+
+TEST_CASE("relative urls in a remote context resolve against the url of that context") {
+    // http://ex/dir/ctx.jsonld and http://ex/ot/sub1.jsonld have the same length
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/dir/ctx.jsonld", R"({"@context": ["../ot/sub1.jsonld", "sub3.jsonld"]})"},
+        {"http://ex/ot/sub1.jsonld", R"({"@context": {}})"},
+        {"http://ex/dir/sub3.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": "dir/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    // both entries of ctx.jsonld resolve against http://ex/dir/ctx.jsonld, also after sub1.jsonld was loaded
+    CHECK(r.requested == "http://ex/dir/ctx.jsonld\nhttp://ex/ot/sub1.jsonld\nhttp://ex/dir/sub3.jsonld\n");
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("@propagate false in a remote context does not reach nested node objects") {
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {"@propagate": false, "t": "http://ex/t"}})"},
+    };
+    // the nested node object uses the context from before the remote context, which does not define t
+    auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "t": {"@id": "http://ex/o", "t": "v"}})", "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/t> <http://ex/o> .\n");
+}
+
+TEST_CASE("@base in a remote context is ignored") {
+    // a remote context cannot change the base IRI
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {"@base": "http://other.example/"}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "s", "http://ex/p": "v"})", "http://doc.example/", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://doc.example/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("a term defined on demand loads its remote scoped context") {
+    // A uses B before the definition of B, so B gets defined while A is defined
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": {"A": {"@id": "B:x"}, "B": {"@id": "http://ex/b/", "@prefix": true, "@context": "http://ex/ctx.jsonld"}},
+      "@id": "http://ex/s", "B": {"@id": "http://ex/o"}})",
+                                               "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/b/> <http://ex/o> .\n");
+}
+
+TEST_CASE("a remote context document without @context is an invalid remote context") {
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"foo": 1})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    CHECK(r.quads == "");
+    CHECK(r.errors == "invalid remote context\n");
+}
+
+TEST_CASE("an imported context that is not a map is an invalid remote context") {
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/imp.jsonld", R"({"@context": ["x"]})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}, "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    CHECK(r.quads == "");
+    CHECK(r.errors == "invalid remote context\n");
+}
+
+TEST_CASE("an invalid scoped context before a remote context is reported") {
+    // the scoped context of a is checked at the end of the whole @context, the remote context after it does not change that
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/r.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": [{"a": {"@id": "http://ex/a", "@context": {"@vocab": 5}}}, "http://ex/r.jsonld"], "http://ex/p": "x"})", "http://ex/doc", docs);
+    CHECK(r.quads == "");
+    CAPTURE(r.errors);
+    CHECK(r.errors.starts_with("invalid scoped context"));
+}
+
+TEST_CASE("a protected term that is defined on demand may be redefined with the same definition") {
+    // s uses t before the second definition of t, so t gets defined while s is defined.
+    // both definitions of t are the same, so the redefinition of the protected term is allowed.
+    jsonld_test_positive(R"({"@context": [
+        {"s": "http://ex/s", "t": {"@id": "http://ex/t", "@protected": true, "@context": {"@vocab": "http://ex/v/"}}},
+        {"s": {"@id": "t"}, "t": {"@id": "http://ex/t", "@protected": true, "@context": {"@vocab": "http://ex/v/"}}}
+      ], "s": "x"})",
+                         R"(_:b0 <http://ex/t> "x" .)",
+                         "http://example.org/");
+}
+
+TEST_CASE("an exception from request_url becomes a parsing error") {
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base("http://ex/doc");
+    state.request_url = [](std::string_view) -> nonstd::expected<ParsingState::RequestResult, std::string> {
+        throw std::runtime_error{"timeout"};
+    };
+
+    std::stringstream json{R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})"};
+    size_t values = 0;
+    size_t errors = 0;
+    auto const parse_all = [&] {
+        for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+            if (it->has_value()) {
+                ++values;
+            } else {
+                ++errors;
+            }
+        }
+    };
+    CHECK_NOTHROW(parse_all());
+    CHECK(values == 0);
+    CHECK(errors == 1);
+}
+
+TEST_CASE("disabled remote context & import") {
+    parse_test_helpers::parser_test_negative(remote_test_file_to_str("c031-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tc031", nullptr, ParsingFlag::JsonLd);
+    parse_test_helpers::parser_test_negative(remote_test_file_to_str("so05-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso05", nullptr, ParsingFlag::JsonLd);
+}
+
+TEST_CASE("a prefix term defined on demand is parsed with the base url of the document") {
+    // A uses the prefix B before the definition of B, so B gets defined while A is defined.
+    // the scoped context of B is a relative url, it resolves against the base url of the document
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": {"A": {"@id": "B:x"}, "B": {"@id": "http://ex/b/", "@prefix": true, "@context": "ctx.jsonld"}},
+      "@id": "http://ex/s", "B": {"@id": "http://ex/o"}})",
+                                               "http://ex/doc", docs);
+    CHECK(r.requested == "http://ex/ctx.jsonld\n");
+    CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/b/> <http://ex/o> .\n");
+
+    // s uses the prefix t before the second definition of t, so t gets defined while s is defined.
+    // both definitions of t are the same, so the redefinition of the protected term is allowed
+    jsonld_test_positive(R"({"@context": [
+        {"s": "http://ex/s", "t": {"@id": "http://ex/t/", "@prefix": true, "@protected": true, "@context": {"@vocab": "http://ex/v/"}}},
+        {"s": {"@id": "t:x"}, "t": {"@id": "http://ex/t/", "@prefix": true, "@protected": true, "@context": {"@vocab": "http://ex/v/"}}}
+      ], "s": "v"})",
+                         R"(_:b0 <http://ex/t/x> "v" .)",
+                         "http://example.org/");
+}
+
+TEST_CASE("@propagate false in a remote context falls back to the earlier entries of the context array") {
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {"@propagate": false, "t": "http://ex/t"}})"},
+    };
+    // the nested node object uses the context from before the remote context,
+    // that is the context of the first array entry, which defines a
+    auto const r = parse_with_remote_documents(R"({"@context": [{"a": "http://ex/a"}, "http://ex/ctx.jsonld"],
+      "@id": "http://ex/s", "a": {"@id": "http://ex/o", "a": "v"}})",
+                                               "http://ex/doc", docs);
+    CAPTURE(r.errors);
+    CAPTURE(r.quads);
+    CHECK(r.errors == "");
+    CHECK(r.quad_count == 2);
+    CHECK(r.quads.contains("<http://ex/s> <http://ex/a> <http://ex/o> .\n"));
+    CHECK(r.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
+}
+
+TEST_CASE("two node objects that import the same context request it only once") {
+    // the url of an @import is the key of the remote context cache, it stays valid
+    // after request_url returned, also when the buffer of the IRIFactory is reused
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base("http://ex/dir/doc");
+    size_t calls = 0;
+    state.request_url = [&](std::string_view url) -> nonstd::expected<ParsingState::RequestResult, std::string> {
+        std::string const requested{url};
+        ++calls;
+        // every IRIFactory resolves into the same thread local buffer
+        IRIFactory f{"http://ex/dir/"};
+        (void) f.from_maybe_relative_as_string("some/much/longer/relative/path/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        if (!requested.ends_with("imp.jsonld")) {
+            return nonstd::unexpected{std::format("unexpected url {}", requested)};
+        }
+        return ParsingState::RequestResult{R"({"@context": {"t": "http://ex/t"}})", requested};
+    };
+
+    std::stringstream json{R"([{"@context": {"@version": 1.1, "@import": "imp.jsonld"}, "@id": "http://ex/s1", "http://ex/p": "v"},
+       {"@context": {"@version": 1.1, "@import": "imp.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v"}])"};
+    size_t values = 0;
+    std::string errors;
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            ++values;
+        } else {
+            errors += std::format("{}\n", it->error().message);
+        }
+    }
+    CAPTURE(errors);
+    CHECK(calls == 1);
+    CHECK(values == 2);
+}
+
+TEST_CASE("an absolute @import url is loaded without a base url") {
+    // B is defined on demand while A is defined, the @import of its scoped context is absolute
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/imp.jsonld", R"({"@context": {"t": "http://ex/t"}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": {"A": {"@id": "B:x"}, "B": {"@id": "http://ex/b/", "@prefix": true, "@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}}},
+      "@id": "http://ex/s", "B": {"@id": "http://ex/o"}})",
+                                               "http://ex/doc", docs);
+    CHECK(r.requested == "http://ex/imp.jsonld\n");
+    CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/b/> <http://ex/o> .\n");
+}
+
+TEST_CASE("a scoped context before a remote context is validated against the complete context") {
+    // the scoped context of a uses the term b, which the third array entry defines.
+    // the remote context in between does not make the check happen earlier
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/r.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": [{"a": {"@id": "http://ex/a", "@context": {"x": {"@id": "http://ex/x", "@type": "b"}}}}, "http://ex/r.jsonld", {"b": "http://ex/b"}],
+      "@id": "http://ex/s", "a": {"x": "v"}})",
+                                               "http://ex/doc", docs);
+    CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/a> _:bn_0 .\n_:bn_0 <http://ex/x> \"v\"^^<http://ex/b> .\n");
+}
+
+TEST_CASE("a null scoped context that does not propagate keeps the previous context") {
+    // the type scoped context of T is null and does not propagate,
+    // so the nested node object uses the context from before T
+    auto const r = parse_with_remote_documents(R"({"@context": {"T": {"@id": "http://ex/T", "@context": null}, "p": "http://ex/p"},
+      "@id": "http://ex/s", "@type": "T", "http://ex/q": {"@id": "http://ex/o", "p": "v"}})",
+                                               "http://ex/doc", {});
+    CAPTURE(r.errors);
+    CAPTURE(r.quads);
+    CHECK(r.errors == "");
+    CHECK(r.quad_count == 3);
+    CHECK(r.quads.contains("<http://ex/o> <http://ex/p> \"v\" .\n"));
+
+    // the same for a null entry at the start of a scoped context array:
+    // a is defined after the null entry, so the nested node object does not know it
+    auto const r2 = parse_with_remote_documents(R"({"@context": {"T": {"@id": "http://ex/T", "@context": [null, {"a": "http://ex/a"}]}},
+      "@id": "http://ex/s", "@type": "T", "a": {"@id": "http://ex/o", "a": "v"}})",
+                                                "http://ex/doc", {});
+    CAPTURE(r2.errors);
+    CAPTURE(r2.quads);
+    CHECK(r2.errors == "");
+    CHECK(!r2.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
+}
+
+TEST_CASE("an absolute remote context url that is no valid iri is rejected") {
+    // the url contains a space, it is not requested
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex ample/ctx.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": "http://ex ample/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    CHECK(r.requested == "");
+    CHECK(r.errors == "loading document failed\n");
+    CHECK(r.quads == "");
+}
+
+TEST_CASE("a remote context that is no valid json only fails its own node object") {
+    // the document has three node objects, the second one loads a broken remote context.
+    // that is a parsing error for the second node object, the other two still produce their quads
+    static constexpr std::string_view remote = R"([{"@id": "http://ex/s1", "http://ex/p": "v1"},
+      {"@context": "http://ex/bad.jsonld", "@id": "http://ex/s2", "http://ex/p": "v2"},
+      {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
+    static constexpr std::string_view imported = R"([{"@id": "http://ex/s1", "http://ex/p": "v1"},
+      {"@context": {"@version": 1.1, "@import": "http://ex/bad.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v2"},
+      {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
+    static constexpr std::string_view expected_quads = "<http://ex/s1> <http://ex/p> \"v1\" .\n<http://ex/s3> <http://ex/p> \"v3\" .\n";
+
+    SUBCASE("an empty body") {
+        std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", ""}};
+        auto const r = parse_with_remote_documents(std::string{remote}, "http://ex/doc", docs);
+        CHECK(r.errors == "invalid remote context\n");
+        CHECK(r.quads == expected_quads);
+    }
+    SUBCASE("a truncated body") {
+        std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", R"({"@context": {"a": "http://ex/)"}};
+        auto const r = parse_with_remote_documents(std::string{remote}, "http://ex/doc", docs);
+        CHECK(r.errors == "invalid remote context\n");
+        CHECK(r.quads == expected_quads);
+    }
+    SUBCASE("an empty body behind @import") {
+        std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", ""}};
+        auto const r = parse_with_remote_documents(std::string{imported}, "http://ex/doc", docs);
+        CHECK(r.errors == "invalid remote context\n");
+        CHECK(r.quads == expected_quads);
+    }
+}
+
+TEST_CASE("context load redirect applies base") {
+    ParseWithRemotesResult r;
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base("http://ex/doc");
+    state.request_url = [&](std::string_view url) -> nonstd::expected<ParsingState::RequestResult, std::string> {
+        r.requested += std::format("{}\n", url);
+        if (url == "http://foo/bar.jsonld") {
+            return ParsingState::RequestResult{R"({"@context": "bar.jsonld"})", "http://bar/foo.jsonld"};
+        }
+        if (url == "http://bar/bar.jsonld") {
+            return ParsingState::RequestResult{R"({"@context": "bar2.jsonld"})", ""};
+        }
+        if (url == "http://bar/bar2.jsonld") {
+            return ParsingState::RequestResult{R"({"@context": {"a": "http://bar/bar"}})", ""};
+        }
+        return nonstd::make_unexpected("unexpected url");
+    };
+
+    std::stringstream json{R"({
+    "@context": "http://foo/bar.jsonld",
+    "a": {
+        "@id": "http://foo/obj"
+    },
+    "@id": "http://foo/sub"
+})"};
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            r.quads += std::format("{}\n", static_cast<std::string>(it->value()));
+            ++r.quad_count;
+        } else {
+            r.errors += std::format("{}\n", it->error().message);
+        }
+    }
+
+    CHECK(r.quad_count == 1);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://foo/sub> <http://bar/bar> <http://foo/obj> .\n");
 }
