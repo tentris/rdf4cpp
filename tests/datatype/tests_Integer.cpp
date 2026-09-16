@@ -77,6 +77,9 @@ TEST_CASE("Datatype Integer") {
 
     CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("a23dg", type_iri), doctest::Contains("http://www.w3.org/2001/XMLSchema#integer parsing error: "), InvalidNode);
     CHECK_THROWS(no_discard_dummy = Literal::make_typed("2.2e-308", type_iri));
+    for (auto const s : {"", "-", "+", "+-5", "-+5"}) {
+        CHECK_THROWS_AS(no_discard_dummy = Literal::make_typed(s, type_iri), InvalidNode);
+    }
 }
 
 TEST_CASE("Datatype Integer overread UB") {

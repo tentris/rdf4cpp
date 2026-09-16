@@ -116,6 +116,12 @@ TEST_CASE("Datatype Decimal") {
     CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("454sdsd", type_iri), "http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found", InvalidNode);
 
     CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("2.225E-307", type_iri), "http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found", InvalidNode);
+
+    CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("+-5", type_iri), "http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found", InvalidNode);
+
+    for (auto const s : {"", "-", "+", ".", "-."}) {
+        CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed(s, type_iri), "http://www.w3.org/2001/XMLSchema#decimal parsing error: no digits found", InvalidNode);
+    }
 }
 
 TEST_CASE("precision") {
@@ -251,6 +257,10 @@ TEST_CASE("decimal limits") {
     SUBCASE("round") {
         CHECK(Literal::make_typed_from_value<Double>(1e-41).cast<Decimal>().ceil() == Literal::make_typed<Decimal>("1"));
         CHECK(Literal::make_typed_from_value<Double>(-1e-41).cast<Decimal>().floor() == Literal::make_typed<Decimal>("-1"));
+        // ties towards +inf, https://www.w3.org/TR/xpath-functions-31/#func-round
+        CHECK(Literal::make_typed<Decimal>("2.5").round() == Literal::make_typed<Decimal>("3"));
+        CHECK(Literal::make_typed<Decimal>("-2.5").round() == Literal::make_typed<Decimal>("-2"));
+        CHECK(Literal::make_typed<Decimal>("-2.51").round() == Literal::make_typed<Decimal>("-3"));
     }
     SUBCASE("parse") {
         CHECK(Literal::make_typed<Decimal>("170141183460469231731687303715884105727.0") == Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal128>::max()));

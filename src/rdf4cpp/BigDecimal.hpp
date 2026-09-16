@@ -83,6 +83,7 @@ namespace rdf4cpp {
                 bool decimal = false;
                 bool neg = false;
                 bool overflow_decimal = false;
+                bool digit_found = false;
                 for (char const c : value) {
                     if (begin) {
                         begin = false;
@@ -109,6 +110,7 @@ namespace rdf4cpp {
                     if (c < '0' || c > '9') {
                         throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found"};
                     }
+                    digit_found = true;
                     auto n = c - '0';
                     UnscaledValue_t next_unscaled;
                     if (detail::mul_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{base}, next_unscaled)
@@ -127,6 +129,10 @@ namespace rdf4cpp {
                         exponent = next_exponent;
                     }
                     unscaled_value = next_unscaled;
+                }
+                if (!digit_found) {
+                    // xsd:decimal requires at least one digit, rejects "", "-", "."
+                    throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: no digits found"};
                 }
                 if (unscaled_value == 0) {
                     neg = false;
@@ -333,7 +339,9 @@ namespace rdf4cpp {
                 return false;
             }
 
-            // whether a truncated quotient (neg: its sign) with a non-zero remainder (half: |rem / div| >= 0.5) is moved away from zero by rounding mode m
+            // whether a truncated quotient (neg: its sign) with a non-zero remainder is moved away from zero by rounding mode m.
+            // half: |rem / div| > 0.5, or == 0.5 for positive values, since fn:round moves ties towards +inf (round(-2.5) = -2)
+            // https://www.w3.org/TR/xpath-functions-31/#func-round
             static constexpr bool round_away_from_zero(bool neg, bool half, RoundingMode m) noexcept {
                 return m == RoundingMode::Round ? half : m == RoundingMode::Floor ? neg : m == RoundingMode::Ceil && !neg;
             }
@@ -343,7 +351,8 @@ namespace rdf4cpp {
             static constexpr bool handle_rounding(UnscaledValue_t v, Exponent_t e, UnscaledValue_t const &rem, UnscaledValue_t const &div, RoundingMode mode, BigDecimal &result) noexcept {
                 if (rem != 0) {
                     bool const neg = (rem < 0) != (div < 0);
-                    bool const half = abs(rem) >= abs(div / 2) + abs(div % 2);  // overflow free
+                    // overflow free: 2|rem| > |div| resp. 2|rem| >= |div|
+                    bool const half = neg ? abs(rem) > abs(div / 2) : abs(rem) >= abs(div / 2) + abs(div % 2);
                     if (round_away_from_zero(neg, half, mode) && detail::add_checked<m>(v, UnscaledValue_t{neg ? -1 : 1}, v))
                         return true;
                 }
@@ -653,21 +662,29 @@ namespace rdf4cpp {
              * @param mode
              * @return
              */
-            [[nodiscard]] constexpr BigDecimal round(RoundingMode mode) const noexcept {
+            [[nodiscard]] constexpr BigDecimal round(RoundingMode mode = RoundingMode::Round) const noexcept {
                 BigDecimal res{0, 0};
                 UnscaledValue_t v{0};
                 if (detail::pow_checked<OverflowMode::Checked>(UnscaledValue_t{base}, exponent, v)) {
                     // base^exponent does not fit while unscaled_value does, so |*this| < 1 and the result is 0 or +-1.
-                    // |*this| >= 0.5 iff |unscaled_value| >= 5 * base^(exponent - 1)
+                    // *this >= 0.5 iff unscaled_value >= 5 * base^(exponent - 1), ties towards +inf so -0.5 stays 0
                     bool const half = !detail::pow_checked<OverflowMode::Checked>(UnscaledValue_t{base}, exponent - 1, v)
                                       && !detail::mul_checked<OverflowMode::Checked>(v, UnscaledValue_t{5}, v)
-                                      && (unscaled_value >= v || unscaled_value <= -v);
+                                      && (unscaled_value >= v || unscaled_value < -v);
                     if (unscaled_value != 0 && round_away_from_zero(!positive(), half, mode))
                         res = BigDecimal{positive() ? 1 : -1, 0};
                 } else {
                     handle_rounding<OverflowMode::UndefinedBehavior>(unscaled_value / v, 0, unscaled_value % v, v, mode, res);
                 }
                 return res;
+            }
+
+            [[nodiscard]] constexpr BigDecimal floor() const noexcept {
+                return round(RoundingMode::Floor);
+            }
+
+            [[nodiscard]] constexpr BigDecimal ceil() const noexcept {
+                return round(RoundingMode::Ceil);
             }
 
             /**

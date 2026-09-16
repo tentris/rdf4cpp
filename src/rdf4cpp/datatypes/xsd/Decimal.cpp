@@ -14,10 +14,7 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_decimal>::cpp_type capabilities::Default<xsd_decimal>::from_string(std::string_view s) {
-    if (s.starts_with('+')) {
-        s.remove_prefix(1);
-    }
-
+    // BigDecimal handles the optional sign itself, stripping + here would accept "+-5"
     return cpp_type{s};
 }
 
@@ -110,17 +107,17 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, Dynami
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::round(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::util::RoundingMode::Round);
+    return operand.round();
 }
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::floor_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::floor(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::util::RoundingMode::Floor);
+    return operand.floor();
 }
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_decimal>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::ceil(cpp_type const &operand) noexcept {
-    return operand.round(rdf4cpp::util::RoundingMode::Ceil);
+    return operand.ceil();
 }
 
 template<>

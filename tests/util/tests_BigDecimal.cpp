@@ -216,6 +216,8 @@ TEST_CASE("int128 from_chars") {
     CHECK_THROWS_AS(parse(""), rdf4cpp::InvalidNode);
     CHECK_THROWS_AS(parse("+"), rdf4cpp::InvalidNode);
     CHECK_THROWS_AS(parse("-"), rdf4cpp::InvalidNode);
+    CHECK_THROWS_AS(parse("+-5"), rdf4cpp::InvalidNode);
+    CHECK_THROWS_AS(parse("-+5"), rdf4cpp::InvalidNode);
 
     std::random_device rd{};
     std::default_random_engine r{rd()};
@@ -392,13 +394,20 @@ TEST_CASE("arithmetic") {
             CHECK(Dec{5, 0}.round(RoundingMode::Round) == Dec{5, 0});
             CHECK(round(Dec{450, 2}) == Dec{5, 0});
             CHECK(Dec{"-1.6"}.round(RoundingMode::Round) == Dec{"-2.0"});
-            CHECK(Dec{"-1.5"}.round(RoundingMode::Round) == Dec{"-2.0"});
+            // fn:round moves ties towards +inf, see https://www.w3.org/TR/xpath-functions-31/#func-round
+            CHECK(Dec{"-1.5"}.round(RoundingMode::Round) == Dec{"-1.0"});
+            CHECK(Dec{"-1.51"}.round(RoundingMode::Round) == Dec{"-2.0"});
+            CHECK(Dec{"-2.5"}.round(RoundingMode::Round) == Dec{"-2.0"});
+            CHECK(Dec{"2.5"}.round(RoundingMode::Round) == Dec{"3.0"});
             CHECK(Dec{"-1.4"}.round(RoundingMode::Round) == Dec{"-1.0"});
             CHECK(Dec{"-1.0"}.round(RoundingMode::Round) == Dec{"-1.0"});
             CHECK(Dec{"0.0"}.round(RoundingMode::Round) == Dec{"0.0"});
-            CHECK(Dec{"-0.5"}.round(RoundingMode::Round) == Dec{"-1.0"});
+            CHECK(Dec{"-0.5"}.round(RoundingMode::Round) == Dec{"0.0"});
+            CHECK(Dec{"-0.51"}.round(RoundingMode::Round) == Dec{"-1.0"});
             CHECK(Dec{"-0.4"}.round(RoundingMode::Round) == Dec{"0.0"});
             CHECK(Dec{5, 39}.round(RoundingMode::Round) == Dec{0, 0});
+            CHECK(Dec{-5, 39}.round(RoundingMode::Round) == Dec{0, 0});  // -0.5 in the 10^exponent overflow branch
+            CHECK(Dec{-6, 39}.round(RoundingMode::Round) == Dec{0, 0});
             CHECK(DecI{2000000000, 10}.round(RoundingMode::Round) == DecI{0, 0});  // 0.2, 10^10 does not fit int32
             CHECK(DecI{-2000000000, 10}.round(RoundingMode::Floor) == DecI{-1, 0});
             CHECK(Dec{5, std::numeric_limits<uint32_t>::max()}.round(RoundingMode::Ceil) == Dec{1, 0});  // must not take forever
@@ -498,6 +507,12 @@ TEST_CASE("conversion") {
         CHECK_THROWS_AS(Dec{"5.5.5"}, rdf4cpp::InvalidNode);
         CHECK_THROWS_AS(Dec{"5.5-5"}, rdf4cpp::InvalidNode);
         CHECK_THROWS_AS(Dec{"5.5+5"}, rdf4cpp::InvalidNode);
+        CHECK_THROWS_AS(Dec{""}, rdf4cpp::InvalidNode);
+        CHECK_THROWS_AS(Dec{"-"}, rdf4cpp::InvalidNode);
+        CHECK_THROWS_AS(Dec{"+"}, rdf4cpp::InvalidNode);
+        CHECK_THROWS_AS(Dec{"."}, rdf4cpp::InvalidNode);
+        CHECK_THROWS_AS(Dec{"-."}, rdf4cpp::InvalidNode);
+        CHECK_THROWS_AS(Dec{"+-5"}, rdf4cpp::InvalidNode);
         // no e notation allowed by rdf (xml) standard
     }
     SUBCASE("from Int128") {

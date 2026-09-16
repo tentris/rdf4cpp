@@ -67,8 +67,8 @@ bool to_chars_canonical(I const value, writer::BufWriterParts const writer) noex
 template<typename F, ConstexprString datatype>
 requires (std::floating_point<F> || IntegralExt<F>)
 F from_chars(std::string_view s) {
-    if (s.starts_with('+')) {
-        // from_chars does not allow initial +
+    if (s.starts_with('+') && !s.starts_with("+-")) {
+        // from_chars does not allow initial +, keep "+-" so it is rejected below
         s.remove_prefix(1);
     }
 
