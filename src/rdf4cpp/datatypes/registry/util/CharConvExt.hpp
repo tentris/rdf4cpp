@@ -18,6 +18,7 @@
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/writer/BufWriter.hpp>
 #include <rdf4cpp/datatypes/registry/util/ConstexprString.hpp>
+#include <rdf4cpp/datatypes/registry/util/NumericUtil.hpp>
 
 namespace rdf4cpp::datatypes::registry::util {
 /**
@@ -102,17 +103,7 @@ F from_chars(std::string_view s) {
 }
 
 namespace detail  {
-/**
- * equivalent to static_cast<size_t>(1 + std::log10(value))
- * only exists because the above is not a constexpr in clang
- */
-template<typename T>
-constexpr size_t log10ceil(T const value) noexcept {
-    if (value < 10) {
-        return 1;
-    }
-    return 1 + log10ceil(value / 10);
-}
+
 } // namespace detail
 
 /**
@@ -145,7 +136,7 @@ bool to_chars_canonical(F const value, writer::BufWriterParts const writer) noex
     // +1 for minus in exponent
     // at least 2 for exponent because the (c++) standard says so (https://en.cppreference.com/w/cpp/utility/to_chars)
     static_assert(std::numeric_limits<F>::is_specialized);
-    static constexpr size_t buf_sz = 5 + std::numeric_limits<F>::max_digits10 + std::max(2ul, detail::log10ceil(std::numeric_limits<F>::max_exponent10));
+    static constexpr size_t buf_sz = 5 + std::numeric_limits<F>::max_digits10 + std::max(2ul, log10ceil(std::numeric_limits<F>::max_exponent10));
     std::array<char, buf_sz> buf;
 
     boost::charconv::to_chars_result res = boost::charconv::to_chars(buf.data(), buf.data() + buf.size(), value, boost::charconv::chars_format::scientific);

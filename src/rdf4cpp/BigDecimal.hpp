@@ -6,7 +6,6 @@
 #include <format>
 #include <functional>
 #include <limits>
-#include <sstream>
 #include <string>
 #include <string_view>
 
@@ -19,6 +18,7 @@
 #include <rdf4cpp/Int128.hpp>
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/util/boost_int.hpp>
+#include <rdf4cpp/writer/BufWriter.hpp>
 
 namespace rdf4cpp {
     namespace util {
@@ -804,44 +804,53 @@ namespace rdf4cpp {
             }
 
             /**
+             * writes the string representation into writer: [-]int.frac, without trailing zeros in frac
+             * and with at least one digit on each side of the point (5.0, 0.5).
+             * @return false if the writer ran out of space
+             */
+            bool serialize(writer::BufWriterParts const writer) const noexcept requires (IntegralExt<UnscaledValue_t>) {
+                UnscaledValue_t v = unscaled_value;
+                Exponent_t frac = exponent;
+                normalize(v, frac);  // strips trailing fractional zeros, e.g. 5.100 -> 5.1, so frac is the exact number of fractional digits
+
+                // all digits of |v| as text, the point is inserted by writing two slices of this
+                std::array<char, std::numeric_limits<UnscaledValue_t>::digits10 + 2> buf;  // +1 digit, +1 sign
+                auto const res = boost::charconv::to_chars(buf.data(), buf.data() + buf.size(), v);
+                RDF4CPP_ASSERT(res.ec == std::errc{});
+                std::string_view const digits{buf.data() + (v < 0), res.ptr};  // skip the sign, it is written separately
+
+                size_t const num_integral_digits = digits.size() > frac ? digits.size() - frac : 0;  // digits left of the point, 0 if |value| < 1
+
+                if (unscaled_value < 0 && !writer::write_str("-", writer)) {
+                    return false;
+                }
+                if (!writer::write_str(num_integral_digits > 0 ? digits.substr(0, num_integral_digits) : "0", writer)) {
+                    return false;
+                }
+                if (frac == 0) {
+                    // integer, no fractional digits left after normalize
+                    return writer::write_str(".0", writer);
+                }
+                if (!writer::write_str(".", writer)) {
+                    return false;
+                }
+                // |value| < 0.1 has fewer digits than fractional places, pad with zeros: 5 * 10^-3 -> 0.005
+                for (Exponent_t zeros = 0; digits.size() + zeros < frac; ++zeros) {
+                    if (!writer::write_str("0", writer)) {
+                        return false;
+                    }
+                }
+
+                // write fraction
+                return writer::write_str(digits.substr(num_integral_digits), writer);
+            }
+
+            /**
              * conversion to a string
              * @return
              */
-            [[nodiscard]] explicit operator std::string() const noexcept {
-                if (unscaled_value == 0)
-                    return "0.0";
-                std::stringstream s{};
-                UnscaledValue_t v = unscaled_value;
-                Exponent_t ex = exponent;
-                bool hasDot = false;
-                while (v != 0) {
-                    if (!hasDot && ex == 0) {
-                        if (s.view().empty()) {
-                            s << '0';
-                        }
-                        s << '.';
-                        hasDot = true;
-                    } else {
-                        --ex;
-                    }
-                    using namespace std;
-                    auto c = static_cast<uint32_t>(abs(v % base));
-                    if (hasDot || c != 0 || !s.view().empty()) {  // skip trailing 0s
-                        s << c;
-                    }
-                    v /= base;
-                }
-                if (!hasDot) {
-                    for (Exponent_t i = 0; i < ex; ++i) {
-                        s << '0';
-                    }
-                    s << ".0";
-                }
-                if (!positive()) {
-                    s << '-';
-                }
-                std::string_view sv = s.view();
-                return std::string{sv.rbegin(), sv.rend()};
+            [[nodiscard]] explicit operator std::string() const noexcept requires (IntegralExt<UnscaledValue_t>) {
+                return writer::StringWriter::oneshot([this](auto &w) noexcept { return serialize(w); });
             }
 
             /**

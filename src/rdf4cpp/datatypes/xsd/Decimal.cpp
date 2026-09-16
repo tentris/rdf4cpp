@@ -20,8 +20,7 @@ capabilities::Default<xsd_decimal>::cpp_type capabilities::Default<xsd_decimal>:
 
 template<>
 bool capabilities::Default<xsd_decimal>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
-    auto const s = static_cast<std::string>(value);
-    return writer::write_str(s, writer);
+    return value.serialize(writer);
 }
 
 template<>
@@ -30,10 +29,8 @@ bool capabilities::Default<xsd_decimal>::serialize_simplified_string(cpp_type co
     v.normalize();
     if (v.get_exponent() == 0) {
         return util::to_chars_canonical(v.get_unscaled_value(), writer);
-    } else {
-        auto const s = static_cast<std::string>(v);
-        return writer::write_str(s, writer);
     }
+    return v.serialize(writer);
 }
 
 template<>
