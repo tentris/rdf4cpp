@@ -476,7 +476,35 @@ public:
      *
      * @return the literal form of the given boolean
      */
-    static Literal make_boolean(TriBool b, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+    [[nodiscard]] static Literal make_boolean(TriBool b, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+    /**
+     * Make a literal by converting the given multiplicity to the given datatype
+     *
+     * @param multiplicity multiplicity
+     * @param datatype datatype iri
+     * @param node_storage node storage where to place literal
+     * @return literal corresponding to the multiplicity (or null-literal if the multiplicity was not representable)
+     */
+    [[nodiscard]] static Literal make_from_multiplicity(uint64_t multiplicity, IRI const &datatype, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+    /**
+     * See other overload
+     */
+    template<datatypes::NumericLiteralDatatype T>
+    [[nodiscard]] static Literal make_from_multiplicity(uint64_t multiplicity, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
+        if constexpr (datatypes::NumericStub<T>) {
+            return Literal::make_from_multiplicity<typename T::numeric_impl_type>(multiplicity, node_storage);
+        } else {
+            // numeric impl
+            auto res = T::from_multiplicity(multiplicity);
+            if (!res.has_value()) {
+                return Literal{};
+            }
+
+            return Literal::make_typed_from_value<T>(*res, node_storage);
+        }
+    }
 
     /**
      * creates a new string Literal containing a random UUID (Universally Unique IDentifier)

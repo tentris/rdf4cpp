@@ -127,6 +127,15 @@ template<datatypes::LiteralDatatype T>
 [[nodiscard]] DeferredLiteral make_deferred_from_literal(Literal const &lit);
 
 /**
+ * Make a deferred literal by converting the given multiplicity to the given datatype
+ *
+ * @param multiplicity multiplicity
+ * @param datatype datatype iri
+ * @return deferred literal corresponding to the multiplicity (or null-literal if the multiplicity was not representable)
+ */
+[[nodiscard]] DeferredLiteral make_deferred_from_multiplicity(uint64_t multiplicity, IRI const &datatype);
+
+/**
  * @brief Places a DeferredLiteral into node_storage
  * @return the resulting literal, or the null-literal if value is the null-value
  */

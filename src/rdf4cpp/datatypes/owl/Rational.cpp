@@ -94,6 +94,12 @@ nonstd::expected<capabilities::Numeric<owl_rational>::ceil_result_cpp_type, Dyna
     auto const rest = numerator(operand) % denominator(operand);
     return integral + (rest != 0);
 }
+
+template<>
+nonstd::expected<capabilities::Default<owl_rational>::cpp_type, DynamicError> capabilities::Numeric<owl_rational>::from_multiplicity(uint64_t multiplicity) noexcept {
+    return cpp_type{multiplicity}; // any 64bit integer is exactly representable in boost::multiprecision::cpp_rational
+}
+
 #endif
 
 template struct LiteralDatatypeImpl<owl_rational,

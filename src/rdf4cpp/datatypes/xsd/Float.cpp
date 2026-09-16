@@ -47,6 +47,19 @@ nonstd::expected<capabilities::Numeric<xsd_float>::ceil_result_cpp_type, Dynamic
 }
 
 template<>
+nonstd::expected<capabilities::Default<xsd_float>::cpp_type, DynamicError> capabilities::Numeric<xsd_float>::from_multiplicity(uint64_t multiplicity) noexcept {
+    constexpr auto available_mantissa_bits = std::numeric_limits<cpp_type>::digits;
+    auto const required_mantissa_bits = std::bit_width(multiplicity) - std::countr_zero(multiplicity);
+
+    if (required_mantissa_bits > available_mantissa_bits) [[unlikely]] {
+        // doesn't fit
+        return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
+    }
+
+    return static_cast<cpp_type>(multiplicity);
+}
+
+template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_float>::try_into_inlined(cpp_type const &value) noexcept {
     return util::pack<storage::identifier::LiteralID>(value);
 }

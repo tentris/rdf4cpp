@@ -40,7 +40,7 @@ enum struct DynamicError {
  * A type that is not explicitly a LiteralDatatype but fulfills the requirements for being impl-numeric (see NumericStubLiteralDatatype)
  */
 template<typename LiteralDatatypeImpl>
-concept NumericImpl = requires(typename LiteralDatatypeImpl::cpp_type const &lhs, typename LiteralDatatypeImpl::cpp_type const &rhs) {
+concept NumericImpl = requires(typename LiteralDatatypeImpl::cpp_type const &lhs, typename LiteralDatatypeImpl::cpp_type const &rhs, uint64_t mult) {
                           requires LiteralDatatypeOrUndefined<typename LiteralDatatypeImpl::add_result>;
                           requires LiteralDatatypeOrUndefined<typename LiteralDatatypeImpl::sub_result>;
                           requires LiteralDatatypeOrUndefined<typename LiteralDatatypeImpl::mul_result>;
@@ -63,6 +63,7 @@ concept NumericImpl = requires(typename LiteralDatatypeImpl::cpp_type const &lhs
                           { LiteralDatatypeImpl::pos(lhs) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::pos_result_cpp_type, DynamicError>>;
                           { LiteralDatatypeImpl::neg(lhs) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::neg_result_cpp_type, DynamicError>>;
                           { LiteralDatatypeImpl::is_inf(lhs) } -> std::convertible_to<bool>;
+                          { LiteralDatatypeImpl::from_multiplicity(mult) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
                       };
 
 /**
