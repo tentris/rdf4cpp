@@ -5,6 +5,8 @@
 #include <rdf4cpp/CompensatedSum.hpp>
 #include <rdf4cpp/Dataset.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
+#include <rdf4cpp/Int128.hpp>
+#include <rdf4cpp/Int128Ext.hpp>
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/Namespace.hpp>
 #include <rdf4cpp/Node.hpp>

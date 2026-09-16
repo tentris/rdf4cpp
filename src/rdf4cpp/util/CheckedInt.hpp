@@ -1,6 +1,8 @@
 #ifndef RDF4CPP_CHECKEDINT_HPP
 #define RDF4CPP_CHECKEDINT_HPP
 
+#include <concepts>
+
 namespace rdf4cpp::util {
 /**
  * Wraps an integer type and keeps track of Overflows and similar Undefined Behavior.
@@ -27,15 +29,16 @@ public:
      * Checks if the contained value is invalid.
      * @return
      */
-    [[nodiscard]]constexpr  bool is_invalid() const noexcept {
+    [[nodiscard]] constexpr bool is_invalid() const noexcept {
         return invalid;
     }
+
     /**
      * Returns the contained value.
      * @note returned value is garbage, if is_invalid() evaluates to true.
      * @return
      */
-    [[nodiscard]]constexpr  I get_value() const noexcept {
+    [[nodiscard]] constexpr I get_value() const noexcept {
         return value;
     }
 

@@ -165,8 +165,8 @@ TEST_CASE("Literal - logical ops") {
 
 TEST_CASE("Literal - numeric ops") {
     // simple promotion test cases
-    GENERATE_BINOP_TESTCASE(Float, 42.f, +, Decimal, rdf4cpp::BigDecimal{120.0}, Float, 162.f);
-    GENERATE_BINOP_TESTCASE(Decimal, rdf4cpp::BigDecimal{2.f}, *, Float, 120.0, Float, 240.f);
+    GENERATE_BINOP_TESTCASE(Float, 42.f, +, Decimal, rdf4cpp::Decimal128{120.0}, Float, 162.f);
+    GENERATE_BINOP_TESTCASE(Decimal, rdf4cpp::Decimal128{2.f}, *, Float, 120.0, Float, 240.f);
     GENERATE_BINOP_TESTCASE(Integer, 100, -, Float, 1.f, Float, 99.f);
     GENERATE_BINOP_TESTCASE(Float, 100.f, /, Integer, 2, Float, 50.f);
 
@@ -178,9 +178,9 @@ TEST_CASE("Literal - numeric ops") {
     GENERATE_BINOP_TESTCASE(Integer, 1, +, Integer , 2, Integer, 3);
     GENERATE_BINOP_TESTCASE(Integer, 12, -, Integer, 1, Integer, 11);
     GENERATE_BINOP_TESTCASE(Integer, 3, *, Integer, 6, Integer, 18);
-    GENERATE_BINOP_TESTCASE(Integer, 12, /, Integer, 4, Decimal, rdf4cpp::BigDecimal{3.0});
+    GENERATE_BINOP_TESTCASE(Integer, 12, /, Integer, 4, Decimal, rdf4cpp::Decimal128{3.0});
     GENERATE_BINOP_TESTCASE(Int, 1, +, Integer, 3, Integer, 4);
-    GENERATE_BINOP_TESTCASE(Int, 1, +, Decimal, rdf4cpp::BigDecimal{2}, Decimal, rdf4cpp::BigDecimal{3});
+    GENERATE_BINOP_TESTCASE(Int, 1, +, Decimal, rdf4cpp::Decimal128{2}, Decimal, rdf4cpp::Decimal128{3});
     GENERATE_UNOP_TESTCASE(Integer, 1, +, Integer, 1);
     GENERATE_UNOP_TESTCASE(Integer, 1, -, Integer, -1);
 
@@ -585,12 +585,12 @@ TEST_SUITE("deferred numeric ops") {
             check_matches_eager(Literal::make_typed_from_value<xsd::Integer>(6), Literal::make_typed_from_value<xsd::Integer>(7));
             check_matches_eager(Literal::make_typed_from_value<xsd::Double>(1.5), Literal::make_typed_from_value<xsd::Double>(0.25));
             check_matches_eager(Literal::make_typed_from_value<xsd::Float>(2.f), Literal::make_typed_from_value<xsd::Float>(4.f));
-            check_matches_eager(Literal::make_typed_from_value<xsd::Decimal>(BigDecimal{2.0}), Literal::make_typed_from_value<xsd::Decimal>(BigDecimal{0.5}));
+            check_matches_eager(Literal::make_typed_from_value<xsd::Decimal>(Decimal128{2.0}), Literal::make_typed_from_value<xsd::Decimal>(Decimal128{0.5}));
         }
 
         SUBCASE("promotion and subtype substitution") {
             check_matches_eager(Literal::make_typed_from_value<xsd::Integer>(100), Literal::make_typed_from_value<xsd::Float>(1.f));
-            check_matches_eager(Literal::make_typed_from_value<xsd::Float>(42.f), Literal::make_typed_from_value<xsd::Decimal>(BigDecimal{120.0}));
+            check_matches_eager(Literal::make_typed_from_value<xsd::Float>(42.f), Literal::make_typed_from_value<xsd::Decimal>(Decimal128{120.0}));
             check_matches_eager(Literal::make_typed_from_value<xsd::Int>(8), Literal::make_typed_from_value<xsd::Integer>(9));
             check_matches_eager(Literal::make_typed_from_value<xsd::UnsignedByte>(3), Literal::make_typed_from_value<xsd::Double>(2.));
             // both operands are stub-numeric, so the result datatype is that of neither of them
@@ -664,7 +664,7 @@ TEST_SUITE("deferred numeric ops") {
 
         check(make_deferred_from_value<xsd::Integer>(42), Literal::make_typed_from_value<xsd::Integer>(42));
         check(make_deferred_from_value<xsd::Double>(1.5), Literal::make_typed_from_value<xsd::Double>(1.5));
-        check(make_deferred_from_value<xsd::Decimal>(BigDecimal{1.5}), Literal::make_typed_from_value<xsd::Decimal>(BigDecimal{1.5}));
+        check(make_deferred_from_value<xsd::Decimal>(Decimal128{1.5}), Literal::make_typed_from_value<xsd::Decimal>(Decimal128{1.5}));
         check(make_deferred_from_value<xsd::Z>(1.0), Literal::make_typed_from_value<xsd::Z>(1.0));  // dynamic datatype
     }
 
@@ -673,7 +673,7 @@ TEST_SUITE("deferred numeric ops") {
 
         check_make_typed_from_value<xsd::Integer>(42);
         check_make_typed_from_value<xsd::Double>(1.5);
-        check_make_typed_from_value<xsd::Decimal>(BigDecimal{1.5});
+        check_make_typed_from_value<xsd::Decimal>(Decimal128{1.5});
         check_make_typed_from_value<xsd::Boolean>(true);
         check_make_typed_from_value<xsd::Int>(7);
         check_make_typed_from_value<xsd::String>("abc");

@@ -12,7 +12,6 @@ jobs:
       public_artifactory: true
       os: ubuntu-24.04
       compiler: clang-21
-      conan-options: -o boost/*:header_only=True
     secrets:
       CONAN_CICD_USERNAME: ${{ secrets.CONAN_CICD_USERNAME }}
       CONAN_CICD_PASSWORD: ${{ secrets.CONAN_CICD_PASSWORD }}

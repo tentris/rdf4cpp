@@ -3,25 +3,19 @@
 #include <stdexcept>
 
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_integer>::cpp_type capabilities::Default<xsd_integer>::from_string(std::string_view s) {
-    if (s.starts_with('+')) {
-        s.remove_prefix(1);
-    }
+    return util::from_chars<cpp_type, identifier>(s);
+}
 
-    if (auto const pos = s.find_first_not_of('0'); pos != std::string::npos) {
-        s.remove_prefix(pos);
-    }
-
-    try {
-        return cpp_type{s};
-    } catch (std::runtime_error const &e) {
-        throw InvalidNode{std::format("{} parsing error: {}", identifier, e.what())};
-    }
+template<>
+bool capabilities::Default<xsd_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
+    return util::to_chars_canonical(value, writer);
 }
 
 template<>
@@ -31,18 +25,27 @@ bool capabilities::Logical<xsd_integer>::effective_boolean_value(cpp_type const 
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::div_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    if (rhs == 0) {
-        return nonstd::make_unexpected(DynamicError::DivideByZero);
-    }
-
     // https://www.w3.org/TR/xpath-functions/#func-numeric-divide
-    // integer needs to return decimal on division
-    return static_cast<div_result_cpp_type>(lhs) / static_cast<div_result_cpp_type>(rhs);
+    // integer needs to return decimal on division, decimal handles division by zero and overflow
+    return capabilities::Numeric<xsd_decimal>::div(div_result_cpp_type{lhs}, div_result_cpp_type{rhs});
+}
+
+template<>
+nonstd::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::neg(cpp_type const &operand) noexcept {
+    cpp_type r;
+    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(operand, cpp_type{-1}, r)) {
+        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+    }
+    return r;
 }
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::abs(cpp_type const &operand) noexcept {
-    return boost::multiprecision::abs(operand);
+    if (operand >= 0) {
+        return operand;
+    } else {
+        return neg(operand);
+    }
 }
 
 template<>

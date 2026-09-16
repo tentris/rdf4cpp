@@ -33,7 +33,7 @@ nonstd::expected<capabilities::Numeric<xsd_float>::abs_result_cpp_type, DynamicE
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_float>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::round(cpp_type const &operand) noexcept {
-    return std::round(operand);
+    return util::xsd_round(operand);
 }
 
 template<>
@@ -48,10 +48,7 @@ nonstd::expected<capabilities::Numeric<xsd_float>::ceil_result_cpp_type, Dynamic
 
 template<>
 nonstd::expected<capabilities::Default<xsd_float>::cpp_type, DynamicError> capabilities::Numeric<xsd_float>::from_multiplicity(uint64_t multiplicity) noexcept {
-    constexpr auto available_mantissa_bits = std::numeric_limits<cpp_type>::digits;
-    auto const required_mantissa_bits = std::bit_width(multiplicity) - std::countr_zero(multiplicity);
-
-    if (required_mantissa_bits > available_mantissa_bits) [[unlikely]] {
+    if (!util::fits_in_floating<cpp_type>(multiplicity)) [[unlikely]] {
         // doesn't fit
         return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
     }

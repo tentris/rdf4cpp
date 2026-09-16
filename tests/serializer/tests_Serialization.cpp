@@ -29,6 +29,8 @@ TEST_CASE("Literal short form and prefixed") {
     writer::write_str(",", ser);
     Literal::make_typed<datatypes::xsd::Decimal>("4").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
     writer::write_str(",", ser);
+    Literal::make_typed<datatypes::xsd::Decimal>("-4.50").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
+    writer::write_str(",", ser);
     Literal::make_typed<datatypes::xsd::Double>("4").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
     writer::write_str(",", ser);
     Literal::make_typed<datatypes::xsd::Double>("INF").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
@@ -46,7 +48,7 @@ TEST_CASE("Literal short form and prefixed") {
     Literal::make_typed<datatypes::xsd::Integer>("4").serialize(ser, NodeSerializationOpts::prefixed_and_short_form());
     ser.finalize();
 
-    CHECK_EQ(buf, R"("2042-05-04"^^xsd:date,true,4.0,4.0E0,"INF"^^xsd:double,"-INF"^^xsd:double,"NaN"^^xsd:double,"INF"^^xsd:double,"4.0E0"^^xsd:float,"4"^^xsd:unsignedByte,4)");
+    CHECK_EQ(buf, R"("2042-05-04"^^xsd:date,true,4.0,-4.5,4.0E0,"INF"^^xsd:double,"-INF"^^xsd:double,"NaN"^^xsd:double,"INF"^^xsd:double,"4.0E0"^^xsd:float,"4"^^xsd:unsignedByte,4)");
 }
 
 TEST_CASE("Literal short form") {

@@ -3,25 +3,25 @@
 #include <stdexcept>
 
 #include <rdf4cpp/InvalidNode.hpp>
+#include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_negative_integer>::cpp_type capabilities::Default<xsd_negative_integer>::from_string(std::string_view s) {
-    cpp_type ret;
-
-    try {
-        ret = cpp_type{s};
-    } catch (std::runtime_error const &e) {
-        throw InvalidNode{std::format("{} parsing error: {}", identifier, e.what())};
-    }
+    cpp_type ret = util::from_chars<cpp_type, identifier>(s);
 
     if (ret > -1) {
         throw InvalidNode{std::format("{} parsing error: found non-negative value", identifier)};
     }
 
     return ret;
+}
+
+template<>
+bool capabilities::Default<xsd_negative_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
+    return util::to_chars_canonical(value, writer);
 }
 
 template<>
@@ -52,12 +52,11 @@ nonstd::expected<capabilities::Default<xsd_negative_integer>::cpp_type, DynamicE
 
 template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_negative_integer>::try_into_inlined(cpp_type const &value) noexcept {
-    auto const to_pack_value = -value - 1;
-    if (to_pack_value >= (uint64_t{1} << storage::identifier::LiteralID::width)) {
+    if (value < -(cpp_type{1} << storage::identifier::LiteralID::width)) {  // check before negating, -min would overflow
         return std::nullopt;
     }
 
-    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<uint64_t>(to_pack_value));
+    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<uint64_t>(-value - 1));
 }
 
 template<>

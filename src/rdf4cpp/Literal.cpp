@@ -1082,6 +1082,9 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
     }();
 
     RDF4CPP_ASSERT(result_entry != nullptr);
+    if (!op_res.result_value.has_value()) {
+        return Literal{};
+    }
     return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
 }
 
@@ -2528,7 +2531,7 @@ Literal Literal::as_seconds(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->seconds();
     if (!r.has_value())
         return Literal{};
-    return Literal::make_typed_from_value<datatypes::xsd::Decimal>(rdf4cpp::BigDecimal<>{r->count(), 9}, select_node_storage(node_storage));
+    return Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{r->count(), 9}, select_node_storage(node_storage));
 }
 
 std::optional<Timezone> Literal::timezone() const {

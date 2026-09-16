@@ -1,6 +1,7 @@
 #ifndef RDF4CPP_ASSERT_HPP
 #define RDF4CPP_ASSERT_HPP
 
+#include <cassert>
 #include <iostream>
 #include <format>
 

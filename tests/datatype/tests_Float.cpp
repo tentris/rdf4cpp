@@ -120,3 +120,19 @@ TEST_CASE("inlining") {
 
     CHECK(f == deinlined);
 }
+
+TEST_CASE("float over/underflow from string") {
+    // https://www.w3.org/TR/xmlschema11-2/#f-floatPtRound
+    using type = datatypes::xsd::Float::cpp_type;
+    auto const parse = [](char const *s) { return Literal::make_typed<datatypes::xsd::Float>(s).value<datatypes::xsd::Float>(); };
+
+    CHECK_EQ(parse("1E39"), std::numeric_limits<type>::infinity());
+    CHECK_EQ(parse("-1E39"), -std::numeric_limits<type>::infinity());
+    CHECK_EQ(parse("340282356779733661637539395458142568448"), std::numeric_limits<type>::infinity());
+
+    CHECK_EQ(parse("1E-50"), 0.0f);
+    CHECK_FALSE(std::signbit(parse("1E-50")));
+    CHECK_EQ(parse("-1E-50"), 0.0f);
+    CHECK(std::signbit(parse("-1E-50")));
+    CHECK_EQ(parse("1E-45"), std::numeric_limits<type>::denorm_min());
+}
