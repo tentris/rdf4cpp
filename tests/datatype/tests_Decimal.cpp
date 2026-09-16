@@ -278,3 +278,13 @@ TEST_CASE("decimal possible bug") {
     auto const div_res = lit1 / lit2; // program crashes here if the bug is present
     CHECK(div_res.null());
 }
+
+TEST_CASE("decimal to float underflow") {
+    auto x = Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{1, 60});
+    auto y = x.cast<datatypes::xsd::Float>();
+
+    // underflows float, xsd floatingPointRound yields positive zero
+    CHECK_EQ(y, Literal::make_typed_from_value<datatypes::xsd::Float>(0.0f));
+    CHECK_FALSE(std::signbit(y.value<datatypes::xsd::Float>()));
+    CHECK_EQ(y.lexical_form(), "0.0E0");
+}

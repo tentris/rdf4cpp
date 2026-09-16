@@ -76,7 +76,11 @@ F from_chars(std::string_view s) {
     F value;
     boost::charconv::from_chars_result res = [&]() noexcept {
         if constexpr (std::floating_point<F>) {
-            return boost::charconv::from_chars(s.data(), s.data() + s.size(), value, boost::charconv::chars_format::general);
+            // overflow must map to +-INF, underflow must map to +-0
+            // https://www.w3.org/TR/xmlschema11-2/#f-floatPtRound
+            // https://www.w3.org/TR/xmlschema11-2/#f-floatLexmap
+            // same applies to double
+            return boost::charconv::from_chars_erange(s.data(), s.data() + s.size(), value, boost::charconv::chars_format::general);
         } else {
             return boost::charconv::from_chars(s.data(), s.data() + s.size(), value);
         }
@@ -89,7 +93,10 @@ F from_chars(std::string_view s) {
                 throw rdf4cpp::InvalidNode{std::format("{} parsing error: literal is empty", datatype)};
             }
         } else if (res.ec == std::errc::result_out_of_range) {
-            throw rdf4cpp::InvalidNode{std::format("{} parsing error: {} is out of range", datatype, s)};
+            if constexpr (!std::is_floating_point_v<F>) {
+                // out of range is only an error for integrals. See boost::charconv::from_chars_erange
+                throw rdf4cpp::InvalidNode{std::format("{} parsing error: {} is out of range", datatype, s)};
+            }
         } else {
             throw rdf4cpp::InvalidNode{std::format("{} parsing error: {}", datatype, std::make_error_code(res.ec).message())};
         }

@@ -183,14 +183,7 @@ capabilities::Inlineable<xsd_decimal>::cpp_type capabilities::Inlineable<xsd_dec
 template<>
 template<>
 capabilities::Promotable<xsd_decimal>::promoted_cpp_type<0> capabilities::Promotable<xsd_decimal>::promote<0>(cpp_type const &value) noexcept {
-    // 19.1.2.1 Casting to xs:float
-    // If ST is xs:decimal then TV is xs:float(SV cast as xs:string) and the conversion is complete.
-    // https://www.w3.org/TR/xpath-functions/#casting-to-float
-    auto const str = writer::StringWriter::oneshot([&value](auto &w) {
-        return Default<xsd_decimal>::serialize_canonical_string(value, w);
-    });
-
-    return Default<xsd_float>::from_string(str);
+    return static_cast<promoted_cpp_type<0>>(value);
 }
 
 // BigDecimal(double) throws std::overflow_error for too large and std::invalid_argument for NaN/inf values
@@ -207,14 +200,7 @@ nonstd::expected<capabilities::Promotable<xsd_decimal>::cpp_type, DynamicError> 
 template<>
 template<>
 capabilities::Promotable<xsd_decimal>::promoted_cpp_type<1> capabilities::Promotable<xsd_decimal>::promote<1>(cpp_type const &value) noexcept {
-    // §19.1.2.2 Casting to xs:double
-    // If ST is xs:decimal then TV is xs:double(SV cast as xs:string) and the conversion is complete.
-    // https://www.w3.org/TR/xpath-functions/#casting-to-double
-    auto const str = writer::StringWriter::oneshot([&value](auto &w) {
-        return Default<xsd_decimal>::serialize_canonical_string(value, w);
-    });
-
-    return Default<xsd_double>::from_string(str);
+    return static_cast<promoted_cpp_type<1>>(value);
 }
 
 template<>

@@ -91,6 +91,10 @@ namespace rdf4cpp::parser::json_ld {
         if (t == simdjson::ondemand::json_type::number) {
             auto str = trim_raw_token(v.raw_json_token());
             auto d = datatypes::registry::util::from_chars<double, "">(str);
+            if (std::isinf(d)) {
+                // JSON has no infinity, from_chars maps overflow to it (xsd semantics)
+                throw InvalidNode{"JSON-LD parsing error: number does not fit in a double"};
+            }
             if (!normalize && d == 0.0) {
                 return {"0", datatypes::registry::xsd_integer};
             }

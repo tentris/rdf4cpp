@@ -19,6 +19,7 @@
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/util/boost_int.hpp>
 #include <rdf4cpp/writer/BufWriter.hpp>
+#include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
 namespace rdf4cpp {
     namespace util {
@@ -687,6 +688,10 @@ namespace rdf4cpp {
                 return round(RoundingMode::Ceil);
             }
 
+            [[nodiscard]] constexpr BigDecimal trunc() const noexcept {
+                return round(RoundingMode::Trunc);
+            }
+
             /**
              * the absolute value of a BigDecimal.
              * may overflow.
@@ -772,17 +777,31 @@ namespace rdf4cpp {
                 return other == t;
             }
 
+        private:
+            template<std::floating_point F>
+            [[nodiscard]] F floating_cast() const noexcept {
+                // 19.1.2.1 Casting to xs:float
+                // If ST is xs:decimal then TV is xs:float(SV cast as xs:string) and the conversion is complete.
+                // https://www.w3.org/TR/xpath-functions/#casting-to-float
+
+                // §19.1.2.2 Casting to xs:double
+                // If ST is xs:decimal then TV is xs:double(SV cast as xs:string) and the conversion is complete.
+                // https://www.w3.org/TR/xpath-functions/#casting-to-double
+                auto const str_repr = static_cast<std::string>(*this);
+
+                // Note: while this is not noexcept, there is no exception that can be thrown here
+                // If it does throw one then something is wrong
+                return datatypes::registry::util::from_chars<F, "">(str_repr);
+            }
+
+        public:
+
             /**
              * conversion to a double
              * @return
              */
             [[nodiscard]] explicit operator double() const noexcept {
-                double const v = static_cast<double>(unscaled_value) * std::pow(static_cast<double>(base), -static_cast<double>(exponent));
-                if (!std::isnan(v) && !std::isinf(v))
-                    return v;
-                // even Javas BigDecimal has no better solution
-                auto const s = static_cast<std::string>(*this);
-                return std::stod(s);
+                return floating_cast<double>();
             }
 
             /**
@@ -790,7 +809,7 @@ namespace rdf4cpp {
              * @return
              */
             [[nodiscard]] explicit operator float() const noexcept {
-                return static_cast<float>(static_cast<double>(*this));
+                return floating_cast<float>();
             }
 
             /**

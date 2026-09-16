@@ -687,7 +687,7 @@ TEST_CASE("document larger than one read block") {
 }
 
 TEST_CASE("numbers that no double can hold") {
-    // from_chars reports these as an invalid literal, which must not escape the iterator
+    // stringify rejects these as an invalid literal, which must not escape the iterator
     jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": 1e999999})", "http://example.com/");
     jsonld_test_negative(R"({"@id": "http://example.com/s", "http://example.com/p": -1e999999})", "http://example.com/");
 }
