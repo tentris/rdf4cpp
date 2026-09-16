@@ -44,7 +44,7 @@ class Recipe(ConanFile):
         self.requires("dragonbox/1.1.3")
 
         if self.options.with_test_deps:
-            self.test_requires("doctest/2.4.11")
+            self.test_requires("doctest/2.5.3")
             self.test_requires("nanobench/4.3.11")
 
     def set_name(self):
