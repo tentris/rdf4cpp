@@ -134,4 +134,41 @@ TEST_SUITE("blank node id management") {
             CHECK_NE(bn1.as_blank_node().identifier(), "bn_1");
         }
     }
+
+    TEST_CASE("simulate resumable file parsing") {
+        std::string const file_name = "/path/to/my/file.nt";
+        std::string const file_content = "<http://example.org#s1> <http://example.org#p1> _:bn_1 <http://example.com#g1> ."
+            "<http://example.org#s1> <http://example.org#p1> _:bn_2 <http://example.com#g1> ."
+            "<http://example.org#s1> <http://example.org#p2> _:bn_2 <http://example.com#g2> ."
+            "<http://example.org#s1> <http://example.org#p2> _:bn_1 <http://example.com#g2> .";
+
+        auto const parse = [&] {
+            MergeNodeScopeManager<> mng{
+                .scopes = {},
+                .make_scope = [file_name](std::string_view graph_name) {
+                    auto const seed = dice::hash::dice_hash_templates<dice::hash::Policies::wyhash>::dice_hash(std::tie(file_name, graph_name));
+                    return std::make_unique<ReferenceNodeScope<RandomIdGenerator>>(seed);
+                }
+            };
+            parser::ParsingState st{.blank_node_scope_manager = mng};
+            std::istringstream stream{file_content};
+
+            std::vector<BlankNode> bns;
+
+            for (parser::IStreamQuadIterator qit{stream, parser::ParsingFlag::NQuads, &st}; qit != std::default_sentinel; ++qit) {
+                CHECK(qit->has_value());
+                bns.push_back(qit->value().object().as_blank_node());
+            }
+
+            return bns;
+        };
+
+        auto const bns1 = parse();
+        CHECK_EQ(std::set{std::from_range, bns1}.size(), bns1.size()); // all distinct
+
+        auto const bns2 = parse();
+        CHECK_EQ(std::set{std::from_range, bns2}.size(), bns2.size());
+
+        CHECK_EQ(bns1, bns2);
+    }
 }
