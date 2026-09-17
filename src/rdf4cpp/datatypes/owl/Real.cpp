@@ -16,6 +16,12 @@ capabilities::Default<owl_real>::cpp_type capabilities::Default<owl_real>::from_
 }
 
 template<>
+bool capabilities::Default<owl_real>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
+    // digits = 0 selects max_digits10, so the result round-trips exactly (operator<< would only print 6 digits)
+    return writer::write_str(value.str(0), writer);
+}
+
+template<>
 bool capabilities::Logical<owl_real>::effective_boolean_value(cpp_type const &value) noexcept {
     return value != 0;
 }
