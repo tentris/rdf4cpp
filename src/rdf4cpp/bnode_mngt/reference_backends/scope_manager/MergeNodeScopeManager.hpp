@@ -8,6 +8,10 @@
 
 #include <dice/hash.hpp>
 
+#include <functional>
+#include <memory>
+#include <type_traits>
+
 namespace rdf4cpp::bnode_mngt {
 
 template<NodeScope S = ReferenceNodeScope<>> requires std::is_default_constructible_v<S>
@@ -18,14 +22,19 @@ struct MergeNodeScopeManager {
             dice::hash::DiceHashwyhash<std::string_view>,
             std::equal_to<>>;
 
-    node_scope_storage_type scopes;
+    static std::unique_ptr<S> default_make_scope([[maybe_unused]] std::string_view name) {
+        return std::make_unique<S>();
+    }
+
+    node_scope_storage_type scopes{};
+    std::function<std::unique_ptr<S>(std::string_view)> make_scope{&default_make_scope};
 
     S &scope(std::string_view name) noexcept {
         if (auto it = scopes.find(name); it != scopes.end()) {
           return *it->second;
         }
 
-        auto [it, inserted] = scopes.emplace(name, std::make_unique<S>());
+        auto [it, inserted] = scopes.emplace(name, make_scope(name));
         RDF4CPP_ASSERT(inserted);
         return *it->second;
     }
