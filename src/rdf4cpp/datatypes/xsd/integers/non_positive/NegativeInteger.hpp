@@ -1,19 +1,18 @@
 #ifndef RDF4CPP_XSD_NEGATIVEINTEGER_HPP
 #define RDF4CPP_XSD_NEGATIVEINTEGER_HPP
 
+#include <rdf4cpp/Int128.hpp>
 #include <rdf4cpp/datatypes/registry/DatatypeMapping.hpp>
 #include <rdf4cpp/datatypes/registry/LiteralDatatypeImpl.hpp>
 #include <rdf4cpp/datatypes/xsd/integers/signed/Integer.hpp>
 #include <rdf4cpp/datatypes/xsd/integers/non_positive/NonPositiveInteger.hpp>
-
-#include <boost/multiprecision/cpp_int.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
 template<>
 struct DatatypeMapping<xsd_negative_integer> {
-    using cpp_datatype = boost::multiprecision::cpp_int;
+    using cpp_datatype = rdf4cpp::Int128;
 };
 
 template<>
@@ -31,6 +30,9 @@ struct DatatypeNumericStubMapping<xsd_negative_integer> {
  */
 template<>
 capabilities::Default<xsd_negative_integer>::cpp_type capabilities::Default<xsd_negative_integer>::from_string(std::string_view s);
+
+template<>
+bool capabilities::Default<xsd_negative_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept;
 
 template<>
 bool capabilities::Logical<xsd_negative_integer>::effective_boolean_value(cpp_type const &) noexcept;

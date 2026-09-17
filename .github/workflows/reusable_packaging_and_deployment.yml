@@ -68,5 +68,5 @@ jobs:
           pkg_name=$(conan inspect --format json . | jq -r '.name')
           pkg_ver=$(conan inspect --format json . | jq -r '.version')
           
-          conan create . --name "${pkg_name}" --version "${pkg_ver}" --user ci --channel testing -pr:b=default --build missing -o boost/*:header_only=True
+          conan create . --name "${pkg_name}" --version "${pkg_ver}" --user ci --channel testing -pr:b=default --build missing
           conan remove -c "${pkg_name}/*"

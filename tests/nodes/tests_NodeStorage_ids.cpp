@@ -54,8 +54,12 @@ TEST_SUITE("node storage identifier output") {
     TEST_CASE("NodeBackendHandle") {
         check_string_repr(NodeBackendHandle{NodeBackendID{NodeID{123}, RDFNodeType::IRI}, nullptr},
                           "{ .id = { .node_id = { .underlying = 123 }, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }, .node_storage = { .backend = 0, .vtable = 0 } }");
-        check_string_repr(NodeBackendHandle{NodeBackendID{NodeID{123}, RDFNodeType::IRI}, rdf4cpp::storage::default_node_storage},
-                          std::format("{{ .id = {{ .node_id = {{ .underlying = 123 }}, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }}, .node_storage = {{ .backend = {}, .vtable = {} }} }}",
-                              rdf4cpp::storage::default_node_storage.backend(), static_cast<void const *>(rdf4cpp::storage::default_node_storage.vtable())));
+        // the pointers have to be stringified the same way the printer does it,
+        // std::format and operator<< are not required to spell them alike (e.g. 0x0 vs 0)
+        auto const ns = rdf4cpp::storage::default_node_storage;
+        std::ostringstream expected;
+        expected << "{ .id = { .node_id = { .underlying = 123 }, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }, .node_storage = { .backend = "
+                 << ns.backend() << ", .vtable = " << ns.vtable() << " } }";
+        check_string_repr(NodeBackendHandle{NodeBackendID{NodeID{123}, RDFNodeType::IRI}, ns}, expected.str());
     }
 }

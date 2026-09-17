@@ -167,3 +167,19 @@ TEST_CASE("double inlining large") {
     CHECK_GE(sum_inlining_percentage, 4.0); // :(
     CHECK_GE(comp_sum_inlining_percentage, 99.0); // :)
 }
+
+TEST_CASE("double over/underflow from string") {
+    // https://www.w3.org/TR/xmlschema11-2/#f-floatPtRound
+    using type = datatypes::xsd::Double::cpp_type;
+    auto const parse = [](char const *s) { return Literal::make_typed<datatypes::xsd::Double>(s).value<datatypes::xsd::Double>(); };
+
+    CHECK_EQ(parse("1E309"), std::numeric_limits<type>::infinity());
+    CHECK_EQ(parse("-1E309"), -std::numeric_limits<type>::infinity());
+    CHECK_EQ(parse("1.8E308"), std::numeric_limits<type>::infinity());
+
+    CHECK_EQ(parse("1E-400"), 0.0);
+    CHECK_FALSE(std::signbit(parse("1E-400")));
+    CHECK_EQ(parse("-1E-400"), 0.0);
+    CHECK(std::signbit(parse("-1E-400")));
+    CHECK_EQ(parse("5E-324"), std::numeric_limits<type>::denorm_min());
+}

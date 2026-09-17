@@ -89,10 +89,10 @@ TEST_CASE("exact datatypes match the naive fold") {
     }
 
     SUBCASE("xsd:decimal") {
-        auto const lits = repeat<datatypes::xsd::Decimal>(BigDecimal<>{"0.01"}, 100);
+        auto const lits = repeat<datatypes::xsd::Decimal>(Decimal128{"0.01"}, 100);
 
         CHECK_EQ(compensated_sum(lits), naive_sum(lits));
-        CHECK_EQ(compensated_sum(lits).value<datatypes::xsd::Decimal>(), BigDecimal<>{"1.0"});
+        CHECK_EQ(compensated_sum(lits).value<datatypes::xsd::Decimal>(), Decimal128{"1.0"});
     }
 
     SUBCASE("owl:rational") {
@@ -111,11 +111,10 @@ TEST_CASE("exact datatypes match the naive fold") {
 }
 
 TEST_CASE("owl:real is inexact, so it takes the compensated path") {
-    auto const lits = repeat<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{0.1}, 10);
+    using boost::multiprecision::cpp_bin_float_quad;
+    auto const lits = repeat<datatypes::owl::Real>(cpp_bin_float_quad{"0.1"}, 10);
 
-    // the drift is not observable in the result: owl:real has no serializer of its own, so its
-    // canonical form is whatever operator<< writes at the default precision of 6 significant digits
-    CHECK_EQ(compensated_sum(lits), naive_sum(lits));
+    CHECK_EQ(naive_sum(lits).value<datatypes::owl::Real>(), cpp_bin_float_quad{"0.999999999999999999999999999999999904"});
     CHECK_EQ(compensated_sum(lits).value<datatypes::owl::Real>(), 1);
 }
 
@@ -138,7 +137,7 @@ TEST_CASE("datatype promotion matches a fold of operator+") {
     }
 
     SUBCASE("xsd:decimal narrows through xsd:float, as operator+ does") {
-        std::vector<Literal> const lits{Literal::make_typed_from_value<datatypes::xsd::Decimal>(BigDecimal<>{"0.5"}),
+        std::vector<Literal> const lits{Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{"0.5"}),
                                         Literal::make_typed_from_value<datatypes::xsd::Float>(0.25f)};
 
         CHECK_EQ(compensated_sum(lits).datatype(), naive_sum(lits).datatype());
@@ -218,7 +217,7 @@ TEST_CASE("NaN is a value, as it is for operator+") {
 TEST_CASE("intermediate results are not placed into the node storage") {
     storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
 
-    auto const lits = repeat<datatypes::xsd::Decimal>(BigDecimal<>{"0.01"}, 100);
+    auto const lits = repeat<datatypes::xsd::Decimal>(Decimal128{"0.01"}, 100);
 
     CompensatedSum sum{ns};
     auto const size_before = ns.size();
@@ -231,7 +230,7 @@ TEST_CASE("intermediate results are not placed into the node storage") {
     CHECK_LE(ns.size() - size_before, 1);
 
     auto const result = sum.value();
-    CHECK_EQ(result.value<datatypes::xsd::Decimal>(), BigDecimal<>{"3.0"});
+    CHECK_EQ(result.value<datatypes::xsd::Decimal>(), Decimal128{"3.0"});
 }
 
 TEST_CASE("multiplicity") {
@@ -272,11 +271,11 @@ TEST_CASE("multiplicity") {
 
     SUBCASE("exact datatypes") {
         CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::xsd::Integer>(7), 6).value<datatypes::xsd::Integer>(), 42);
-        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::xsd::Decimal>(BigDecimal<>{"0.01"}), 100).value<datatypes::xsd::Decimal>(), BigDecimal<>{"1.0"});
+        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{"0.01"}), 100).value<datatypes::xsd::Decimal>(), Decimal128{"1.0"});
 
         // no common type with xsd:integer, so the multiplicity must never become one
         CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Rational>(boost::multiprecision::cpp_rational{1, 3}), 3).value<datatypes::owl::Rational>(), 1);
-        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{0.1}), 10).value<datatypes::owl::Real>(), 1);
+        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{"0.1"}), 10).value<datatypes::owl::Real>(), 1);
     }
 
     SUBCASE("xsd:int is a numeric stub, its arithmetic is exact xsd:integer") {

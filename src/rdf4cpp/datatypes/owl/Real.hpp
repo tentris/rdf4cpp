@@ -20,6 +20,9 @@ template<>
 capabilities::Default<owl_real>::cpp_type capabilities::Default<owl_real>::from_string(std::string_view s);
 
 template<>
+bool capabilities::Default<owl_real>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept;
+
+template<>
 bool capabilities::Logical<owl_real>::effective_boolean_value(cpp_type const &value) noexcept;
 
 template<>
