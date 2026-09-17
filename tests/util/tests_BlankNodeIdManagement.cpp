@@ -164,10 +164,10 @@ TEST_SUITE("blank node id management") {
         };
 
         auto const bns1 = parse();
-        CHECK_EQ(std::set{std::from_range, bns1}.size(), bns1.size()); // all distinct
+        CHECK_EQ(std::set<BlankNode>{bns1.begin(), bns1.end()}.size(), bns1.size()); // all distinct
 
         auto const bns2 = parse();
-        CHECK_EQ(std::set{std::from_range, bns2}.size(), bns2.size());
+        CHECK_EQ(std::set<BlankNode>{bns2.begin(), bns2.end()}.size(), bns2.size());
 
         CHECK_EQ(bns1, bns2);
     }
