@@ -6,7 +6,7 @@ include(cmake/boilerplate_init.cmake)
 boilerplate_init()
 
 if (PROJECT_IS_TOP_LEVEL)
-    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=boost/*:without_cobalt=True")
+    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=boost/*:without_cobalt=True;-o=&:is_top_level=True")
 
     # b2 hands clang a made-up --target=arm64-pc-linux (tools/build/src/tools/clang.jam,
     # init-flags-cross). Clang has no aarch64 candidate triple with the pc vendor, so on
@@ -29,7 +29,7 @@ endif ()
 find_package(expected-lite REQUIRED)
 find_package(Boost REQUIRED COMPONENTS charconv)
 find_package(PCRE2 REQUIRED)
-find_package(OpenSSL REQUIRED)
+find_package(botan REQUIRED)
 find_package(uni-algo REQUIRED)
 find_package(highway REQUIRED)
 find_package(dice-hash REQUIRED)
@@ -196,7 +196,7 @@ target_link_libraries(rdf4cpp
         dice-template-library::dice-template-library
         PRIVATE
         pcre2::pcre2
-        OpenSSL::Crypto
+        botan::botan
         uni-algo::uni-algo
         highway::highway
         LibXml2::LibXml2

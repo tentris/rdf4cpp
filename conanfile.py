@@ -19,11 +19,13 @@ class Recipe(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "with_test_deps": [True, False],
+        "is_top_level": [True, False],
     }
     default_options = {
         "shared": False,
         "fPIC": True,
         "with_test_deps": False,
+        "is_top_level": False,
     }
     exports = "LICENSE",
     exports_sources = "src/*", "private/*", "CMakeLists.txt", "cmake/*"
@@ -33,7 +35,7 @@ class Recipe(ConanFile):
         self.requires("boost/1.91.0", transitive_headers=True)  # >= 1.91 because <=1.90 has a bug in charconv for __int128
         self.requires("expected-lite/0.9.0", transitive_headers=True)
         self.requires("pcre2/10.47", options={"support_jit": True})
-        self.requires("openssl/3.6.3")
+        self.requires("botan/3.13.0")
         self.requires("uni-algo/1.2.0")
         self.requires("highway/1.4.0")
         self.requires("dice-hash/0.5.0", transitive_headers=True)
@@ -46,6 +48,10 @@ class Recipe(ConanFile):
         if self.options.with_test_deps:
             self.test_requires("doctest/2.4.11")
             self.test_requires("nanobench/4.3.11")
+
+    def configure(self):
+        if self.options.is_top_level:
+            self.options["botan"].enable_modules = "md5,sha1,sha2_32,sha2_64,auto_rng,system_rng"
 
     def set_name(self):
         if not hasattr(self, 'name') or self.version is None:

@@ -22,7 +22,7 @@
 #include <rdf4cpp/writer/Prefixes.hpp>
 #include <rdf4cpp/util/CharMatcher.hpp>
 
-#include <openssl/evp.h>
+#include <botan/hash.h>
 
 namespace rdf4cpp {
 bool Literal::lexical_form_needs_escape(std::string_view const lexical_form) noexcept {
@@ -2380,18 +2380,17 @@ Literal Literal::substr(Literal const &start, Literal const &len, storage::DynNo
 }
 
 Literal Literal::hash_with(char const *alg, storage::DynNodeStoragePtr node_storage) const {
-    if (this->handle_.node_id().literal_type() != datatypes::xsd::String::fixed_id)
+    if (this->handle_.node_id().literal_type() != datatypes::xsd::String::fixed_id) {
         return Literal{};
+    }
+
+    auto const hasher = Botan::HashFunction::create_or_throw(alg);
 
     auto const s = this->lexical_form();
+    hasher->update(reinterpret_cast<uint8_t const *>(s.data()), s.size());
 
-    unsigned char hash_buffer[EVP_MAX_MD_SIZE];
-    size_t len = 0;
-
-    if (!EVP_Q_digest(nullptr, alg, nullptr, s.data(), s.size(), hash_buffer, &len))
-        return Literal{};
-
-    std::span<std::byte const> const bytes{reinterpret_cast<std::byte const *>(hash_buffer), len};
+    auto const bytes_vec = hasher->final();
+    auto const bytes = as_bytes(std::span{bytes_vec});
 
     auto const lex = writer::StringWriter::oneshot([bytes](auto &w) {
         return datatypes::xsd::HexBinary::cpp_type::serialize_hash(bytes, w);
@@ -2405,19 +2404,19 @@ Literal Literal::md5(storage::DynNodeStoragePtr node_storage) const {
 }
 
 Literal Literal::sha1(storage::DynNodeStoragePtr node_storage) const {
-    return this->hash_with("SHA1", node_storage);
+    return this->hash_with("SHA-1", node_storage);
 }
 
 Literal Literal::sha256(storage::DynNodeStoragePtr node_storage) const {
-    return this->hash_with("SHA2-256", node_storage);
+    return this->hash_with("SHA-256", node_storage);
 }
 
 Literal Literal::sha384(storage::DynNodeStoragePtr node_storage) const {
-    return this->hash_with("SHA2-384", node_storage);
+    return this->hash_with("SHA-384", node_storage);
 }
 
 Literal Literal::sha512(storage::DynNodeStoragePtr node_storage) const {
-    return this->hash_with("SHA2-512", node_storage);
+    return this->hash_with("SHA-512", node_storage);
 }
 
 Literal Literal::now(storage::DynNodeStoragePtr node_storage) {
