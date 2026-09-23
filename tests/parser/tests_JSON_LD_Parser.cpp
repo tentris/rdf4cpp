@@ -1238,6 +1238,32 @@ TEST_CASE("a remote context that is no valid json only fails its own node object
     }
 }
 
+TEST_CASE("a remote context that fails to load is requested once") {
+    // two node objects name the same url that cannot be loaded, both fail with the same error.
+    // the third node object still produces its quad
+    static constexpr std::string_view remote = R"([{"@context": "http://ex/dead.jsonld", "@id": "http://ex/s1", "http://ex/p": "v1"},
+      {"@context": "http://ex/dead.jsonld", "@id": "http://ex/s2", "http://ex/p": "v2"},
+      {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
+    static constexpr std::string_view imported = R"([{"@context": {"@version": 1.1, "@import": "http://ex/dead.jsonld"}, "@id": "http://ex/s1", "http://ex/p": "v1"},
+      {"@context": {"@version": 1.1, "@import": "http://ex/dead.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v2"},
+      {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
+    static constexpr std::string_view expected_errors = "loading remote context failed not found\nloading remote context failed not found\n";
+    static constexpr std::string_view expected_quads = "<http://ex/s3> <http://ex/p> \"v3\" .\n";
+
+    SUBCASE("remote context") {
+        auto const r = parse_with_remote_documents(std::string{remote}, "http://ex/doc", {});
+        CHECK(r.requested == "http://ex/dead.jsonld\n");
+        CHECK(r.errors == expected_errors);
+        CHECK(r.quads == expected_quads);
+    }
+    SUBCASE("@import") {
+        auto const r = parse_with_remote_documents(std::string{imported}, "http://ex/doc", {});
+        CHECK(r.requested == "http://ex/dead.jsonld\n");
+        CHECK(r.errors == expected_errors);
+        CHECK(r.quads == expected_quads);
+    }
+}
+
 TEST_CASE("context load redirect applies base") {
     ParseWithRemotesResult r;
     IStreamQuadIterator::state_type state{};
