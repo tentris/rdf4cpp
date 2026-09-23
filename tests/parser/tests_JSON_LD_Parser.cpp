@@ -1170,6 +1170,19 @@ TEST_CASE("a scoped context before a remote context is validated against the com
     CHECK(r.quads == "<http://ex/s> <http://ex/a> _:bn_0 .\n_:bn_0 <http://ex/x> \"v\"^^<http://ex/b> .\n");
 }
 
+TEST_CASE("a term in a chain of remote contexts may use its own remote context as scoped context") {
+    // `A` loads `B`, and the term `t` of `B` has `B` as scoped context. `B` is in the list of remote
+    // contexts where `t` is defined, so the check of the scoped context does not process `B` again.
+    // the complete context has no `@vocab`, so the term `x` of `B` would have no IRI mapping there
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/A.jsonld", R"({"@context": "B.jsonld"})"},
+        {"http://ex/B.jsonld", R"({"@context": {"t": {"@id": "http://ex/t", "@context": "B.jsonld"}, "x": {"@type": "@id"}}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/"}, "http://ex/A.jsonld", {"@vocab": null}], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
 TEST_CASE("a null scoped context that does not propagate keeps the previous context") {
     // the type scoped context of T is null and does not propagate,
     // so the nested node object uses the context from before T
