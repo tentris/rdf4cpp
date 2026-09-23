@@ -815,12 +815,13 @@ TEST_CASE("test deduplication keeps terms that are only value equal") {
 }
 
 /**
- * Output of parse_with_remote_documents. Each string holds one entry per line.
+ * Output of `parse_with_remote_documents`. `quads`, `errors` and `requested` hold one entry per line.
  */
 struct ParseWithRemotesResult {
     std::string quads;      // the parsed quads in n-quads syntax
     std::string errors;     // the messages of the parsing errors
     std::string requested;  // the urls passed to request_url, in the order of the calls
+    std::string base;       // the base IRI of the state after parsing
     size_t quad_count = 0;
 };
 
@@ -850,6 +851,7 @@ ParseWithRemotesResult parse_with_remote_documents(std::string doc, std::string_
             r.errors += std::format("{}\n", it->error().message);
         }
     }
+    r.base = state.iri_factory.get_base();
     return r;
 }
 
@@ -882,6 +884,33 @@ TEST_CASE("relative urls in a remote context resolve against the url of that con
     CHECK(r.requested == "http://ex/dir/ctx.jsonld\nhttp://ex/ot/sub1.jsonld\nhttp://ex/dir/sub3.jsonld\n");
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("a relative url in a remote context does not change the base of the state") {
+    // the relative url resolves against the url of `c1.jsonld`. that url is no base of the document,
+    // so the state keeps the base of the document
+    SUBCASE("a remote context") {
+        std::map<std::string, std::string, std::less<>> const docs{
+            {"http://ctx.example/c1.jsonld", R"({"@context": ["c2.jsonld"]})"},
+            {"http://ctx.example/c2.jsonld", R"({"@context": {}})"},
+        };
+        auto const r = parse_with_remote_documents(R"({"@context": "http://ctx.example/c1.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://base.example/doc", docs);
+        CHECK(r.requested == "http://ctx.example/c1.jsonld\nhttp://ctx.example/c2.jsonld\n");
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+        CHECK(r.base == "http://base.example/doc");
+    }
+    SUBCASE("@import") {
+        std::map<std::string, std::string, std::less<>> const docs{
+            {"http://ctx.example/c1.jsonld", R"({"@context": {"@version": 1.1, "@import": "imp.jsonld"}})"},
+            {"http://ctx.example/imp.jsonld", R"({"@context": {}})"},
+        };
+        auto const r = parse_with_remote_documents(R"({"@context": "http://ctx.example/c1.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://base.example/doc", docs);
+        CHECK(r.requested == "http://ctx.example/c1.jsonld\nhttp://ctx.example/imp.jsonld\n");
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+        CHECK(r.base == "http://base.example/doc");
+    }
 }
 
 TEST_CASE("@propagate false in a remote context does not reach nested node objects") {
