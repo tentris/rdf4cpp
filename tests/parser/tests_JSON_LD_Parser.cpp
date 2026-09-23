@@ -1144,6 +1144,35 @@ TEST_CASE("a null scoped context that does not propagate keeps the previous cont
     CHECK(!r2.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
 }
 
+TEST_CASE("a null context that propagates also applies to nested node objects") {
+    // only a null context that does not propagate keeps the previous context.
+    // so the nested node objects here do not fall back to the context from before the null
+    SUBCASE("an embedded null after a property scoped context that does not propagate") {
+        auto const r = parse_with_remote_documents(R"({"@context": {"a": "http://ex/a", "p": {"@id": "http://ex/p", "@context": {"@propagate": false}}},
+      "@id": "http://ex/s", "p": {"@id": "http://ex/o", "@context": null, "http://ex/q": {"@id": "http://ex/o2", "a": "v"}}})",
+                                                   "http://ex/doc", {});
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://ex/q> <http://ex/o2> .\n");
+    }
+    SUBCASE("a property scoped null inside a type scoped context") {
+        auto const r = parse_with_remote_documents(R"({"@context": {"r": "http://ex/r", "T": {"@id": "http://ex/T", "@context": {"p": {"@id": "http://ex/p", "@context": null}}}},
+      "@id": "http://ex/s", "@type": "T", "p": {"@id": "http://ex/o", "http://ex/z": {"@id": "http://ex/o2", "r": "w"}}})",
+                                                   "http://ex/doc", {});
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/T> .\n<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://ex/z> <http://ex/o2> .\n");
+    }
+    SUBCASE("a null after a remote context that does not propagate") {
+        std::map<std::string, std::string, std::less<>> const docs{
+            {"http://ex/r.jsonld", R"({"@context": {"@propagate": false}})"},
+        };
+        auto const r = parse_with_remote_documents(R"({"@context": [{"p": "http://ex/p"}, "http://ex/r.jsonld", null],
+      "@id": "http://ex/s", "p": "top", "http://ex/q": {"@id": "http://ex/o", "p": "v"}})",
+                                                   "http://ex/doc", docs);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/q> <http://ex/o> .\n");
+    }
+}
+
 TEST_CASE("an absolute remote context url that is no valid iri is rejected") {
     // the url contains a space, it is not requested
     std::map<std::string, std::string, std::less<>> const docs{
