@@ -925,6 +925,39 @@ TEST_CASE("a remote context document without @context is an invalid remote conte
     CHECK(r.errors == "invalid remote context\n");
 }
 
+TEST_CASE("an invalid remote context in a context array stops the context processing") {
+    // the error of the remote context is the result of the whole context,
+    // the entries after the remote context are not processed
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/bad.jsonld", R"({"foo": 1})"},
+        {"http://ex/ok.jsonld", R"({"@context": {"a": "http://ex/a"}})"},
+    };
+    SUBCASE("followed by null") {
+        auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/bad.jsonld", null], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+        CHECK(r.quads == "");
+        CHECK(r.errors == "invalid remote context\n");
+    }
+    SUBCASE("an error in the remote context followed by null") {
+        std::map<std::string, std::string, std::less<>> const version_docs{
+            {"http://ex/bad.jsonld", R"({"@context": {"@version": 2}})"},
+        };
+        auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/bad.jsonld", null], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", version_docs);
+        CHECK(r.quads == "");
+        CHECK(r.errors == "invalid @version value\n");
+    }
+    SUBCASE("followed by a map") {
+        auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/bad.jsonld", {"a": "http://ex/a"}], "@id": "http://ex/s", "a": "v"})", "http://ex/doc", docs);
+        CHECK(r.quads == "");
+        CHECK(r.errors == "invalid remote context\n");
+    }
+    SUBCASE("followed by a remote context") {
+        auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/bad.jsonld", "http://ex/ok.jsonld"], "@id": "http://ex/s", "a": "v"})", "http://ex/doc", docs);
+        CHECK(r.requested == "http://ex/bad.jsonld\n");
+        CHECK(r.quads == "");
+        CHECK(r.errors == "invalid remote context\n");
+    }
+}
+
 TEST_CASE("an imported context that is not a map is an invalid remote context") {
     std::map<std::string, std::string, std::less<>> const docs{
         {"http://ex/imp.jsonld", R"({"@context": ["x"]})"},
