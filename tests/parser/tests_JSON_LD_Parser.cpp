@@ -1213,6 +1213,29 @@ TEST_CASE("a remote context that is no valid json only fails its own node object
         CHECK(r.errors == "invalid remote context\n");
         CHECK(r.quads == expected_quads);
     }
+    SUBCASE("a body with an error that simdjson finds only when it reads the value") {
+        // an invalid escape, a lone surrogate and a missing comma pass the first check of simdjson (stage 1)
+        std::vector<std::string> const bodies{
+            R"({"@context": {"t": "http://ex/\q"}})",
+            R"({"@context": ["\ud800"]})",
+            R"({"@context": "\q"})",
+            R"({"@context": [{"a": "http://ex/a"} {"b": "http://ex/b"}]})",
+            R"({"@context": {"a": "http://ex/a" "b": "http://ex/b"}})",
+            R"({"@context": {"t": "\ud800"}})",
+            R"({"@context": {"a": {"@id": "http://ex/a", "@context": {"t": "\q"}}}})",
+        };
+        for (auto const &body : bodies) {
+            for (bool const behind_import : {false, true}) {
+                CAPTURE(body);
+                CAPTURE(behind_import);
+                std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", body}};
+                auto const r = parse_with_remote_documents(std::string{behind_import ? imported : remote}, "http://ex/doc", docs);
+                CAPTURE(r.errors);
+                CHECK(std::ranges::count(r.errors, '\n') == 1);
+                CHECK(r.quads == expected_quads);
+            }
+        }
+    }
 }
 
 TEST_CASE("context load redirect applies base") {
