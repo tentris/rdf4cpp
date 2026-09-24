@@ -59,8 +59,10 @@ struct ParsingState {
      * The result of a successful request_url call.
      * data is the body of the requested document.
      * final_url is the url of the document after the redirects (documentUrl in the JSON-LD API).
-     * It is used as the base for relative references inside the document.
+     * For a remote context, relative context urls inside the document resolve against it.
      * If the request was not redirected, it can stay empty, then the requested url is used.
+     * For `@import` it is not used: relative urls in the imported context resolve against
+     * the same base url as the context that contains the `@import`.
      */
     struct RequestResult {
         std::string data;
@@ -81,8 +83,12 @@ struct ParsingState {
     };
 
     /**
-     * Limit of how deep remote contexts may be nested for the JSON-LD parser.
-     * (Not a total limit on remote contexts, just a recursion limit).
+     * Limit of the JSON-LD parser on remote contexts (the remote contexts array of the context processing).
+     * It counts the chain of remote contexts that load each other, and in each `@context` array on that chain
+     * also the remote contexts before the entry. Each `@context` of the document starts again at 0.
+     * If the count is larger than `remote_context_size_limit` when the next remote context is loaded,
+     * the parser reports "context overflow". So up to `remote_context_size_limit + 1` remote contexts load,
+     * and with 0 one remote context still loads. The default is 100.
      */
     size_t remote_context_size_limit = 100;
 };

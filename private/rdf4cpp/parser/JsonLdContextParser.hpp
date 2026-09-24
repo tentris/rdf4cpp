@@ -22,7 +22,7 @@ namespace rdf4cpp::parser {
             bool override_protected = false;
             bool propagate = true;
             bool validate_scoped_contexts = true;
-            bool remote_context_do_not_validate_scoped_contexts = false;
+            bool is_remote_context = false;
         };
         struct ParseContextTermParams {
             simdjson::ondemand::object local_context;
@@ -86,7 +86,7 @@ namespace rdf4cpp::parser {
             nonstd::expected<Context, error_type> parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p);
             std::optional<error_type> parse_context_term(params::ParseContextTermParams p);
 
-            nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p, bool skip_to_context = false);
+            nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p);
 
 
             nonstd::expected<IRIMapping, error_type> iri_expansion(Context const &active_context,

@@ -51,8 +51,6 @@ Missing features:
 
 | test | what it needs |
 |---|---|
-| `c031`, `c034`, `e126`, `e127`, `e128` | fetching a context named by an IRI, see [#431](https://github.com/rdf4cpp/rdf4cpp/issues/431) |
-| `so05`, `so06`, `so08`, `so09`, `so11` | `@import`, which also fetches a context by IRI |
 | `e077` | an expandContext option on the parser, the document carries no context |
 | `js06` to `js16`, `js19`, `js20`, `js21` | canonicalization of rdf:JSON literals after [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) |
 
