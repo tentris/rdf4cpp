@@ -54,6 +54,43 @@ struct ParsingState {
      * To discard a triple throw an exception from this function.
      */
     std::function<void(Node const &)> inspect_node_func = []([[maybe_unused]] Node const &n) { /* noop */ };
+
+    /**
+     * The result of a successful request_url call.
+     * data is the body of the requested document.
+     * final_url is the url of the document after the redirects (documentUrl in the JSON-LD API).
+     * For a remote context, relative context urls inside the document resolve against it.
+     * If the request was not redirected, it can stay empty, then the requested url is used.
+     * For `@import` it is not used: relative urls in the imported context resolve against
+     * the same base url as the context that contains the `@import`.
+     */
+    struct RequestResult {
+        std::string data;
+        std::string final_url;
+    };
+
+    /**
+     * A function that is called for each URL requested by a parser (currently only JSON_LD remote context & import).
+     * The function should return the result of querying that URL or an error message.
+     * The passed URL is already absolute and no pre-parsing of the servers data is necessary
+     * (like stripping the top level object and only passing its context member).
+     * The passed URL is only valid during the call, copy it if you want to keep it longer.
+     * Results are cached only per IStreamQuadIterator.
+     * Default behavior is to always return an error.
+     */
+    std::function<nonstd::expected<RequestResult, std::string>(std::string_view)> request_url = [](std::string_view) {
+        return nonstd::unexpected{"remote context not supported"};
+    };
+
+    /**
+     * Limit of the JSON-LD parser on remote contexts (the remote contexts array of the context processing).
+     * It counts the chain of remote contexts that load each other, and in each `@context` array on that chain
+     * also the remote contexts before the entry. Each `@context` of the document starts again at 0.
+     * If the count is larger than `remote_context_size_limit` when the next remote context is loaded,
+     * the parser reports "context overflow". So up to `remote_context_size_limit + 1` remote contexts load,
+     * and with 0 one remote context still loads. The default is 100.
+     */
+    size_t remote_context_size_limit = 100;
 };
 
 }  //namespace rdf4cpp::parser

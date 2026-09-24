@@ -3,60 +3,83 @@
 
 #include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
+#include <rdf4cpp/parser/IStreamQuadIterator.hpp>
 
 #include <rdf4cpp/parser/JsonLdParserTypes.hpp>
 
 #include <vector>
+#include <map>
 
 #include <simdjson.h>
 
 namespace rdf4cpp::parser {
     namespace params {
         struct ParseContextParams {
-            json_ld::Context const &active_context;
+            json_ld::Context const &active_context; // NOLINT(*-avoid-const-or-ref-data-members)
             std::string_view base_iri;
+            std::string_view base_url;
+            std::vector<std::string> remote_contexts;
             bool override_protected = false;
             bool propagate = true;
+            bool validate_scoped_contexts = true;
+            bool is_remote_context = false;
         };
         struct ParseContextTermParams {
             simdjson::ondemand::object local_context;
+            std::optional<simdjson::ondemand::object> local_context_merge;
             json_ld::Context &active_context;                            // NOLINT(*-avoid-const-or-ref-data-members)
             json_ld::TermDefinition &term;                               // NOLINT(*-avoid-const-or-ref-data-members)
             std::vector<json_ld::TermDefinition> const &previous_terms;  // NOLINT(*-avoid-const-or-ref-data-members)
             std::string_view base_iri;
+            std::string_view base_url;
             bool is_protected = false;
             bool override_protected = false;
         };
         struct ParseContextIRIExpansionParams {
             json_ld::Context &active_context;  // NOLINT(*-avoid-const-or-ref-data-members)
             simdjson::ondemand::object local_context;
+            std::optional<simdjson::ondemand::object> local_context_merge;
             std::vector<json_ld::TermDefinition> const &previous_terms;  // NOLINT(*-avoid-const-or-ref-data-members)
+            std::string_view base_url;
         };
     }  // namespace params
 
     namespace json_ld {
+        struct RemoteContextCache {
+            std::map<std::string, RemoteContextEntry, std::less<>> contexts;
+
+            struct ResolveResult {
+                simdjson::padded_string_view data;
+                std::string_view final_url;
+            };
+
+            nonstd::expected<ResolveResult, std::string> resolve(std::string_view url, IStreamQuadIterator::state_type* parse_state);
+        };
+
         struct ContextParser {
             using error_type = ParsingError;
             /**
-             * Resolves document relative IRIs. This is the IRIFactory of the ParsingState, so a base set
-             * by the document stays in the state after parsing, like in the other parsers.
+             * A base set by the document stays in the state after parsing, like in the other parsers.
              */
-            IRIFactory *iri_factory;
+            IStreamQuadIterator::state_type* parse_state;
             std::string original_base_iri;
+            RemoteContextCache remote_context_cache;
             /**
              * If set, blank node labels of the document are used as they are. Otherwise they get
              * document_bnode_prefix, which keeps them apart from the labels the parser generates.
              */
             bool keep_document_bnode_labels;
+            // moving the contained objects is not allowed
+            std::forward_list<Context> context_storage;
 
-            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IRIFactory *iri_factory)
-                : iri_factory(iri_factory),
+            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IStreamQuadIterator::state_type *parse_state)
+                : parse_state(parse_state),
                   original_base_iri(std::move(base_iri)),
                   keep_document_bnode_labels(keep_document_bnode_labels) {
             }
 
             /**
-             * Sets the base of iri_factory, skipping the validation if it is already set to base.
+             * Sets the base of parse_state->iri_factory, skipping the validation if it is already set to base.
              */
             void set_resolution_base(std::string_view base);
 
