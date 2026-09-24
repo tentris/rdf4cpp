@@ -22,7 +22,7 @@
 #include <rdf4cpp/writer/Prefixes.hpp>
 #include <rdf4cpp/util/CharMatcher.hpp>
 
-#include <openssl/evp.h>
+#include <botan/hash.h>
 
 namespace rdf4cpp {
 bool Literal::lexical_form_needs_escape(std::string_view const lexical_form) noexcept {
@@ -250,6 +250,10 @@ Literal Literal::make_boolean(TriBool const b, storage::DynNodeStoragePtr node_s
     }
 
     return Literal::make_typed_from_value<datatypes::xsd::Boolean>(b == TriBool::True, node_storage);
+}
+
+Literal Literal::make_from_multiplicity(uint64_t multiplicity, IRI const &datatype, storage::DynNodeStoragePtr node_storage) {
+    return materialize_deferred(make_deferred_from_multiplicity(multiplicity, datatype), node_storage);
 }
 
 Literal Literal::make_string_uuid(storage::DynNodeStoragePtr node_storage) {
@@ -1078,6 +1082,9 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
     }();
 
     RDF4CPP_ASSERT(result_entry != nullptr);
+    if (!op_res.result_value.has_value()) {
+        return Literal{};
+    }
     return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
 }
 
@@ -2373,18 +2380,17 @@ Literal Literal::substr(Literal const &start, Literal const &len, storage::DynNo
 }
 
 Literal Literal::hash_with(char const *alg, storage::DynNodeStoragePtr node_storage) const {
-    if (this->handle_.node_id().literal_type() != datatypes::xsd::String::fixed_id)
+    if (this->handle_.node_id().literal_type() != datatypes::xsd::String::fixed_id) {
         return Literal{};
+    }
+
+    auto const hasher = Botan::HashFunction::create_or_throw(alg);
 
     auto const s = this->lexical_form();
+    hasher->update(reinterpret_cast<uint8_t const *>(s.data()), s.size());
 
-    unsigned char hash_buffer[EVP_MAX_MD_SIZE];
-    size_t len = 0;
-
-    if (!EVP_Q_digest(nullptr, alg, nullptr, s.data(), s.size(), hash_buffer, &len))
-        return Literal{};
-
-    std::span<std::byte const> const bytes{reinterpret_cast<std::byte const *>(hash_buffer), len};
+    auto const bytes_vec = hasher->final();
+    auto const bytes = as_bytes(std::span{bytes_vec});
 
     auto const lex = writer::StringWriter::oneshot([bytes](auto &w) {
         return datatypes::xsd::HexBinary::cpp_type::serialize_hash(bytes, w);
@@ -2398,19 +2404,19 @@ Literal Literal::md5(storage::DynNodeStoragePtr node_storage) const {
 }
 
 Literal Literal::sha1(storage::DynNodeStoragePtr node_storage) const {
-    return this->hash_with("SHA1", node_storage);
+    return this->hash_with("SHA-1", node_storage);
 }
 
 Literal Literal::sha256(storage::DynNodeStoragePtr node_storage) const {
-    return this->hash_with("SHA2-256", node_storage);
+    return this->hash_with("SHA-256", node_storage);
 }
 
 Literal Literal::sha384(storage::DynNodeStoragePtr node_storage) const {
-    return this->hash_with("SHA2-384", node_storage);
+    return this->hash_with("SHA-384", node_storage);
 }
 
 Literal Literal::sha512(storage::DynNodeStoragePtr node_storage) const {
-    return this->hash_with("SHA2-512", node_storage);
+    return this->hash_with("SHA-512", node_storage);
 }
 
 Literal Literal::now(storage::DynNodeStoragePtr node_storage) {
@@ -2524,7 +2530,7 @@ Literal Literal::as_seconds(storage::DynNodeStoragePtr node_storage) const {
     auto r = this->seconds();
     if (!r.has_value())
         return Literal{};
-    return Literal::make_typed_from_value<datatypes::xsd::Decimal>(rdf4cpp::BigDecimal<>{r->count(), 9}, select_node_storage(node_storage));
+    return Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{r->count(), 9}, select_node_storage(node_storage));
 }
 
 std::optional<Timezone> Literal::timezone() const {

@@ -10,6 +10,7 @@
 #include <rdf4cpp/datatypes/rdf.hpp>
 #include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 #include <rdf4cpp/Assert.hpp>
+#include <rdf4cpp/util/boost_int.hpp>  // hash for checked_int128_t
 
 #include <boost/multiprecision/cpp_int.hpp>
 
@@ -487,12 +488,6 @@ struct dice::hash::dice_hash_overload<Policy, rdf4cpp::OptionalTimezone> {
     static size_t dice_hash(rdf4cpp::OptionalTimezone const &x) noexcept {
         auto off = x.has_value() ? x->offset.count() : std::chrono::minutes{std::chrono::hours{15}}.count();
         return dice::hash::dice_hash_templates<Policy>::dice_hash(off);
-    }
-};
-template<typename Policy>
-struct dice::hash::dice_hash_overload<Policy, ::boost::multiprecision::checked_int128_t> {
-    static size_t dice_hash(::boost::multiprecision::cpp_int const &x) noexcept {
-        return dice::hash::dice_hash_templates<Policy>::dice_hash(::boost::multiprecision::hash_value(x));
     }
 };
 template<typename Policy>

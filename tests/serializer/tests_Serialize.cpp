@@ -62,7 +62,7 @@ TEST_SUITE("Serialize") {
             run_ser_test(lit, "\"simple\"");
         }
         SUBCASE("non-inlined xsd:integer") {
-            auto lit = Literal::make_typed_from_value<xsd::Integer>(xsd::Integer::cpp_type{"87960930222089"});
+            auto lit = Literal::make_typed<xsd::Integer>("87960930222089");
             run_ser_test(lit, "\"87960930222089\"^^<http://www.w3.org/2001/XMLSchema#integer>");
         }
         SUBCASE("inlined xsd:int") {

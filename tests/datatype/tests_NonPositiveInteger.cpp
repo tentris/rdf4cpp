@@ -6,6 +6,7 @@
 using namespace rdf4cpp;
 
 TEST_CASE("Datatype NonPositiveInteger") {
+    CHECK(storage::default_node_storage.has_specialized_storage_for(datatypes::xsd::NonPositiveInteger::fixed_id));
 
     constexpr auto correct_type_iri_cstr = "http://www.w3.org/2001/XMLSchema#nonPositiveInteger";
 
@@ -68,4 +69,8 @@ TEST_CASE("xsd:nonPositiveInteger inlining") {
     auto large_lit = Literal::make_typed_from_value<NonPositiveInteger>(-(1l << 42) + 1);
     CHECK(large_lit.backend_handle().is_inlined());
     CHECK(large_lit.value<NonPositiveInteger>() == (-(1l << 42) + 1));
+
+    auto min_lit = Literal::make_typed_from_value<NonPositiveInteger>(std::numeric_limits<rdf4cpp::Int128>::min());
+    CHECK(!min_lit.backend_handle().is_inlined());
+    CHECK(min_lit.value<NonPositiveInteger>() == std::numeric_limits<rdf4cpp::Int128>::min());
 }

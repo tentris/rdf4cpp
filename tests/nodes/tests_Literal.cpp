@@ -225,7 +225,7 @@ TEST_CASE("Literal - casting") {
             }
 
             SUBCASE("non-integral") {
-                auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::BigDecimal(1.5));
+                auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.5));
                 auto const lit2 = lit1.template cast<String>();
 
                 CHECK_EQ(lit2.template value<String>(), "1.5");
@@ -338,7 +338,7 @@ TEST_CASE("Literal - casting") {
     }
 
     SUBCASE("dec -> flt") {
-        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::BigDecimal(1.0));
+        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.0));
         auto const lit2 = lit1.template cast<Float>();
 
         CHECK_EQ(lit2.datatype(), IRI{Float::identifier});
@@ -346,7 +346,7 @@ TEST_CASE("Literal - casting") {
     }
 
     SUBCASE("dec -> dbl") {
-        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::BigDecimal(1.0));
+        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.0));
         auto const lit2 = lit1.template cast<Double>();
 
         CHECK_EQ(lit2.datatype(), IRI{Double::identifier});
@@ -354,7 +354,7 @@ TEST_CASE("Literal - casting") {
     }
 
     SUBCASE("dec -> int") {
-        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::BigDecimal(1.2));
+        auto const lit1 = Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.2));
         auto const lit2 = lit1.template cast<Int>();
 
         CHECK_EQ(lit2.datatype(), IRI{Int::identifier});
@@ -1661,4 +1661,78 @@ TEST_CASE("is_numeric/is_timepoint/is_duration regression") {
     CHECK_FALSE(n.is_timepoint());
     CHECK_FALSE(n.is_duration());
     CHECK(n.is_numeric());
+}
+
+template<datatypes::NumericLiteralDatatype T>
+void check_from_multiplicity(uint64_t normal_value, Literal normal_value_expected, uint64_t huge_value, Literal huge_value_expected) {
+    SUBCASE(T::identifier.c_str()) {
+        SUBCASE("normal value") {
+            SUBCASE("comptime type") {
+                auto lit = Literal::make_from_multiplicity<T>(normal_value);
+                CHECK_EQ(lit.datatype(), normal_value_expected.datatype());
+                CHECK_EQ(lit, normal_value_expected);
+            }
+
+            SUBCASE("runtime type") {
+                auto lit = Literal::make_from_multiplicity(normal_value, IRI{T::datatype_id});
+                CHECK_EQ(lit.datatype(), normal_value_expected.datatype());
+                CHECK_EQ(lit, normal_value_expected);
+            }
+
+            SUBCASE("deferred") {
+                auto lit = make_deferred_from_multiplicity(normal_value, IRI{T::datatype_id});
+                CHECK_EQ(lit.datatype, normal_value_expected.datatype());
+                CHECK_EQ(materialize_deferred(lit), normal_value_expected);
+            }
+        }
+
+        SUBCASE("huge value") {
+            SUBCASE("comptime type") {
+                auto lit = Literal::make_from_multiplicity<T>(huge_value);
+                if (lit.null()) {
+                    CHECK(huge_value_expected.null());
+                } else {
+                    CHECK_EQ(lit, huge_value_expected);
+                }
+            }
+
+            SUBCASE("runtime type") {
+                auto lit = Literal::make_from_multiplicity(huge_value, IRI{T::datatype_id});
+                if (lit.null()) {
+                    CHECK(huge_value_expected.null());
+                } else {
+                    CHECK_EQ(lit, huge_value_expected);
+                }
+            }
+
+            SUBCASE("deferred") {
+                auto lit = make_deferred_from_multiplicity(huge_value, IRI{T::datatype_id});
+                if (lit.null()) {
+                    CHECK(huge_value_expected.null());
+                } else {
+                    CHECK_EQ(materialize_deferred(lit), huge_value_expected);
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE("from_multiplicity") {
+    using namespace datatypes;
+
+    constexpr uint64_t huge_val = std::numeric_limits<uint64_t>::max();
+
+    check_from_multiplicity<xsd::Integer>(42, 42_xsd_integer, huge_val, Literal::make_typed_from_value<xsd::Integer>(huge_val));
+    check_from_multiplicity<xsd::Decimal>(42, "42.0"_xsd_decimal, huge_val, Literal::make_typed_from_value<xsd::Decimal>(xsd::Decimal::cpp_type{huge_val}));
+    check_from_multiplicity<xsd::Float>(42, 42.0_xsd_float, huge_val, Literal{});
+    check_from_multiplicity<xsd::Double>(42, 42.0_xsd_double, huge_val, Literal{});
+    check_from_multiplicity<owl::Rational>(42, Literal::make_typed_from_value<owl::Rational>(42), huge_val, Literal::make_typed_from_value<owl::Rational>(huge_val));
+    check_from_multiplicity<owl::Real>(42, Literal::make_typed_from_value<owl::Real>(42), huge_val, Literal::make_typed_from_value<owl::Real>(huge_val));
+
+    // stub-numeric
+    check_from_multiplicity<xsd::Int>(42, 42_xsd_integer, huge_val, Literal::make_typed_from_value<xsd::Integer>(huge_val));
+
+    // non-numeric
+    // CHECK(Literal::make_from_multiplicity<xsd::Boolean>(42).null()); does not compile, OK
+    CHECK(Literal::make_from_multiplicity(42, IRI::datatype<xsd::Boolean>()).null());
 }

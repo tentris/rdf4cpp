@@ -4,8 +4,7 @@
 #include <ranges>
 #include <format>
 
-#include <openssl/err.h>
-#include <openssl/rand.h>
+#include <botan/auto_rng.h>
 
 namespace rdf4cpp::util {
 
@@ -21,18 +20,8 @@ struct GlobalCryptoRng {
     constexpr GlobalCryptoRng() noexcept = default;
 
     [[nodiscard]] result_type operator()() const {
-        std::array<unsigned char, sizeof(result_type)> buf;
-
-        int const ret = RAND_bytes(buf.data(), buf.size());
-        if (ret != 1) [[unlikely]] {
-            std::array<char, 120> err_buf;
-            unsigned long const code = ERR_get_error();
-            ERR_error_string_n(code, err_buf.data(), err_buf.size());
-
-            throw std::runtime_error{std::format("Unable to generate random bytes for anonymizer: {}", std::string_view{err_buf.data()})};
-        }
-
-        return std::bit_cast<result_type>(buf);
+        thread_local Botan::AutoSeeded_RNG rng;
+        return std::bit_cast<result_type>(rng.template random_array<sizeof(result_type)>());
     }
 
     static constexpr result_type min() noexcept {

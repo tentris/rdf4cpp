@@ -89,10 +89,10 @@ TEST_CASE("exact datatypes match the naive fold") {
     }
 
     SUBCASE("xsd:decimal") {
-        auto const lits = repeat<datatypes::xsd::Decimal>(BigDecimal<>{"0.01"}, 100);
+        auto const lits = repeat<datatypes::xsd::Decimal>(Decimal128{"0.01"}, 100);
 
         CHECK_EQ(compensated_sum(lits), naive_sum(lits));
-        CHECK_EQ(compensated_sum(lits).value<datatypes::xsd::Decimal>(), BigDecimal<>{"1.0"});
+        CHECK_EQ(compensated_sum(lits).value<datatypes::xsd::Decimal>(), Decimal128{"1.0"});
     }
 
     SUBCASE("owl:rational") {
@@ -111,11 +111,10 @@ TEST_CASE("exact datatypes match the naive fold") {
 }
 
 TEST_CASE("owl:real is inexact, so it takes the compensated path") {
-    auto const lits = repeat<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{0.1}, 10);
+    using boost::multiprecision::cpp_bin_float_quad;
+    auto const lits = repeat<datatypes::owl::Real>(cpp_bin_float_quad{"0.1"}, 10);
 
-    // the drift is not observable in the result: owl:real has no serializer of its own, so its
-    // canonical form is whatever operator<< writes at the default precision of 6 significant digits
-    CHECK_EQ(compensated_sum(lits), naive_sum(lits));
+    CHECK_EQ(naive_sum(lits).value<datatypes::owl::Real>(), cpp_bin_float_quad{"0.999999999999999999999999999999999904"});
     CHECK_EQ(compensated_sum(lits).value<datatypes::owl::Real>(), 1);
 }
 
@@ -138,7 +137,7 @@ TEST_CASE("datatype promotion matches a fold of operator+") {
     }
 
     SUBCASE("xsd:decimal narrows through xsd:float, as operator+ does") {
-        std::vector<Literal> const lits{Literal::make_typed_from_value<datatypes::xsd::Decimal>(BigDecimal<>{"0.5"}),
+        std::vector<Literal> const lits{Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{"0.5"}),
                                         Literal::make_typed_from_value<datatypes::xsd::Float>(0.25f)};
 
         CHECK_EQ(compensated_sum(lits).datatype(), naive_sum(lits).datatype());
@@ -218,7 +217,7 @@ TEST_CASE("NaN is a value, as it is for operator+") {
 TEST_CASE("intermediate results are not placed into the node storage") {
     storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
 
-    auto const lits = repeat<datatypes::xsd::Decimal>(BigDecimal<>{"0.01"}, 100);
+    auto const lits = repeat<datatypes::xsd::Decimal>(Decimal128{"0.01"}, 100);
 
     CompensatedSum sum{ns};
     auto const size_before = ns.size();
@@ -231,7 +230,7 @@ TEST_CASE("intermediate results are not placed into the node storage") {
     CHECK_LE(ns.size() - size_before, 1);
 
     auto const result = sum.value();
-    CHECK_EQ(result.value<datatypes::xsd::Decimal>(), BigDecimal<>{"3.0"});
+    CHECK_EQ(result.value<datatypes::xsd::Decimal>(), Decimal128{"3.0"});
 }
 
 TEST_CASE("multiplicity") {
@@ -272,11 +271,11 @@ TEST_CASE("multiplicity") {
 
     SUBCASE("exact datatypes") {
         CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::xsd::Integer>(7), 6).value<datatypes::xsd::Integer>(), 42);
-        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::xsd::Decimal>(BigDecimal<>{"0.01"}), 100).value<datatypes::xsd::Decimal>(), BigDecimal<>{"1.0"});
+        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{"0.01"}), 100).value<datatypes::xsd::Decimal>(), Decimal128{"1.0"});
 
         // no common type with xsd:integer, so the multiplicity must never become one
         CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Rational>(boost::multiprecision::cpp_rational{1, 3}), 3).value<datatypes::owl::Rational>(), 1);
-        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{0.1}), 10).value<datatypes::owl::Real>(), 1);
+        CHECK_EQ(with_multiplicity(Literal::make_typed_from_value<datatypes::owl::Real>(boost::multiprecision::cpp_bin_float_quad{"0.1"}), 10).value<datatypes::owl::Real>(), 1);
     }
 
     SUBCASE("xsd:int is a numeric stub, its arithmetic is exact xsd:integer") {
@@ -421,6 +420,33 @@ TEST_CASE("near max") {
     CHECK_EQ(s.value(), manual_sum);
 }
 
+TEST_CASE_TEMPLATE("a term dwarfed by max is only kept by the compensation", T, datatypes::xsd::Double, datatypes::xsd::Float) {
+    using F = typename T::cpp_type;
+    auto const lit = [](F v) { return Literal::make_typed_from_value<T>(v); };
+
+    F const max = std::numeric_limits<F>::max();
+    // a quarter ULP of max: max + eps rounds back to max, so the naive fold forgets eps entirely
+    F const eps = std::ldexp(F{1}, std::numeric_limits<F>::max_exponent - std::numeric_limits<F>::digits - 2);
+
+    SUBCASE("recovered once max is cancelled away") {
+        for (F const sign : {F{1}, F{-1}}) {
+            CAPTURE(sign);
+            std::vector<Literal> const lits{lit(sign * max), lit(sign * eps), lit(-sign * max)};
+
+            CHECK_EQ(naive_sum(lits).value<T>(), F{0});
+            CHECK_EQ(compensated_sum(lits).value<T>(), sign * eps);
+        }
+    }
+
+    SUBCASE("the carried losses reveal an overflow the naive fold rounds away") {
+        // three quarters of an ULP is past the half that rounds down, so inf is the correctly rounded total
+        std::vector<Literal> const lits{lit(max), lit(eps), lit(eps), lit(eps)};
+
+        CHECK_EQ(naive_sum(lits).value<T>(), max);
+        CHECK(std::isinf(compensated_sum(lits).value<T>()));
+    }
+}
+
 TEST_CASE("poisoned") {
     CompensatedSum s;
     s.add(1_xsd_integer);
@@ -429,4 +455,31 @@ TEST_CASE("poisoned") {
     s.add("hello"_xsd_string);
     CHECK(s.poisoned());
     CHECK(s.value().null());
+}
+
+TEST_CASE("zero mult") {
+    SUBCASE("exact") {
+        CompensatedSum s;
+        s.add(1_xsd_integer);
+        s.add(2_xsd_integer, 0);
+
+        CHECK_EQ(s.value(), 1_xsd_integer);
+    }
+
+    SUBCASE("non-exact") {
+        CompensatedSum s;
+        s.add(1.0_xsd_double);
+        s.add(1.0_xsd_double, 0);
+
+        CHECK_EQ(s.value(), 1.0_xsd_double);
+    }
+
+    SUBCASE("type change avoided") {
+        CompensatedSum s;
+        s.add("1.5"_xsd_decimal, 0);
+
+        auto const res = s.value();
+        CHECK(res.template datatype_eq<datatypes::xsd::Integer>());
+        CHECK_EQ(res, 0_xsd_integer);
+    }
 }

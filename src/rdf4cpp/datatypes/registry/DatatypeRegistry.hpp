@@ -64,6 +64,8 @@ struct DatatypeRegistry {
      */
     using compare_inlined_fptr_t = std::partial_ordering (*)(storage::identifier::LiteralID, storage::identifier::LiteralID) noexcept;
 
+    using from_multiplicity_fptr_t = nonstd::expected<std::any, DynamicError> (*)(uint64_t multiplicity) noexcept;
+
     struct NumericOpsImpl {
         nullop_fptr_t zero_value_fptr; // 0
         nullop_fptr_t one_value_fptr; // 1
@@ -84,6 +86,8 @@ struct DatatypeRegistry {
         predicate_fptr_t is_inf_fptr; // is_inf(a)
 
         compare_fptr_t magnitude_compare_fptr; // compare(abs(a), abs(b)), only available if the datatype is also comparable
+
+        from_multiplicity_fptr_t from_multiplicity_fptr; // from_multiplicity(n)
     };
 
     struct NumericOpsStub {
@@ -615,7 +619,7 @@ inline void DatatypeRegistry::add() noexcept {
     auto const ebv_fptr = []() -> ebv_fptr_t {
         if constexpr (datatypes::LogicalLiteralDatatype<LiteralDatatype_t>) {
             return [](std::any const &operand) noexcept -> bool {
-                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(operand);
+                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(operand);
                 return LiteralDatatype_t::effective_boolean_value(operand_val);
             };
         } else {
@@ -652,10 +656,10 @@ inline void DatatypeRegistry::add() noexcept {
                 return LiteralDatatype_t::from_string(string_repr);
             },
             .serialize_canonical_string_fptr = [](std::any const &value, writer::BufWriterParts writer) noexcept -> bool {
-                return LiteralDatatype_t::serialize_canonical_string(std::any_cast<typename LiteralDatatype_t::cpp_type>(value), writer);
+                return LiteralDatatype_t::serialize_canonical_string(std::any_cast<typename LiteralDatatype_t::cpp_type const &>(value), writer);
             },
             .serialize_simplified_string_fptr = [](std::any const &value, writer::BufWriterParts writer) noexcept -> bool {
-                return LiteralDatatype_t::serialize_simplified_string(std::any_cast<typename LiteralDatatype_t::cpp_type>(value), writer);
+                return LiteralDatatype_t::serialize_simplified_string(std::any_cast<typename LiteralDatatype_t::cpp_type const &>(value), writer);
             },
             .ebv_fptr = ebv_fptr,
             .numeric_ops = num_ops,
@@ -720,8 +724,8 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // a + b
             .add_fptr = [](std::any const &lhs, std::any const &rhs) noexcept -> OpResult {
-                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::add_result, LiteralDatatype_t>::select(),
@@ -729,8 +733,8 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // a - b
             .sub_fptr = [](std::any const &lhs, std::any const &rhs) noexcept -> OpResult {
-                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::sub_result, LiteralDatatype_t>::select(),
@@ -738,8 +742,8 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // a * b
             .mul_fptr = [](std::any const &lhs, std::any const &rhs) noexcept -> OpResult {
-                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::mul_result, LiteralDatatype_t>::select(),
@@ -747,8 +751,8 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // a / b
             .div_fptr = [](std::any const &lhs, std::any const &rhs) noexcept -> OpResult {
-                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+                auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+                auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::div_result, LiteralDatatype_t>::select(),
@@ -756,7 +760,7 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // +a
             .pos_fptr = [](std::any const &operand) noexcept -> OpResult {
-                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(operand);
+                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(operand);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::pos_result, LiteralDatatype_t>::select(),
@@ -764,7 +768,7 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // -a
             .neg_fptr = [](std::any const &operand) noexcept -> OpResult {
-                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(operand);
+                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(operand);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::neg_result, LiteralDatatype_t>::select(),
@@ -772,7 +776,7 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // abs(a)
             .abs_fptr = [](std::any const &operand) noexcept -> OpResult {
-                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(operand);
+                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(operand);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::abs_result, LiteralDatatype_t>::select(),
@@ -780,7 +784,7 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // round(a)
             .round_fptr = [](std::any const &operand) noexcept -> OpResult {
-                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(operand);
+                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(operand);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::round_result, LiteralDatatype_t>::select(),
@@ -788,7 +792,7 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // floor(a)
             .floor_fptr = [](std::any const &operand) noexcept -> OpResult {
-                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(operand);
+                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(operand);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::floor_result, LiteralDatatype_t>::select(),
@@ -796,7 +800,7 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
             },
             // ceil(a)
             .ceil_fptr = [](std::any const &operand) noexcept -> OpResult {
-                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(operand);
+                auto const &operand_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(operand);
 
                 return OpResult{
                         .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::ceil_result, LiteralDatatype_t>::select(),
@@ -829,7 +833,10 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
                 } else {
                     return nullptr;
                 }
-            }()};
+            }(),
+            .from_multiplicity_fptr = [](uint64_t multiplicity) noexcept -> nonstd::expected<std::any, DynamicError> {
+                return detail::map_expected(LiteralDatatype_t::from_multiplicity(multiplicity));
+            }};
 }
 
 template<datatypes::TimepointLiteralDatatype LiteralDatatype_t>
@@ -843,24 +850,24 @@ DatatypeRegistry::TimepointOps DatatypeRegistry::make_timepoint_ops() noexcept {
             }
         }(),
         .timepoint_sub = [](std::any const &lhs, std::any const &rhs) noexcept -> OpResult {
-            auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-            auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+            auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+            auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
             return OpResult{
                 .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::timepoint_sub_result, LiteralDatatype_t>::select(),
                 .result_value = detail::map_expected(LiteralDatatype_t::timepoint_sub(lhs_val, rhs_val))};
         },
         .timepoint_duration_add = [](std::any const &tp, std::any const &dur) noexcept -> OpResult {
-            auto const &tp_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(tp);
-            auto const &dur_val = std::any_cast<typename LiteralDatatype_t::timepoint_duration_operand_cpp_type>(dur);
+            auto const &tp_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(tp);
+            auto const &dur_val = std::any_cast<typename LiteralDatatype_t::timepoint_duration_operand_cpp_type const &>(dur);
 
             return OpResult{
                 .result_type_id = detail::SelectOpResIRI<LiteralDatatype_t, LiteralDatatype_t>::select(),
                 .result_value = detail::map_expected(LiteralDatatype_t::timepoint_duration_add(tp_val, dur_val))};
         },
         .timepoint_duration_sub = [](std::any const &tp, std::any const &dur) noexcept -> OpResult {
-            auto const &tp_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(tp);
-            auto const &dur_val = std::any_cast<typename LiteralDatatype_t::timepoint_duration_operand_cpp_type>(dur);
+            auto const &tp_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(tp);
+            auto const &dur_val = std::any_cast<typename LiteralDatatype_t::timepoint_duration_operand_cpp_type const &>(dur);
 
             return OpResult{
                 .result_type_id = detail::SelectOpResIRI<LiteralDatatype_t, LiteralDatatype_t>::select(),
@@ -879,40 +886,40 @@ DatatypeRegistry::DurationOps DatatypeRegistry::make_duration_ops() noexcept {
             }
         }(),
         .duration_add = [](std::any const &lhs, std::any const &rhs) noexcept -> OpResult {
-            auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-            auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+            auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+            auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
             return OpResult{
                 .result_type_id = detail::SelectOpResIRI<LiteralDatatype_t, LiteralDatatype_t>::select(),
                 .result_value = detail::map_expected(LiteralDatatype_t::duration_add(lhs_val, rhs_val))};
         },
         .duration_sub = [](std::any const &lhs, std::any const &rhs) noexcept -> OpResult {
-            auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-            auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+            auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+            auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
             return OpResult{
                 .result_type_id = detail::SelectOpResIRI<LiteralDatatype_t, LiteralDatatype_t>::select(),
                 .result_value = detail::map_expected(LiteralDatatype_t::duration_sub(lhs_val, rhs_val))};
         },
         .duration_div = [](std::any const &lhs, std::any const &rhs) noexcept -> OpResult {
-            auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(lhs);
-            auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(rhs);
+            auto const &lhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(lhs);
+            auto const &rhs_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(rhs);
 
             return OpResult{
                 .result_type_id = detail::SelectOpResIRI<typename LiteralDatatype_t::duration_div_result_type, LiteralDatatype_t>::select(),
                 .result_value = detail::map_expected(LiteralDatatype_t::duration_div(lhs_val, rhs_val))};
         },
         .duration_scalar_mul = [](std::any const &dur, std::any const &scalar) noexcept -> OpResult {
-            auto const &dur_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(dur);
-            auto const &scalar_val = std::any_cast<typename LiteralDatatype_t::duration_scalar_cpp_type>(scalar);
+            auto const &dur_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(dur);
+            auto const &scalar_val = std::any_cast<typename LiteralDatatype_t::duration_scalar_cpp_type const &>(scalar);
 
             return OpResult{
                 .result_type_id = detail::SelectOpResIRI<LiteralDatatype_t, LiteralDatatype_t>::select(),
                 .result_value = detail::map_expected(LiteralDatatype_t::duration_scalar_mul(dur_val, scalar_val))};
         },
         .duration_scalar_div = [](std::any const &dur, std::any const &scalar) noexcept -> OpResult {
-            auto const &dur_val = std::any_cast<typename LiteralDatatype_t::cpp_type>(dur);
-            auto const &scalar_val = std::any_cast<typename LiteralDatatype_t::duration_scalar_cpp_type>(scalar);
+            auto const &dur_val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(dur);
+            auto const &scalar_val = std::any_cast<typename LiteralDatatype_t::duration_scalar_cpp_type const &>(scalar);
 
             return OpResult{
                 .result_type_id = detail::SelectOpResIRI<LiteralDatatype_t, LiteralDatatype_t>::select(),
@@ -925,7 +932,7 @@ template<datatypes::InlineableLiteralDatatype LiteralDatatype_t>
 DatatypeRegistry::InliningOps DatatypeRegistry::make_inlining_ops() noexcept {
     return InliningOps{
         .try_into_inlined_fptr = [](std::any const &value) noexcept -> std::optional<storage::identifier::LiteralID> {
-            auto const &val = std::any_cast<typename LiteralDatatype_t::cpp_type>(value);
+            auto const &val = std::any_cast<typename LiteralDatatype_t::cpp_type const &>(value);
             return LiteralDatatype_t::try_into_inlined(val);
         },
         .from_inlined_fptr = [](storage::identifier::LiteralID inlined_value) noexcept -> std::any {

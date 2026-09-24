@@ -476,7 +476,35 @@ public:
      *
      * @return the literal form of the given boolean
      */
-    static Literal make_boolean(TriBool b, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+    [[nodiscard]] static Literal make_boolean(TriBool b, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+    /**
+     * Make a literal by converting the given multiplicity to the given datatype
+     *
+     * @param multiplicity multiplicity
+     * @param datatype datatype iri
+     * @param node_storage node storage where to place literal
+     * @return literal corresponding to the multiplicity (or null-literal if the multiplicity was not representable)
+     */
+    [[nodiscard]] static Literal make_from_multiplicity(uint64_t multiplicity, IRI const &datatype, storage::DynNodeStoragePtr node_storage = storage::default_node_storage);
+
+    /**
+     * See other overload
+     */
+    template<datatypes::NumericLiteralDatatype T>
+    [[nodiscard]] static Literal make_from_multiplicity(uint64_t multiplicity, storage::DynNodeStoragePtr node_storage = storage::default_node_storage) {
+        if constexpr (datatypes::NumericStub<T>) {
+            return Literal::make_from_multiplicity<typename T::numeric_impl_type>(multiplicity, node_storage);
+        } else {
+            // numeric impl
+            auto res = T::from_multiplicity(multiplicity);
+            if (!res.has_value()) {
+                return Literal{};
+            }
+
+            return Literal::make_typed_from_value<T>(*res, node_storage);
+        }
+    }
 
     /**
      * creates a new string Literal containing a random UUID (Universally Unique IDentifier)
@@ -791,7 +819,7 @@ public:
                 auto value = this->template value<Boolean>() ? target_e->numeric_ops->get_impl().one_value_fptr()
                                                              : target_e->numeric_ops->get_impl().zero_value_fptr();
 
-                return std::any_cast<typename T::cpp_type>(value);
+                return std::any_cast<typename T::cpp_type const &>(value);
             } else {
                 auto const &impl_converter = DatatypeRegistry::get_numeric_op_impl_conversion(*target_e);
                 auto const *target_num_impl = DatatypeRegistry::get_numerical_ops(impl_converter.target_type_id);
@@ -809,7 +837,7 @@ public:
                     return std::nullopt;
                 }
 
-                return std::any_cast<typename T::cpp_type>(*target_value);
+                return std::any_cast<typename T::cpp_type const &>(*target_value);
             }
         }
 
@@ -829,7 +857,7 @@ public:
                 // downcast failed
                 return std::nullopt;
             }
-            return std::any_cast<typename T::cpp_type>(*target_value);
+            return std::any_cast<typename T::cpp_type const &>(*target_value);
         }
 
         // no conversion found
@@ -1006,7 +1034,7 @@ public:
                 },
                 [](storage::view::ValueLiteralBackendView const &any) noexcept {
                     RDF4CPP_ASSERT(any.datatype == T::datatype_id);
-                    return std::any_cast<typename T::cpp_type>(any.value);
+                    return std::any_cast<typename T::cpp_type const &>(any.value);
                 });
     }
 

@@ -1,19 +1,18 @@
 #ifndef RDF4CPP_XSD_INTEGER_HPP
 #define RDF4CPP_XSD_INTEGER_HPP
 
+#include <rdf4cpp/Int128.hpp>
 #include <rdf4cpp/datatypes/registry/DatatypeMapping.hpp>
 #include <rdf4cpp/datatypes/registry/FixedIdMappings.hpp>
 #include <rdf4cpp/datatypes/registry/LiteralDatatypeImpl.hpp>
 #include <rdf4cpp/datatypes/xsd/Decimal.hpp>
-
-#include <boost/multiprecision/cpp_int.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
 template<>
 struct DatatypeMapping<xsd_integer> {
-    using cpp_datatype = boost::multiprecision::cpp_int;
+    using cpp_datatype = rdf4cpp::Int128;
 };
 
 template<>
@@ -30,10 +29,16 @@ template<>
 capabilities::Default<xsd_integer>::cpp_type capabilities::Default<xsd_integer>::from_string(std::string_view s);
 
 template<>
+bool capabilities::Default<xsd_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept;
+
+template<>
 bool capabilities::Logical<xsd_integer>::effective_boolean_value(cpp_type const &value) noexcept;
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::div_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::div(cpp_type const &lhs, cpp_type const &rhs) noexcept;
+
+template<>
+nonstd::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::neg(cpp_type const &operand) noexcept;
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::abs(cpp_type const &operand) noexcept;
@@ -46,6 +51,9 @@ nonstd::expected<capabilities::Numeric<xsd_integer>::floor_result_cpp_type, Dyna
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_integer>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::ceil(cpp_type const &operand) noexcept;
+
+template<>
+nonstd::expected<capabilities::Default<xsd_integer>::cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::from_multiplicity(uint64_t multiplicity) noexcept;
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept;

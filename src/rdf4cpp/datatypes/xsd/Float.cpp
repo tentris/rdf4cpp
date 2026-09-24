@@ -33,7 +33,7 @@ nonstd::expected<capabilities::Numeric<xsd_float>::abs_result_cpp_type, DynamicE
 
 template<>
 nonstd::expected<capabilities::Numeric<xsd_float>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::round(cpp_type const &operand) noexcept {
-    return std::round(operand);
+    return util::xsd_round(operand);
 }
 
 template<>
@@ -44,6 +44,16 @@ nonstd::expected<capabilities::Numeric<xsd_float>::floor_result_cpp_type, Dynami
 template<>
 nonstd::expected<capabilities::Numeric<xsd_float>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::ceil(cpp_type const &operand) noexcept {
     return std::ceil(operand);
+}
+
+template<>
+nonstd::expected<capabilities::Default<xsd_float>::cpp_type, DynamicError> capabilities::Numeric<xsd_float>::from_multiplicity(uint64_t multiplicity) noexcept {
+    if (!util::fits_in_floating<cpp_type>(multiplicity)) [[unlikely]] {
+        // doesn't fit
+        return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
+    }
+
+    return static_cast<cpp_type>(multiplicity);
 }
 
 template<>

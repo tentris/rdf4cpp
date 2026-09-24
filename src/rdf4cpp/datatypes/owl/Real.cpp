@@ -1,6 +1,8 @@
 #include "Real.hpp"
 #include <rdf4cpp/InvalidNode.hpp>
 
+#include <boost/numeric/conversion/cast.hpp>
+
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
@@ -11,6 +13,12 @@ capabilities::Default<owl_real>::cpp_type capabilities::Default<owl_real>::from_
     } catch (std::runtime_error const &e) {
         throw InvalidNode{std::format("{} parsing error: {}", identifier, e.what())};
     }
+}
+
+template<>
+bool capabilities::Default<owl_real>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
+    // digits = 0 selects max_digits10, so the result round-trips exactly (operator<< would only print 6 digits)
+    return writer::write_str(value.str(0), writer);
 }
 
 template<>
@@ -48,6 +56,12 @@ template<>
 nonstd::expected<capabilities::Numeric<owl_real>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::ceil(cpp_type const &operand) noexcept {
     return boost::multiprecision::ceil(operand);
 }
+
+template<>
+nonstd::expected<capabilities::Default<owl_real>::cpp_type, DynamicError> capabilities::Numeric<owl_real>::from_multiplicity(uint64_t multiplicity) noexcept {
+    return multiplicity; // any 64bit integer is exactly representable in a IEEE quad float (113 bit mantissa)
+}
+
 #endif
 
 template struct LiteralDatatypeImpl<owl_real,

@@ -18,6 +18,31 @@ DeferredLiteral make_deferred_from_literal(Literal const &lit) {
     return DeferredLiteral{lit.value(), lit.datatype()};
 }
 
+static DeferredLiteral make_deferred_from_multiplicity_impl(uint64_t multiplicity, datatypes::registry::DatatypeIDView const &dt_view, storage::DynNodeStoragePtr node_storage) {
+    auto const *entry = datatypes::registry::DatatypeRegistry::get_entry(dt_view);
+    if (entry == nullptr || !entry->numeric_ops.has_value()) {
+        return DeferredLiteral{};
+    }
+
+    if (entry->numeric_ops->is_stub()) {
+        auto const impl_dt = datatypes::registry::DatatypeRegistry::get_numeric_op_impl_conversion(*entry).target_type_id;
+        return make_deferred_from_multiplicity_impl(multiplicity, impl_dt, node_storage);
+    }
+
+    auto const &impl_ops = entry->numeric_ops->get_impl();
+    auto res = impl_ops.from_multiplicity_fptr(multiplicity);
+    if (!res.has_value()) {
+        return DeferredLiteral{};
+    }
+
+    return deferred_detail::make_deferred_from_value(std::move(*res), dt_view, node_storage);
+}
+
+DeferredLiteral make_deferred_from_multiplicity(uint64_t multiplicity, IRI const &datatype) {
+    RDF4CPP_DEBUG_ASSERT(!datatype.null());
+    return make_deferred_from_multiplicity_impl(multiplicity, datatype, datatype.backend_handle().storage());
+}
+
 Literal materialize_deferred(DeferredLiteral value, storage::DynNodeStoragePtr node_storage) {
     return Literal::make_typed_from_value(std::move(value.value), value.datatype, node_storage);
 }

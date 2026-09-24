@@ -18,6 +18,7 @@ TEST_CASE("decimal capabilities") {
 }
 
 TEST_CASE("Datatype Decimal") {
+    CHECK(storage::default_node_storage.has_specialized_storage_for(datatypes::xsd::Decimal::fixed_id));
 
     constexpr auto correct_type_iri_cstr = "http://www.w3.org/2001/XMLSchema#decimal";
 
@@ -65,10 +66,6 @@ TEST_CASE("Datatype Decimal") {
     auto lit8 = Literal::make_typed("1.00", type_iri);
     CHECK(lit8.value<datatypes::xsd::Decimal>() == value);
     CHECK(lit8.lexical_form() == rdf_dbl_1_0);
-
-    value = type{std::numeric_limits<double>::max()};
-    auto lit9 = Literal::make_typed(to_string(value), type_iri);
-    CHECK(lit9.value<datatypes::xsd::Decimal>() == value);
 
     value = type{"3.111"};
     auto lit10 = Literal::make_typed_from_value<datatypes::xsd::Decimal>(value);
@@ -119,6 +116,12 @@ TEST_CASE("Datatype Decimal") {
     CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("454sdsd", type_iri), "http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found", InvalidNode);
 
     CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("2.225E-307", type_iri), "http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found", InvalidNode);
+
+    CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed("+-5", type_iri), "http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found", InvalidNode);
+
+    for (auto const s : {"", "-", "+", ".", "-."}) {
+        CHECK_THROWS_WITH_AS(no_discard_dummy = Literal::make_typed(s, type_iri), "http://www.w3.org/2001/XMLSchema#decimal parsing error: no digits found", InvalidNode);
+    }
 }
 
 TEST_CASE("precision") {
@@ -188,7 +191,7 @@ TEST_CASE("decimal inlining sanity check") {
             // mirrors InlinedDecimal in Decimal.cpp: a 10 bit exponent, the rest of the LiteralID is the signed unscaled value
             static constexpr int64_t unscaled_limit = int64_t{1} << (storage::identifier::LiteralID::width - 10 - 1);
 
-            boost::multiprecision::cpp_int const very_big_value{"99999999999999999999999999999999999999999999999"};
+            auto const very_big_value = std::numeric_limits<rdf4cpp::Int128>::max();
             CHECK_GT(very_big_value, std::numeric_limits<int64_t>::max());
 
             // way over the limit
@@ -220,10 +223,50 @@ TEST_CASE("decimal inlining sanity check") {
         }
 
         SUBCASE("exponent") {
-            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{boost::multiprecision::cpp_int{5}, 1U << 10});
+            auto const l = Literal::make_typed_from_value<Decimal>(Decimal::cpp_type{rdf4cpp::Int128{5}, 1U << 10});
             CHECK(!l.is_inlined());
             CHECK(l.value<Decimal>() == Decimal::cpp_type(5, 1U << 10));
         }
+    }
+}
+
+TEST_CASE("decimal limits") {
+    using namespace datatypes::xsd;
+    SUBCASE("div") {
+        CHECK((Literal::make_typed<Decimal>("7000000000000000000") / Literal::make_typed<Decimal>("3")) == Literal::make_typed<Decimal>("2333333333333333333.3333333333333333333"));
+        CHECK((Literal::make_typed<Decimal>("10000000000000000000") / Literal::make_typed<Decimal>("3")) == Literal::make_typed<Decimal>("3333333333333333333.3333333333333333333"));
+        CHECK((Literal::make_typed<Decimal>("1000000000000000000") / Literal::make_typed<Decimal>("3")) == Literal::make_typed<Decimal>("333333333333333333.33333333333333333333"));
+        CHECK((Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal::cpp_type>::min()) / Literal::make_typed<Decimal>("-1")).null());
+        CHECK((Literal::make_typed<Integer>("10000000000000000000") / Literal::make_typed<Integer>("3")) == Literal::make_typed<Decimal>("3333333333333333333.3333333333333333333"));
+        CHECK((Literal::make_typed_from_value<Integer>(std::numeric_limits<Integer::cpp_type>::min()) / Literal::make_typed<Integer>("-1")).null());
+    }
+    SUBCASE("cast") {
+        CHECK(Literal::make_typed_from_value<Double>(1.8e38).cast<Decimal>().null());
+        CHECK(Literal::make_typed_from_value<Float>(1.8e38f).cast<Decimal>().null());
+        CHECK(Literal::make_typed_from_value<Double>(std::numeric_limits<double>::quiet_NaN()).cast<Decimal>().null());
+        CHECK(Literal::make_typed_from_value<Double>(std::numeric_limits<double>::infinity()).cast<Decimal>().null());
+        CHECK(Literal::make_typed_from_value<Float>(-std::numeric_limits<float>::infinity()).cast<Decimal>().null());
+    }
+    SUBCASE("unm") {
+        CHECK((-Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal::cpp_type>::min())).null());
+    }
+    SUBCASE("compare") {
+        CHECK(Literal::make_typed<Decimal>("-0.00000000000000000000000000000000000001") > Literal::make_typed<Decimal>("-17014118346046923173168730371588410572"));
+        CHECK(!(Literal::make_typed<Decimal>("-0.00000000000000000000000000000000000001") < Literal::make_typed<Decimal>("-17014118346046923173168730371588410572")));
+    }
+    SUBCASE("round") {
+        CHECK(Literal::make_typed_from_value<Double>(1e-41).cast<Decimal>().ceil() == Literal::make_typed<Decimal>("1"));
+        CHECK(Literal::make_typed_from_value<Double>(-1e-41).cast<Decimal>().floor() == Literal::make_typed<Decimal>("-1"));
+        // ties towards +inf, https://www.w3.org/TR/xpath-functions-31/#func-round
+        CHECK(Literal::make_typed<Decimal>("2.5").round() == Literal::make_typed<Decimal>("3"));
+        CHECK(Literal::make_typed<Decimal>("-2.5").round() == Literal::make_typed<Decimal>("-2"));
+        CHECK(Literal::make_typed<Decimal>("-2.51").round() == Literal::make_typed<Decimal>("-3"));
+    }
+    SUBCASE("parse") {
+        CHECK(Literal::make_typed<Decimal>("170141183460469231731687303715884105727.0") == Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal128>::max()));
+        Literal l{};
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("170141183460469231731687303715884105727.01"));
+        CHECK(l.null());
     }
 }
 
@@ -234,4 +277,14 @@ TEST_CASE("decimal possible bug") {
 
     auto const div_res = lit1 / lit2; // program crashes here if the bug is present
     CHECK(div_res.null());
+}
+
+TEST_CASE("decimal to float underflow") {
+    auto x = Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{1, 60});
+    auto y = x.cast<datatypes::xsd::Float>();
+
+    // underflows float, xsd floatingPointRound yields positive zero
+    CHECK_EQ(y, Literal::make_typed_from_value<datatypes::xsd::Float>(0.0f));
+    CHECK_FALSE(std::signbit(y.value<datatypes::xsd::Float>()));
+    CHECK_EQ(y.lexical_form(), "0.0E0");
 }

@@ -38,6 +38,10 @@ struct ConstexprString {
         // implicitly null terminated by default init of array
     }
 
+    [[nodiscard]] constexpr char const *c_str() const noexcept {
+        return value.data(); // always null-terminated
+    }
+
     [[nodiscard]] constexpr char const *data() const noexcept {
         return value.data();
     }
