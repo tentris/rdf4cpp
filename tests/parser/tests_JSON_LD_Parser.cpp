@@ -815,12 +815,13 @@ TEST_CASE("test deduplication keeps terms that are only value equal") {
 }
 
 /**
- * Output of parse_with_remote_documents. Each string holds one entry per line.
+ * Output of `parse_with_remote_documents`. `quads`, `errors` and `requested` hold one entry per line.
  */
 struct ParseWithRemotesResult {
     std::string quads;      // the parsed quads in n-quads syntax
     std::string errors;     // the messages of the parsing errors
     std::string requested;  // the urls passed to request_url, in the order of the calls
+    std::string base;       // the base IRI of the state after parsing
     size_t quad_count = 0;
 };
 
@@ -845,6 +846,7 @@ ParseWithRemotesResult parse_with_request_url(std::string doc, std::string_view 
             r.errors += std::format("{}\n", it->error().message);
         }
     }
+    r.base = state.iri_factory.get_base();
     return r;
 }
 /**
@@ -892,6 +894,33 @@ TEST_CASE("relative urls in a remote context resolve against the url of that con
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
 }
 
+TEST_CASE("a relative url in a remote context does not change the base of the state") {
+    // the relative url resolves against the url of `c1.jsonld`. that url is no base of the document,
+    // so the state keeps the base of the document
+    SUBCASE("a remote context") {
+        std::map<std::string, std::string, std::less<>> const docs{
+            {"http://ctx.example/c1.jsonld", R"({"@context": ["c2.jsonld"]})"},
+            {"http://ctx.example/c2.jsonld", R"({"@context": {}})"},
+        };
+        auto const r = parse_with_remote_documents(R"({"@context": "http://ctx.example/c1.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://base.example/doc", docs);
+        CHECK(r.requested == "http://ctx.example/c1.jsonld\nhttp://ctx.example/c2.jsonld\n");
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+        CHECK(r.base == "http://base.example/doc");
+    }
+    SUBCASE("@import") {
+        std::map<std::string, std::string, std::less<>> const docs{
+            {"http://ctx.example/c1.jsonld", R"({"@context": {"@version": 1.1, "@import": "imp.jsonld"}})"},
+            {"http://ctx.example/imp.jsonld", R"({"@context": {}})"},
+        };
+        auto const r = parse_with_remote_documents(R"({"@context": "http://ctx.example/c1.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://base.example/doc", docs);
+        CHECK(r.requested == "http://ctx.example/c1.jsonld\nhttp://ctx.example/imp.jsonld\n");
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+        CHECK(r.base == "http://base.example/doc");
+    }
+}
+
 TEST_CASE("@propagate false in a remote context does not reach nested node objects") {
     std::map<std::string, std::string, std::less<>> const docs{
         {"http://ex/ctx.jsonld", R"({"@context": {"@propagate": false, "t": "http://ex/t"}})"},
@@ -906,6 +935,26 @@ TEST_CASE("@base in a remote context is ignored") {
     // a remote context cannot change the base IRI
     std::map<std::string, std::string, std::less<>> const docs{
         {"http://ex/ctx.jsonld", R"({"@context": {"@base": "http://other.example/"}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "s", "http://ex/p": "v"})", "http://doc.example/", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://doc.example/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("@base after a remote context in the same context array is applied") {
+    // only a remote context itself cannot change the base IRI
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/ctx.jsonld", {"@base": "http://other.example/"}], "@id": "s", "http://ex/p": "v"})", "http://doc.example/", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://other.example/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("@base in a remote context after a nested remote context is ignored") {
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": ["http://ex/inner.jsonld", {"@base": "http://other.example/"}]})"},
+        {"http://ex/inner.jsonld", R"({"@context": {}})"},
     };
     auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "s", "http://ex/p": "v"})", "http://doc.example/", docs);
     CHECK(r.errors == "");
@@ -931,6 +980,39 @@ TEST_CASE("a remote context document without @context is an invalid remote conte
     auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.quads == "");
     CHECK(r.errors == "invalid remote context\n");
+}
+
+TEST_CASE("an invalid remote context in a context array stops the context processing") {
+    // the error of the remote context is the result of the whole context,
+    // the entries after the remote context are not processed
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/bad.jsonld", R"({"foo": 1})"},
+        {"http://ex/ok.jsonld", R"({"@context": {"a": "http://ex/a"}})"},
+    };
+    SUBCASE("followed by null") {
+        auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/bad.jsonld", null], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+        CHECK(r.quads == "");
+        CHECK(r.errors == "invalid remote context\n");
+    }
+    SUBCASE("an error in the remote context followed by null") {
+        std::map<std::string, std::string, std::less<>> const version_docs{
+            {"http://ex/bad.jsonld", R"({"@context": {"@version": 2}})"},
+        };
+        auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/bad.jsonld", null], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", version_docs);
+        CHECK(r.quads == "");
+        CHECK(r.errors == "invalid @version value\n");
+    }
+    SUBCASE("followed by a map") {
+        auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/bad.jsonld", {"a": "http://ex/a"}], "@id": "http://ex/s", "a": "v"})", "http://ex/doc", docs);
+        CHECK(r.quads == "");
+        CHECK(r.errors == "invalid remote context\n");
+    }
+    SUBCASE("followed by a remote context") {
+        auto const r = parse_with_remote_documents(R"({"@context": ["http://ex/bad.jsonld", "http://ex/ok.jsonld"], "@id": "http://ex/s", "a": "v"})", "http://ex/doc", docs);
+        CHECK(r.requested == "http://ex/bad.jsonld\n");
+        CHECK(r.quads == "");
+        CHECK(r.errors == "invalid remote context\n");
+    }
 }
 
 TEST_CASE("an imported context that is not a map is an invalid remote context") {
@@ -1069,6 +1151,19 @@ TEST_CASE("a scoped context before a remote context is validated against the com
     CHECK(r.quads == "<http://ex/s> <http://ex/a> _:bn_0 .\n_:bn_0 <http://ex/x> \"v\"^^<http://ex/b> .\n");
 }
 
+TEST_CASE("a term in a chain of remote contexts may use its own remote context as scoped context") {
+    // `A` loads `B`, and the term `t` of `B` has `B` as scoped context. `B` is in the list of remote
+    // contexts where `t` is defined, so the check of the scoped context does not process `B` again.
+    // the complete context has no `@vocab`, so the term `x` of `B` would have no IRI mapping there
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/A.jsonld", R"({"@context": "B.jsonld"})"},
+        {"http://ex/B.jsonld", R"({"@context": {"t": {"@id": "http://ex/t", "@context": "B.jsonld"}, "x": {"@type": "@id"}}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/"}, "http://ex/A.jsonld", {"@vocab": null}], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
 TEST_CASE("a null scoped context that does not propagate keeps the previous context") {
     // the type scoped context of T is null and does not propagate,
     // so the nested node object uses the context from before T
@@ -1090,6 +1185,35 @@ TEST_CASE("a null scoped context that does not propagate keeps the previous cont
     CAPTURE(r2.quads);
     CHECK(r2.errors == "");
     CHECK(!r2.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
+}
+
+TEST_CASE("a null context that propagates also applies to nested node objects") {
+    // only a null context that does not propagate keeps the previous context.
+    // so the nested node objects here do not fall back to the context from before the null
+    SUBCASE("an embedded null after a property scoped context that does not propagate") {
+        auto const r = parse_with_remote_documents(R"({"@context": {"a": "http://ex/a", "p": {"@id": "http://ex/p", "@context": {"@propagate": false}}},
+      "@id": "http://ex/s", "p": {"@id": "http://ex/o", "@context": null, "http://ex/q": {"@id": "http://ex/o2", "a": "v"}}})",
+                                                   "http://ex/doc", {});
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://ex/q> <http://ex/o2> .\n");
+    }
+    SUBCASE("a property scoped null inside a type scoped context") {
+        auto const r = parse_with_remote_documents(R"({"@context": {"r": "http://ex/r", "T": {"@id": "http://ex/T", "@context": {"p": {"@id": "http://ex/p", "@context": null}}}},
+      "@id": "http://ex/s", "@type": "T", "p": {"@id": "http://ex/o", "http://ex/z": {"@id": "http://ex/o2", "r": "w"}}})",
+                                                   "http://ex/doc", {});
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/T> .\n<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://ex/z> <http://ex/o2> .\n");
+    }
+    SUBCASE("a null after a remote context that does not propagate") {
+        std::map<std::string, std::string, std::less<>> const docs{
+            {"http://ex/r.jsonld", R"({"@context": {"@propagate": false}})"},
+        };
+        auto const r = parse_with_remote_documents(R"({"@context": [{"p": "http://ex/p"}, "http://ex/r.jsonld", null],
+      "@id": "http://ex/s", "p": "top", "http://ex/q": {"@id": "http://ex/o", "p": "v"}})",
+                                                   "http://ex/doc", docs);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/q> <http://ex/o> .\n");
+    }
 }
 
 TEST_CASE("an absolute remote context url that is no valid iri is rejected") {
@@ -1130,6 +1254,55 @@ TEST_CASE("a remote context that is no valid json only fails its own node object
         std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", ""}};
         auto const r = parse_with_remote_documents(std::string{imported}, "http://ex/doc", docs);
         CHECK(r.errors == "invalid remote context\n");
+        CHECK(r.quads == expected_quads);
+    }
+    SUBCASE("a body with an error that simdjson finds only when it reads the value") {
+        // an invalid escape, a lone surrogate and a missing comma pass the first check of simdjson (stage 1)
+        std::vector<std::string> const bodies{
+            R"({"@context": {"t": "http://ex/\q"}})",
+            R"({"@context": ["\ud800"]})",
+            R"({"@context": "\q"})",
+            R"({"@context": [{"a": "http://ex/a"} {"b": "http://ex/b"}]})",
+            R"({"@context": {"a": "http://ex/a" "b": "http://ex/b"}})",
+            R"({"@context": {"t": "\ud800"}})",
+            R"({"@context": {"a": {"@id": "http://ex/a", "@context": {"t": "\q"}}}})",
+        };
+        for (auto const &body : bodies) {
+            for (bool const behind_import : {false, true}) {
+                CAPTURE(body);
+                CAPTURE(behind_import);
+                std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", body}};
+                auto const r = parse_with_remote_documents(std::string{behind_import ? imported : remote}, "http://ex/doc", docs);
+                CAPTURE(r.errors);
+                CHECK(std::ranges::count(r.errors, '\n') == 1);
+                CHECK(r.quads == expected_quads);
+            }
+        }
+    }
+}
+
+TEST_CASE("a remote context that fails to load is requested once") {
+    // two node objects name the same url that cannot be loaded, both fail with the same error.
+    // the third node object still produces its quad
+    static constexpr std::string_view remote = R"([{"@context": "http://ex/dead.jsonld", "@id": "http://ex/s1", "http://ex/p": "v1"},
+      {"@context": "http://ex/dead.jsonld", "@id": "http://ex/s2", "http://ex/p": "v2"},
+      {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
+    static constexpr std::string_view imported = R"([{"@context": {"@version": 1.1, "@import": "http://ex/dead.jsonld"}, "@id": "http://ex/s1", "http://ex/p": "v1"},
+      {"@context": {"@version": 1.1, "@import": "http://ex/dead.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v2"},
+      {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
+    static constexpr std::string_view expected_errors = "loading remote context failed not found\nloading remote context failed not found\n";
+    static constexpr std::string_view expected_quads = "<http://ex/s3> <http://ex/p> \"v3\" .\n";
+
+    SUBCASE("remote context") {
+        auto const r = parse_with_remote_documents(std::string{remote}, "http://ex/doc", {});
+        CHECK(r.requested == "http://ex/dead.jsonld\n");
+        CHECK(r.errors == expected_errors);
+        CHECK(r.quads == expected_quads);
+    }
+    SUBCASE("@import") {
+        auto const r = parse_with_remote_documents(std::string{imported}, "http://ex/doc", {});
+        CHECK(r.requested == "http://ex/dead.jsonld\n");
+        CHECK(r.errors == expected_errors);
         CHECK(r.quads == expected_quads);
     }
 }
