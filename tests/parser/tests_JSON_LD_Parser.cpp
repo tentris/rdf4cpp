@@ -861,8 +861,8 @@ ParseWithRemotesResult parse_with_remote_documents(std::string doc, std::string_
     });
 }
 
-TEST_CASE("remote contexts of sibling node objects do not add up to a context overflow") {
-    // the limit on remote contexts applies to one chain of remote contexts that load each other.
+TEST_CASE("remote contexts of sibling node objects do add up to a context overflow") {
+    // the limit on remote contexts applies all remote contexts loaded from the document.
     // every node object here loads its own remote context, so each chain has length one.
     static constexpr size_t nodes = 102;
     std::map<std::string, std::string, std::less<>> docs;
@@ -874,8 +874,7 @@ TEST_CASE("remote contexts of sibling node objects do not add up to a context ov
     doc += ']';
 
     auto const r = parse_with_remote_documents(std::move(doc), "http://ex/doc", docs);
-    CHECK(r.errors == "");
-    CHECK(r.quad_count == nodes);
+    CHECK(r.errors == "context overflow\n");
 }
 
 TEST_CASE("relative urls in a remote context resolve against the url of that context") {
@@ -1112,25 +1111,55 @@ TEST_CASE("a remote context that is no valid json only fails its own node object
     static constexpr std::string_view imported = R"([{"@id": "http://ex/s1", "http://ex/p": "v1"},
       {"@context": {"@version": 1.1, "@import": "http://ex/bad.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v2"},
       {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
-    static constexpr std::string_view expected_quads = "<http://ex/s1> <http://ex/p> \"v1\" .\n<http://ex/s3> <http://ex/p> \"v3\" .\n";
+    static constexpr std::string_view expected_quads = "<http://ex/s1> <http://ex/p> \"v1\" .\n";
 
     SUBCASE("an empty body") {
         std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", ""}};
         auto const r = parse_with_remote_documents(std::string{remote}, "http://ex/doc", docs);
-        CHECK(r.errors == "invalid remote context\n");
+        CAPTURE(r.errors);
+        CHECK(std::ranges::count(r.errors, '\n') == 1);
+        CHECK(r.errors.starts_with("loading remote context failed"));
         CHECK(r.quads == expected_quads);
     }
     SUBCASE("a truncated body") {
         std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", R"({"@context": {"a": "http://ex/)"}};
         auto const r = parse_with_remote_documents(std::string{remote}, "http://ex/doc", docs);
-        CHECK(r.errors == "invalid remote context\n");
+        CAPTURE(r.errors);
+        CHECK(std::ranges::count(r.errors, '\n') == 1);
+        CHECK(r.errors.starts_with("loading remote context failed"));
         CHECK(r.quads == expected_quads);
     }
     SUBCASE("an empty body behind @import") {
         std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", ""}};
         auto const r = parse_with_remote_documents(std::string{imported}, "http://ex/doc", docs);
-        CHECK(r.errors == "invalid remote context\n");
+        CAPTURE(r.errors);
+        CHECK(std::ranges::count(r.errors, '\n') == 1);
+        CHECK(r.errors.starts_with("loading remote context failed"));
         CHECK(r.quads == expected_quads);
+    }
+    SUBCASE("a body with an error that simdjson finds only when it reads the value") {
+        // an invalid escape, a lone surrogate and a missing comma pass the first check of simdjson (stage 1)
+        std::vector<std::string> const bodies{
+            R"({"@context": {"t": "http://ex/\q"}})",
+            R"({"@context": ["\ud800"]})",
+            R"({"@context": "\q"})",
+            R"({"@context": [{"a": "http://ex/a"} {"b": "http://ex/b"}]})",
+            R"({"@context": {"a": "http://ex/a" "b": "http://ex/b"}})",
+            R"({"@context": {"t": "\ud800"}})",
+            R"({"@context": {"a": {"@id": "http://ex/a", "@context": {"t": "\q"}}}})",
+        };
+        for (auto const &body : bodies) {
+            for (bool const behind_import : {false, true}) {
+                CAPTURE(body);
+                CAPTURE(behind_import);
+                std::map<std::string, std::string, std::less<>> const docs{{"http://ex/bad.jsonld", body}};
+                auto const r = parse_with_remote_documents(std::string{behind_import ? imported : remote}, "http://ex/doc", docs);
+                CAPTURE(r.errors);
+                CHECK(std::ranges::count(r.errors, '\n') == 1);
+                CHECK(r.errors.starts_with("loading remote context failed"));
+                CHECK(r.quads == expected_quads);
+            }
+        }
     }
 }
 
@@ -1260,4 +1289,32 @@ TEST_CASE("@base in a remote context after a nested remote context is ignored") 
     auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "s", "http://ex/p": "v"})", "http://doc.example/", docs);
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://doc.example/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("protected applies regardless of term order") {
+    std::map<std::string, std::string, std::less<>> const docs{};
+
+    SUBCASE("A first") {
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@protected": true, "A": "B:x", "B": "http://ex/b/"}, {"B": "http://evil/"}], "@id": "http://ex/s", "B:y": "v"})", "http://doc.example/", docs);
+
+        CHECK(r.errors == "protected term redefinition\n");
+    }
+    SUBCASE("B first") {
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@protected": true, "B": "http://ex/b/", "A": "B:x"}, {"B": "http://evil/"}], "@id": "http://ex/s", "B:y": "v"})", "http://doc.example/", docs);
+
+        CHECK(r.errors == "protected term redefinition\n");
+    }
+}
+
+TEST_CASE("a term in a chain of remote contexts may use its own remote context as scoped context") {
+    // `A` loads `B`, and the term `t` of `B` has `B` as scoped context. `B` is in the list of remote
+    // contexts where `t` is defined, so the check of the scoped context does not process `B` again.
+    // the complete context has no `@vocab`, so the term `x` of `B` would have no IRI mapping there
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/A.jsonld", R"({"@context": "B.jsonld"})"},
+        {"http://ex/B.jsonld", R"({"@context": {"t": {"@id": "http://ex/t", "@context": "B.jsonld"}, "x": {"@type": "@id"}}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/"}, "http://ex/A.jsonld", {"@vocab": null}], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
 }

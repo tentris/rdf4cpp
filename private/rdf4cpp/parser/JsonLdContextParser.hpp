@@ -32,6 +32,7 @@ namespace rdf4cpp::parser {
             std::vector<json_ld::TermDefinition> const &previous_terms;  // NOLINT(*-avoid-const-or-ref-data-members)
             std::string_view base_iri;
             std::string_view base_url;
+            std::vector<std::string> remote_contexts;
             bool is_protected = false;
             bool override_protected = false;
         };
@@ -41,6 +42,9 @@ namespace rdf4cpp::parser {
             std::optional<simdjson::ondemand::object> local_context_merge;
             std::vector<json_ld::TermDefinition> const &previous_terms;  // NOLINT(*-avoid-const-or-ref-data-members)
             std::string_view base_url;
+            std::vector<std::string> remote_contexts;
+            bool is_protected;
+            bool override_protected;
         };
     }  // namespace params
 
@@ -71,6 +75,7 @@ namespace rdf4cpp::parser {
             bool keep_document_bnode_labels;
             // moving the contained objects is not allowed
             std::forward_list<Context> context_storage;
+            size_t number_of_remote_contexts = 0;
 
             inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IStreamQuadIterator::state_type *parse_state)
                 : parse_state(parse_state),

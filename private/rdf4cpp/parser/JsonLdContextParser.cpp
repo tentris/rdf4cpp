@@ -11,6 +11,12 @@ namespace rdf4cpp::parser::json_ld {
             if (!data.has_value()) {
                 return nonstd::unexpected{std::format("loading remote context failed {}", data.error())};
             }
+            // the on-demand parser checks most of the json only when it reads it, and then throws
+            // `simdjson_error`, which ends the whole document. So the whole body is checked here once.
+            simdjson::dom::parser validator{};
+            if (auto const ec = validator.parse(data->data).error(); ec != simdjson::SUCCESS) {
+                return nonstd::unexpected{std::format("loading remote context failed {}", simdjson::error_message(ec))};
+            }
             if (data->final_url != url && !data->final_url.empty()) {
                 auto [e, _] = contexts.emplace(std::piecewise_construct, std::tuple{data->final_url}, std::tuple{data->data, data->final_url});
                 simdjson::pad(e->second.data);
@@ -177,6 +183,9 @@ namespace rdf4cpp::parser::json_ld {
                             .local_context_merge = import_obj,
                             .previous_terms = previous_terms,
                             .base_url = p.base_url,
+                            .remote_contexts = p.remote_contexts,
+                            .is_protected = false,
+                            .override_protected = false,
                         };
                         auto r = iri_expansion(result.value(), v, true, true, nullptr, &p_ctx);
                         if (!r.has_value() || r->type != IRIMappingType::IRI) {  // a blank node as @vocab is deprecated, not removed
@@ -249,6 +258,7 @@ namespace rdf4cpp::parser::json_ld {
                         .previous_terms = previous_terms,
                         .base_iri = p.base_iri,
                         .base_url = p.base_url,
+                        .remote_contexts = p.remote_contexts,
                         .is_protected = prot,
                         .override_protected = p.override_protected,
                     });
@@ -299,11 +309,12 @@ namespace rdf4cpp::parser::json_ld {
             }
 
             // 5.2.3
-            if (p.remote_contexts.size() > parse_state->remote_context_size_limit) {
+            if (p.remote_contexts.size() > parse_state->remote_context_size_limit || number_of_remote_contexts > parse_state->remote_context_size_limit) {
                 result = nonstd::unexpected{make_error(ParsingError::Type::BadIri, "context overflow")};
                 return true;
             }
             p.remote_contexts.emplace_back(url);
+            ++number_of_remote_contexts;
 
             // 5.2.4 & 5.2.5
             auto resolved = remote_context_cache.resolve(url, parse_state);
@@ -407,10 +418,11 @@ namespace rdf4cpp::parser::json_ld {
                         .active_context = *result,
                         .base_iri = p.base_iri,
                         .base_url = t->context->base_url,
-                        .remote_contexts = p.remote_contexts,
+                        .remote_contexts = std::move(t->active_remote_contexts),
                         .override_protected = true,
                         .validate_scoped_contexts = false,
                     });
+                    t->active_remote_contexts.clear();
                     if (!lc.has_value()) {
                         result = nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, std::format("invalid scoped context ({})", lc.error().message)));
                         return result;
@@ -532,6 +544,9 @@ namespace rdf4cpp::parser::json_ld {
                     .local_context_merge = p.local_context_merge,
                     .previous_terms = p.previous_terms,
                     .base_url = p.base_url,
+                    .remote_contexts = p.remote_contexts,
+                    .is_protected = p.is_protected,
+                    .override_protected = p.override_protected,
                 };
                 auto ex = iri_expansion(p.active_context, v, false, true, v == p.term.key ? &p.term : nullptr, &p_ctx);
                 if (!ex.has_value()) {
@@ -562,6 +577,9 @@ namespace rdf4cpp::parser::json_ld {
                         .local_context_merge = p.local_context_merge,
                         .previous_terms = p.previous_terms,
                         .base_url = p.base_url,
+                        .remote_contexts = p.remote_contexts,
+                        .is_protected = p.is_protected,
+                        .override_protected = p.override_protected,
                     };
                     if (iri_expansion(p.active_context, p.term.key, false, true, &p.term, &p_ctx2) != p.term.iri_mapping) {
                         return make_error(ParsingError::Type::BadSyntax, "invalid IRI mapping (@id)");
@@ -635,6 +653,9 @@ namespace rdf4cpp::parser::json_ld {
                         .local_context_merge = p.local_context_merge,
                         .previous_terms = p.previous_terms,
                         .base_url = p.base_url,
+                        .remote_contexts = p.remote_contexts,
+                        .is_protected = p.is_protected,
+                        .override_protected = p.override_protected,
                     };
                     auto type = iri_expansion(p.active_context, v, false, true, nullptr, &p_ctx);
                     if (!type.has_value()) {
@@ -689,6 +710,9 @@ namespace rdf4cpp::parser::json_ld {
                         .local_context_merge = p.local_context_merge,
                         .previous_terms = p.previous_terms,
                         .base_url = p.base_url,
+                        .remote_contexts = p.remote_contexts,
+                        .is_protected = p.is_protected,
+                        .override_protected = p.override_protected,
                     };
                     auto r = iri_expansion(p.active_context, v, false, true, nullptr, &p_ctx);
                     if (!r.has_value()) {
@@ -758,6 +782,7 @@ namespace rdf4cpp::parser::json_ld {
                                     .previous_terms = p.previous_terms,
                                     .base_iri = p.base_iri,
                                     .base_url = p.base_url,
+                                    .remote_contexts = p.remote_contexts,
                                     .is_protected = p.is_protected,
                                     .override_protected = p.override_protected,
                                 });
@@ -779,6 +804,9 @@ namespace rdf4cpp::parser::json_ld {
                                 .local_context_merge = p.local_context_merge,
                                 .previous_terms = p.previous_terms,
                                 .base_url = p.base_url,
+                                .remote_contexts = p.remote_contexts,
+                                .is_protected = p.is_protected,
+                                .override_protected = p.override_protected,
                             };
                             auto m = iri_expansion(p.active_context, p.term.key, false, true, nullptr, &p_ctx);
                             if (!m.has_value()) {
@@ -899,6 +927,9 @@ namespace rdf4cpp::parser::json_ld {
                         .local_context_merge = p.local_context_merge,
                         .previous_terms = p.previous_terms,
                         .base_url = p.base_url,
+                        .remote_contexts = p.remote_contexts,
+                        .is_protected = p.is_protected,
+                        .override_protected = p.override_protected,
                     };
                     auto r = iri_expansion(p.active_context, v, false, true, nullptr, &p_ctx);
                     if (!r.has_value()) {
@@ -928,6 +959,7 @@ namespace rdf4cpp::parser::json_ld {
                     simdjson::pad(p.term.context->context);
                     // the context itself is validated at the end of context processing
                     p.term.needs_context_check = true;
+                    p.term.active_remote_contexts = p.remote_contexts;
                 }
             }
             if (!has_type) {  // 22
@@ -1069,6 +1101,9 @@ namespace rdf4cpp::parser::json_ld {
                     .previous_terms = parse_ctx->previous_terms,
                     .base_iri = "",
                     .base_url = parse_ctx->base_url,
+                    .remote_contexts = parse_ctx->remote_contexts,
+                    .is_protected = parse_ctx->is_protected,
+                    .override_protected = parse_ctx->override_protected,
                 });
                 if (e.has_value()) {
                     return nonstd::make_unexpected(*e);
@@ -1110,6 +1145,9 @@ namespace rdf4cpp::parser::json_ld {
                             .previous_terms = parse_ctx->previous_terms,
                             .base_iri = "",
                             .base_url = parse_ctx->base_url,
+                            .remote_contexts = parse_ctx->remote_contexts,
+                            .is_protected = parse_ctx->is_protected,
+                            .override_protected = parse_ctx->override_protected,
                         });
                         if (e.has_value()) {
                             return nonstd::make_unexpected(*e);

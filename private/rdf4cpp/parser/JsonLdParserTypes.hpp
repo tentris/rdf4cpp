@@ -288,6 +288,10 @@ namespace rdf4cpp::parser {
              */
             bool ignored = false;
             ParseState parse_state = ParseState::NotStarted;
+            /**
+             * only for use with needs_context_check, will be cleared afterwards
+             */
+            std::vector<std::string> active_remote_contexts;
 
             using TermDefinitionBase::TermDefinitionBase;
         };

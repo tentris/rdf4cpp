@@ -256,7 +256,16 @@ namespace rdf4cpp::parser {
             for (auto element : static_cast<simdjson::ondemand::array>(p.element)) {
                 auto element_params = p;
                 element_params.element = *element;
-                co_yield std::ranges::elements_of(parse(element_params));
+                bool err = false;
+                for (auto const &e : parse(element_params)) {
+                    if (!e.has_value()) {
+                        err = true;
+                    }
+                    co_yield e;
+                }
+                if (err) {
+                    co_return;
+                }
             }
             co_return;
         }

@@ -59,6 +59,7 @@ struct ParsingState {
      * The result of a successful request_url call.
      * data is the body of the requested document.
      * final_url is the url of the document after the redirects (documentUrl in the JSON-LD API).
+     * final_url is expected to be absolute (there might have been a in-between redirect which changed the hostname, which our parser would not know about).
      * For a remote context, relative context urls inside the document resolve against it.
      * If the request was not redirected, it can stay empty, then the requested url is used.
      * For `@import` it is not used: relative urls in the imported context resolve against
