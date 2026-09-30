@@ -256,7 +256,16 @@ namespace rdf4cpp::parser {
             for (auto element : static_cast<simdjson::ondemand::array>(p.element)) {
                 auto element_params = p;
                 element_params.element = *element;
-                co_yield std::ranges::elements_of(parse(element_params));
+                bool err = false;
+                for (auto const &e : parse(element_params)) {
+                    if (!e.has_value()) {
+                        err = true;
+                    }
+                    co_yield e;
+                }
+                if (err) {
+                    co_return;
+                }
             }
             co_return;
         }
@@ -737,7 +746,7 @@ namespace rdf4cpp::parser {
         : owned_state_(initial_state == nullptr ? std::make_unique<state_type>() : nullptr),
           state_(initial_state == nullptr ? owned_state_.get() : initial_state),
           json_data_(std::move(json)),
-          expand_parser_(state_->iri_factory, std::string(state_->iri_factory.get_base()), flags.contains(ParsingFlag::KeepBlankNodeIds)),
+          expand_parser_(state_, std::string(state_->iri_factory.get_base()), flags.contains(ParsingFlag::KeepBlankNodeIds)),
           flags_(flags),
           active_generator_(parse()),
           current_iter_(active_generator_.begin()) {
