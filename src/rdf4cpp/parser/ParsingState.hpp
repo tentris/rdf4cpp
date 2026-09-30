@@ -33,6 +33,7 @@ struct ParsingState {
     /**
      * The initial prefixes the parser has knowledge of
      * @note default value is an empty map
+     * @note the parser may write data into here, do not re-use.
      */
     IRIFactory iri_factory{};
 
