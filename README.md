@@ -142,21 +142,61 @@ For getting started how to use rdf4cpp, check out the [examples](./examples) dir
 
 ## Developing _rdf4cpp_
 
-### Compile
+### Prerequisites
+- Conan >= 2.28
+- CMake >= 3.28
+- Clang >= 19 or GCC >= 14 (see [Supported Platforms](#supported-platforms))
+- Ninja
+- [mold linker](https://github.com/rui314/mold) (Linux only)
 
-_rdf4cpp_ uses CMake and Conan 2. To build it, run:
+Dependencies are fetched by conan through the [cmake-conan](https://github.com/conan-io/cmake-conan) dependency
+provider, which `cmake/conan_provider.cmake` downloads and pins. No separate `conan install` is needed.
+You only need a conan profile and the DICE artifactory as remote:
 
 ```shell
-wget https://github.com/conan-io/cmake-conan/raw/develop2/conan_provider.cmake -O conan_provider.cmake # download conan provider
-cmake -B build_dir -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake # configure and generate
-cmake --build build_dir # compile
+conan profile detect
+conan remote add dice-group https://conan.dice-research.org/artifactory/api/conan/tentris
 ```
 
-To install it to your system, run afterward:
+### Build and test
+Everything is driven via `CMakePresets.json`:
 
 ```shell
-cd build_dir
-sudo make install
+cmake --preset dev
+cmake --build --preset dev
+ctest --preset dev
+```
+
+In CLion, set `Settings | Advanced Settings | CMake | Automatically import CMake Presets` to `Build` only, open the
+project as a folder and enable the presets you want under `Settings | Build, Execution, Deployment | CMake`.
+
+By default, the presets use `clang-21` and mold on Linux and `gcc-14` on macOS
+(see [cmake/toolchains](./cmake/toolchains)). To use another compiler, set the `CC` and `CXX` environment variables
+before configuring, or add your own presets in a `CMakeUserPresets.json`.
+
+#### Presets
+
+| preset     | build type     | notes                                        |
+|------------|----------------|----------------------------------------------|
+| `dev`      | RelWithDebInfo | tests and examples                           |
+| `debug`    | Debug          | tests and examples                           |
+| `release`  | Release        | library only                                 |
+| `asan`     | RelWithDebInfo | address and undefined behavior, not on macOS |
+| `ci-*`     | Debug          | see below                                    |
+
+The `ci-*` presets are also workflow presets, which is how GitHub Actions invoke them and
+how you can reproduce a failing CI locally, as the build setup will match:
+
+```shell
+CC=clang-20 CXX=clang++-20 cmake --workflow --preset ci-static-sanitizer
+```
+
+To install the library to your system, run:
+
+```shell
+cmake --preset release
+cmake --build --preset release
+sudo cmake --install build/release
 ```
 
 ### Limits for Datatypes

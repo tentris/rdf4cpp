@@ -139,46 +139,38 @@ jobs:
       - name: Check out sources
         uses: actions/checkout@v7.0.1
 
-      - name: Get dependency provider
-        uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/add_conan_provider@v2.1.1
+      - name: Select preset
+        run: |
+          PRESET="ci-${{ fromJSON('["static", "shared"]')[inputs.build-shared-libs] }}${{ fromJSON('["", "-sanitizer"]')[inputs.with-sanitizer] }}${{ fromJSON('["", "-coverage"]')[inputs.with-coverage] }}"
+          echo PRESET="${PRESET}" >> $GITHUB_ENV
+          echo CTEST_PARALLEL_LEVEL="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)" >> $GITHUB_ENV
 
-      - name: Configure CMake
+      - name: Set compiler env vars
         if: ${{ !contains(inputs.os, 'macos') }}
-        env:
-          CC: ${{ steps.install_cc.outputs.cc }}
-          CXX: ${{ steps.install_cc.outputs.cxx }}
-          CXXFLAGS: -Wno-unused-command-line-argument -fuse-ld=mold ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
-        run: >
-          cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-          ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
-          
-      - name: Configure CMake (macos)
+        run: |
+          echo CC="${{ steps.install_cc.outputs.cc }}" >> $GITHUB_ENV
+          echo CXX="${{ steps.install_cc.outputs.cxx }}" >> $GITHUB_ENV
+
+      - name: Set compiler flags (macos)
         if: ${{ contains(inputs.os, 'macos') }}
-        env:
-          CXXFLAGS: -march=armv8-a+aes+sha2 -Wno-unused-command-line-argument ${{ fromJSON('["", "-fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"]')[inputs.with-sanitizer] }} ${{ fromJSON('["", "--coverage"]')[inputs.with-coverage] }}
-        run: >
-          cmake -G Ninja -B build_dir -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DCMAKE_PROJECT_TOP_LEVEL_INCLUDES=conan_provider.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-          ${{ fromJSON('["", "-DBUILD_SHARED_LIBS=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON"]')[inputs.build-shared-libs] }}
+        run: |
+          echo CXXFLAGS="-march=armv8-a+aes+sha2" >> $GITHUB_ENV
 
       - name: Cache parser tests
         id: cache-parser
         uses: actions/cache@v6.1.0
         with:
           path: |
-            build_dir/tests/xml_test_cache
-            build_dir/tests/jsonld_test_cache
+            build/${{ env.PRESET }}/tests/xml_test_cache
+            build/${{ env.PRESET }}/tests/jsonld_test_cache
           # the test sources list the files to download, so their hash changes when the set changes.
           # actions/cache only writes on an exact key miss, a constant key would freeze the cache forever.
           key: parser_test-${{ hashFiles('tests/parser/tests_XMLParser.cpp', 'tests/parser/tests_JSON_LD_Parser.cpp') }}
           restore-keys: parser_test-
 
-      - name: Build Tests & Examples
-        working-directory: build_dir
-        run: cmake --build . --parallel $(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
-
-      - name: Run tests
-        working-directory: build_dir
-        run: ctest --parallel $(nproc 2>/dev/null || sysctl -n hw.logicalcpu) --verbose
+      # configure, build and test, all from CMakePresets.json
+      - name: Configure, build and test
+        run: cmake --workflow --preset ${{ env.PRESET }}
 
       - name: Report coverage
         env:
@@ -190,9 +182,8 @@ jobs:
           curl -F "json_file=@coverage.json" https://coveralls.io/api/v1/jobs
 
       - name: Run examples
-        working-directory: build_dir
+        working-directory: build/${{ env.PRESET }}/examples
         run: |
-          cd examples
           for example in *_example; do 
             echo "executing ${example}"
             ./${example}

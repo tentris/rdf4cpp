@@ -1,0 +1,290 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/conan_provider.cmake",
+        "CONAN_INSTALL_ARGS": "--build=missing;-c;tools.cmake.cmaketoolchain:user_presets=",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/${hostSystemName}.cmake",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON",
+        "BUILD_EXAMPLES": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug + tests + examples",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "RelWithDebInfo + tests + examples",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release, no tests or examples",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF",
+        "BUILD_EXAMPLES": "OFF"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "RelWithDebInfo + asan/ubsan",
+      "inherits": "dev",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "environment": {
+        "CFLAGS": "$penv{CFLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer",
+        "CXXFLAGS": "$penv{CXXFLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "ci",
+      "hidden": true,
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_COMPILE_WARNING_AS_ERROR": "ON"
+      },
+      "environment": {
+        "CI_CXXFLAGS": "$penv{CXXFLAGS} -Wno-unused-command-line-argument",
+        "CXXFLAGS": "$env{CI_CXXFLAGS}"
+      }
+    },
+    {
+      "name": "ci-static",
+      "displayName": "CI, static library",
+      "inherits": "ci"
+    },
+    {
+      "name": "ci-shared",
+      "displayName": "CI, shared library",
+      "inherits": "ci",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "ON",
+        "CMAKE_POSITION_INDEPENDENT_CODE": "ON"
+      }
+    },
+    {
+      "name": "ci-static-sanitizer",
+      "displayName": "CI, static library + asan/ubsan",
+      "inherits": "ci-static",
+      "environment": {
+        "CXXFLAGS": "$env{CI_CXXFLAGS} -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls"
+      }
+    },
+    {
+      "name": "ci-shared-coverage",
+      "displayName": "CI, shared library + coverage",
+      "inherits": "ci-shared",
+      "environment": {
+        "CXXFLAGS": "$env{CI_CXXFLAGS} --coverage"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "ci-static",
+      "configurePreset": "ci-static"
+    },
+    {
+      "name": "ci-shared",
+      "configurePreset": "ci-shared"
+    },
+    {
+      "name": "ci-static-sanitizer",
+      "configurePreset": "ci-static-sanitizer"
+    },
+    {
+      "name": "ci-shared-coverage",
+      "configurePreset": "ci-shared-coverage"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "quick",
+      "hidden": true,
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "timeout": 3000,
+        "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "sanitized",
+      "hidden": true,
+      "environment": {
+        "ASAN_OPTIONS": "halt_on_error=1:symbolize=1:debug=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:symbolize=1:print_stacktrace=1"
+      }
+    },
+    {
+      "name": "ci",
+      "hidden": true,
+      "inherits": "quick",
+      "output": {
+        "verbosity": "verbose"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "quick",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "dev",
+      "inherits": "quick",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "asan",
+      "inherits": [
+        "sanitized",
+        "quick"
+      ],
+      "configurePreset": "asan",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "ci-static",
+      "inherits": "ci",
+      "configurePreset": "ci-static"
+    },
+    {
+      "name": "ci-shared",
+      "inherits": "ci",
+      "configurePreset": "ci-shared"
+    },
+    {
+      "name": "ci-static-sanitizer",
+      "inherits": [
+        "sanitized",
+        "ci"
+      ],
+      "configurePreset": "ci-static-sanitizer"
+    },
+    {
+      "name": "ci-shared-coverage",
+      "inherits": "ci",
+      "configurePreset": "ci-shared-coverage"
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "ci-static",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ci-static"
+        },
+        {
+          "type": "build",
+          "name": "ci-static"
+        },
+        {
+          "type": "test",
+          "name": "ci-static"
+        }
+      ]
+    },
+    {
+      "name": "ci-shared",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ci-shared"
+        },
+        {
+          "type": "build",
+          "name": "ci-shared"
+        },
+        {
+          "type": "test",
+          "name": "ci-shared"
+        }
+      ]
+    },
+    {
+      "name": "ci-static-sanitizer",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ci-static-sanitizer"
+        },
+        {
+          "type": "build",
+          "name": "ci-static-sanitizer"
+        },
+        {
+          "type": "test",
+          "name": "ci-static-sanitizer"
+        }
+      ]
+    },
+    {
+      "name": "ci-shared-coverage",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ci-shared-coverage"
+        },
+        {
+          "type": "build",
+          "name": "ci-shared-coverage"
+        },
+        {
+          "type": "test",
+          "name": "ci-shared-coverage"
+        }
+      ]
+    }
+  ]
+}
