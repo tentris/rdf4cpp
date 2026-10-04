@@ -83,27 +83,27 @@ TEST_SUITE("comparisons") {
 
     TEST_CASE("filter compare tests") {
         SUBCASE("nulls") {
-            CHECK(Literal{} <=> Literal{} == std::partial_ordering::unordered);
-            CHECK(Literal{} <=> Literal::make_typed_from_value<Int>(1) == std::partial_ordering::unordered);
-            CHECK(Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.0)) <=> Literal{} == std::partial_ordering::unordered);
+            CHECK((Literal{} <=> Literal{}) == std::partial_ordering::unordered);
+            CHECK((Literal{} <=> Literal::make_typed_from_value<Int>(1)) == std::partial_ordering::unordered);
+            CHECK((Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.0)) <=> Literal{}) == std::partial_ordering::unordered);
         }
 
         SUBCASE("inconvertibility") {
-            CHECK(Literal::make_typed_from_value<String>("hello") <=> Literal::make_typed_from_value<Int>(5) == std::partial_ordering::unordered);
-            CHECK(Literal::make_typed_from_value<Float>(1.f) <=> Literal::make_typed_from_value<String>("world") == std::partial_ordering::unordered);
+            CHECK((Literal::make_typed_from_value<String>("hello") <=> Literal::make_typed_from_value<Int>(5)) == std::partial_ordering::unordered);
+            CHECK((Literal::make_typed_from_value<Float>(1.f) <=> Literal::make_typed_from_value<String>("world")) == std::partial_ordering::unordered);
         }
 
         SUBCASE("incomparability") {
-            CHECK(Literal::make_typed_from_value<Incomparable>(1) <=> Literal::make_typed_from_value<Incomparable>(2) == std::partial_ordering::unordered);
-            CHECK(Literal::make_typed_from_value<Incomparable>(1) <=> Literal::make_typed_from_value<Incomparable>(1) == std::partial_ordering::unordered);
-            CHECK(Literal::make_typed_from_value<Int>(1) <=> Literal::make_typed_from_value<Incomparable>(1) == std::partial_ordering::unordered);
-            CHECK(Literal::make_typed_from_value<Incomparable>(1) <=> Literal::make_typed_from_value<Int>(1) == std::partial_ordering::unordered);
+            CHECK((Literal::make_typed_from_value<Incomparable>(1) <=> Literal::make_typed_from_value<Incomparable>(2)) == std::partial_ordering::unordered);
+            CHECK((Literal::make_typed_from_value<Incomparable>(1) <=> Literal::make_typed_from_value<Incomparable>(1)) == std::partial_ordering::unordered);
+            CHECK((Literal::make_typed_from_value<Int>(1) <=> Literal::make_typed_from_value<Incomparable>(1)) == std::partial_ordering::unordered);
+            CHECK((Literal::make_typed_from_value<Incomparable>(1) <=> Literal::make_typed_from_value<Int>(1)) == std::partial_ordering::unordered);
         }
 
         SUBCASE("conversion") {
-            CHECK(Literal::make_typed_from_value<Int>(1) <=> Literal::make_typed_from_value<Integer>(10) == std::partial_ordering::less);
-            CHECK(Literal::make_typed_from_value<Integer>(0) <=> Literal::make_typed_from_value<Float>(1.2f) == std::partial_ordering::less);
-            CHECK(Literal::make_typed_from_value<Float>(1.f) <=> Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.0)) == std::partial_ordering::equivalent);
+            CHECK((Literal::make_typed_from_value<Int>(1) <=> Literal::make_typed_from_value<Integer>(10)) == std::partial_ordering::less);
+            CHECK((Literal::make_typed_from_value<Integer>(0) <=> Literal::make_typed_from_value<Float>(1.2f)) == std::partial_ordering::less);
+            CHECK((Literal::make_typed_from_value<Float>(1.f) <=> Literal::make_typed_from_value<Decimal>(rdf4cpp::Decimal128(1.0))) == std::partial_ordering::equivalent);
         }
     }
 
