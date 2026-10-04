@@ -14,6 +14,13 @@ namespace doctest {
             return String{s.c_str(), static_cast<String::size_type>(s.size())};
         }
     };
+    // the standard operator<< for local time points can not handle the checked int128 duration of TimePoint
+    template<> struct StringMaker<rdf4cpp::TimePoint> {
+        static String convert(const rdf4cpp::TimePoint& value) {
+            auto s = std::format("{}", value);
+            return String{s.c_str(), static_cast<String::size_type>(s.size())};
+        }
+    };
 }
 
 template<typename Datatype>
