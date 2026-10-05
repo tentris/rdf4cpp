@@ -1017,6 +1017,31 @@ TEST_CASE("@propagate false in a remote context falls back to the earlier entrie
     CHECK(r.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
 }
 
+TEST_CASE("a nested node object that falls back to the context before a remote context does not check its scoped contexts again") {
+    // http://ex/r.jsonld does not propagate, so the nested node object uses the context of the first array entry.
+    // the scoped context of t needs @vocab, and the nested node object removes @vocab.
+    // the scoped context of t is checked once, with the context of the document
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/r.jsonld", R"({"@context": {"@propagate": false, "a": "http://ex/a"}})"},
+    };
+    SUBCASE("embedded context") {
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/", "t": {"@id": "http://ex/t", "@context": {"q": "y"}}}, "http://ex/r.jsonld"],
+      "@id": "http://ex/s", "http://ex/p": {"@context": {"@vocab": null}, "@id": "http://ex/o", "http://ex/z": "v"}})",
+                                                   "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://ex/z> \"v\" .\n");
+    }
+    SUBCASE("type-scoped context") {
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/", "t": {"@id": "http://ex/t", "@context": {"q": "y"}}, "T": {"@id": "http://ex/T", "@context": {"@vocab": null}}}, "http://ex/r.jsonld"],
+      "@id": "http://ex/s", "http://ex/p": {"@id": "http://ex/o", "@type": "T", "http://ex/z": "v"}})",
+                                                   "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/T> .\n<http://ex/o> <http://ex/z> \"v\" .\n");
+    }
+}
+
 TEST_CASE("two node objects that import the same context request it only once") {
     auto r = parse_with_request_url(R"([{"@context": {"@version": 1.1, "@import": "imp.jsonld"}, "@id": "http://ex/s1", "http://ex/p": "v"},
        {"@context": {"@version": 1.1, "@import": "imp.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v"}])",
