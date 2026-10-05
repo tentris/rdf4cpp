@@ -11,7 +11,7 @@ jobs:
       matrix:
         config:
           - os: ubuntu-24.04
-            compiler: clang-20
+            compiler: clang-21
             cmake-version: 4.4.0
             conan-version: 2.33.0
     name: SonarSource Static Analyzer Build

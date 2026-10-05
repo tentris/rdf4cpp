@@ -145,7 +145,7 @@ For getting started how to use rdf4cpp, check out the [examples](./examples) dir
 ### Prerequisites
 - Conan >= 2.28
 - CMake >= 3.28
-- Clang >= 19 or GCC >= 14 (see [Supported Platforms](#supported-platforms))
+- Clang >= 21 or GCC >= 14 (see [Supported Platforms](#supported-platforms))
 - Ninja
 - [mold linker](https://github.com/rui314/mold) (Linux only)
 
@@ -188,7 +188,7 @@ The `ci-*` presets are also workflow presets, which is how GitHub Actions invoke
 how you can reproduce a failing CI locally, as the build setup will match:
 
 ```shell
-CC=clang-20 CXX=clang++-20 cmake --workflow --preset ci-static-sanitizer
+cmake --workflow --preset ci-static-sanitizer
 ```
 
 To install the library to your system, run:
@@ -229,7 +229,7 @@ and with it its associated limits. The seconds part of the duration supports nan
 ## Supported Platforms
 - **Linux distributions (x86-64, aarch64)** (e.g. Ubuntu>=24.04, Fedora>=41, etc.) with:
     - gcc>=14 (libstdc++>=14; used with both GCC and Clang)
-    - clang>=19* (on aarch64 clang>=20 is required)
+    - clang>=21
     - glibc>=2.35 or musl>=1.2.4
 - **macOS (aarch64)**: macOS Sonoma (>=14) with GCC>=14 (via Homebrew)
 

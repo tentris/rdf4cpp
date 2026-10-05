@@ -37,7 +37,7 @@ ____________
 
 * Conan >= 2.28
 * CMake >= 3.28
-* Clang >= 19 or GCC >= 14
+* Clang >= 21 or GCC >= 14
 * Ninja
 * `mold linker <https://github.com/rui314/mold>`_ (Linux only)
 
