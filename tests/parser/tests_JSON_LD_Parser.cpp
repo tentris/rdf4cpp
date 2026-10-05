@@ -1318,3 +1318,30 @@ TEST_CASE("a term in a chain of remote contexts may use its own remote context a
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
 }
+
+TEST_CASE("the first error ends the parse") {
+    // there is no document for http://ex/dead.jsonld, so the node object that names it fails.
+    // the parse ends with that error: no quad from the rest of the document, and no second request
+    std::map<std::string, std::string, std::less<>> const docs{};
+    std::vector<std::string> const inputs{
+        // a node object as property value
+        R"({"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"})",
+        // two property values with the same dead context
+        R"({"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o1"}, "http://ex/b": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o2"}})",
+        // a list element
+        R"({"@id": "http://ex/s", "http://ex/l": {"@list": [{"@context": "http://ex/dead.jsonld"}, "b"]}})",
+        // the first node object of a top-level array
+        R"([{"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"}, {"@id": "http://ex/s2", "http://ex/p": "v2"}])",
+        // a @set value
+        R"({"@id": "http://ex/s", "http://ex/a": {"@set": [{"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "x"]}})",
+        // an @included node object
+        R"({"@id": "http://ex/s", "@included": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"})",
+    };
+    for (auto const &input : inputs) {
+        CAPTURE(input);
+        auto const r = parse_with_remote_documents(input, "http://ex/doc", docs);
+        CHECK(r.errors == "loading remote context failed not found\n");
+        CHECK(r.quads == "");
+        CHECK(r.requested == "http://ex/dead.jsonld\n");
+    }
+}
