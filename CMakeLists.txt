@@ -204,6 +204,12 @@ target_link_libraries(rdf4cpp
         dragonbox::dragonbox
         )
 
+if (NOT MSVC)
+    # Highway's SIMD is extremely slow in Debug builds, so compile just that with optimizations.
+    set_source_files_properties(src/rdf4cpp/util/CharMatcher.cpp PROPERTIES
+            COMPILE_OPTIONS "$<$<CONFIG:Debug>:-O2>")
+endif ()
+
 set_target_properties(rdf4cpp PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
