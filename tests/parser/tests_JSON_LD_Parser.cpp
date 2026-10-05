@@ -1188,6 +1188,26 @@ TEST_CASE("a remote context that is no valid json only fails its own node object
     }
 }
 
+TEST_CASE("a remote context with an integer above 64 bits outside @context is loaded") {
+    // only @context is read from a remote context document, so the number after it does not matter.
+    // a main document with such a number is accepted, too
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {"t": "http://ex/t"}, "http://ex/n": 123456789012345678901234567890})"},
+    };
+    SUBCASE("as remote context") {
+        auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "t": "v"})", "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/t> \"v\" .\n");
+    }
+    SUBCASE("behind @import") {
+        auto const r = parse_with_remote_documents(R"({"@context": {"@version": 1.1, "@import": "http://ex/ctx.jsonld"}, "@id": "http://ex/s", "t": "v"})", "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/t> \"v\" .\n");
+    }
+}
+
 TEST_CASE("context load redirect applies base") {
     auto r = parse_with_request_url(R"({
     "@context": "http://foo/bar.jsonld",
