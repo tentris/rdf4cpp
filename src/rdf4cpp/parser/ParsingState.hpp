@@ -33,7 +33,8 @@ struct ParsingState {
     /**
      * The initial prefixes the parser has knowledge of
      * @note default value is an empty map
-     * @note the parser may write data into here, do not re-use.
+     * @note the parser writes the prefixes and the base of the document into it, so a reused state keeps them.
+     * @note after a JSON-LD parse, the base can be the url of a remote context that contains a relative url.
      */
     IRIFactory iri_factory{};
 

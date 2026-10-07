@@ -1102,9 +1102,9 @@ TEST_CASE("an absolute remote context url that is no valid iri is rejected") {
     CHECK(r.quads == "");
 }
 
-TEST_CASE("a remote context that is no valid json only fails its own node object") {
+TEST_CASE("a remote context that is no valid json stops the parsing") {
     // the document has three node objects, the second one loads a broken remote context.
-    // that is a parsing error for the second node object, the other two still produce their quads
+    // that is a parsing error for the second node object, and parsing stops there, so the third one produces no quads
     static constexpr std::string_view remote = R"([{"@id": "http://ex/s1", "http://ex/p": "v1"},
       {"@context": "http://ex/bad.jsonld", "@id": "http://ex/s2", "http://ex/p": "v2"},
       {"@id": "http://ex/s3", "http://ex/p": "v3"}])";
@@ -1317,4 +1317,31 @@ TEST_CASE("a term in a chain of remote contexts may use its own remote context a
     auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/"}, "http://ex/A.jsonld", {"@vocab": null}], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("the first error ends the parse") {
+    // there is no document for http://ex/dead.jsonld, so the node object that names it fails.
+    // the parse ends with that error: no quad from the rest of the document, and no second request
+    std::map<std::string, std::string, std::less<>> const docs{};
+    std::vector<std::string> const inputs{
+        // a node object as property value
+        R"({"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"})",
+        // two property values with the same dead context
+        R"({"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o1"}, "http://ex/b": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o2"}})",
+        // a list element
+        R"({"@id": "http://ex/s", "http://ex/l": {"@list": [{"@context": "http://ex/dead.jsonld"}, "b"]}})",
+        // the first node object of a top-level array
+        R"([{"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"}, {"@id": "http://ex/s2", "http://ex/p": "v2"}])",
+        // a @set value
+        R"({"@id": "http://ex/s", "http://ex/a": {"@set": [{"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "x"]}})",
+        // an @included node object
+        R"({"@id": "http://ex/s", "@included": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"})",
+    };
+    for (auto const &input : inputs) {
+        CAPTURE(input);
+        auto const r = parse_with_remote_documents(input, "http://ex/doc", docs);
+        CHECK(r.errors == "loading remote context failed not found\n");
+        CHECK(r.quads == "");
+        CHECK(r.requested == "http://ex/dead.jsonld\n");
+    }
 }
