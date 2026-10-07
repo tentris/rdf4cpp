@@ -1017,6 +1017,31 @@ TEST_CASE("@propagate false in a remote context falls back to the earlier entrie
     CHECK(r.quads.contains("<http://ex/o> <http://ex/a> \"v\" .\n"));
 }
 
+TEST_CASE("a nested node object that falls back to the context before a remote context does not check its scoped contexts again") {
+    // http://ex/r.jsonld does not propagate, so the nested node object uses the context of the first array entry.
+    // the scoped context of t needs @vocab, and the nested node object removes @vocab.
+    // the scoped context of t is checked once, with the context of the document
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/r.jsonld", R"({"@context": {"@propagate": false, "a": "http://ex/a"}})"},
+    };
+    SUBCASE("embedded context") {
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/", "t": {"@id": "http://ex/t", "@context": {"q": "y"}}}, "http://ex/r.jsonld"],
+      "@id": "http://ex/s", "http://ex/p": {"@context": {"@vocab": null}, "@id": "http://ex/o", "http://ex/z": "v"}})",
+                                                   "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://ex/z> \"v\" .\n");
+    }
+    SUBCASE("type-scoped context") {
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/", "t": {"@id": "http://ex/t", "@context": {"q": "y"}}, "T": {"@id": "http://ex/T", "@context": {"@vocab": null}}}, "http://ex/r.jsonld"],
+      "@id": "http://ex/s", "http://ex/p": {"@id": "http://ex/o", "@type": "T", "http://ex/z": "v"}})",
+                                                   "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/T> .\n<http://ex/o> <http://ex/z> \"v\" .\n");
+    }
+}
+
 TEST_CASE("two node objects that import the same context request it only once") {
     auto r = parse_with_request_url(R"([{"@context": {"@version": 1.1, "@import": "imp.jsonld"}, "@id": "http://ex/s1", "http://ex/p": "v"},
        {"@context": {"@version": 1.1, "@import": "imp.jsonld"}, "@id": "http://ex/s2", "http://ex/p": "v"}])",
@@ -1160,6 +1185,26 @@ TEST_CASE("a remote context that is no valid json only fails its own node object
                 CHECK(r.quads == expected_quads);
             }
         }
+    }
+}
+
+TEST_CASE("a remote context with an integer above 64 bits outside @context is loaded") {
+    // only @context is read from a remote context document, so the number after it does not matter.
+    // a main document with such a number is accepted, too
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {"t": "http://ex/t"}, "http://ex/n": 123456789012345678901234567890})"},
+    };
+    SUBCASE("as remote context") {
+        auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "t": "v"})", "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/t> \"v\" .\n");
+    }
+    SUBCASE("behind @import") {
+        auto const r = parse_with_remote_documents(R"({"@context": {"@version": 1.1, "@import": "http://ex/ctx.jsonld"}, "@id": "http://ex/s", "t": "v"})", "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/t> \"v\" .\n");
     }
 }
 
@@ -1317,4 +1362,31 @@ TEST_CASE("a term in a chain of remote contexts may use its own remote context a
     auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/"}, "http://ex/A.jsonld", {"@vocab": null}], "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("the first error ends the parse") {
+    // there is no document for http://ex/dead.jsonld, so the node object that names it fails.
+    // the parse ends with that error: no quad from the rest of the document, and no second request
+    std::map<std::string, std::string, std::less<>> const docs{};
+    std::vector<std::string> const inputs{
+        // a node object as property value
+        R"({"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"})",
+        // two property values with the same dead context
+        R"({"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o1"}, "http://ex/b": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o2"}})",
+        // a list element
+        R"({"@id": "http://ex/s", "http://ex/l": {"@list": [{"@context": "http://ex/dead.jsonld"}, "b"]}})",
+        // the first node object of a top-level array
+        R"([{"@id": "http://ex/s", "http://ex/a": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"}, {"@id": "http://ex/s2", "http://ex/p": "v2"}])",
+        // a @set value
+        R"({"@id": "http://ex/s", "http://ex/a": {"@set": [{"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "x"]}})",
+        // an @included node object
+        R"({"@id": "http://ex/s", "@included": {"@context": "http://ex/dead.jsonld", "@id": "http://ex/o"}, "http://ex/b": "v"})",
+    };
+    for (auto const &input : inputs) {
+        CAPTURE(input);
+        auto const r = parse_with_remote_documents(input, "http://ex/doc", docs);
+        CHECK(r.errors == "loading remote context failed not found\n");
+        CHECK(r.quads == "");
+        CHECK(r.requested == "http://ex/dead.jsonld\n");
+    }
 }
