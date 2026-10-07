@@ -279,13 +279,8 @@ public:
         return vtable_->find_variable_backend(backend_, id);
     }
 
-    std::strong_ordering operator<=>(DynNodeStoragePtr const &other) const noexcept {
-        return backend_ <=> other.backend_;
-    }
-
-    bool operator==(DynNodeStoragePtr const &other) const noexcept {
-        return backend_ == other.backend_;
-    }
+    std::strong_ordering operator<=>(DynNodeStoragePtr const &other) const noexcept = default;
+    bool operator==(DynNodeStoragePtr const &other) const noexcept = default;
 };
 
 static_assert(NodeStorage<DynNodeStoragePtr>);

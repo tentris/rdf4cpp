@@ -1,4 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "rdf4cpp/storage/reference_node_storage/UnsyncReferenceNodeStorage.hpp"
+
+
 #include <doctest/doctest.h>
 
 #include <rdf4cpp/storage/identifier/NodeBackendHandle.hpp>
@@ -61,5 +64,35 @@ TEST_SUITE("node storage identifier output") {
         expected << "{ .id = { .node_id = { .underlying = 123 }, .type = IRI, .is_inlined = false, .free_tagging_bits = 0 }, .node_storage = { .backend = "
                  << ns.backend() << ", .vtable = " << ns.vtable() << " } }";
         check_string_repr(NodeBackendHandle{NodeBackendID{NodeID{123}, RDFNodeType::IRI}, ns}, expected.str());
+    }
+
+    TEST_CASE("Address (in)equality") {
+        using namespace rdf4cpp::storage::view;
+        // wraps the backing storage at the same address, forwarding everything the concept requires
+        struct TestNs {
+            rdf4cpp::storage::reference_node_storage::UnsyncReferenceNodeStorage backing;
+
+            static bool has_specialized_storage_for(LiteralType t) noexcept { return decltype(backing)::has_specialized_storage_for(t); }
+
+            NodeBackendID find_or_make_id(BNodeBackendView const &v) { return backing.find_or_make_id(v); }
+            NodeBackendID find_or_make_id(IRIBackendView const &v) { return backing.find_or_make_id(v); }
+            NodeBackendID find_or_make_id(LiteralBackendView const &v) { return backing.find_or_make_id(v); }
+            NodeBackendID find_or_make_id(VariableBackendView const &v) { return backing.find_or_make_id(v); }
+
+            NodeBackendID find_id(BNodeBackendView const &v) const noexcept { return backing.find_id(v); }
+            NodeBackendID find_id(IRIBackendView const &v) const noexcept { return backing.find_id(v); }
+            NodeBackendID find_id(LiteralBackendView const &v) const noexcept { return backing.find_id(v); }
+            NodeBackendID find_id(VariableBackendView const &v) const noexcept { return backing.find_id(v); }
+
+            IRIBackendView find_iri_backend(NodeBackendID id) const noexcept { return backing.find_iri_backend(id); }
+            LiteralBackendView find_literal_backend(NodeBackendID id) const noexcept { return backing.find_literal_backend(id); }
+            BNodeBackendView find_bnode_backend(NodeBackendID id) const noexcept { return backing.find_bnode_backend(id); }
+            VariableBackendView find_variable_backend(NodeBackendID id) const noexcept { return backing.find_variable_backend(id); }
+        };
+        static_assert(rdf4cpp::storage::NodeStorage<TestNs>);
+
+        TestNs ns;
+        CHECK_EQ(static_cast<void const *>(&ns), static_cast<void const *>(&ns.backing)); // both live at the same address
+        CHECK_NE(rdf4cpp::storage::DynNodeStoragePtr{ns}, rdf4cpp::storage::DynNodeStoragePtr{ns.backing}); // but comparison can differentiate the two
     }
 }
