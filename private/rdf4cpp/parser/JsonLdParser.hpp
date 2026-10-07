@@ -61,6 +61,18 @@ namespace rdf4cpp::parser {
         uint64_t blank_node_index_ = 0;
         json_ld::ExpandParser expand_parser_;
         ParsingFlags flags_;
+        /**
+         * Set by fail. An error ends the parse: the generators check this after each quad and each nested
+         * generator, and return if it is set. So nothing after the first error is parsed.
+         * It is declared before current_iter_, because the constructor already runs the parse up to the first result.
+         */
+        bool failed_ = false;
+
+        /**
+         * Sets failed_ and returns error as unexpected value.
+         * Every error that the generators yield is made with it, the errors of make_quad too.
+         */
+        nonstd::expected<ok_type, error_type> fail(error_type error);
 
         json_ld::IRIMapping make_new_bn();
         nonstd::expected<IRI, error_type> make_iri(std::string_view iri);
@@ -77,20 +89,17 @@ namespace rdf4cpp::parser {
          * Yields the quads of a literal object: the quad for the literal itself, plus the extra quads
          * of the compound direction form. Writes the literal to obj_out, if that is not null.
          * Nothing is yielded for the quad itself if subject or predicate is not set.
-         * @param failed set to true if the literal could not be created, the error is yielded then
          */
         result_generator emit_literal(json_ld::IRIMapping const &graph,
                                      json_ld::IRIMapping const &subject,
                                      json_ld::IRIMapping const &predicate,
                                      json_ld::StringLikeLiteralMapping const &lit,
-                                     params::ListObjOut *obj_out,
-                                     bool &failed);
+                                     params::ListObjOut *obj_out);
         result_generator emit_literal(json_ld::IRIMapping const &graph,
                                      json_ld::IRIMapping const &subject,
                                      json_ld::IRIMapping const &predicate,
                                      json_ld::TypedLiteralMapping const &lit,
-                                     params::ListObjOut *obj_out,
-                                     bool &failed);
+                                     params::ListObjOut *obj_out);
 
         result_generator parse(params::ParseParams p);
         result_generator parse(params::ParseParams p, json_ld::ExpandedLevel &expanded);
