@@ -11,12 +11,6 @@ namespace rdf4cpp::parser::json_ld {
             if (!data.has_value()) {
                 return nonstd::unexpected{std::format("loading remote context failed {}", data.error())};
             }
-            // the on-demand parser checks most of the json only when it reads it, and then throws
-            // `simdjson_error`, which ends the whole document. So the whole body is checked here once.
-            simdjson::dom::parser validator{};
-            if (auto const ec = validator.parse(data->data).error(); ec != simdjson::SUCCESS) {
-                return nonstd::unexpected{std::format("loading remote context failed {}", simdjson::error_message(ec))};
-            }
             if (data->final_url != url && !data->final_url.empty()) {
                 auto [e, _] = contexts.emplace(std::piecewise_construct, std::tuple{data->final_url}, std::tuple{data->data, data->final_url});
                 simdjson::pad(e->second.data);
@@ -86,10 +80,24 @@ namespace rdf4cpp::parser::json_ld {
 
                     import_parser = simdjson::ondemand::parser{};
                     import_doc = simdjson::ondemand::document{};
-                    if (import_parser->iterate(resolved->data).get(*import_doc) != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid remote context")};
+                    simdjson::ondemand::object import_doc_obj;
+                    if (import_parser->iterate(resolved->data).get(*import_doc) != simdjson::SUCCESS
+                        || import_doc->get_object().get(import_doc_obj) != simdjson::SUCCESS) {
+                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "loading remote context failed")};
                         return true;
                     }
+                    // the on-demand parser checks most of the json only when it reads it, and then throws
+                    // `simdjson_error`, which ends the whole document. So the whole document is checked here once.
+                    if (auto const ec = validate_json(import_doc_obj); ec != simdjson::SUCCESS) {
+                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::format("loading remote context failed {}", simdjson::error_message(ec)))};
+                        return true;
+                    }
+                    if (!import_doc->at_end()) {
+                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "loading remote context failed")};
+                        return true;
+                    }
+                    // rewind instead of resetting the object, only rewind frees the space the unescaped strings took in the parser
+                    import_doc->rewind();
                     auto ctx = import_doc->find_field(keyword_context).get_object();
                     if (!ctx.has_value()) {
                         result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid remote context")};
@@ -167,6 +175,8 @@ namespace rdf4cpp::parser::json_ld {
                     iterate(*import_obj);
                 }
             }
+            // belongs to 5.13, but its value is needed here
+            auto [ec_protected, prot] = try_get_field<bool>(o, import_obj, keyword_protected);
             {  // 5.8
                 auto [c, v] = try_get_optional_field<std::string_view>(o, import_obj, keyword_vocab);
                 if (c != simdjson::NO_SUCH_FIELD) {
@@ -184,8 +194,8 @@ namespace rdf4cpp::parser::json_ld {
                             .previous_terms = previous_terms,
                             .base_url = p.base_url,
                             .remote_contexts = p.remote_contexts,
-                            .is_protected = false,
-                            .override_protected = false,
+                            .is_protected = prot,
+                            .override_protected = p.override_protected,
                         };
                         auto r = iri_expansion(result.value(), v, true, true, nullptr, &p_ctx);
                         if (!r.has_value() || r->type != IRIMappingType::IRI) {  // a blank node as @vocab is deprecated, not removed
@@ -239,9 +249,8 @@ namespace rdf4cpp::parser::json_ld {
                 // @propagate is only validated here, parse_local_context applies it
             }
             {  // 5.13
-                auto [c, prot] = try_get_field<bool>(o, import_obj, keyword_protected);
-                if (c != simdjson::NO_SUCH_FIELD) {
-                    if (c != simdjson::SUCCESS) {
+                if (ec_protected != simdjson::NO_SUCH_FIELD) {
+                    if (ec_protected != simdjson::SUCCESS) {
                         result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @protected value")};
                         return true;
                     }
@@ -309,12 +318,12 @@ namespace rdf4cpp::parser::json_ld {
             }
 
             // 5.2.3
-            if (p.remote_contexts.size() > parse_state->remote_context_size_limit || number_of_remote_contexts > parse_state->remote_context_size_limit) {
+            if (p.remote_contexts.size() > parse_state->remote_context_size_limit || p.number_of_remote_contexts > parse_state->remote_context_size_limit) {
                 result = nonstd::unexpected{make_error(ParsingError::Type::BadIri, "context overflow")};
                 return true;
             }
             p.remote_contexts.emplace_back(url);
-            ++number_of_remote_contexts;
+            ++p.number_of_remote_contexts;
 
             // 5.2.4 & 5.2.5
             auto resolved = remote_context_cache.resolve(url, parse_state);
@@ -337,8 +346,13 @@ namespace rdf4cpp::parser::json_ld {
                 .propagate = p.propagate,
                 .validate_scoped_contexts = p.validate_scoped_contexts,
                 .is_remote_context = true,
+                .number_of_remote_contexts = p.number_of_remote_contexts,
             });
             if (result.has_value() && result->previous_context == &outer) {
+                for (auto &t : outer.terms) {
+                    t.needs_context_check = false;
+                    t.active_remote_contexts.clear();
+                }
                 result->previous_context = &context_storage.emplace_front(std::move(outer));
             }
 
@@ -421,6 +435,7 @@ namespace rdf4cpp::parser::json_ld {
                         .remote_contexts = std::move(t->active_remote_contexts),
                         .override_protected = true,
                         .validate_scoped_contexts = false,
+                        .number_of_remote_contexts = p.number_of_remote_contexts,
                     });
                     t->active_remote_contexts.clear();
                     if (!lc.has_value()) {
@@ -1053,13 +1068,83 @@ namespace rdf4cpp::parser::json_ld {
         res = std::nullopt;
         return res;
     }
+    simdjson::error_code ContextParser::validate_json(simdjson::ondemand::object &obj) {
+        for (auto field : obj) {
+            std::string_view key;
+            if (auto const ec = field.unescaped_key().get(key); ec != simdjson::SUCCESS) {
+                return ec;
+            }
+            simdjson::ondemand::value v;
+            if (auto const ec = field.value().get(v); ec != simdjson::SUCCESS) {
+                return ec;
+            }
+            if (auto const ec = validate_json(v); ec != simdjson::SUCCESS) {
+                return ec;
+            }
+        }
+        return simdjson::SUCCESS;
+    }
+
+    simdjson::error_code ContextParser::validate_json(simdjson::ondemand::value value) {
+        simdjson::ondemand::json_type type;
+        if (auto const ec = value.type().get(type); ec != simdjson::SUCCESS) {
+            return ec;
+        }
+        switch (type) {
+            case simdjson::ondemand::json_type::object: {
+                simdjson::ondemand::object obj;
+                if (auto const ec = value.get_object().get(obj); ec != simdjson::SUCCESS) {
+                    return ec;
+                }
+                return validate_json(obj);
+            }
+            case simdjson::ondemand::json_type::array: {
+                simdjson::ondemand::array arr;
+                if (auto const ec = value.get_array().get(arr); ec != simdjson::SUCCESS) {
+                    return ec;
+                }
+                for (auto element : arr) {
+                    simdjson::ondemand::value v;
+                    if (auto const ec = element.get(v); ec != simdjson::SUCCESS) {
+                        return ec;
+                    }
+                    if (auto const ec = validate_json(v); ec != simdjson::SUCCESS) {
+                        return ec;
+                    }
+                }
+                return simdjson::SUCCESS;
+            }
+            case simdjson::ondemand::json_type::string: {
+                std::string_view str;
+                return value.get_string().get(str);
+            }
+            default:
+                // numbers, booleans and null are not parsed
+                return simdjson::SUCCESS;
+        }
+    }
+
     nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p) {
         simdjson::ondemand::parser parser{};
         simdjson::ondemand::document doc;
         if (parser.iterate(json).get(doc) != simdjson::SUCCESS) {
-            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid remote context")};
+            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "loading remote context failed")};
         }
         if (p.is_remote_context) {
+            simdjson::ondemand::object doc_obj;
+            if (doc.get_object().get(doc_obj) != simdjson::SUCCESS) {
+                return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "loading remote context failed")};
+            }
+            // the on-demand parser checks most of the json only when it reads it, and then throws
+            // `simdjson_error`, which ends the whole document. So the whole document is checked here once.
+            if (auto const ec = validate_json(doc_obj); ec != simdjson::SUCCESS) {
+                return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::format("loading remote context failed {}", simdjson::error_message(ec)))};
+            }
+            if (!doc.at_end()) {
+                return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "loading remote context failed")};
+            }
+            // rewind instead of resetting the object, only rewind frees the space the unescaped strings took in the parser
+            doc.rewind();
             auto ctx = doc.find_field(keyword_context);
             if (!ctx.has_value()) {
                 return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid remote context")};

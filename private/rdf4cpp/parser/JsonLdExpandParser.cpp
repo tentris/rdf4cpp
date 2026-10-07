@@ -157,11 +157,13 @@ namespace rdf4cpp::parser::json_ld {
             }
             std::optional<Context> ctx = std::nullopt;
             if (property_scoped_context != nullptr) {
+                size_t number_of_remote_contexts = 0;
                 auto r = context_parser.parse_local_context(simdjson::padded_string_view{property_scoped_context->context}, {
                     .active_context = p.active_context,
                     .base_iri = active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri,
                     .base_url = property_scoped_context->base_url,
                     .remote_contexts = {},
+                    .number_of_remote_contexts = number_of_remote_contexts,
                 });
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
@@ -222,12 +224,14 @@ namespace rdf4cpp::parser::json_ld {
         // 8
         ExpandedMap result{};
         if (property_scoped_context != nullptr) {
+            size_t number_of_remote_contexts = 0;
             auto r = context_parser.parse_local_context(simdjson::padded_string_view{property_scoped_context->context}, {
                 .active_context = *active_ctx_for_local,
                 .base_iri = active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri,
                 .base_url = property_scoped_context->base_url,
                 .remote_contexts = {},
                 .override_protected = true,
+                .number_of_remote_contexts = number_of_remote_contexts,
             });
             if (!r.has_value()) {
                 return nonstd::unexpected(r.error());
@@ -242,11 +246,13 @@ namespace rdf4cpp::parser::json_ld {
                 if (c != simdjson::SUCCESS) {
                     return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid context"));
                 }
+                size_t number_of_remote_contexts = 0;
                 auto r = context_parser.parse_context(v, {
                     .active_context = *active_ctx,
                     .base_iri = p.base_iri,
                     .base_url = context_parser.original_base_iri,
                     .remote_contexts = {},
+                    .number_of_remote_contexts = number_of_remote_contexts,
                 });
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
@@ -283,6 +289,7 @@ namespace rdf4cpp::parser::json_ld {
                 if (term == nullptr || !term->context.has_value()) {
                     return std::nullopt;
                 }
+                size_t number_of_remote_contexts = 0;
                 auto r = context_parser.parse_local_context(simdjson::padded_string_view{term->context->context}, {
                     .active_context = *active_ctx,
                     .base_iri = p.base_iri,
@@ -290,6 +297,7 @@ namespace rdf4cpp::parser::json_ld {
                     .remote_contexts = {},
                     .override_protected = false,
                     .propagate = false,
+                    .number_of_remote_contexts = number_of_remote_contexts,
                 });
                 if (!r.has_value()) {
                     return r.error();
@@ -732,11 +740,13 @@ namespace rdf4cpp::parser::json_ld {
                     if (term_definition->has_container_mapping(ContainerMapping::Type)) {
                         auto *index_term = map_context->try_find_term(index);
                         if (index_term != nullptr && index_term->context.has_value()) {
+                            size_t number_of_remote_contexts = 0;
                             auto r = context_parser.parse_local_context(simdjson::padded_string_view{index_term->context->context}, {
                                 .active_context = *map_context,
                                 .base_iri = index_term->base_iri.value_or(""),
                                 .base_url = index_term->context->base_url,
                                 .remote_contexts = {},
+                                .number_of_remote_contexts = number_of_remote_contexts,
                             });
                             if (!r.has_value()) {
                                 res = r.error();

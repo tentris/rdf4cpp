@@ -861,9 +861,9 @@ ParseWithRemotesResult parse_with_remote_documents(std::string doc, std::string_
     });
 }
 
-TEST_CASE("remote contexts of sibling node objects do add up to a context overflow") {
-    // the limit on remote contexts applies all remote contexts loaded from the document.
-    // every node object here loads its own remote context, so each chain has length one.
+TEST_CASE("remote contexts of sibling node objects do not add up to a context overflow") {
+    // the limit on remote contexts applies to the processing of one context, not to the whole document.
+    // every node object here loads its own remote context, so each processing loads only one.
     static constexpr size_t nodes = 102;
     std::map<std::string, std::string, std::less<>> docs;
     std::string doc = "[";
@@ -874,6 +874,30 @@ TEST_CASE("remote contexts of sibling node objects do add up to a context overfl
     doc += ']';
 
     auto const r = parse_with_remote_documents(std::move(doc), "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quad_count == nodes);
+}
+
+TEST_CASE("remote contexts loaded by nested remote contexts add up to a context overflow") {
+    // every chain of remote contexts here is short, but processing the one context of the document
+    // loads 1 + 11 + 11 * 11 = 133 remote contexts
+    static constexpr size_t fan_out = 11;
+    std::map<std::string, std::string, std::less<>> docs;
+    std::string top = R"({"@context": [)";
+    for (size_t i = 0; i < fan_out; ++i) {
+        std::string mid = R"({"@context": [)";
+        for (size_t j = 0; j < fan_out; ++j) {
+            docs.emplace(std::format("http://ex/c{}_{}", i, j), R"({"@context": {}})");
+            mid += std::format(R"({}"http://ex/c{}_{}")", j == 0 ? "" : ", ", i, j);
+        }
+        mid += "]}";
+        docs.emplace(std::format("http://ex/c{}", i), std::move(mid));
+        top += std::format(R"({}"http://ex/c{}")", i == 0 ? "" : ", ", i);
+    }
+    top += "]}";
+    docs.emplace("http://ex/top", std::move(top));
+
+    auto const r = parse_with_remote_documents(R"({"@context": "http://ex/top", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.errors == "context overflow\n");
 }
 
@@ -1304,6 +1328,12 @@ TEST_CASE("protected applies regardless of term order") {
 
         CHECK(r.errors == "protected term redefinition\n");
     }
+    SUBCASE("B defined on demand by @vocab") {
+        // @vocab is expanded before the terms, so B gets defined while expanding it and has to be protected as well
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@protected": true, "@vocab": "B:", "B": "http://ex/b/"}, {"B": "http://evil/"}], "@id": "http://ex/s", "B:y": "v"})", "http://doc.example/", docs);
+
+        CHECK(r.errors == "protected term redefinition\n");
+    }
 }
 
 TEST_CASE("a term in a chain of remote contexts may use its own remote context as scoped context") {
@@ -1343,5 +1373,30 @@ TEST_CASE("the first error ends the parse") {
         CHECK(r.errors == "loading remote context failed not found\n");
         CHECK(r.quads == "");
         CHECK(r.requested == "http://ex/dead.jsonld\n");
+    }
+}
+
+TEST_CASE("a nested node object that falls back to the context before a remote context does not check its scoped contexts again") {
+    // http://ex/r.jsonld does not propagate, so the nested node object uses the context of the first array entry.
+    // the scoped context of t needs @vocab, and the nested node object removes @vocab.
+    // the scoped context of t is checked once, with the context of the document
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/r.jsonld", R"({"@context": {"@propagate": false, "a": "http://ex/a"}})"},
+    };
+    SUBCASE("embedded context") {
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/", "t": {"@id": "http://ex/t", "@context": {"q": "y"}}}, "http://ex/r.jsonld"],
+      "@id": "http://ex/s", "http://ex/p": {"@context": {"@vocab": null}, "@id": "http://ex/o", "http://ex/z": "v"}})",
+                                                   "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://ex/z> \"v\" .\n");
+    }
+    SUBCASE("type-scoped context") {
+        auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/", "t": {"@id": "http://ex/t", "@context": {"q": "y"}}, "T": {"@id": "http://ex/T", "@context": {"@vocab": null}}}, "http://ex/r.jsonld"],
+      "@id": "http://ex/s", "http://ex/p": {"@id": "http://ex/o", "@type": "T", "http://ex/z": "v"}})",
+                                                   "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/T> .\n<http://ex/o> <http://ex/z> \"v\" .\n");
     }
 }

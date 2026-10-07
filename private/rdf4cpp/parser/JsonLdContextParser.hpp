@@ -23,6 +23,7 @@ namespace rdf4cpp::parser {
             bool propagate = true;
             bool validate_scoped_contexts = true;
             bool is_remote_context = false;
+            size_t &number_of_remote_contexts; // NOLINT(*-avoid-const-or-ref-data-members)
         };
         struct ParseContextTermParams {
             simdjson::ondemand::object local_context;
@@ -75,7 +76,6 @@ namespace rdf4cpp::parser {
             bool keep_document_bnode_labels;
             // moving the contained objects is not allowed
             std::forward_list<Context> context_storage;
-            size_t number_of_remote_contexts = 0;
 
             inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IStreamQuadIterator::state_type *parse_state)
                 : parse_state(parse_state),
@@ -92,6 +92,16 @@ namespace rdf4cpp::parser {
             std::optional<error_type> parse_context_term(params::ParseContextTermParams p);
 
             nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p);
+
+            /**
+             * Iterates over all arrays, objects and strings in value, so that simdjson checks their syntax.
+             * Numbers, booleans and null are not parsed.
+             */
+            static simdjson::error_code validate_json(simdjson::ondemand::value value);
+            /**
+             * Iterates over all members of obj, see the overload above. The document of obj has to be rewound before reading it again.
+             */
+            static simdjson::error_code validate_json(simdjson::ondemand::object &obj);
 
 
             nonstd::expected<IRIMapping, error_type> iri_expansion(Context const &active_context,
