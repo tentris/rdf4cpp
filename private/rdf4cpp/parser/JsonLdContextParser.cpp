@@ -38,6 +38,23 @@ namespace rdf4cpp::parser::json_ld {
         // 1
         nonstd::expected<Context, error_type> result{p.active_context};
 
+        auto handle_url = [&](std::string_view &url, std::string &url_keepalive, std::string_view error_msg) {
+            try {
+                if (IRIView{url}.is_relative()) {
+                    set_resolution_base(p.base_url);
+                    url_keepalive = parse_state->iri_factory.from_maybe_relative_as_string(url);
+                    url = url_keepalive;
+                } else if (!datatypes::registry::relaxed_parsing_mode) {
+                    IRIView{url}.quick_validate();
+                }
+            }
+            catch (InvalidIRI const&) {
+                result = nonstd::unexpected{make_error(ParsingError::Type::BadIri, std::string(error_msg))};
+                return true;
+            }
+            return false;
+        };
+
         auto handle_ctx = [&](simdjson::ondemand::object o) {
             std::optional<simdjson::ondemand::parser> import_parser = std::nullopt;
             std::optional<simdjson::ondemand::document> import_doc = std::nullopt;
@@ -58,17 +75,7 @@ namespace rdf4cpp::parser::json_ld {
                     }
 
                     std::string url_keepalive{};
-                    try {
-                        if (IRIView{url}.is_relative()) {
-                            set_resolution_base(p.base_url);
-                            url_keepalive = parse_state->iri_factory.from_maybe_relative_as_string(url);
-                            url = url_keepalive;
-                        } else if (!datatypes::registry::relaxed_parsing_mode) {
-                            IRIView{url}.quick_validate();
-                        }
-                    }
-                    catch (InvalidIRI const&) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadIri, "loading remote context failed")};
+                    if (handle_url(url, url_keepalive, "loading remote context failed")) {
                         return true;
                     }
 
@@ -111,7 +118,7 @@ namespace rdf4cpp::parser::json_ld {
                     }
                 }
             }
-            if (!p.is_remote_context) {  // 5.7
+            if (p.remote_contexts.empty()) {  // 5.7
                 auto [c, v] = try_get_optional_field<std::string_view>(o, import_obj, keyword_base);
                 if (c != simdjson::NO_SUCH_FIELD) {
                     if (c != simdjson::SUCCESS) {
@@ -298,17 +305,7 @@ namespace rdf4cpp::parser::json_ld {
         auto handle_remote = [&](std::string_view url) -> bool {
             // 5.2.1
             std::string url_keepalive{};
-            try {
-                if (IRIView{url}.is_relative()) {
-                    set_resolution_base(p.base_url);
-                    url_keepalive = parse_state->iri_factory.from_maybe_relative_as_string(url);
-                    url = url_keepalive;
-                } else if (!datatypes::registry::relaxed_parsing_mode) {
-                    IRIView{url}.quick_validate();
-                }
-            }
-            catch (InvalidIRI const&) {
-                result = nonstd::unexpected{make_error(ParsingError::Type::BadIri, "loading document failed")};
+            if (handle_url(url, url_keepalive, "loading document failed")) {
                 return true;
             }
 
@@ -322,7 +319,8 @@ namespace rdf4cpp::parser::json_ld {
                 result = nonstd::unexpected{make_error(ParsingError::Type::BadIri, "context overflow")};
                 return true;
             }
-            p.remote_contexts.emplace_back(url);
+            auto remote_ctx_copy = p.remote_contexts;
+            remote_ctx_copy.emplace_back(url);
             ++p.number_of_remote_contexts;
 
             // 5.2.4 & 5.2.5
@@ -341,7 +339,7 @@ namespace rdf4cpp::parser::json_ld {
                 .active_context = outer,
                 .base_iri = p.base_iri,
                 .base_url = url,
-                .remote_contexts = p.remote_contexts,
+                .remote_contexts = std::move(remote_ctx_copy),
                 .override_protected = p.override_protected,
                 .propagate = p.propagate,
                 .validate_scoped_contexts = p.validate_scoped_contexts,
@@ -417,6 +415,9 @@ namespace rdf4cpp::parser::json_ld {
         // scoped contexts are validated after the whole context is parsed, so that they can
         // refer to terms defined later in the same context
         // moved here from https://www.w3.org/TR/json-ld11-api/#create-term-definition 21.3
+        //
+        // this causes scoped contexts that get replaced immediately (context array containing the same term)
+        // to never get checked
         if (result.has_value() && !p.is_remote_context) {
             std::vector<TermDefinition*> to_check{};
             for (auto &t : result->terms) {

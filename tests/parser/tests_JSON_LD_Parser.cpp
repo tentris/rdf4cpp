@@ -1400,3 +1400,15 @@ TEST_CASE("a nested node object that falls back to the context before a remote c
         CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/T> .\n<http://ex/o> <http://ex/z> \"v\" .\n");
     }
 }
+
+TEST_CASE("a scoped context inside a remote context ignores @base") {
+    // @base is ignored in remote contexts, and that includes the scoped contexts they define.
+    // the scoped context of t is checked while http://ex/R is processed, so its invalid @base must not be an error
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/R", R"({"@context": {"t": {"@id": "http://ex/t", "@context": {"@base": 5}}}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": "http://ex/R", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
