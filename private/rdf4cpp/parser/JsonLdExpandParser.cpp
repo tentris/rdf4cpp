@@ -134,6 +134,10 @@ namespace rdf4cpp::parser::json_ld {
         return TypedLiteralMapping{stringify(v, false, false, true).value, std::string{rdf_json_datatype}};
     }
     nonstd::expected<ExpandedLevel, ExpandParser::error_type> ExpandParser::expand_level(params::ExpandParams p) {
+        if (!context_parser.stack_limiter.check()) {
+            return nonstd::unexpected(make_error(ParsingError::Type::Internal, "stack limit"));
+        }
+
         if (p.is_json_literal) {
             return to_json_literal(p.element);
         }
@@ -485,6 +489,12 @@ namespace rdf4cpp::parser::json_ld {
     }
     std::optional<ExpandParser::error_type> ExpandParser::expand_level_nested_recursive(params::ExpandNestedParams p) {
         std::optional<ExpandParser::error_type> res = std::nullopt;
+
+        if (!context_parser.stack_limiter.check()) {
+            res = make_error(ParsingError::Type::Internal, "stack limit");
+            return res;
+        }
+
         for (auto kv : p.elem_obj) {
             // 13.1
             std::string_view k = kv.unescaped_key();

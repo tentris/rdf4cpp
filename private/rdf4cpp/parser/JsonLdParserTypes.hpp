@@ -443,6 +443,20 @@ namespace rdf4cpp::parser {
         };
 
         [[nodiscard]] ParsingError make_error(ParsingError::Type t, std::string msg);
+
+        struct StackSpaceLimiter {
+        private:
+            std::uint64_t limit_;
+            /**
+             * never dereference, this is a dangling pointer into the stack frame of the ctor!
+             */
+            std::uint64_t* begin_;
+
+        public:
+            explicit StackSpaceLimiter(std::uint64_t l);
+
+            [[nodiscard]] bool check() const;
+        };
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser
 

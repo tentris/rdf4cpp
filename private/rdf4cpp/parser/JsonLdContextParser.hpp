@@ -76,11 +76,13 @@ namespace rdf4cpp::parser {
             bool keep_document_bnode_labels;
             // moving the contained objects is not allowed
             std::forward_list<Context> context_storage;
+            StackSpaceLimiter stack_limiter;
 
-            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IStreamQuadIterator::state_type *parse_state)
+            inline explicit ContextParser(std::string base_iri, bool const keep_document_bnode_labels, IStreamQuadIterator::state_type *parse_state, size_t stack_limit)
                 : parse_state(parse_state),
                   original_base_iri(std::move(base_iri)),
-                  keep_document_bnode_labels(keep_document_bnode_labels) {
+                  keep_document_bnode_labels(keep_document_bnode_labels),
+                  stack_limiter(stack_limit) {
             }
 
             /**

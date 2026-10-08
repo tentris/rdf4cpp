@@ -136,5 +136,28 @@ namespace rdf4cpp::parser {
                 std::move(msg),
             };
         }
+
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdangling-field"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
+        StackSpaceLimiter::StackSpaceLimiter(std::uint64_t l)
+            : limit_(l),
+            begin_(&l) {
+        }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
+        bool StackSpaceLimiter::check() const {
+            std::uint64_t curr = 0;
+            auto diff = std::abs(begin_ - &curr) * sizeof(limit_);
+            return diff < limit_;
+        }
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser

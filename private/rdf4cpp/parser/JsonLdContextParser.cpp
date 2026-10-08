@@ -38,6 +38,11 @@ namespace rdf4cpp::parser::json_ld {
         // 1
         nonstd::expected<Context, error_type> result{p.active_context};
 
+        if (!stack_limiter.check()) {
+            result = nonstd::unexpected{make_error(ParsingError::Type::Internal, "stack limit")};
+            return result;
+        }
+
         auto handle_url = [&](std::string_view &url, std::string &url_keepalive, std::string_view error_msg) {
             try {
                 if (IRIView{url}.is_relative()) {
@@ -452,6 +457,12 @@ namespace rdf4cpp::parser::json_ld {
 
     std::optional<ContextParser::error_type> ContextParser::parse_context_term(params::ParseContextTermParams p) {
         std::optional<error_type> res;
+
+        if (!stack_limiter.check()) {
+            res = make_error(ParsingError::Type::Internal, "stack limit");
+            return res;
+        }
+
         // https://www.w3.org/TR/json-ld11-api/#create-term-definition
         // 1
         if (p.term.parse_state == ParseState::Done) {
