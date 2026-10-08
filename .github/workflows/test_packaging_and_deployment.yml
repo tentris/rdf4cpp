@@ -2,7 +2,7 @@ name: Packaging and deployment tests
 on: [ 'pull_request' ]
 jobs:
   packaging-and-deployment-tests-clang:
-    name: Packaging and deployment tests clang-20
+    name: Packaging and deployment tests clang-21
     uses: ./.github/workflows/reusable_packaging_and_deployment.yml
     with:
       os: ubuntu-24.04
