@@ -194,13 +194,13 @@ namespace rdf4cpp::parser {
 
         enum struct ContainerMapping : uint8_t {
             None = 0,
-            Graph = 1 << 0,
-            Id = 1 << 1,
-            Index = 1 << 2,
-            Language = 1 << 3,
-            List = 1 << 4,
-            Set = 1 << 5,
-            Type = 1 << 6,
+            Graph = 1u << 0u,
+            Id = 1u << 1u,
+            Index = 1u << 2u,
+            Language = 1u << 3u,
+            List = 1u << 4u,
+            Set = 1u << 5u,
+            Type = 1u << 6u,
         };
         // ReSharper disable once CppDFAUnreachableFunctionCall
         constexpr ContainerMapping operator|(ContainerMapping a, ContainerMapping b) {
@@ -241,13 +241,20 @@ namespace rdf4cpp::parser {
             return ContainerMapping::None;
         }
 
+        struct LocalContext {
+            // needs to be padded during parent context parse
+            std::string context;
+            std::string base_url;
+
+            constexpr auto operator<=>(LocalContext const &) const = default;
+        };
+
         // part of the term definition that needs to be compared for protection checks
         struct TermDefinitionBase {
             std::string key;
             IRIMapping iri_mapping;
             std::optional<std::string> base_iri;
-            // needs to be padded during parent context parse
-            std::optional<std::string> context;
+            std::optional<LocalContext> context;
             IRIMapping index_mapping;
             LanguageMapping language_mapping = NotSet{};
             std::optional<std::string> nest_value;
@@ -281,6 +288,10 @@ namespace rdf4cpp::parser {
              */
             bool ignored = false;
             ParseState parse_state = ParseState::NotStarted;
+            /**
+             * only for use with needs_context_check, will be cleared afterwards
+             */
+            std::vector<std::string> active_remote_contexts;
 
             using TermDefinitionBase::TermDefinitionBase;
         };
@@ -402,6 +413,13 @@ namespace rdf4cpp::parser {
             std::string_view datatype;
         };
 
+        struct RemoteContextEntry {
+            // needs to be padded on writing
+            std::string data;
+            // possibly redirected
+            std::string final_url;
+        };
+
         // if passed in value is an array, iterates over its content
         // otherwise iterates over [value]
         struct ValueArrayIter {
@@ -425,6 +443,20 @@ namespace rdf4cpp::parser {
         };
 
         [[nodiscard]] ParsingError make_error(ParsingError::Type t, std::string msg);
+
+        struct StackSpaceLimiter {
+        private:
+            std::uint64_t limit_;
+            /**
+             * never dereference, this is a dangling pointer into the stack frame of the ctor!
+             */
+            std::uint64_t* begin_;
+
+        public:
+            explicit StackSpaceLimiter(std::uint64_t l);
+
+            [[nodiscard]] bool check() const;
+        };
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser
 
