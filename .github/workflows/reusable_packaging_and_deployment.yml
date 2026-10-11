@@ -27,7 +27,7 @@ jobs:
         uses: dice-group/cpp-conan-release-reusable-workflow/.github/actions/setup_apt@v2.1.1
 
       - name: Get minimum cmake version
-        uses: lukka/get-cmake@v4.4.2
+        uses: lukka/get-cmake@v4.4.4
         with:
           cmakeVersion: ${{ inputs.cmake-version }}
 
