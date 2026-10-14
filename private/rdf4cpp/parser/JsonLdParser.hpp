@@ -125,7 +125,7 @@ namespace rdf4cpp::parser {
          */
         static constexpr size_t StreamChunkSize = 64 * 1024;
 
-        static constexpr size_t StackSpaceLimit = 0x10000;
+        static constexpr size_t StackSpaceLimit = 0x15000;
 
     public:
         [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
