@@ -18,7 +18,7 @@ IRI::IRI() noexcept : Node{storage::identifier::NodeBackendHandle{}} {
 }
 
 IRI::IRI(std::string_view iri, storage::DynNodeStoragePtr node_storage)
-    : IRI{make_unchecked((validate(iri), iri), node_storage)} {
+    : IRI{make(iri, node_storage)} {
 }
 
 IRI::IRI(datatypes::registry::DatatypeIDView id, storage::DynNodeStoragePtr node_storage)
@@ -38,7 +38,14 @@ IRI IRI::make_null() noexcept {
 }
 
 IRI IRI::make(std::string_view iri, storage::DynNodeStoragePtr node_storage) {
-    return IRI{iri, node_storage};
+    // try to find without validating first
+    // only validate if it is new
+    if (auto maybe_found = find(iri, node_storage); !maybe_found.null()) {
+        return maybe_found;
+    }
+
+    validate(iri);
+    return make_unchecked(iri, node_storage);
 }
 
 IRI IRI::make_unchecked(std::string_view iri, storage::DynNodeStoragePtr node_storage) {

@@ -331,6 +331,12 @@ target_link_libraries(bench_SerDe
         rdf4cpp
 )
 
+add_executable(bench_IRI bench_IRI.cpp)
+target_link_libraries(bench_IRI
+        nanobench::nanobench
+        rdf4cpp
+)
+
 add_executable(bench_i128 bench_i128.cpp)
 target_link_libraries(bench_i128
         nanobench::nanobench
