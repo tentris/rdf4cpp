@@ -127,7 +127,7 @@ namespace rdf4cpp::parser {
 
         static constexpr size_t StackSpaceLimit =
 #if __has_feature(address_sanitizer)
-            0x50000; // clang asan needs at least 3x the stack space
+            0x100000; // clang asan needs at least 3x the stack space
 #else
             0x10000;
 #endif
