@@ -156,7 +156,7 @@ namespace rdf4cpp::parser {
 
         bool StackSpaceLimiter::check() const {
             std::uint64_t curr = 0;
-            auto diff = std::abs(begin_ - &curr) * sizeof(limit_);
+            auto diff = static_cast<size_t>(std::abs((begin_ - &curr) * static_cast<ptrdiff_t>(sizeof(curr))));
             return diff < limit_;
         }
     }  // namespace json_ld
