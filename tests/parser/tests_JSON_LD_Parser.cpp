@@ -4,6 +4,8 @@
 
 #include "parser_test_helpers.hpp"
 
+#include <thread>
+
 using namespace rdf4cpp;
 using namespace rdf4cpp::parser;
 
@@ -1431,4 +1433,26 @@ TEST_CASE("a scoped context inside a remote context ignores @base") {
     CAPTURE(r.errors);
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("the parse continues on the stack of the thread that calls next") {
+    // the constructor of IStreamQuadIterator parses the first two node objects.
+    // the third one is parsed by the first ++it, in the other thread
+    std::stringstream json{R"([{"@id": "http://ex/s1", "http://ex/p": "v1"}, {"@id": "http://ex/s2", "http://ex/p": "v2"}, {"@id": "http://ex/s3", "http://ex/p": "v3"}])"};
+    IStreamQuadIterator::state_type state{};
+    IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state};
+    std::string quads;
+    std::string errors;
+    std::thread consumer{[&] {
+        for (; it != std::default_sentinel; ++it) {
+            if (it->has_value()) {
+                quads += std::format("{}\n", static_cast<std::string>(it->value()));
+            } else {
+                errors += std::format("{}\n", it->error().message);
+            }
+        }
+    }};
+    consumer.join();
+    CHECK(errors == "");
+    CHECK(quads == "<http://ex/s1> <http://ex/p> \"v1\" .\n<http://ex/s2> <http://ex/p> \"v2\" .\n<http://ex/s3> <http://ex/p> \"v3\" .\n");
 }
