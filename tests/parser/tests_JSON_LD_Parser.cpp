@@ -1488,3 +1488,25 @@ TEST_CASE("a chain of remote contexts loads up to remote_context_size_limit + 1 
     CHECK(overflow.errors == "context overflow\n");
     CHECK(overflow.quad_count == 0);
 }
+
+TEST_CASE("a remote context that includes itself ends with stack limit") {
+    // remote_context_size_limit is too large to be reached, so the stack limit has to stop the recursion
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base("http://ex/doc");
+    state.remote_context_size_limit = 100000;
+    state.request_url = [](std::string_view url) -> nonstd::expected<ParsingState::RequestResult, std::string> {
+        return ParsingState::RequestResult{R"({"@context": "http://ex/self"})", std::string{url}};
+    };
+    std::stringstream json{R"({"@context": "http://ex/self", "@id": "http://ex/s", "http://ex/p": "v"})"};
+    size_t quad_count = 0;
+    std::string errors;
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            ++quad_count;
+        } else {
+            errors += std::format("{}\n", it->error().message);
+        }
+    }
+    CHECK(quad_count == 0);
+    CHECK(errors == "stack limit\n");
+}
