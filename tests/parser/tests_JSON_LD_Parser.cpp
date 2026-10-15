@@ -1540,3 +1540,18 @@ TEST_CASE("a term after a remote context in the same context array does not proc
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
 }
+
+TEST_CASE("terms with the same remote scoped context do not add up to a context overflow") {
+    static constexpr size_t terms = 102;
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/S", R"({"@context": {}})"},
+    };
+    std::string ctx;
+    for (size_t i = 0; i < terms; ++i) {
+        ctx += std::format(R"({}"t{}": {{"@id": "http://ex/t{}", "@context": "http://ex/S"}})", i == 0 ? "" : ", ", i, i);
+    }
+    auto const r = parse_with_remote_documents(std::format(R"({{"@context": {{{}}}, "@id": "http://ex/s", "http://ex/p": "v"}})", ctx), "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+    CHECK(r.requested == "http://ex/S\n");
+}
