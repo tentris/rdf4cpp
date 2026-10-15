@@ -1456,3 +1456,16 @@ TEST_CASE("the parse continues on the stack of the thread that calls next") {
     CHECK(errors == "");
     CHECK(quads == "<http://ex/s1> <http://ex/p> \"v1\" .\n<http://ex/s2> <http://ex/p> \"v2\" .\n<http://ex/s3> <http://ex/p> \"v3\" .\n");
 }
+
+TEST_CASE("a term defined through a chain of compact IRIs") {
+    // t0 is "t1:", t1 is "t2:" and so on, so the definition of t0 needs the one of t1, which needs the one of t2, ...
+    static constexpr size_t chain = 30;
+    std::string ctx = "{";
+    for (size_t i = 0; i < chain; ++i) {
+        ctx += std::format(R"("t{}": "t{}:", )", i, i + 1);
+    }
+    ctx += std::format(R"("t{}": "http://ex/"}})", chain);
+    auto const r = parse_with_remote_documents(std::format(R"({{"@context": {}, "@id": "http://ex/s", "t0:p": "v"}})", ctx), "http://ex/doc", {});
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
