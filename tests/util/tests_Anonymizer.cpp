@@ -148,4 +148,8 @@ _:customer2 a foaf:Person ;
 
         CHECK(all_distinct(std::vector{c1, c2, n1, n2, m1, m2}));
     }
+
+    TEST_CASE("string literals stay string literals") {
+
+    }
 }
