@@ -1187,6 +1187,26 @@ TEST_CASE("a remote context that is no valid json stops the parsing") {
     }
 }
 
+TEST_CASE("a remote context nested too deep is an error") {
+    // deep enough to overflow the stack if the check of the body had no depth bound
+    static constexpr size_t depth = 1'000'000;
+    std::map<std::string, std::string, std::less<>> const docs{{"http://ex/deep.jsonld", std::format(R"({{"@context": {{}}, "x": {}{}}})", std::string(depth, '['), std::string(depth, ']'))}};
+    // the parse runs inside the subcases, doctest cannot report a crash after the end of a subcase
+    auto const check = [&](std::string doc) {
+        auto const r = parse_with_remote_documents(std::move(doc), "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(std::ranges::count(r.errors, '\n') == 1);
+        CHECK(r.errors.starts_with("loading remote context failed"));
+        CHECK(r.quad_count == 0);
+    };
+    SUBCASE("as remote context") {
+        check(R"({"@context": "http://ex/deep.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("behind @import") {
+        check(R"({"@context": {"@version": 1.1, "@import": "http://ex/deep.jsonld"}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+}
+
 TEST_CASE("context load redirect applies base") {
     auto r = parse_with_request_url(R"({
     "@context": "http://foo/bar.jsonld",
