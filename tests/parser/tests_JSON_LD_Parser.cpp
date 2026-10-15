@@ -1469,3 +1469,22 @@ TEST_CASE("a term defined through a chain of compact IRIs") {
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
 }
+
+TEST_CASE("a chain of remote contexts loads up to remote_context_size_limit + 1 contexts") {
+    // http://ex/c0 names http://ex/c1 as its context, c1 names c2, and so on. The last one is empty.
+    auto const chain = [](size_t n) {
+        std::map<std::string, std::string, std::less<>> docs;
+        for (size_t i = 0; i < n; ++i) {
+            docs.emplace(std::format("http://ex/c{}", i), std::format(R"({{"@context": "http://ex/c{}"}})", i + 1));
+        }
+        docs.emplace(std::format("http://ex/c{}", n), R"({"@context": {}})");
+        return parse_with_remote_documents(R"({"@context": "http://ex/c0", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
+    };
+    // the default remote_context_size_limit is 100, so 101 remote contexts load
+    auto const loaded = chain(100);
+    CHECK(loaded.errors == "");
+    CHECK(loaded.quad_count == 1);
+    auto const overflow = chain(101);
+    CHECK(overflow.errors == "context overflow\n");
+    CHECK(overflow.quad_count == 0);
+}
