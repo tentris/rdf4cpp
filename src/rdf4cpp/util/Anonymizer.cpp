@@ -50,10 +50,10 @@ storage::DynNodeStoragePtr Anonymizer::node_storage() const noexcept {
     return node_storage_;
 }
 
-IRI Anonymizer::anonymize(Node const &non_anon) {
+Node Anonymizer::anonymize(Node const &non_anon) {
     using namespace storage::identifier;
 
-    IRI ret;
+    Node ret;
 
     if (non_anon.null() || non_anon.as_iri().is_default_graph()) {
         ret = non_anon.as_iri();
@@ -61,17 +61,39 @@ IRI Anonymizer::anonymize(Node const &non_anon) {
     }
 
     if (auto it = lookup_.find(non_anon.backend_handle()); it != lookup_.end()) {
-        ret = IRI{NodeBackendHandle{it->second, node_storage_}};
+        ret = Node{NodeBackendHandle{it->second, node_storage_}};
         return ret;
     }
 
-    std::array<char, IRIFactory::default_base.size() + 16> buf;
-    std::ranges::copy(IRIFactory::default_base, buf.begin());
-    gen_random_id(std::span{buf}.subspan(IRIFactory::default_base.size()));
+    auto mk_anon_str = [this, buf = std::array<char, IRIFactory::default_base.size() + 16>{}] mutable {
+        std::ranges::copy(IRIFactory::default_base, buf.begin());
+        gen_random_id(std::span{buf}.subspan(IRIFactory::default_base.size()));
 
-    ret = IRI::make(std::string_view{buf.data(), buf.size()}, node_storage_);
+        return std::string_view{buf.data(), buf.size()};
+    };
+
+    ret = [&] -> Node {
+        if (auto const non_anon_lit = non_anon.as_literal(); !non_anon_lit.null()) {
+            if (non_anon_lit.template datatype_eq<datatypes::xsd::String>()) {
+                return Literal::make_simple(mk_anon_str(), node_storage_);
+            }
+            if (non_anon_lit.template datatype_eq<datatypes::rdf::LangString>()) {
+                return Literal::make_lang_tagged(mk_anon_str(), non_anon_lit.language_tag(), node_storage_);
+            }
+
+            if (non_anon_lit.is_numeric() || non_anon_lit.is_duration() || non_anon_lit.is_timepoint()) {
+                // Simplification: things without intrinsic meaning are kept as they are
+                return non_anon;
+            }
+
+            // Simplification: other datatypes just get turned into strings
+            return Literal::make_simple(mk_anon_str(), node_storage_);
+        }
+
+        return IRI::make(mk_anon_str(), node_storage_);
+    }();
+
     lookup_.emplace(non_anon.backend_handle(), ret.backend_handle().id());
-
     return ret;
 }
 
