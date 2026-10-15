@@ -1,6 +1,9 @@
 macro(boilerplate_init)
     ## enforce standard compliance
-    set(CMAKE_CXX_STANDARD_REQUIRED True)
+    set(CMAKE_CXX_STANDARD 23)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    ## the project has no C++ modules, so no import scan is needed
+    set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
     set(CMAKE_CXX_EXTENSIONS OFF)
 
     ## C++ compiler flags
