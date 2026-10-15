@@ -1527,3 +1527,16 @@ TEST_CASE("terms after a remote context in the same context array may use it as 
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
     CHECK(r.requested == "http://ex/R\n");
 }
+
+TEST_CASE("a term after a remote context in the same context array does not process it again as scoped context") {
+    // the complete context has no `@vocab`, so the term `x` of `B` would have no IRI mapping there.
+    // `B` is in the list of remote contexts when `u` is defined, so the check of the scoped context of `u` skips it
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/B.jsonld", R"({"@context": {"x": {"@type": "@id"}}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/"}, "http://ex/B.jsonld", {"@vocab": null, "u": {"@id": "http://ex/u", "@context": "http://ex/B.jsonld"}}],
+      "@id": "http://ex/s", "http://ex/p": "v"})",
+                                               "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
