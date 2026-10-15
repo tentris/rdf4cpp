@@ -1510,3 +1510,20 @@ TEST_CASE("a remote context that includes itself ends with stack limit") {
     CHECK(quad_count == 0);
     CHECK(errors == "stack limit\n");
 }
+
+TEST_CASE("terms after a remote context in the same context array may use it as scoped context") {
+    // `http://ex/R` is in the list of remote contexts when the terms are defined,
+    // so the check of their scoped contexts does not process it again
+    static constexpr size_t terms = 101;
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/R", R"({"@context": {"a": "http://ex/a"}})"},
+    };
+    std::string ctx;
+    for (size_t i = 0; i < terms; ++i) {
+        ctx += std::format(R"({}"t{}": {{"@id": "http://ex/t{}", "@context": "http://ex/R"}})", i == 0 ? "" : ", ", i, i);
+    }
+    auto const r = parse_with_remote_documents(std::format(R"({{"@context": ["http://ex/R", {{{}}}], "@id": "http://ex/s", "http://ex/p": "v"}})", ctx), "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+    CHECK(r.requested == "http://ex/R\n");
+}
