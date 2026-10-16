@@ -1,6 +1,5 @@
 #include "JsonLdParser.hpp"
 #include <uni_algo/case.h>
-#include <dice/template-library/defer.hpp>
 
 namespace rdf4cpp::parser {
     /**
@@ -768,6 +767,7 @@ namespace rdf4cpp::parser {
         if (current_iter_ == std::default_sentinel) {
             return std::nullopt;
         }
+        expand_parser_.context_parser.stack_limiter.re_init();
         auto r = *current_iter_;
         ++current_iter_;
         return r;

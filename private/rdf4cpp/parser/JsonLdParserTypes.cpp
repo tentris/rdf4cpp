@@ -137,27 +137,18 @@ namespace rdf4cpp::parser {
             };
         }
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdangling-field"
-#elif defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdangling-pointer"
-#endif
         StackSpaceLimiter::StackSpaceLimiter(std::uint64_t l)
             : limit_(l),
-            begin_(&l) {
+            begin_(static_cast<std::uint8_t*>(__builtin_frame_address(0))) {
         }
-#ifdef __clang__
-#pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
 
         bool StackSpaceLimiter::check() const {
-            std::uint64_t curr = 0;
-            auto diff = static_cast<size_t>(std::abs((begin_ - &curr) * static_cast<ptrdiff_t>(sizeof(curr))));
+            auto diff = static_cast<size_t>(std::abs(begin_ - static_cast<std::uint8_t*>(__builtin_frame_address(0))));
             return diff < limit_;
+        }
+
+        void StackSpaceLimiter::re_init(){
+            begin_ = static_cast<std::uint8_t*>(__builtin_frame_address(0));
         }
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser

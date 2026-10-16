@@ -4,6 +4,8 @@
 
 #include "parser_test_helpers.hpp"
 
+#include <thread>
+
 using namespace rdf4cpp;
 using namespace rdf4cpp::parser;
 
@@ -1401,14 +1403,170 @@ TEST_CASE("a nested node object that falls back to the context before a remote c
     }
 }
 
-TEST_CASE("a scoped context inside a remote context ignores @base") {
-    // @base is ignored in remote contexts, and that includes the scoped contexts they define.
-    // the scoped context of t is checked while http://ex/R is processed, so its invalid @base must not be an error
+TEST_CASE("the check of a scoped context from a remote context ignores @base") {
+    // t is defined in the remote context http://ex/R. the check of its scoped context runs at the end of the
+    // context processing with http://ex/R as remote context, so 5.7 skips @base and the invalid @base is no error.
+    // the document does not use t. a use of t processes the scoped context without remote contexts, and that
+    // fails with "invalid base IRI"
     std::map<std::string, std::string, std::less<>> const docs{
         {"http://ex/R", R"({"@context": {"t": {"@id": "http://ex/t", "@context": {"@base": 5}}}})"},
     };
     auto const r = parse_with_remote_documents(R"({"@context": "http://ex/R", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("a remote context nested too deep is an error") {
+    // deep enough to overflow the stack if the check of the body had no depth bound
+    static constexpr size_t depth = 1'000'000;
+    std::map<std::string, std::string, std::less<>> const docs{{"http://ex/deep.jsonld", std::format(R"({{"@context": {{}}, "x": {}{}}})", std::string(depth, '['), std::string(depth, ']'))}};
+    // the parse runs inside the subcases, doctest cannot report a crash after the end of a subcase
+    auto const check = [&](std::string doc) {
+        auto const r = parse_with_remote_documents(std::move(doc), "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(std::ranges::count(r.errors, '\n') == 1);
+        CHECK(r.errors.starts_with("loading remote context failed"));
+        CHECK(r.quad_count == 0);
+    };
+    SUBCASE("as remote context") {
+        check(R"({"@context": "http://ex/deep.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("behind @import") {
+        check(R"({"@context": {"@version": 1.1, "@import": "http://ex/deep.jsonld"}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+}
+
+TEST_CASE("terms after a remote context in the same context array may use it as scoped context") {
+    // `http://ex/R` is in the list of remote contexts when the terms are defined,
+    // so the check of their scoped contexts does not process it again
+    static constexpr size_t terms = 101;
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/R", R"({"@context": {"a": "http://ex/a"}})"},
+    };
+    std::string ctx;
+    for (size_t i = 0; i < terms; ++i) {
+        ctx += std::format(R"({}"t{}": {{"@id": "http://ex/t{}", "@context": "http://ex/R"}})", i == 0 ? "" : ", ", i, i);
+    }
+    auto const r = parse_with_remote_documents(std::format(R"({{"@context": ["http://ex/R", {{{}}}], "@id": "http://ex/s", "http://ex/p": "v"}})", ctx), "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+    CHECK(r.requested == "http://ex/R\n");
+}
+
+TEST_CASE("a term after a remote context in the same context array does not process it again as scoped context") {
+    // the complete context has no `@vocab`, so the term `x` of `B` would have no IRI mapping there.
+    // `B` is in the list of remote contexts when `u` is defined, so the check of the scoped context of `u` skips it
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/B.jsonld", R"({"@context": {"x": {"@type": "@id"}}})"},
+    };
+    auto const r = parse_with_remote_documents(R"({"@context": [{"@vocab": "http://ex/v/"}, "http://ex/B.jsonld", {"@vocab": null, "u": {"@id": "http://ex/u", "@context": "http://ex/B.jsonld"}}],
+      "@id": "http://ex/s", "http://ex/p": "v"})",
+                                               "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("terms with the same remote scoped context do not add up to a context overflow") {
+    static constexpr size_t terms = 102;
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/S", R"({"@context": {}})"},
+    };
+    std::string ctx;
+    for (size_t i = 0; i < terms; ++i) {
+        ctx += std::format(R"({}"t{}": {{"@id": "http://ex/t{}", "@context": "http://ex/S"}})", i == 0 ? "" : ", ", i, i);
+    }
+    auto const r = parse_with_remote_documents(std::format(R"({{"@context": {{{}}}, "@id": "http://ex/s", "http://ex/p": "v"}})", ctx), "http://ex/doc", docs);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+    CHECK(r.requested == "http://ex/S\n");
+}
+
+TEST_CASE("a remote context with an integer above 64 bits outside @context is loaded") {
+    // only @context is read from a remote context document, so the number after it does not matter.
+    // a main document with such a number is accepted, too
+    std::map<std::string, std::string, std::less<>> const docs{
+        {"http://ex/ctx.jsonld", R"({"@context": {"t": "http://ex/t"}, "http://ex/n": 123456789012345678901234567890})"},
+    };
+    SUBCASE("as remote context") {
+        auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "t": "v"})", "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/t> \"v\" .\n");
+    }
+    SUBCASE("behind @import") {
+        auto const r = parse_with_remote_documents(R"({"@context": {"@version": 1.1, "@import": "http://ex/ctx.jsonld"}, "@id": "http://ex/s", "t": "v"})", "http://ex/doc", docs);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/t> \"v\" .\n");
+    }
+}
+
+TEST_CASE("a property scoped context may redefine a protected term that its @vocab uses") {
+    // the scoped context of p is processed with override protected, so it may redefine the protected term B.
+    // B gets defined while @vocab is expanded, so that definition needs override protected, too
+    std::map<std::string, std::string, std::less<>> const docs{};
+    auto const r = parse_with_remote_documents(R"({"@context": {"@protected": true, "B": "http://ex/b/", "p": {"@id": "http://ex/p", "@context": {"@vocab": "B:", "B": "http://other/"}}},
+      "@id": "http://ex/s", "p": {"@id": "http://ex/o", "B:x": "v"}})",
+                                               "http://ex/doc", docs);
+    CAPTURE(r.errors);
+    CHECK(r.errors == "");
+    CHECK(r.quads == "<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/o> <http://other/x> \"v\" .\n");
+}
+
+TEST_CASE("a remote context that includes itself ends with stack limit") {
+    // remote_context_size_limit is too large to be reached, so the stack limit has to stop the recursion
+    IStreamQuadIterator::state_type state{};
+    state.iri_factory.set_base("http://ex/doc");
+    state.remote_context_size_limit = 100000;
+    state.request_url = [](std::string_view url) -> nonstd::expected<ParsingState::RequestResult, std::string> {
+        return ParsingState::RequestResult{R"({"@context": "http://ex/self"})", std::string{url}};
+    };
+    std::stringstream json{R"({"@context": "http://ex/self", "@id": "http://ex/s", "http://ex/p": "v"})"};
+    size_t quad_count = 0;
+    std::string errors;
+    for (IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state}; it != std::default_sentinel; ++it) {
+        if (it->has_value()) {
+            ++quad_count;
+        } else {
+            errors += std::format("{}\n", it->error().message);
+        }
+    }
+    CHECK(quad_count == 0);
+    CHECK(errors == "stack limit\n");
+}
+
+TEST_CASE("the parse continues on the stack of the thread that calls next") {
+    // the constructor of IStreamQuadIterator parses the first two node objects.
+    // the third one is parsed by the first ++it, in the other thread
+    std::stringstream json{R"([{"@id": "http://ex/s1", "http://ex/p": "v1"}, {"@id": "http://ex/s2", "http://ex/p": "v2"}, {"@id": "http://ex/s3", "http://ex/p": "v3"}])"};
+    IStreamQuadIterator::state_type state{};
+    IStreamQuadIterator it{json, ParsingFlag::JsonLd, &state};
+    std::string quads;
+    std::string errors;
+    std::thread consumer{[&] {
+        for (; it != std::default_sentinel; ++it) {
+            if (it->has_value()) {
+                quads += std::format("{}\n", static_cast<std::string>(it->value()));
+            } else {
+                errors += std::format("{}\n", it->error().message);
+            }
+        }
+    }};
+    consumer.join();
+    CHECK(errors == "");
+    CHECK(quads == "<http://ex/s1> <http://ex/p> \"v1\" .\n<http://ex/s2> <http://ex/p> \"v2\" .\n<http://ex/s3> <http://ex/p> \"v3\" .\n");
+}
+
+TEST_CASE("a term defined through a chain of compact IRIs") {
+    // t0 is "t1:", t1 is "t2:" and so on, so the definition of t0 needs the one of t1, which needs the one of t2, ...
+    static constexpr size_t chain = 20;
+    std::string ctx = "{";
+    for (size_t i = 0; i < chain; ++i) {
+        ctx += std::format(R"("t{}": "t{}:", )", i, i + 1);
+    }
+    ctx += std::format(R"("t{}": "http://ex/"}})", chain);
+    auto const r = parse_with_remote_documents(std::format(R"({{"@context": {}, "@id": "http://ex/s", "t0:p": "v"}})", ctx), "http://ex/doc", {});
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
 }

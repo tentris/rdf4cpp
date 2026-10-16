@@ -86,12 +86,16 @@ struct ParsingState {
     };
 
     /**
-     * Limit of the JSON-LD parser on remote contexts (the remote contexts array of the context processing).
-     * It counts the chain of remote contexts that load each other, and in each `@context` array on that chain
-     * also the remote contexts before the entry. Each `@context` of the document starts again at 0.
-     * If the count is larger than `remote_context_size_limit` when the next remote context is loaded,
-     * the parser reports "context overflow". So up to `remote_context_size_limit + 1` remote contexts load,
-     * and with 0 one remote context still loads. The default is 100.
+     * Limit of the JSON-LD parser on remote contexts.
+     * The parser counts the remote contexts that it processes for one `@context` of the document,
+     * or for one scoped context that the expansion applies. Each of them starts again at 0.
+     * Every remote context that is processed counts. This includes the remote contexts that other remote
+     * contexts name, and the remote contexts in the scoped contexts of new terms, which are checked at the end.
+     * A remote context counts each time it is processed, also when it comes from the cache and is not requested again.
+     * `@import` does not count.
+     * If the count is larger than `remote_context_size_limit` when the next remote context is processed,
+     * the parser reports "context overflow". So up to `remote_context_size_limit + 1` remote contexts are processed,
+     * and with 0 one remote context is still processed. The default is 100.
      */
     size_t remote_context_size_limit = 100;
 };

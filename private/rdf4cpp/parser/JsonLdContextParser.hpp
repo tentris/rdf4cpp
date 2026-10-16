@@ -50,6 +50,8 @@ namespace rdf4cpp::parser {
     }  // namespace params
 
     namespace json_ld {
+        struct ContextParser;
+
         struct RemoteContextCache {
             std::map<std::string, RemoteContextEntry, std::less<>> contexts;
 
@@ -58,7 +60,11 @@ namespace rdf4cpp::parser {
                 std::string_view final_url;
             };
 
-            nonstd::expected<ResolveResult, std::string> resolve(std::string_view url, IStreamQuadIterator::state_type* parse_state);
+            /**
+             * Loads url (or returns it from the cache) and checks that it is valid json with an object at the top level.
+             * Only documents that passed the check are cached, so the check runs once per document.
+             */
+            nonstd::expected<ResolveResult, std::string> resolve(std::string_view url, ContextParser &parser);
         };
 
         struct ContextParser {
@@ -96,14 +102,19 @@ namespace rdf4cpp::parser {
             nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p);
 
             /**
-             * Iterates over all arrays, objects and strings in value, so that simdjson checks their syntax.
-             * Numbers, booleans and null are not parsed.
+             * Iterates over all arrays, objects and strings in `value`, so that simdjson checks their syntax.
+             * Numbers are not parsed.
              */
-            static simdjson::error_code validate_json(simdjson::ondemand::value value);
+            simdjson::error_code validate_json(simdjson::ondemand::value value);
             /**
-             * Iterates over all members of obj, see the overload above. The document of obj has to be rewound before reading it again.
+             * Iterates over all members of `obj`, see the overload above. The document of `obj` has to be rewound before reading it again.
              */
-            static simdjson::error_code validate_json(simdjson::ondemand::object &obj);
+            simdjson::error_code validate_json(simdjson::ondemand::object &obj);
+            /**
+             * Checks that json is a single object, see the overloads above.
+             * Returns an error message starting with error_msg, if the check failed.
+             */
+            std::optional<std::string> validate_json(simdjson::padded_string_view json);
 
 
             nonstd::expected<IRIMapping, error_type> iri_expansion(Context const &active_context,

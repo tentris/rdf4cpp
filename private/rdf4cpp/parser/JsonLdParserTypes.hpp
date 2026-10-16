@@ -448,14 +448,15 @@ namespace rdf4cpp::parser {
         private:
             std::uint64_t limit_;
             /**
-             * never dereference, this is a dangling pointer into the stack frame of the ctor!
+             * never dereference, this is a dangling pointer into the stack frame of the ctor/re_init!
              */
-            std::uint64_t* begin_;
+            std::uint8_t* begin_;
 
         public:
             explicit StackSpaceLimiter(std::uint64_t l);
 
             [[nodiscard]] bool check() const;
+            void re_init();
         };
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser

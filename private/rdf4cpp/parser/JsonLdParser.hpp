@@ -125,12 +125,7 @@ namespace rdf4cpp::parser {
          */
         static constexpr size_t StreamChunkSize = 64 * 1024;
 
-        static constexpr size_t StackSpaceLimit =
-#if __has_feature(address_sanitizer)
-            0x100000; // clang asan needs at least 3x the stack space
-#else
-            0x10000;
-#endif
+        static constexpr size_t StackSpaceLimit = 1024 * 1024;
 
     public:
         [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
