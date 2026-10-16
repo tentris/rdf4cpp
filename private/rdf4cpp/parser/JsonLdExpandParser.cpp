@@ -134,6 +134,10 @@ namespace rdf4cpp::parser::json_ld {
         return TypedLiteralMapping{stringify(v, false, false, true).value, std::string{rdf_json_datatype}};
     }
     nonstd::expected<ExpandedLevel, ExpandParser::error_type> ExpandParser::expand_level(params::ExpandParams p) {
+        if (!context_parser.stack_limiter.check()) {
+            return nonstd::unexpected(make_error(ParsingError::Type::Internal, "stack limit"));
+        }
+
         if (p.is_json_literal) {
             return to_json_literal(p.element);
         }
@@ -157,9 +161,13 @@ namespace rdf4cpp::parser::json_ld {
             }
             std::optional<Context> ctx = std::nullopt;
             if (property_scoped_context != nullptr) {
-                auto r = context_parser.parse_local_context(simdjson::padded_string_view{*property_scoped_context}, {
+                size_t number_of_remote_contexts = 0;
+                auto r = context_parser.parse_local_context(simdjson::padded_string_view{property_scoped_context->context}, {
                     .active_context = p.active_context,
                     .base_iri = active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri,
+                    .base_url = property_scoped_context->base_url,
+                    .remote_contexts = {},
+                    .number_of_remote_contexts = number_of_remote_contexts,
                 });
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
@@ -220,10 +228,14 @@ namespace rdf4cpp::parser::json_ld {
         // 8
         ExpandedMap result{};
         if (property_scoped_context != nullptr) {
-            auto r = context_parser.parse_local_context(simdjson::padded_string_view{*property_scoped_context}, {
+            size_t number_of_remote_contexts = 0;
+            auto r = context_parser.parse_local_context(simdjson::padded_string_view{property_scoped_context->context}, {
                 .active_context = *active_ctx_for_local,
                 .base_iri = active_term->base_iri.has_value() ? *active_term->base_iri : p.base_iri,
+                .base_url = property_scoped_context->base_url,
+                .remote_contexts = {},
                 .override_protected = true,
+                .number_of_remote_contexts = number_of_remote_contexts,
             });
             if (!r.has_value()) {
                 return nonstd::unexpected(r.error());
@@ -238,9 +250,13 @@ namespace rdf4cpp::parser::json_ld {
                 if (c != simdjson::SUCCESS) {
                     return nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid context"));
                 }
+                size_t number_of_remote_contexts = 0;
                 auto r = context_parser.parse_context(v, {
                     .active_context = *active_ctx,
                     .base_iri = p.base_iri,
+                    .base_url = context_parser.original_base_iri,
+                    .remote_contexts = {},
+                    .number_of_remote_contexts = number_of_remote_contexts,
                 });
                 if (!r.has_value()) {
                     return nonstd::unexpected(r.error());
@@ -277,11 +293,15 @@ namespace rdf4cpp::parser::json_ld {
                 if (term == nullptr || !term->context.has_value()) {
                     return std::nullopt;
                 }
-                auto r = context_parser.parse_local_context(simdjson::padded_string_view{*term->context}, {
+                size_t number_of_remote_contexts = 0;
+                auto r = context_parser.parse_local_context(simdjson::padded_string_view{term->context->context}, {
                     .active_context = *active_ctx,
                     .base_iri = p.base_iri,
+                    .base_url = term->context->base_url,
+                    .remote_contexts = {},
                     .override_protected = false,
                     .propagate = false,
+                    .number_of_remote_contexts = number_of_remote_contexts,
                 });
                 if (!r.has_value()) {
                     return r.error();
@@ -469,6 +489,12 @@ namespace rdf4cpp::parser::json_ld {
     }
     std::optional<ExpandParser::error_type> ExpandParser::expand_level_nested_recursive(params::ExpandNestedParams p) {
         std::optional<ExpandParser::error_type> res = std::nullopt;
+
+        if (!context_parser.stack_limiter.check()) {
+            res = make_error(ParsingError::Type::Internal, "stack limit");
+            return res;
+        }
+
         for (auto kv : p.elem_obj) {
             // 13.1
             std::string_view k = kv.unescaped_key();
@@ -724,9 +750,13 @@ namespace rdf4cpp::parser::json_ld {
                     if (term_definition->has_container_mapping(ContainerMapping::Type)) {
                         auto *index_term = map_context->try_find_term(index);
                         if (index_term != nullptr && index_term->context.has_value()) {
-                            auto r = context_parser.parse_local_context(simdjson::padded_string_view{*index_term->context}, {
+                            size_t number_of_remote_contexts = 0;
+                            auto r = context_parser.parse_local_context(simdjson::padded_string_view{index_term->context->context}, {
                                 .active_context = *map_context,
                                 .base_iri = index_term->base_iri.value_or(""),
+                                .base_url = index_term->context->base_url,
+                                .remote_contexts = {},
+                                .number_of_remote_contexts = number_of_remote_contexts,
                             });
                             if (!r.has_value()) {
                                 res = r.error();

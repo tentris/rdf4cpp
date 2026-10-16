@@ -11,7 +11,7 @@ _rdf4cpp_ is a modern C++23 library providing basic RDF support.
 The focus is **correctness**, **performance** and **ease-of-use** for **basic building blocks** like:
 
 - parsing, validating and writing RDF data ([N-Triples](https://www.w3.org/TR/n-triples/), [Turtle](https://www.w3.org/TR/turtle/), [N-Quads](https://www.w3.org/TR/n-quads/), [TriG](https://www.w3.org/TR/trig/))
-- parsing and validating [RDF/XML](https://www.w3.org/TR/rdf11-xml/) and [JSON-LD](https://www.w3.org/TR/json-ld11/) (json-ld-1.1 without remote contexts, see the users guide for the limitations)
+- parsing and validating [RDF/XML](https://www.w3.org/TR/rdf11-xml/) and [JSON-LD](https://www.w3.org/TR/json-ld11/) (json-ld-1.1, see the users guide for the limitations)
 - Complete and extensible literal datatypes (validation, functions, operations, subtype and promotion casting, mapping to C++ types, error handling, ...) 
 - Managing RDF nodes efficiently
 - Blank node scoping (e.g., for RDF datasets)
@@ -51,8 +51,6 @@ Missing features:
 
 | test | what it needs |
 |---|---|
-| `c031`, `c034`, `e126`, `e127`, `e128` | fetching a context named by an IRI, see [#431](https://github.com/rdf4cpp/rdf4cpp/issues/431) |
-| `so05`, `so06`, `so08`, `so09`, `so11` | `@import`, which also fetches a context by IRI |
 | `e077` | an expandContext option on the parser, the document carries no context |
 | `js06` to `js16`, `js19`, `js20`, `js21` | canonicalization of rdf:JSON literals after [RFC 8785](https://www.rfc-editor.org/rfc/rfc8785) |
 

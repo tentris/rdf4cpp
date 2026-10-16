@@ -33,6 +33,8 @@ struct ParsingState {
     /**
      * The initial prefixes the parser has knowledge of
      * @note default value is an empty map
+     * @note the parser writes the prefixes and the base of the document into it, so a reused state keeps them.
+     * @note after a JSON-LD parse, the base can be the url of a remote context that contains a relative url.
      */
     IRIFactory iri_factory{};
 
@@ -54,6 +56,48 @@ struct ParsingState {
      * To discard a triple throw an exception from this function.
      */
     std::function<void(Node const &)> inspect_node_func = []([[maybe_unused]] Node const &n) { /* noop */ };
+
+    /**
+     * The result of a successful request_url call.
+     * data is the body of the requested document.
+     * final_url is the url of the document after the redirects (documentUrl in the JSON-LD API).
+     * final_url is expected to be absolute (there might have been a in-between redirect which changed the hostname, which our parser would not know about).
+     * For a remote context, relative context urls inside the document resolve against it.
+     * If the request was not redirected, it can stay empty, then the requested url is used.
+     * For `@import` it is not used: relative urls in the imported context resolve against
+     * the same base url as the context that contains the `@import`.
+     */
+    struct RequestResult {
+        std::string data;
+        std::string final_url;
+    };
+
+    /**
+     * A function that is called for each URL requested by a parser (currently only JSON_LD remote context & import).
+     * The function should return the result of querying that URL or an error message.
+     * The passed URL is already absolute and no pre-parsing of the servers data is necessary
+     * (like stripping the top level object and only passing its context member).
+     * The passed URL is only valid during the call, copy it if you want to keep it longer.
+     * Results are cached only per IStreamQuadIterator.
+     * Default behavior is to always return an error.
+     */
+    std::function<nonstd::expected<RequestResult, std::string>(std::string_view)> request_url = [](std::string_view) {
+        return nonstd::unexpected{"remote context not supported"};
+    };
+
+    /**
+     * Limit of the JSON-LD parser on remote contexts.
+     * The parser counts the remote contexts that it processes for one `@context` of the document,
+     * or for one scoped context that the expansion applies. Each of them starts again at 0.
+     * Every remote context that is processed counts. This includes the remote contexts that other remote
+     * contexts name, and the remote contexts in the scoped contexts of new terms, which are checked at the end.
+     * A remote context counts each time it is processed, also when it comes from the cache and is not requested again.
+     * `@import` does not count.
+     * If the count is larger than `remote_context_size_limit` when the next remote context is processed,
+     * the parser reports "context overflow". So up to `remote_context_size_limit + 1` remote contexts are processed,
+     * and with 0 one remote context is still processed. The default is 100.
+     */
+    size_t remote_context_size_limit = 100;
 };
 
 }  //namespace rdf4cpp::parser
