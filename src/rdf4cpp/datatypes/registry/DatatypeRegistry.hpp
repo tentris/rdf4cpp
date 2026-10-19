@@ -5,6 +5,7 @@
 #include <rdf4cpp/datatypes/LiteralDatatype.hpp>
 #include <rdf4cpp/datatypes/registry/DatatypeConversion.hpp>
 #include <rdf4cpp/datatypes/registry/FixedIdMappings.hpp>
+#include <rdf4cpp/datatypes/registry/util/AnyValue.hpp>
 #include <rdf4cpp/writer/BufWriter.hpp>
 #include <rdf4cpp/Assert.hpp>
 
@@ -49,7 +50,7 @@ struct DatatypeRegistry {
 
     struct OpResult {
         DatatypeID result_type_id;
-        nonstd::expected<std::any, DynamicError> result_value;
+        nonstd::expected<util::AnyValue, DynamicError> result_value;
     };
 
     using nullop_fptr_t = std::any (*)() noexcept;
@@ -64,7 +65,7 @@ struct DatatypeRegistry {
      */
     using compare_inlined_fptr_t = std::partial_ordering (*)(storage::identifier::LiteralID, storage::identifier::LiteralID) noexcept;
 
-    using from_multiplicity_fptr_t = nonstd::expected<std::any, DynamicError> (*)(uint64_t multiplicity) noexcept;
+    using from_multiplicity_fptr_t = nonstd::expected<util::AnyValue, DynamicError> (*)(uint64_t multiplicity) noexcept;
 
     struct NumericOpsImpl {
         nullop_fptr_t zero_value_fptr; // 0
@@ -702,9 +703,9 @@ struct SelectOpResIRI {
 };
 
 template<typename T>
-[[nodiscard]] nonstd::expected<std::any, DynamicError> map_expected(nonstd::expected<T, DynamicError> const &e) noexcept {
+[[nodiscard]] nonstd::expected<util::AnyValue, DynamicError> map_expected(nonstd::expected<T, DynamicError> const &e) noexcept {
     if (e.has_value()) {
-        return *e;
+        return std::any{*e};
     } else {
         return nonstd::make_unexpected(e.error());
     }
@@ -834,7 +835,7 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
                     return nullptr;
                 }
             }(),
-            .from_multiplicity_fptr = [](uint64_t multiplicity) noexcept -> nonstd::expected<std::any, DynamicError> {
+            .from_multiplicity_fptr = [](uint64_t multiplicity) noexcept -> nonstd::expected<util::AnyValue, DynamicError> {
                 return detail::map_expected(LiteralDatatype_t::from_multiplicity(multiplicity));
             }};
 }
