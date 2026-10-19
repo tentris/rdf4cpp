@@ -181,6 +181,27 @@ _:customer2 a foaf:Person ;
         CHECK(all_distinct(std::vector<Node>{iri, iri2, bn, bn2, named_var, named_var2, anon_var, anon_var2, lit, lit2}));
     }
 
+    TEST_CASE("same term from different node storages") {
+        storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
+        storage::reference_node_storage::UnsyncReferenceNodeStorage other_ns;
+        util::Anonymizer anony{ns};
+
+        // equal terms must map to the same anonymized node, regardless of their storage
+        auto const check = [&](Node const &a, Node const &b) {
+            CHECK_EQ(a, b);
+            CHECK_NE(a.backend_handle().storage(), b.backend_handle().storage());
+            auto const anon = anony.anonymize(a);
+            CHECK_EQ(anony.anonymize(b), anon);
+            CHECK_EQ(anon.backend_handle().storage(), anony.node_storage());
+        };
+
+        check(IRI::make("http://example.com#x", ns), IRI::make("http://example.com#x", other_ns));
+        check(BlankNode::make("bn", ns), BlankNode::make("bn", other_ns));
+        check(query::Variable::make_named("v", ns), query::Variable::make_named("v", other_ns));
+        check(Literal::make_simple("Hello World", ns), Literal::make_simple("Hello World", other_ns));
+        check(Literal::make_lang_tagged("Hello World", "en", ns), Literal::make_lang_tagged("Hello World", "en", other_ns));
+    }
+
     TEST_CASE("datatype IRIs are kept") {
         storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
         util::Anonymizer anony{ns};

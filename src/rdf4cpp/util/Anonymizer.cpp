@@ -134,10 +134,14 @@ query::Variable Anonymizer::anonymize_impl(query::Variable const &var) {
     return query::Variable::make_named(mk_anon(), node_storage_);
 }
 
-Node Anonymizer::anonymize(Node const &non_anon) {
+Node Anonymizer::anonymize(Node const &node) {
     using namespace storage::identifier;
 
     Node ret;
+
+    // Intern into our own node storage to ensure the lookup works
+    // for terms with same content in different node storages.
+    Node const non_anon = node.to_node_storage(node_storage_);
 
     if (non_anon.null() || non_anon.as_iri().is_default_graph()) {
         ret = non_anon.as_iri();
