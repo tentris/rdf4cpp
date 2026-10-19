@@ -181,6 +181,18 @@ _:customer2 a foaf:Person ;
         CHECK(all_distinct(std::vector<Node>{iri, iri2, bn, bn2, named_var, named_var2, anon_var, anon_var2, lit, lit2}));
     }
 
+    TEST_CASE("datatype IRIs are kept") {
+        storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
+        util::Anonymizer anony{ns};
+
+        for (auto const &entry : datatypes::registry::DatatypeRegistry::registered_datatypes()) {
+            if (!entry.datatype_iri.empty()) {
+                IRI const iri = IRI::make(entry.datatype_iri, ns);
+                CHECK_EQ(anony.anonymize(iri), iri);
+            }
+        }
+    }
+
     TEST_CASE("literals") {
         using namespace datatypes;
 

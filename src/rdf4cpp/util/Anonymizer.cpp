@@ -112,8 +112,13 @@ BlankNode Anonymizer::anonymize_impl([[maybe_unused]] BlankNode const &bnode) {
     return BlankNode::make(mk_anon(), node_storage_);
 }
 
-IRI Anonymizer::anonymize_impl([[maybe_unused]] IRI const &iri) {
+IRI Anonymizer::anonymize_impl(IRI const &iri) {
     RDF4CPP_ASSERT(!iri.null());
+
+    if (datatypes::registry::DatatypeRegistry::get_entry(datatypes::registry::DatatypeIDView{iri}) != nullptr) {
+        return iri;
+    }
+
     MkAnon<"http://example.org/"> mk_anon_str{*this};
     return IRI::make(mk_anon_str(), node_storage_);
 }
