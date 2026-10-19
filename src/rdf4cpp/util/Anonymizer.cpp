@@ -115,7 +115,9 @@ BlankNode Anonymizer::anonymize_impl([[maybe_unused]] BlankNode const &bnode) {
 IRI Anonymizer::anonymize_impl(IRI const &iri) {
     RDF4CPP_ASSERT(!iri.null());
 
-    if (datatypes::registry::DatatypeRegistry::get_entry(datatypes::registry::DatatypeIDView{iri}) != nullptr) {
+    if (iri.is_default_graph()
+        || iri.is_rdf_type()
+        || datatypes::registry::DatatypeRegistry::get_entry(datatypes::registry::DatatypeIDView{iri}) != nullptr) {
         return iri;
     }
 
@@ -143,8 +145,8 @@ Node Anonymizer::anonymize(Node const &node) {
     // for terms with same content in different node storages.
     Node const non_anon = node.to_node_storage(node_storage_);
 
-    if (non_anon.null() || non_anon.as_iri().is_default_graph()) {
-        ret = non_anon.as_iri();
+    if (non_anon.null()) {
+        ret = non_anon;
         return ret;
     }
 
