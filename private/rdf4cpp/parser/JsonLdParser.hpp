@@ -1,7 +1,6 @@
 #ifndef RDF4CPP_JSONLDPARSER_HPP
 #define RDF4CPP_JSONLDPARSER_HPP
 
-#include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
 #include <rdf4cpp/Quad.hpp>
 #include <rdf4cpp/parser/IStreamQuadIterator.hpp>
@@ -9,6 +8,7 @@
 #include <rdf4cpp/parser/JsonLdExpandParser.hpp>
 #include <rdf4cpp/parser/JsonLdParserTypes.hpp>
 
+#include <expected>
 #include <generator>
 #include <memory>
 
@@ -64,15 +64,15 @@ namespace rdf4cpp::parser {
         ParsingFlags flags_;
 
         json_ld::IRIMapping make_new_bn();
-        nonstd::expected<IRI, error_type> make_iri(std::string_view iri);
-        nonstd::expected<IRI, error_type> make_iri(json_ld::IRIMapping const &iri);
-        nonstd::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const &mapping);
-        nonstd::expected<json_ld::DirectionLiteralResult, error_type> make_literal(json_ld::StringLikeLiteralMapping const &lit, json_ld::IRIMapping const &graph);
-        nonstd::expected<Literal, error_type> make_literal(json_ld::TypedLiteralMapping const &lit);
-        nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object);
-        nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, Node object);
+        std::expected<IRI, error_type> make_iri(std::string_view iri);
+        std::expected<IRI, error_type> make_iri(json_ld::IRIMapping const &iri);
+        std::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const &mapping);
+        std::expected<json_ld::DirectionLiteralResult, error_type> make_literal(json_ld::StringLikeLiteralMapping const &lit, json_ld::IRIMapping const &graph);
+        std::expected<Literal, error_type> make_literal(json_ld::TypedLiteralMapping const &lit);
+        std::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object);
+        std::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, Node object);
 
-        using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
+        using result_generator = std::generator<std::expected<ok_type, error_type>>;
 
         /**
          * Yields the quads of a literal object: the quad for the literal itself, plus the extra quads
@@ -118,7 +118,7 @@ namespace rdf4cpp::parser {
         static constexpr size_t StreamChunkSize = 64 * 1024;
 
     public:
-        [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
+        [[nodiscard]] std::optional<std::expected<ok_type, error_type>> next() override;
         [[nodiscard]] uint64_t current_line() const noexcept override;
         [[nodiscard]] uint64_t current_column() const noexcept override;
 

@@ -1,7 +1,8 @@
 #ifndef RDF4CPP_XMLPARSER_H
 #define RDF4CPP_XMLPARSER_H
 
-#include <rdf4cpp/Expected.hpp>
+#include <expected>
+
 #include <rdf4cpp/Quad.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
 #include <rdf4cpp/parser/IStreamQuadIterator.hpp>

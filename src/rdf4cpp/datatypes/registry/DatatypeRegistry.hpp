@@ -50,7 +50,7 @@ struct DatatypeRegistry {
 
     struct OpResult {
         DatatypeID result_type_id;
-        nonstd::expected<util::AnyValue, DynamicError> result_value;
+        std::expected<util::AnyValue, DynamicError> result_value;
     };
 
     using nullop_fptr_t = std::any (*)() noexcept;
@@ -65,7 +65,7 @@ struct DatatypeRegistry {
      */
     using compare_inlined_fptr_t = std::partial_ordering (*)(storage::identifier::LiteralID, storage::identifier::LiteralID) noexcept;
 
-    using from_multiplicity_fptr_t = nonstd::expected<util::AnyValue, DynamicError> (*)(uint64_t multiplicity) noexcept;
+    using from_multiplicity_fptr_t = std::expected<util::AnyValue, DynamicError> (*)(uint64_t multiplicity) noexcept;
 
     struct NumericOpsImpl {
         nullop_fptr_t zero_value_fptr; // 0
@@ -703,11 +703,11 @@ struct SelectOpResIRI {
 };
 
 template<typename T>
-[[nodiscard]] nonstd::expected<util::AnyValue, DynamicError> map_expected(nonstd::expected<T, DynamicError> const &e) noexcept {
+[[nodiscard]] std::expected<util::AnyValue, DynamicError> map_expected(std::expected<T, DynamicError> const &e) noexcept {
     if (e.has_value()) {
         return std::any{*e};
     } else {
-        return nonstd::make_unexpected(e.error());
+        return std::unexpected(e.error());
     }
 }
 }  // namespace detail
@@ -835,7 +835,7 @@ DatatypeRegistry::NumericOpsImpl DatatypeRegistry::make_numeric_ops_impl() noexc
                     return nullptr;
                 }
             }(),
-            .from_multiplicity_fptr = [](uint64_t multiplicity) noexcept -> nonstd::expected<util::AnyValue, DynamicError> {
+            .from_multiplicity_fptr = [](uint64_t multiplicity) noexcept -> std::expected<util::AnyValue, DynamicError> {
                 return detail::map_expected(LiteralDatatype_t::from_multiplicity(multiplicity));
             }};
 }

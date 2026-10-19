@@ -39,7 +39,7 @@ std::partial_ordering capabilities::Comparable<xsd_positive_integer>::compare(cp
 
 template<>
 template<>
-nonstd::expected<capabilities::Default<xsd_positive_integer>::cpp_type, DynamicError> capabilities::Subtype<xsd_positive_integer>::from_supertype<0>(super_cpp_type<0> const &value) noexcept;
+std::expected<capabilities::Default<xsd_positive_integer>::cpp_type, DynamicError> capabilities::Subtype<xsd_positive_integer>::from_supertype<0>(super_cpp_type<0> const &value) noexcept;
 
 template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_positive_integer>::try_into_inlined(cpp_type const &value) noexcept;

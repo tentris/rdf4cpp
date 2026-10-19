@@ -26,7 +26,7 @@ namespace rdf4cpp::parser {
     }
 
     void XMLOutputQueue::add_error(ParsingError::Type ty, std::string msg, XMLStateInfo const &i) {
-        result_queue_.emplace_back(nonstd::unexpect, ty, i.line, i.column, std::move(msg));
+        result_queue_.emplace_back(std::unexpect, ty, i.line, i.column, std::move(msg));
     }
     void XMLOutputQueue::add_old_term_error(XMLStateInfo const &i) {
         add_error(ParsingError::Type::BadSyntax, "rdf:bagID, rdf:aboutEach and rdf:aboutEachPrefix were removed", i);

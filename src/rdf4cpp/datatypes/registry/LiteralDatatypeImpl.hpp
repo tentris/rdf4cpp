@@ -111,10 +111,10 @@ struct Promotable {
     }
 
     template<size_t ix = 0>
-    inline static nonstd::expected<cpp_type, DynamicError> demote(promoted_cpp_type<ix> const &value) noexcept {
+    inline static std::expected<cpp_type, DynamicError> demote(promoted_cpp_type<ix> const &value) noexcept {
         if constexpr (std::is_integral_v<cpp_type> && std::is_integral_v<promoted_cpp_type<ix>>) {
             if (!std::in_range<cpp_type>(value)) {
-                return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
+                return std::unexpected(DynamicError::InvalidValueForCast);
             }
         }
 
@@ -144,10 +144,10 @@ struct Subtype {
     }
 
     template<size_t ix = 0>
-    inline static nonstd::expected<cpp_type, DynamicError> from_supertype(super_cpp_type<ix> const &value) noexcept {
+    inline static std::expected<cpp_type, DynamicError> from_supertype(super_cpp_type<ix> const &value) noexcept {
         if constexpr (std::is_integral_v<cpp_type> && std::is_integral_v<super_cpp_type<ix>>) {
             if (!std::in_range<cpp_type>(value)) {
-                return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
+                return std::unexpected(DynamicError::InvalidValueForCast);
             }
         }
 
@@ -200,13 +200,13 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-add
-    static nonstd::expected<add_result_cpp_type, DynamicError> add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    static std::expected<add_result_cpp_type, DynamicError> add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
         if constexpr (std::is_integral_v<cpp_type>) {
             cpp_type res;
             bool const overflowed = __builtin_add_overflow(lhs, rhs, &res);
 
             if (overflowed) {
-                return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+                return std::unexpected(DynamicError::OverOrUnderFlow);
             }
 
             return res;
@@ -216,13 +216,13 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-subtract
-    static nonstd::expected<sub_result_cpp_type, DynamicError> sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    static std::expected<sub_result_cpp_type, DynamicError> sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
         if constexpr (std::is_integral_v<cpp_type>) {
             cpp_type res;
             bool const overflowed = __builtin_sub_overflow(lhs, rhs, &res);
 
             if (overflowed) {
-                return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+                return std::unexpected(DynamicError::OverOrUnderFlow);
             }
 
             return res;
@@ -232,13 +232,13 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-multiply
-    static nonstd::expected<mul_result_cpp_type, DynamicError> mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    static std::expected<mul_result_cpp_type, DynamicError> mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
         if constexpr (std::is_integral_v<cpp_type>) {
             cpp_type res;
             bool const overflowed = __builtin_mul_overflow(lhs, rhs, &res);
 
             if (overflowed) {
-                return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+                return std::unexpected(DynamicError::OverOrUnderFlow);
             }
 
             return res;
@@ -248,10 +248,10 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-divide
-    static nonstd::expected<div_result_cpp_type, DynamicError> div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    static std::expected<div_result_cpp_type, DynamicError> div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
         if constexpr (std::is_integral_v<cpp_type>) {
             if (rhs == 0) {
-                return nonstd::make_unexpected(DynamicError::DivideByZero);
+                return std::unexpected(DynamicError::DivideByZero);
             }
         }
 
@@ -259,37 +259,37 @@ struct Numeric {
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-unary-plus
-    static nonstd::expected<pos_result_cpp_type, DynamicError> pos(cpp_type const &operand) noexcept {
+    static std::expected<pos_result_cpp_type, DynamicError> pos(cpp_type const &operand) noexcept {
         return +operand;
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-numeric-unary-minus
-    static nonstd::expected<neg_result_cpp_type, DynamicError> neg(cpp_type const &operand) noexcept {
+    static std::expected<neg_result_cpp_type, DynamicError> neg(cpp_type const &operand) noexcept {
         if constexpr (std::is_unsigned_v<cpp_type>) {
-            return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+            return std::unexpected(DynamicError::OverOrUnderFlow);
         } else {
             return -operand;
         }
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-abs
-    static nonstd::expected<abs_result_cpp_type, DynamicError> abs([[maybe_unused]] cpp_type const &operand) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<abs_result_cpp_type, DynamicError> abs([[maybe_unused]] cpp_type const &operand) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-round
-    static nonstd::expected<round_result_cpp_type, DynamicError> round([[maybe_unused]] cpp_type const &operand) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<round_result_cpp_type, DynamicError> round([[maybe_unused]] cpp_type const &operand) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-floor
-    static nonstd::expected<floor_result_cpp_type, DynamicError> floor([[maybe_unused]] cpp_type const &operand) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<floor_result_cpp_type, DynamicError> floor([[maybe_unused]] cpp_type const &operand) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
     // https://www.w3.org/TR/xpath-functions/#func-ceiling
-    static nonstd::expected<ceil_result_cpp_type, DynamicError> ceil([[maybe_unused]] cpp_type const &operand) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<ceil_result_cpp_type, DynamicError> ceil([[maybe_unused]] cpp_type const &operand) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
     static bool is_inf([[maybe_unused]] cpp_type const &operand) noexcept {
@@ -301,8 +301,8 @@ struct Numeric {
         }
     }
 
-    static nonstd::expected<cpp_type, DynamicError> from_multiplicity([[maybe_unused]] uint64_t multiplicity) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<cpp_type, DynamicError> from_multiplicity([[maybe_unused]] uint64_t multiplicity) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 };
 
@@ -331,16 +331,16 @@ struct Timepoint {
     using timepoint_sub_result_cpp_type = typename detail::SelectOpResult<timepoint_sub_result, cpp_type>::type;
     using timepoint_duration_operand_cpp_type = typename detail::SelectOpResult<timepoint_duration_operand_type, cpp_type>::type;
 
-    static nonstd::expected<timepoint_sub_result_cpp_type, DynamicError> timepoint_sub([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<timepoint_sub_result_cpp_type, DynamicError> timepoint_sub([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
-    static nonstd::expected<cpp_type, DynamicError> timepoint_duration_add([[maybe_unused]] cpp_type const &tp, [[maybe_unused]] timepoint_duration_operand_cpp_type const &dur) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<cpp_type, DynamicError> timepoint_duration_add([[maybe_unused]] cpp_type const &tp, [[maybe_unused]] timepoint_duration_operand_cpp_type const &dur) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
-    static nonstd::expected<cpp_type, DynamicError> timepoint_duration_sub([[maybe_unused]] cpp_type const &tp, [[maybe_unused]] timepoint_duration_operand_cpp_type const &dur) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<cpp_type, DynamicError> timepoint_duration_sub([[maybe_unused]] cpp_type const &tp, [[maybe_unused]] timepoint_duration_operand_cpp_type const &dur) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 };
 
@@ -357,24 +357,24 @@ struct Duration {
     using duration_scalar_cpp_type = typename detail::SelectOpResult<duration_scalar_type, cpp_type>::type;
     using duration_div_result_cpp_type = typename detail::SelectOpResult<duration_div_result_type, cpp_type>::type;
 
-    static nonstd::expected<cpp_type, DynamicError> duration_add([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<cpp_type, DynamicError> duration_add([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
-    static nonstd::expected<cpp_type, DynamicError> duration_sub([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<cpp_type, DynamicError> duration_sub([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
-    static nonstd::expected<duration_div_result_cpp_type, DynamicError> duration_div([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<duration_div_result_cpp_type, DynamicError> duration_div([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
-    static nonstd::expected<cpp_type, DynamicError> duration_scalar_mul([[maybe_unused]] cpp_type const &dur, [[maybe_unused]] duration_scalar_cpp_type const &scalar) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<cpp_type, DynamicError> duration_scalar_mul([[maybe_unused]] cpp_type const &dur, [[maybe_unused]] duration_scalar_cpp_type const &scalar) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 
-    static nonstd::expected<cpp_type, DynamicError> duration_scalar_div([[maybe_unused]] cpp_type const &dur, [[maybe_unused]] duration_scalar_cpp_type const &scalar) noexcept {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+    static std::expected<cpp_type, DynamicError> duration_scalar_div([[maybe_unused]] cpp_type const &dur, [[maybe_unused]] duration_scalar_cpp_type const &scalar) noexcept {
+        return std::unexpected(DynamicError::Unsupported);
     }
 };
 

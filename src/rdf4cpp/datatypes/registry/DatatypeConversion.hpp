@@ -2,11 +2,10 @@
 #define RDF4CPP_DATATYPECONVERSION_HPP
 
 #include <cstddef>
+#include <expected>
 #include <functional>
 #include <type_traits>
 #include <utility>
-
-#include <rdf4cpp/Expected.hpp>
 
 #include <rdf4cpp/datatypes/LiteralDatatype.hpp>
 #include <rdf4cpp/datatypes/registry/DatatypeConversionTyping.hpp>
@@ -109,7 +108,7 @@ consteval ConversionLayer auto make_conversion_layer_impl() {
                         return next::template convert<ix>(value);
                     }
 
-                    static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
+                    static std::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
                         return next::template inverse_convert<ix>(value);
                     }
                 };
@@ -132,10 +131,10 @@ consteval ConversionLayer auto make_conversion_layer_impl() {
                         return next::template convert<ix>(prev_promotion_t::convert(value));
                     }
 
-                    static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
+                    static std::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
                         auto const converted = next::template inverse_convert<ix>(value);
                         if (!converted.has_value()) {
-                            return nonstd::make_unexpected(converted.error());
+                            return std::unexpected(converted.error());
                         }
 
                         return prev_promotion_t::inverse_convert(*converted);
@@ -179,7 +178,7 @@ struct PromoteConversion<LiteralDatatypeImpl> {
     }
 
     template<size_t ix>
-    inline static nonstd::expected<cpp_type, DynamicError> inverse_convert(converted_cpp_type<ix> const &value) noexcept {
+    inline static std::expected<cpp_type, DynamicError> inverse_convert(converted_cpp_type<ix> const &value) noexcept {
         return LiteralDatatypeImpl::template demote<ix>(value);
     }
 };
@@ -207,7 +206,7 @@ struct SupertypeConversion<LiteralDatatypeImpl> {
     }
 
     template<size_t ix>
-    inline static nonstd::expected<cpp_type, DynamicError> inverse_convert(converted_cpp_type<ix> const &value) noexcept {
+    inline static std::expected<cpp_type, DynamicError> inverse_convert(converted_cpp_type<ix> const &value) noexcept {
         return LiteralDatatypeImpl::template from_supertype<ix>(value);
     }
 };
@@ -344,7 +343,7 @@ consteval ConversionTable auto make_conversion_table() {
             return value;
         }
 
-        static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
+        static std::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
             return value;
         }
     };
@@ -371,10 +370,10 @@ consteval ConversionTable auto make_conversion_table() {
                         return PromoteSuper::convert(ToSuper::convert(value));
                     }
 
-                    static nonstd::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
+                    static std::expected<typename source_type::cpp_type, DynamicError> inverse_convert(typename target_type::cpp_type const &value) noexcept {
                         auto const demoted = PromoteSuper::inverse_convert(value);
                         if (!demoted.has_value()) {
-                            return nonstd::make_unexpected(demoted.error());
+                            return std::unexpected(demoted.error());
                         }
 
                         return ToSuper::inverse_convert(*demoted);

@@ -38,7 +38,7 @@ bool capabilities::Logical<xsd_unsigned_long>::effective_boolean_value(cpp_type 
 
 template<>
 template<>
-nonstd::expected<capabilities::Default<xsd_unsigned_long>::cpp_type, DynamicError> capabilities::Subtype<xsd_unsigned_long>::from_supertype<0>(super_cpp_type<0> const &value) noexcept;
+std::expected<capabilities::Default<xsd_unsigned_long>::cpp_type, DynamicError> capabilities::Subtype<xsd_unsigned_long>::from_supertype<0>(super_cpp_type<0> const &value) noexcept;
 #endif
 
 extern template struct LiteralDatatypeImpl<xsd_unsigned_long,

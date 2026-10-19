@@ -7,10 +7,10 @@ namespace rdf4cpp::parser::json_ld {
         }
         return iri_factory->set_base(base);
     }
-    nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p) {
+    std::expected<Context, ContextParser::error_type> ContextParser::parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p) {
         // https://www.w3.org/TR/json-ld11-api/#context-processing-algorithm
         // 1
-        nonstd::expected<Context, error_type> result{p.active_context};
+        std::expected<Context, error_type> result{p.active_context};
         for (auto &t : result->terms) {
             t.needs_context_check = false;
         }
@@ -19,14 +19,14 @@ namespace rdf4cpp::parser::json_ld {
             {  // 5.5
                 auto [c, v] = try_get_field<double>(o, keyword_version);
                 if (c != simdjson::NO_SUCH_FIELD && (c != simdjson::SUCCESS || v != 1.1)) {
-                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @version value")};
+                    result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @version value")};
                     return true;
                 }
             }
             {  // 5.6
                 auto [c, v] = try_get_field<std::string_view>(o, keyword_import);
                 if (c != simdjson::NO_SUCH_FIELD) {
-                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, c != simdjson::SUCCESS ? "invalid @import value " : "import context not supported")};
+                    result = std::unexpected{make_error(ParsingError::Type::BadSyntax, c != simdjson::SUCCESS ? "invalid @import value " : "import context not supported")};
                     return true;
                 }
             }
@@ -34,7 +34,7 @@ namespace rdf4cpp::parser::json_ld {
                 auto [c, v] = try_get_optional_field<std::string_view>(o, keyword_base);
                 if (c != simdjson::NO_SUCH_FIELD) {
                     if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
+                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base IRI")};
                         return true;
                     }
                     if (!v.has_value()) {
@@ -49,10 +49,10 @@ namespace rdf4cpp::parser::json_ld {
                                 result->base_iri = *v;
                             }
                         } catch (InvalidIRI const &ii) {
-                            result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, std::format("invalid base IRI: {}", ii.what()))};
+                            result = std::unexpected{make_error(ParsingError::Type::BadSyntax, std::format("invalid base IRI: {}", ii.what()))};
                             return true;
                         } catch (...) {
-                            result = nonstd::unexpected{make_error(ParsingError::Type::Internal, "unknown internal error")};
+                            result = std::unexpected{make_error(ParsingError::Type::Internal, "unknown internal error")};
                             return true;
                         }
                     }
@@ -92,7 +92,7 @@ namespace rdf4cpp::parser::json_ld {
                 auto [c, v] = try_get_optional_field<std::string_view>(o, keyword_vocab);
                 if (c != simdjson::NO_SUCH_FIELD) {
                     if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid vocab mapping")};
+                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid vocab mapping")};
                         return true;
                     }
                     if (!v.has_value()) {
@@ -105,7 +105,7 @@ namespace rdf4cpp::parser::json_ld {
                         };
                         auto r = iri_expansion(result.value(), v, true, true, nullptr, &p_ctx);
                         if (!r.has_value() || r->type != IRIMappingType::IRI) {  // a blank node as @vocab is deprecated, not removed
-                            result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid vocab mapping")};
+                            result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid vocab mapping")};
                             return true;
                         }
                         result->vocab = std::move(r->data);
@@ -116,7 +116,7 @@ namespace rdf4cpp::parser::json_ld {
                 auto [c, v] = try_get_optional_field<std::string_view>(o, keyword_language);
                 if (c != simdjson::NO_SUCH_FIELD) {
                     if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid default language")};
+                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid default language")};
                         return true;
                     }
                     if (!v.has_value()) {
@@ -130,7 +130,7 @@ namespace rdf4cpp::parser::json_ld {
                 auto [c, v] = try_get_optional_field<std::string_view>(o, keyword_direction);
                 if (c != simdjson::NO_SUCH_FIELD) {
                     if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base direction")};
+                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base direction")};
                         return true;
                     }
                     if (!v.has_value()) {
@@ -140,7 +140,7 @@ namespace rdf4cpp::parser::json_ld {
                         if (bd.has_value()) {
                             result->base_direction = *bd;
                         } else {
-                            result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base direction")};
+                            result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid base direction")};
                             return true;
                         }
                     }
@@ -149,7 +149,7 @@ namespace rdf4cpp::parser::json_ld {
             {  // 5.11
                 auto [c, v] = try_get_field<bool>(o, keyword_propagate);
                 if (c != simdjson::NO_SUCH_FIELD && c != simdjson::SUCCESS) {
-                    result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @propagate value")};
+                    result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @propagate value")};
                     return true;
                 }
                 // @propagate is only validated here, parse_local_context applies it
@@ -158,7 +158,7 @@ namespace rdf4cpp::parser::json_ld {
                 auto [c, prot] = try_get_field<bool>(o, keyword_protected);
                 if (c != simdjson::NO_SUCH_FIELD) {
                     if (c != simdjson::SUCCESS) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @protected value")};
+                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid @protected value")};
                         return true;
                     }
                 } else {
@@ -176,7 +176,7 @@ namespace rdf4cpp::parser::json_ld {
                         .override_protected = p.override_protected,
                     });
                     if (e.has_value()) {
-                        result = nonstd::unexpected{e.value()};
+                        result = std::unexpected{e.value()};
                         return true;
                     }
                 }
@@ -184,11 +184,11 @@ namespace rdf4cpp::parser::json_ld {
             return false;
         };
 
-        auto handle_null = [&]() -> nonstd::expected<Context, error_type> {
+        auto handle_null = [&]() -> std::expected<Context, error_type> {
             if (!p.override_protected) {
                 for (auto const &t : p.active_context.terms) {
                     if (t.is_protected) {
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification")};
+                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification")};
                         return result;
                     }
                 }
@@ -214,7 +214,7 @@ namespace rdf4cpp::parser::json_ld {
             return result;
         } else if (local_context.type() == simdjson::ondemand::json_type::string) {  // 5.2
             // a string names a remote context, the same case as inside the array below
-            result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
+            result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
             return result;
         } else {
             if (!p.propagate && result->previous_context == nullptr) {
@@ -222,7 +222,7 @@ namespace rdf4cpp::parser::json_ld {
             }
             simdjson::ondemand::array a{};
             if (local_context.get(a) != simdjson::SUCCESS) {
-                result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid local context")};
+                result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid local context")};
                 return result;
             }
             for (auto v : a) {
@@ -242,10 +242,10 @@ namespace rdf4cpp::parser::json_ld {
                         }
                         break;
                     case simdjson::ondemand::json_type::string:  // 5.2
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
+                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "remote context not supported")};
                         return result;
                     default:  // 5.3
-                        result = nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid local context")};
+                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid local context")};
                         return result;
                 }
             }
@@ -263,7 +263,7 @@ namespace rdf4cpp::parser::json_ld {
                         .override_protected = true,
                     });
                     if (!lc.has_value()) {
-                        result = nonstd::unexpected(make_error(ParsingError::Type::BadSyntax, std::format("invalid scoped context ({})", lc.error().message)));
+                        result = std::unexpected(make_error(ParsingError::Type::BadSyntax, std::format("invalid scoped context ({})", lc.error().message)));
                         return result;
                     }
                 }
@@ -860,15 +860,15 @@ namespace rdf4cpp::parser::json_ld {
         res = std::nullopt;
         return res;
     }
-    nonstd::expected<Context, ContextParser::error_type> ContextParser::parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p) {
+    std::expected<Context, ContextParser::error_type> ContextParser::parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p) {
         simdjson::ondemand::parser parser{};
         simdjson::ondemand::document doc = parser.iterate(json);
         if (doc.is_scalar()) {
-            return nonstd::unexpected{make_error(ParsingError::Type::BadSyntax, doc.is_string() ? "remote context not supported" : "context free floating scalar")};
+            return std::unexpected{make_error(ParsingError::Type::BadSyntax, doc.is_string() ? "remote context not supported" : "context free floating scalar")};
         }
         return parse_context(doc, p);
     }
-    nonstd::expected<IRIMapping, ContextParser::error_type> ContextParser::iri_expansion(Context const &active_context,
+    std::expected<IRIMapping, ContextParser::error_type> ContextParser::iri_expansion(Context const &active_context,
                                                                                          std::optional<std::string_view> value,
                                                                                          bool document_relative,
                                                                                          bool vocab,
@@ -898,7 +898,7 @@ namespace rdf4cpp::parser::json_ld {
                     .base_iri = "",
                 });
                 if (e.has_value()) {
-                    return nonstd::make_unexpected(*e);
+                    return std::unexpected(*e);
                 }
             }
         }
@@ -937,7 +937,7 @@ namespace rdf4cpp::parser::json_ld {
                             .base_iri = "",
                         });
                         if (e.has_value()) {
-                            return nonstd::make_unexpected(*e);
+                            return std::unexpected(*e);
                         }
                     }
                 }
@@ -971,18 +971,18 @@ namespace rdf4cpp::parser::json_ld {
             try {
                 set_resolution_base(active_context.base_iri);
             } catch (InvalidIRI const &ii) {
-                return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid base iri: {}", ii.what())));
+                return std::unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid base iri: {}", ii.what())));
             } catch (...) {
-                return nonstd::make_unexpected(make_error(ParsingError::Type::Internal, "unknown internal error"));
+                return std::unexpected(make_error(ParsingError::Type::Internal, "unknown internal error"));
             }
 
             try {
                 auto r = iri_factory->from_maybe_relative_as_string(*value);
                 return IRIMapping{std::string(r), IRIMappingType::IRI};
             } catch (InvalidIRI const &ii) {
-                return nonstd::make_unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid relative iri: {}", ii.what())));
+                return std::unexpected(make_error(ParsingError::Type::BadIri, std::format("invalid relative iri: {}", ii.what())));
             } catch (...) {
-                return nonstd::make_unexpected(make_error(ParsingError::Type::Internal, "unknown internal error"));
+                return std::unexpected(make_error(ParsingError::Type::Internal, "unknown internal error"));
             }
         }
         // 9

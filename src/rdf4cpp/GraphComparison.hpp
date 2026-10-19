@@ -25,13 +25,13 @@ namespace rdf4cpp {
      */
     template<std::ranges::sized_range Q, std::ranges::range G>
     requires std::ranges::random_access_range<Q> && std::same_as<std::ranges::range_value_t<Q>, std::remove_cvref_t<Node>> && std::same_as<std::ranges::range_value_t<G>, std::remove_cvref_t<Q>>
-    nonstd::expected<std::map<BlankNode, BlankNode>, std::pair<Node, Node>> try_compare_graphs_fast(G const & graph_a, G const & graph_b) {
+    std::expected<std::map<BlankNode, BlankNode>, std::pair<Node, Node>> try_compare_graphs_fast(G const & graph_a, G const & graph_b) {
         struct Quad {
             Q const *quad;
             size_t similar_count = 0;
         };
         static constexpr auto size_mismatch = []() {
-            return nonstd::unexpected{std::pair{Node::make_null(), Node::make_null()}};
+            return std::unexpected{std::pair{Node::make_null(), Node::make_null()}};
         };
 
         std::vector<Quad> a{};
@@ -224,7 +224,7 @@ namespace rdf4cpp {
             auto const &bi = *b[i].quad;
             for (size_t j = 0; j < arity; ++j) {
                 if (!check(ai[j], bi[j])) {
-                    return nonstd::unexpected{std::pair{ai[j], bi[j]}};
+                    return std::unexpected{std::pair{ai[j], bi[j]}};
                 }
             }
         }

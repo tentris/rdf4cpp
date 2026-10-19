@@ -53,18 +53,18 @@ capabilities::Promotable<xsd_date>::promoted_cpp_type<0> capabilities::Promotabl
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_date>::cpp_type, DynamicError> capabilities::Promotable<xsd_date>::demote<0>(promoted_cpp_type<0> const &value) noexcept;
+std::expected<capabilities::Promotable<xsd_date>::cpp_type, DynamicError> capabilities::Promotable<xsd_date>::demote<0>(promoted_cpp_type<0> const &value) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_date>::timepoint_sub_result_cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_date>::timepoint_sub_result_cpp_type, DynamicError>
 capabilities::Timepoint<xsd_date>::timepoint_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_date>::timepoint_duration_add(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_date>::timepoint_duration_sub(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept;
 
 #endif

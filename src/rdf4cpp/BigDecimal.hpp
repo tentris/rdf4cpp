@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cmath>
+#include <expected>
 #include <format>
 #include <functional>
 #include <limits>
@@ -14,7 +15,6 @@
 #include <dice/hash.hpp>
 
 #include <rdf4cpp/Assert.hpp>
-#include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/Int128.hpp>
 #include <rdf4cpp/InvalidNode.hpp>
 #include <rdf4cpp/util/boost_int.hpp>
@@ -445,10 +445,10 @@ namespace rdf4cpp {
              * checks overflow.
              * @return
              */
-            [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> unary_minus_checked() const noexcept {
+            [[nodiscard]] constexpr std::expected<BigDecimal, DecimalError> unary_minus_checked() const noexcept {
                 if constexpr (IntegralExt<UnscaledValue_t>) {
                     if (std::numeric_limits<UnscaledValue_t>::min() == unscaled_value)
-                        return nonstd::make_unexpected(DecimalError::Overflow);
+                        return std::unexpected(DecimalError::Overflow);
                 }
                 return BigDecimal(-this->unscaled_value, this->exponent);
             }
@@ -479,10 +479,10 @@ namespace rdf4cpp {
              * @param other
              * @return
              */
-            [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> add_checked(BigDecimal const &other) const noexcept {
+            [[nodiscard]] constexpr std::expected<BigDecimal, DecimalError> add_checked(BigDecimal const &other) const noexcept {
                 BigDecimal res{0};
                 if (add_or_sub<OverflowMode::Checked, detail::add_checked<OverflowMode::Checked>>(other, res))
-                    return nonstd::make_unexpected(DecimalError::Overflow);
+                    return std::unexpected(DecimalError::Overflow);
                 return res;
             }
 
@@ -515,10 +515,10 @@ namespace rdf4cpp {
              * @param other
              * @return
              */
-            [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> sub_checked(BigDecimal const &other) const noexcept {
+            [[nodiscard]] constexpr std::expected<BigDecimal, DecimalError> sub_checked(BigDecimal const &other) const noexcept {
                 BigDecimal res{0};
                 if (add_or_sub<OverflowMode::Checked, detail::sub_checked<OverflowMode::Checked>>(other, res))
-                    return nonstd::make_unexpected(DecimalError::Overflow);
+                    return std::unexpected(DecimalError::Overflow);
                 return res;
             }
 
@@ -551,10 +551,10 @@ namespace rdf4cpp {
              * @param other
              * @return
              */
-            [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> mul_checked(BigDecimal const &other) const noexcept {
+            [[nodiscard]] constexpr std::expected<BigDecimal, DecimalError> mul_checked(BigDecimal const &other) const noexcept {
                 BigDecimal res{0};
                 if (mul<OverflowMode::Checked>(other, res))
-                    return nonstd::make_unexpected(DecimalError::Overflow);
+                    return std::unexpected(DecimalError::Overflow);
                 return res;
             }
 
@@ -611,12 +611,12 @@ namespace rdf4cpp {
              * @param mode rounding mode to use
              * @return
              */
-            [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> div_checked(BigDecimal const &other, Exponent_t max_scale_increase, RoundingMode mode = RoundingMode::Floor) const noexcept {
+            [[nodiscard]] constexpr std::expected<BigDecimal, DecimalError> div_checked(BigDecimal const &other, Exponent_t max_scale_increase, RoundingMode mode = RoundingMode::Floor) const noexcept {
                 if (other.unscaled_value == 0)
-                    return nonstd::make_unexpected(DecimalError::NotDefined);
+                    return std::unexpected(DecimalError::NotDefined);
                 BigDecimal res{0};
                 if (div<OverflowMode::Checked>(other, max_scale_increase, mode, res))
-                    return nonstd::make_unexpected(DecimalError::Overflow);
+                    return std::unexpected(DecimalError::Overflow);
                 return res;
             }
 
@@ -651,10 +651,10 @@ namespace rdf4cpp {
              * @param n
              * @return
              */
-            [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> pow_checked(unsigned int n) const noexcept {
+            [[nodiscard]] constexpr std::expected<BigDecimal, DecimalError> pow_checked(unsigned int n) const noexcept {
                 BigDecimal r{0};
                 if (pow<OverflowMode::Checked>(n, r))
-                    return nonstd::make_unexpected(DecimalError::Overflow);
+                    return std::unexpected(DecimalError::Overflow);
                 return r;
             }
 
@@ -709,7 +709,7 @@ namespace rdf4cpp {
              * checks overflow.
              * @return
              */
-            [[nodiscard]] constexpr nonstd::expected<BigDecimal, DecimalError> abs_checked() const noexcept {
+            [[nodiscard]] constexpr std::expected<BigDecimal, DecimalError> abs_checked() const noexcept {
                 if (positive())
                     return *this;
                 else

@@ -75,7 +75,7 @@ capabilities::Promotable<xsd_gYearMonth>::promoted_cpp_type<0> capabilities::Pro
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_gYearMonth>::cpp_type, DynamicError> capabilities::Promotable<xsd_gYearMonth>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+std::expected<capabilities::Promotable<xsd_gYearMonth>::cpp_type, DynamicError> capabilities::Promotable<xsd_gYearMonth>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     return std::make_pair(YearMonth{value.first.year(), value.first.month()}, value.second);
 }
 #endif

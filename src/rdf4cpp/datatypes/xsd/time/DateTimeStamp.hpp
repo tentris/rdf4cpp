@@ -51,18 +51,18 @@ capabilities::Subtype<xsd_dateTimeStamp>::super_cpp_type<0> capabilities::Subtyp
 
 template<>
 template<>
-nonstd::expected<capabilities::Subtype<xsd_dateTimeStamp>::cpp_type, DynamicError> capabilities::Subtype<xsd_dateTimeStamp>::from_supertype<0>(super_cpp_type<0> const &value) noexcept;
+std::expected<capabilities::Subtype<xsd_dateTimeStamp>::cpp_type, DynamicError> capabilities::Subtype<xsd_dateTimeStamp>::from_supertype<0>(super_cpp_type<0> const &value) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_sub_result_cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_sub_result_cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_duration_add(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_duration_sub(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept;
 
 #endif

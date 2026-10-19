@@ -204,7 +204,7 @@ inline TimePoint add_duration_to_date_time(TimePoint const &tp, std::pair<std::c
     return date;
 }
 
-inline nonstd::expected<std::chrono::nanoseconds, DynamicError> timepoint_sub(std::pair<TimePoint, OptionalTimezone> const &lhs, std::pair<TimePoint, OptionalTimezone> const &rhs) noexcept {
+inline std::expected<std::chrono::nanoseconds, DynamicError> timepoint_sub(std::pair<TimePoint, OptionalTimezone> const &lhs, std::pair<TimePoint, OptionalTimezone> const &rhs) noexcept {
     try {
         ZonedTime const this_tp{lhs.second.has_value() ? *lhs.second : Timezone{},
                                 lhs.first};
@@ -215,7 +215,7 @@ inline nonstd::expected<std::chrono::nanoseconds, DynamicError> timepoint_sub(st
         auto d = this_tp.get_sys_time() - other_tp.get_sys_time();
         return std::chrono::duration_cast<std::chrono::nanoseconds>(d);
     } catch (std::overflow_error const &) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 }
 
