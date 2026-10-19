@@ -45,10 +45,10 @@ private:
     static std::string_view node_into_string_view(SerdNode const *node) noexcept;
     static ParsingError::Type parsing_error_type_from_serd(SerdStatus st) noexcept;
 
-    nonstd::expected<Node, SerdStatus> get_bnode(std::string &&graph_str, SerdNode const *node) noexcept;
-    nonstd::expected<IRI, SerdStatus> get_iri(SerdNode const *node) noexcept;
-    nonstd::expected<IRI, SerdStatus> get_prefixed_iri(SerdNode const *node) noexcept;
-    nonstd::expected<Literal, SerdStatus> get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept;
+    std::expected<Node, SerdStatus> get_bnode(std::string &&graph_str, SerdNode const *node) noexcept;
+    std::expected<IRI, SerdStatus> get_iri(SerdNode const *node) noexcept;
+    std::expected<IRI, SerdStatus> get_prefixed_iri(SerdNode const *node) noexcept;
+    std::expected<Literal, SerdStatus> get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept;
     SerdStatus inspect_node(Node const &node) noexcept;
 
     static SerdStatus on_error(void *voided_self, SerdError const *error) noexcept;
@@ -88,7 +88,7 @@ public:
      *      expected Quad: if there was a next element and it could be parsed
      *      unexpected ParsingError: if there was a next element but it could not be parsed
      */
-    [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
+    [[nodiscard]] std::optional<std::expected<ok_type, error_type>> next() override;
 
     [[nodiscard]] uint64_t current_line() const noexcept override;
     [[nodiscard]] uint64_t current_column() const noexcept override;

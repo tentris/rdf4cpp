@@ -35,7 +35,7 @@ static DeferredLiteral make_deferred_from_multiplicity_impl(uint64_t multiplicit
         return DeferredLiteral{};
     }
 
-    return deferred_detail::make_deferred_from_value(std::move(*res), dt_view, node_storage);
+    return deferred_detail::make_deferred_from_value(std::move(res->value), dt_view, node_storage);
 }
 
 DeferredLiteral make_deferred_from_multiplicity(uint64_t multiplicity, IRI const &datatype) {
@@ -99,7 +99,7 @@ NumericAddWithLossResult numeric_add_with_loss_deferred(DeferredLiteral const &l
         IRI const datatype{sum.result_type_id, node_storage};
 
         auto loss = [&]() -> DeferredLiteral {
-            if (num_ops.is_inf_fptr(*sum.result_value)) {
+            if (num_ops.is_inf_fptr(sum.result_value->value)) {
                 return {};  // an infinite sum has nothing to report but inf - inf = NaN
             }
 
@@ -108,20 +108,20 @@ NumericAddWithLossResult numeric_add_with_loss_deferred(DeferredLiteral const &l
             // inexact, never wrong, because it is added to the total rather than replacing it
             bool const lhs_is_larger = num_ops.magnitude_compare_fptr != nullptr && std::is_gteq(num_ops.magnitude_compare_fptr(lhs, rhs));
 
-            auto const diff = num_ops.sub_fptr(lhs_is_larger ? lhs : rhs, *sum.result_value);
+            auto const diff = num_ops.sub_fptr(lhs_is_larger ? lhs : rhs, sum.result_value->value);
             if (!diff.result_value.has_value()) {
                 return {};
             }
 
-            auto res = num_ops.add_fptr(*diff.result_value, lhs_is_larger ? rhs : lhs);
+            auto res = num_ops.add_fptr(diff.result_value->value, lhs_is_larger ? rhs : lhs);
             if (!res.result_value.has_value()) {
                 return {};
             }
 
-            return DeferredLiteral{std::move(*res.result_value), datatype};
+            return DeferredLiteral{std::move(res.result_value->value), datatype};
         }();
 
-        return NumericAddWithLossResult{.result = DeferredLiteral{std::move(*sum.result_value), datatype}, .loss = std::move(loss)};
+        return NumericAddWithLossResult{.result = DeferredLiteral{std::move(sum.result_value->value), datatype}, .loss = std::move(loss)};
     };
 
     return deferred_detail::numeric_equalized_deferred_impl(op, NumericAddWithLossResult{}, lhs, rhs);

@@ -212,74 +212,74 @@ std::partial_ordering capabilities::Comparable<xsd_duration>::compare(cpp_type c
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     auto mon = util::to_checked(lhs.first) + util::to_checked(rhs.first);
     auto nanos = util::to_checked(lhs.second) + util::to_checked(rhs.second);
     if (mon.count().is_invalid() || nanos.count().is_invalid()) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
     if (mon < std::chrono::months{0} && nanos > std::chrono::nanoseconds{0}) {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+        return std::unexpected(DynamicError::Unsupported);
     }
     if (mon > std::chrono::months{0} && nanos < std::chrono::nanoseconds{0}) {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+        return std::unexpected(DynamicError::Unsupported);
     }
     return std::make_pair(util::from_checked(mon), util::from_checked(nanos));
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     auto mon = util::to_checked(lhs.first) - util::to_checked(rhs.first);
     auto nanos = util::to_checked(lhs.second) - util::to_checked(rhs.second);
     if (mon.count().is_invalid() || nanos.count().is_invalid()) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
     if (mon < std::chrono::months{0} && nanos > std::chrono::nanoseconds{0}) {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+        return std::unexpected(DynamicError::Unsupported);
     }
     if (mon > std::chrono::months{0} && nanos < std::chrono::nanoseconds{0}) {
-        return nonstd::make_unexpected(DynamicError::Unsupported);
+        return std::unexpected(DynamicError::Unsupported);
     }
     return std::make_pair(util::from_checked(mon), util::from_checked(nanos));
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::duration_div_result_cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::duration_div_result_cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_div([[maybe_unused]] cpp_type const &lhs, [[maybe_unused]] cpp_type const &rhs) noexcept {
-    return nonstd::make_unexpected(DynamicError::Unsupported);
+    return std::unexpected(DynamicError::Unsupported);
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_scalar_mul(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept {
     auto mon = std::round(static_cast<double>(dur.first.count()) * scalar);
     if (!datatypes::registry::util::fits_into<int64_t>(mon)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
     auto nanos = std::round(static_cast<double>(dur.second.count()) * scalar);
     if (!datatypes::registry::util::fits_into<int64_t>(nanos)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 
     return std::make_pair(std::chrono::months{static_cast<int64_t>(mon)}, std::chrono::nanoseconds{static_cast<int64_t>(nanos)});
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_scalar_div(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept {
     if (scalar == 0.0) {
-        return nonstd::make_unexpected(DynamicError::DivideByZero);
+        return std::unexpected(DynamicError::DivideByZero);
     }
 
     auto mon = std::round(static_cast<double>(dur.first.count()) / scalar);
     if (!datatypes::registry::util::fits_into<int64_t>(mon)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
     auto nanos = std::round(static_cast<double>(dur.second.count()) / scalar);
     if (!datatypes::registry::util::fits_into<int64_t>(nanos)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 
     return std::make_pair(std::chrono::months{static_cast<int64_t>(mon)}, std::chrono::nanoseconds{static_cast<int64_t>(nanos)});

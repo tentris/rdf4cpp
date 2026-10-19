@@ -115,15 +115,15 @@ capabilities::Subtype<xsd_dateTimeStamp>::super_cpp_type<0> capabilities::Subtyp
 
 template<>
 template<>
-nonstd::expected<capabilities::Subtype<xsd_dateTimeStamp>::cpp_type, DynamicError> capabilities::Subtype<xsd_dateTimeStamp>::from_supertype<0>(super_cpp_type<0> const &value) noexcept {
+std::expected<capabilities::Subtype<xsd_dateTimeStamp>::cpp_type, DynamicError> capabilities::Subtype<xsd_dateTimeStamp>::from_supertype<0>(super_cpp_type<0> const &value) noexcept {
     if (!value.second.has_value())
-        return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
+        return std::unexpected(DynamicError::InvalidValueForCast);
     return rdf4cpp::ZonedTime{*value.second, value.first};
 }
 
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_sub_result_cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_sub_result_cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     auto const super_lhs = Subtype<xsd_dateTimeStamp>::into_supertype(lhs);
     auto const super_rhs = Subtype<xsd_dateTimeStamp>::into_supertype(rhs);
@@ -131,24 +131,24 @@ capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_sub(cpp_type const &lhs, c
 }
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_duration_add(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
     try {
         auto ret_tp = util::add_duration_to_date_time(tp.get_local_time(), dur);
         return ZonedTime{tp.get_time_zone(), ret_tp};
     } catch (std::overflow_error const &) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 }
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTimeStamp>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTimeStamp>::timepoint_duration_sub(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
     try {
         auto ret_tp = util::add_duration_to_date_time(tp.get_local_time(), std::make_pair(-dur.first, -dur.second));
         return ZonedTime{tp.get_time_zone(), ret_tp};
     } catch (std::overflow_error const &) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 }
 

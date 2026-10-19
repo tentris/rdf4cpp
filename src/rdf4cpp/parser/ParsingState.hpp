@@ -81,8 +81,8 @@ struct ParsingState {
      * Results are cached only per IStreamQuadIterator.
      * Default behavior is to always return an error.
      */
-    std::function<nonstd::expected<RequestResult, std::string>(std::string_view)> request_url = [](std::string_view) {
-        return nonstd::unexpected{"remote context not supported"};
+    std::function<std::expected<RequestResult, std::string>(std::string_view)> request_url = [](std::string_view) {
+        return std::unexpected{"remote context not supported"};
     };
 
     /**

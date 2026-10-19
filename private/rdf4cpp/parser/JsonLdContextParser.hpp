@@ -1,12 +1,12 @@
 #ifndef RDF4CPP_JSONLDCONTEXTPARSER_HPP
 #define RDF4CPP_JSONLDCONTEXTPARSER_HPP
 
-#include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
 #include <rdf4cpp/parser/IStreamQuadIterator.hpp>
 
 #include <rdf4cpp/parser/JsonLdParserTypes.hpp>
 
+#include <expected>
 #include <vector>
 #include <map>
 
@@ -64,7 +64,7 @@ namespace rdf4cpp::parser {
              * Loads url (or returns it from the cache) and checks that it is valid json with an object at the top level.
              * Only documents that passed the check are cached, so the check runs once per document.
              */
-            nonstd::expected<ResolveResult, std::string> resolve(std::string_view url, ContextParser &parser);
+            std::expected<ResolveResult, std::string> resolve(std::string_view url, ContextParser &parser);
         };
 
         struct ContextParser {
@@ -96,10 +96,10 @@ namespace rdf4cpp::parser {
              */
             void set_resolution_base(std::string_view base);
 
-            nonstd::expected<Context, error_type> parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p);
+            std::expected<Context, error_type> parse_context(simdjson::ondemand::value local_context, params::ParseContextParams p);
             std::optional<error_type> parse_context_term(params::ParseContextTermParams p);
 
-            nonstd::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p);
+            std::expected<Context, error_type> parse_local_context(simdjson::padded_string_view json, params::ParseContextParams p);
 
             /**
              * Iterates over all arrays, objects and strings in `value`, so that simdjson checks their syntax.
@@ -117,7 +117,7 @@ namespace rdf4cpp::parser {
             std::optional<std::string> validate_json(simdjson::padded_string_view json);
 
 
-            nonstd::expected<IRIMapping, error_type> iri_expansion(Context const &active_context,
+            std::expected<IRIMapping, error_type> iri_expansion(Context const &active_context,
                                                                    std::optional<std::string_view> value,
                                                                    bool document_relative,
                                                                    bool vocab,

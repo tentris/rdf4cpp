@@ -42,9 +42,9 @@ std::partial_ordering capabilities::Comparable<xsd_negative_integer>::compare(cp
 
 template<>
 template<>
-nonstd::expected<capabilities::Default<xsd_negative_integer>::cpp_type, DynamicError> capabilities::Subtype<xsd_negative_integer>::from_supertype<0>(super_cpp_type<0> const &value) noexcept {
+std::expected<capabilities::Default<xsd_negative_integer>::cpp_type, DynamicError> capabilities::Subtype<xsd_negative_integer>::from_supertype<0>(super_cpp_type<0> const &value) noexcept {
     if (value > -1) {
-        return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
+        return std::unexpected(DynamicError::InvalidValueForCast);
     }
 
     return value;

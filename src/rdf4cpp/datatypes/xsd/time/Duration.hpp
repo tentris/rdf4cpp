@@ -43,23 +43,23 @@ template<>
 std::partial_ordering capabilities::Comparable<xsd_duration>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_add(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::duration_div_result_cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::duration_div_result_cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_div(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_scalar_mul(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_duration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_duration>::duration_scalar_div(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept;
 
 #endif

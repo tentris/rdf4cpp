@@ -43,15 +43,15 @@ template<>
 std::partial_ordering capabilities::Comparable<xsd_dateTime>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTime>::timepoint_sub_result_cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTime>::timepoint_sub_result_cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTime>::timepoint_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTime>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTime>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTime>::timepoint_duration_add(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept;
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_dateTime>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_dateTime>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_dateTime>::timepoint_duration_sub(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept;
 
 #endif

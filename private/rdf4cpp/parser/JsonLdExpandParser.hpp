@@ -1,7 +1,8 @@
 #ifndef RDF4CPP_JSONLDEXPANDPARSER_HPP
 #define RDF4CPP_JSONLDEXPANDPARSER_HPP
 
-#include <rdf4cpp/Expected.hpp>
+#include <expected>
+
 #include <rdf4cpp/IRIFactory.hpp>
 #include <rdf4cpp/Quad.hpp>
 
@@ -45,16 +46,16 @@ namespace rdf4cpp::parser {
                 : context_parser(std::move(base_iri), keep_document_bnode_labels, s, stack_limit) {
             }
 
-            nonstd::expected<ExpandedValue, error_type> value_expansion(Context const &active_conext,
+            std::expected<ExpandedValue, error_type> value_expansion(Context const &active_conext,
                                                                         IRIMapping const &active_property,
                                                                         simdjson::ondemand::value value);
-            nonstd::expected<ExpandedValue, error_type> value_expansion(Context const &active_conext,
+            std::expected<ExpandedValue, error_type> value_expansion(Context const &active_conext,
                                                                         IRIMapping const &active_property,
                                                                         std::string_view value);
             static StringifyResult stringify(simdjson::ondemand::value v, bool normalize, bool force_double = false, bool escape_string = false);
             static TypedLiteralMapping to_json_literal(simdjson::ondemand::value v);
 
-            nonstd::expected<ExpandedLevel, error_type> expand_level(params::ExpandParams p);
+            std::expected<ExpandedLevel, error_type> expand_level(params::ExpandParams p);
             std::optional<error_type> expand_level_nested_recursive(params::ExpandNestedParams p);
             bool is_list_object(simdjson::ondemand::value v, Context const &active_context);
             bool is_graph_object(simdjson::ondemand::value v, Context const &active_context, std::optional<simdjson::ondemand::object> &obj_out);

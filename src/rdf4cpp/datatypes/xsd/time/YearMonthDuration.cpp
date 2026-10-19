@@ -97,68 +97,68 @@ capabilities::Subtype<xsd_yearMonthDuration>::super_cpp_type<0> capabilities::Su
 
 template<>
 template<>
-nonstd::expected<capabilities::Subtype<xsd_yearMonthDuration>::cpp_type, DynamicError> capabilities::Subtype<xsd_yearMonthDuration>::from_supertype<0>(super_cpp_type<0> const &value) noexcept {
+std::expected<capabilities::Subtype<xsd_yearMonthDuration>::cpp_type, DynamicError> capabilities::Subtype<xsd_yearMonthDuration>::from_supertype<0>(super_cpp_type<0> const &value) noexcept {
     if (value.first.count() == 0 && value.second.count() == 0)
         return value.first;
     if (value.first.count() != 0)
         return value.first;
-    return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
+    return std::unexpected(DynamicError::InvalidValueForCast);
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     auto r = util::to_checked(lhs) + util::to_checked(rhs);
     if (r.count().is_invalid()) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 
     return util::from_checked(r);
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     auto r = util::to_checked(lhs) - util::to_checked(rhs);
     if (r.count().is_invalid()) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 
     return util::from_checked(r);
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::duration_div_result_cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::duration_div_result_cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     auto r = Decimal128{lhs.count(), 0}.div_checked(Decimal128{rhs.count(), 0}, Decimal128::default_max_scale_increase);
     if (!r.has_value()) {
-        return nonstd::make_unexpected(DynamicError::DivideByZero);
+        return std::unexpected(DynamicError::DivideByZero);
     }
 
     return *r;
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_scalar_mul(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept {
     auto r = std::round(static_cast<double>(dur.count()) * scalar);
     if (!datatypes::registry::util::fits_into<int64_t>(r)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 
     return std::chrono::months{static_cast<int64_t>(r)};
 }
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_scalar_div(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept {
     if (scalar == 0.0) {
-        return nonstd::make_unexpected(DynamicError::DivideByZero);
+        return std::unexpected(DynamicError::DivideByZero);
     }
 
     auto r = std::round(static_cast<double>(dur.count()) / scalar);
     if (!datatypes::registry::util::fits_into<int64_t>(r)) {
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
     }
 
     return std::chrono::months{static_cast<int64_t>(r)};
