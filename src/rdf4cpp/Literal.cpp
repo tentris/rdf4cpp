@@ -989,7 +989,7 @@ Literal Literal::cast_impl(datatypes::registry::DatatypeIDView target_dtid, stor
                 return Literal{};
             }
 
-            return Literal::make_typed_unchecked(std::move(*target_value), target_dtid, *target_e, node_storage);
+            return Literal::make_typed_unchecked(std::move(target_value->value), target_dtid, *target_e, node_storage);
         }
     }
 
@@ -1009,7 +1009,7 @@ Literal Literal::cast_impl(datatypes::registry::DatatypeIDView target_dtid, stor
             // downcast failed
             return Literal{};
         }
-        return Literal::make_typed_unchecked(std::move(*target_value), target_dtid, *target_e, node_storage);
+        return Literal::make_typed_unchecked(std::move(target_value->value), target_dtid, *target_e, node_storage);
     }
 
     // no conversion found
@@ -1085,7 +1085,7 @@ Literal Literal::numeric_unop_impl(OpSelect op_select, storage::DynNodeStoragePt
     if (!op_res.result_value.has_value()) {
         return Literal{};
     }
-    return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
+    return Literal::make_typed_unchecked(std::move(op_res.result_value->value), op_res.result_type_id, *result_entry, node_storage);
 }
 
 std::partial_ordering Literal::compare_values_of_same_datatype(datatypes::registry::DatatypeRegistry::DatatypeEntry const &entry,
@@ -1417,7 +1417,7 @@ std::optional<Literal> Literal::run_binop(Literal const &other,
         }();
 
         RDF4CPP_ASSERT(result_entry != nullptr);
-        return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
+        return Literal::make_typed_unchecked(std::move(op_res.result_value->value), op_res.result_type_id, *result_entry, node_storage);
     } else {
         // slow path, needs conversion
         auto equalizer = DatatypeRegistry::get_common_type_conversion(this_entry.conversion_table, other_entry.conversion_table);
@@ -1455,7 +1455,7 @@ std::optional<Literal> Literal::run_binop(Literal const &other,
         }();
 
         RDF4CPP_ASSERT(result_entry != nullptr);
-        return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
+        return Literal::make_typed_unchecked(std::move(op_res.result_value->value), op_res.result_type_id, *result_entry, node_storage);
     }
 }
 
@@ -1489,7 +1489,7 @@ std::optional<Literal> Literal::run_binop_cast_rhs(Literal const &other,
     }
 
     auto const *result_entry = DatatypeRegistry::get_entry(op_res.result_type_id);
-    return Literal::make_typed_unchecked(std::move(*op_res.result_value), op_res.result_type_id, *result_entry, node_storage);
+    return Literal::make_typed_unchecked(std::move(op_res.result_value->value), op_res.result_type_id, *result_entry, node_storage);
 }
 
 std::optional<Literal> Literal::chrono_add_impl(Literal const &other, storage::DynNodeStoragePtr node_storage) const {

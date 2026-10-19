@@ -26,7 +26,7 @@ ParsingError::Type IStreamQuadIterator::ImplSerd::parsing_error_type_from_serd(S
     }
 }
 
-nonstd::expected<Node, SerdStatus> IStreamQuadIterator::ImplSerd::get_bnode(std::string &&graph_str, SerdNode const *node) noexcept {
+std::expected<Node, SerdStatus> IStreamQuadIterator::ImplSerd::get_bnode(std::string &&graph_str, SerdNode const *node) noexcept {
     auto const node_str = node_into_string_view(node);
 
     if (this->flags.contains(ParsingFlag::NoParseBlankNode)) {
@@ -35,7 +35,7 @@ nonstd::expected<Node, SerdStatus> IStreamQuadIterator::ImplSerd::get_bnode(std:
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Encountered blank node while parsing. hint: blank nodes are not allowed in the current document. note: position may not be accurate and instead point to the end of the line."};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     }
 
     try {
@@ -51,18 +51,18 @@ nonstd::expected<Node, SerdStatus> IStreamQuadIterator::ImplSerd::get_bnode(std:
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = std::string{e.what()} + ". note: position may not be accurate and instead point to the end of the triple."};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     }
 }
 
-nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_iri(SerdNode const *node) noexcept {
+std::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_iri(SerdNode const *node) noexcept {
     auto const s = node_into_string_view(node);
 
     try {
@@ -77,32 +77,32 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_iri(SerdNod
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = std::format("{}. note: position may not be accurate and instead point to the end of the triple.", ii.what())};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     }
 }
 
-nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_iri(SerdNode const *node) noexcept {
+std::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_iri(SerdNode const *node) noexcept {
     if (!flags.syntax_allows_prefixes()) [[unlikely]] {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadSyntax,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Encountered prefix while parsing. hint: prefixes are not allowed in the current document. note: position may not be accurate and instead point to the end of the line."};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     }
 
     auto const uri_node_view = node_into_string_view(node);
 
     auto const sep_pos = uri_node_view.find(':');
     if (sep_pos == std::string_view::npos) {
-        return nonstd::make_unexpected(SERD_ERR_BAD_CURIE);
+        return std::unexpected(SERD_ERR_BAD_CURIE);
     }
 
     auto const prefix = uri_node_view.substr(0, sep_pos);
@@ -118,14 +118,14 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_ir
                                             .col = serd_reader_get_current_col(this->reader.get()),
                                             .message = "unknown prefix. note: position may not be accurate and instead point to the end of the triple."};
 
-            return nonstd::make_unexpected(SERD_ERR_BAD_CURIE);
+            return std::unexpected(SERD_ERR_BAD_CURIE);
         } else {
             this->last_error = ParsingError{.error_type = ParsingError::Type::BadIri,
                                             .line = serd_reader_get_current_line(this->reader.get()),
                                             .col = serd_reader_get_current_col(this->reader.get()),
                                             .message = std::format("unable to expand curie into valid iri. {}. note: position may not be accurate and instead point to the end of the triple.", ii.what())};
 
-            return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+            return std::unexpected(SERD_ERR_BAD_SYNTAX);
         }
     } catch (InvalidNode const &in) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::BadIri,
@@ -133,21 +133,21 @@ nonstd::expected<IRI, SerdStatus> IStreamQuadIterator::ImplSerd::get_prefixed_ir
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = std::format("unable to expand curie into valid iri. {}. note: position may not be accurate and instead point to the end of the triple.", in.what())};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     }
 }
 
-nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::ImplSerd::get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept {
+std::expected<Literal, SerdStatus> IStreamQuadIterator::ImplSerd::get_literal(SerdNode const *literal, SerdNode const *datatype, SerdNode const *lang) noexcept {
     auto const literal_value = node_into_string_view(literal);
 
-    auto const datatype_iri = [&]() -> std::optional<nonstd::expected<IRI, SerdStatus>> {
+    auto const datatype_iri = [&]() -> std::optional<std::expected<IRI, SerdStatus>> {
         if (datatype != nullptr) {
             switch (datatype->type) {
                 case SerdType::SERD_CURIE:
@@ -165,7 +165,7 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::ImplSerd::get_literal
     try {
         if (datatype_iri.has_value()) {
             if (!datatype_iri->has_value()) {
-                return nonstd::make_unexpected(datatype_iri->error());
+                return std::unexpected(datatype_iri->error());
             }
 
             return Literal::make_typed(literal_value, datatype_iri->value(), this->state->node_storage);
@@ -181,14 +181,14 @@ nonstd::expected<Literal, SerdStatus> IStreamQuadIterator::ImplSerd::get_literal
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = std::string{e.what()} + ". note: position may not be accurate and instead point to the end of the triple."};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     } catch (...) {
         this->last_error = ParsingError{.error_type = ParsingError::Type::Internal,
                                         .line = serd_reader_get_current_line(this->reader.get()),
                                         .col = serd_reader_get_current_col(this->reader.get()),
                                         .message = "Unknown internal error. note: position may not be accurate and instead point to the end of the triple."};
 
-        return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+        return std::unexpected(SERD_ERR_BAD_SYNTAX);
     }
 }
 
@@ -332,7 +332,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
 
     auto *self = static_cast<ImplSerd *>(voided_self);
 
-    auto const graph_node = [&]() -> nonstd::expected<Node, SerdStatus> {
+    auto const graph_node = [&]() -> std::expected<Node, SerdStatus> {
         if (graph != nullptr) {
             switch (graph->type) {
                 case SERD_CURIE:
@@ -342,7 +342,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
                 case SERD_BLANK:
                     return self->get_bnode("", graph); // TODO which scope?
                 default:
-                    return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+                    return std::unexpected(SERD_ERR_BAD_SYNTAX);
             }
         } else {
             return IRI::default_graph(self->state->node_storage);
@@ -357,7 +357,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
         return SERD_SUCCESS;
     }
 
-    auto const subj_node = [&]() -> nonstd::expected<Node, SerdStatus> {
+    auto const subj_node = [&]() -> std::expected<Node, SerdStatus> {
         switch (subj->type) {
             case SERD_CURIE:
                 return self->get_prefixed_iri(subj);
@@ -366,7 +366,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
             case SERD_BLANK:
                 return self->get_bnode(std::string{*graph_node}, subj);
             default:
-                return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+                return std::unexpected(SERD_ERR_BAD_SYNTAX);
         }
     }();
 
@@ -378,14 +378,14 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
         return SERD_SUCCESS;
     }
 
-    auto const pred_node = [&]() -> nonstd::expected<Node, SerdStatus> {
+    auto const pred_node = [&]() -> std::expected<Node, SerdStatus> {
         switch (pred->type) {
             case SERD_CURIE:
                 return self->get_prefixed_iri(pred);
             case SERD_URI:
                 return self->get_iri(pred);
             default:
-                return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+                return std::unexpected(SERD_ERR_BAD_SYNTAX);
         }
     }();
 
@@ -397,7 +397,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
         return SERD_SUCCESS;
     }
 
-    auto const obj_node = [&]() -> nonstd::expected<Node, SerdStatus> {
+    auto const obj_node = [&]() -> std::expected<Node, SerdStatus> {
         switch (obj->type) {
             case SERD_CURIE:
                 return self->get_prefixed_iri(obj);
@@ -408,7 +408,7 @@ SerdStatus IStreamQuadIterator::ImplSerd::on_stmt(void *voided_self,
             case SERD_URI:
                 return self->get_iri(obj);
             default:
-                return nonstd::make_unexpected(SERD_ERR_BAD_SYNTAX);
+                return std::unexpected(SERD_ERR_BAD_SYNTAX);
         }
     }();
 
@@ -439,7 +439,7 @@ IStreamQuadIterator::ImplSerd::ImplSerd(void *stream,
 }
 IStreamQuadIterator::ImplSerd::~ImplSerd() = default;
 
-std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type>> IStreamQuadIterator::ImplSerd::next() {
+std::optional<std::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::error_type>> IStreamQuadIterator::ImplSerd::next() {
     while (this->quad_buffer.empty()) {
         if (this->last_error.has_value()) {
             // handle error from last time
@@ -450,7 +450,7 @@ std::optional<nonstd::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator
                     this->end_flag = true;
                 }
             }
-            return nonstd::make_unexpected(*std::exchange(this->last_error, std::nullopt));
+            return std::unexpected(*std::exchange(this->last_error, std::nullopt));
         } else if (this->end_flag) {
             return std::nullopt;
         }

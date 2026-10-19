@@ -33,7 +33,6 @@ class Recipe(ConanFile):
 
     def requirements(self):
         self.requires("boost/1.91.0", transitive_headers=True)  # >= 1.91 because <=1.90 has a bug in charconv for __int128
-        self.requires("expected-lite/0.9.0", transitive_headers=True)
         self.requires("pcre2/10.49", options={"support_jit": True})
         self.requires("botan/3.13.0")
         self.requires("uni-algo/1.2.0")

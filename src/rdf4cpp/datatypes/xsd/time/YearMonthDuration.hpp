@@ -52,27 +52,27 @@ capabilities::Subtype<xsd_yearMonthDuration>::super_cpp_type<0> capabilities::Su
 
 template<>
 template<>
-nonstd::expected<capabilities::Subtype<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Subtype<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Subtype<xsd_yearMonthDuration>::from_supertype<0>(super_cpp_type<0> const &value) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_add(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::duration_div_result_cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::duration_div_result_cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_div(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_scalar_mul(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept;
 
 template<>
-nonstd::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
+std::expected<capabilities::Duration<xsd_yearMonthDuration>::cpp_type, DynamicError>
 capabilities::Duration<xsd_yearMonthDuration>::duration_scalar_div(cpp_type const &dur, duration_scalar_cpp_type const &scalar) noexcept;
 
 #endif

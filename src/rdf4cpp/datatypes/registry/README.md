@@ -217,7 +217,7 @@ inline capabilities::Promotable<your_type>::promoted_cpp_type<IX> capabilities::
 
 template<>
 template<>
-inline nonstd::expected<cpp_type, DynamicError> capabilities::Promotable<your_type>::demote<IX>(promoted_cpp_type<IX> const &value) noexcept {
+inline std::expected<cpp_type, DynamicError> capabilities::Promotable<your_type>::demote<IX>(promoted_cpp_type<IX> const &value) noexcept {
     // do some complex conversion or fail
 }
 
@@ -230,7 +230,7 @@ inline capabilities::Subtype<your_type>::super_cpp_type<IX> capabilites::Subtype
 
 template<>
 template<>
-inline nonstd::expected<cpp_type, DynamicError> capabilities::Subtype<your_type>::from_supertype<IX>(super_cpp_type<IX> const &value) noexcept {
+inline std::expected<cpp_type, DynamicError> capabilities::Subtype<your_type>::from_supertype<IX>(super_cpp_type<IX> const &value) noexcept {
     // do some complex conversion or fail
 }
 ```
@@ -259,7 +259,7 @@ inline capabilites::Promotable<xsd_decimal>::promoted_cpp_type<0> capabilites::P
 
 template<>
 template<>
-inline nonstd::expected<cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+inline std::expected<cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     // xsd:float -> xsd:decimal
 }
 
@@ -271,7 +271,7 @@ inline capabilites::Promotable<xsd_decimal>::promoted_cpp_type<1> capabilites::P
 
 template<>
 template<>
-inline nonstd::expected<cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<1>(promoted_cpp_type<1> const &value) noexcept {
+inline std::expected<cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<1>(promoted_cpp_type<1> const &value) noexcept {
     // xsd:double -> xsd:decimal
 }
 ```

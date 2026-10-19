@@ -44,7 +44,7 @@ capabilities::Promotable<xsd_gMonthDay>::promoted_cpp_type<0> capabilities::Prom
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_gMonthDay>::cpp_type, DynamicError> capabilities::Promotable<xsd_gMonthDay>::demote<0>(promoted_cpp_type<0> const &value) noexcept;
+std::expected<capabilities::Promotable<xsd_gMonthDay>::cpp_type, DynamicError> capabilities::Promotable<xsd_gMonthDay>::demote<0>(promoted_cpp_type<0> const &value) noexcept;
 #endif
 
 extern template struct LiteralDatatypeImpl<xsd_gMonthDay,

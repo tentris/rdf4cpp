@@ -2,8 +2,7 @@
 #define RDF4CPP_XMLPARSERSTATECOLLECTOR_H
 
 #include <deque>
-
-#include <rdf4cpp/Expected.hpp>
+#include <expected>
 
 #include <rdf4cpp/Quad.hpp>
 

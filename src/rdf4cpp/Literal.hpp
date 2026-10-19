@@ -837,7 +837,7 @@ public:
                     return std::nullopt;
                 }
 
-                return std::any_cast<typename T::cpp_type const &>(*target_value);
+                return std::any_cast<typename T::cpp_type const &>(target_value->value);
             }
         }
 
@@ -857,7 +857,7 @@ public:
                 // downcast failed
                 return std::nullopt;
             }
-            return std::any_cast<typename T::cpp_type const &>(*target_value);
+            return std::any_cast<typename T::cpp_type const &>(target_value->value);
         }
 
         // no conversion found

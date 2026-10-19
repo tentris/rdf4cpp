@@ -76,7 +76,7 @@ capabilities::Promotable<xsd_date>::promoted_cpp_type<0> capabilities::Promotabl
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_date>::cpp_type, DynamicError> capabilities::Promotable<xsd_date>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+std::expected<capabilities::Promotable<xsd_date>::cpp_type, DynamicError> capabilities::Promotable<xsd_date>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     return std::make_pair(YearMonthDay{std::chrono::floor<std::chrono::days>(value.first)}, value.second);
 }
 
@@ -86,7 +86,7 @@ std::partial_ordering capabilities::Comparable<xsd_date>::compare(cpp_type const
 }
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_date>::timepoint_sub_result_cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_date>::timepoint_sub_result_cpp_type, DynamicError>
 capabilities::Timepoint<xsd_date>::timepoint_sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     auto const super_lhs = Promotable<xsd_date>::promote(lhs);
     auto const super_rhs = Promotable<xsd_date>::promote(rhs);
@@ -94,7 +94,7 @@ capabilities::Timepoint<xsd_date>::timepoint_sub(cpp_type const &lhs, cpp_type c
 }
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_date>::timepoint_duration_add(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
     auto const super_tp = Promotable<xsd_date>::promote(tp);
     auto res_tp = util::add_duration_to_date_time(super_tp.first, dur);
@@ -104,7 +104,7 @@ capabilities::Timepoint<xsd_date>::timepoint_duration_add(cpp_type const &tp, ti
 }
 
 template<>
-nonstd::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
+std::expected<capabilities::Timepoint<xsd_date>::cpp_type, DynamicError>
 capabilities::Timepoint<xsd_date>::timepoint_duration_sub(cpp_type const &tp, timepoint_duration_operand_cpp_type const &dur) noexcept {
     auto const super_tp = Promotable<xsd_date>::promote(tp);
     auto res_tp = util::add_duration_to_date_time(super_tp.first, std::make_pair(-dur.first, -dur.second));

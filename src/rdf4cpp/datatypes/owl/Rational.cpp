@@ -67,12 +67,12 @@ std::partial_ordering capabilities::Comparable<owl_rational>::compare(cpp_type c
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<owl_rational>::abs_result_cpp_type, DynamicError> capabilities::Numeric<owl_rational>::abs(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<owl_rational>::abs_result_cpp_type, DynamicError> capabilities::Numeric<owl_rational>::abs(cpp_type const &operand) noexcept {
     return boost::multiprecision::abs(operand);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<owl_rational>::round_result_cpp_type, DynamicError> capabilities::Numeric<owl_rational>::round(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<owl_rational>::round_result_cpp_type, DynamicError> capabilities::Numeric<owl_rational>::round(cpp_type const &operand) noexcept {
     auto const integral_part = static_cast<boost::multiprecision::cpp_int>(operand);
     cpp_type const fractional_part = operand - integral_part;
 
@@ -84,19 +84,19 @@ nonstd::expected<capabilities::Numeric<owl_rational>::round_result_cpp_type, Dyn
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<owl_rational>::floor_result_cpp_type, DynamicError> capabilities::Numeric<owl_rational>::floor(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<owl_rational>::floor_result_cpp_type, DynamicError> capabilities::Numeric<owl_rational>::floor(cpp_type const &operand) noexcept {
     return static_cast<boost::multiprecision::cpp_int>(operand);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<owl_rational>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<owl_rational>::ceil(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<owl_rational>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<owl_rational>::ceil(cpp_type const &operand) noexcept {
     auto const integral = static_cast<boost::multiprecision::cpp_int>(operand);
     auto const rest = numerator(operand) % denominator(operand);
     return integral + (rest != 0);
 }
 
 template<>
-nonstd::expected<capabilities::Default<owl_rational>::cpp_type, DynamicError> capabilities::Numeric<owl_rational>::from_multiplicity(uint64_t multiplicity) noexcept {
+std::expected<capabilities::Default<owl_rational>::cpp_type, DynamicError> capabilities::Numeric<owl_rational>::from_multiplicity(uint64_t multiplicity) noexcept {
     return cpp_type{multiplicity}; // any 64bit integer is exactly representable in boost::multiprecision::cpp_rational
 }
 

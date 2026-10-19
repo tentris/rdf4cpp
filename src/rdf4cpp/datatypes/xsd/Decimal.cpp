@@ -34,18 +34,18 @@ bool capabilities::Default<xsd_decimal>::serialize_simplified_string(cpp_type co
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::add_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::add_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     // https://www.w3.org/TR/xpath-functions/#op.numeric
     // decimal needs overflow protection
     auto r = lhs.add_checked(rhs);
     if (r.has_value())
         return r.value();
     else
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::sub_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::sub_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     // https://www.w3.org/TR/xpath-functions/#op.numeric
     // decimal needs overflow protection
 
@@ -53,27 +53,27 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::sub_result_cpp_type, Dynami
     if (r.has_value())
         return r.value();
     else
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::div_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::div_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     // https://www.w3.org/TR/xpath-functions/#func-numeric-divide
     // decimal needs error (and cpp_type is not integral) && overflow protection
 
     if (rhs == 0) {
-        return nonstd::make_unexpected(DynamicError::DivideByZero);
+        return std::unexpected(DynamicError::DivideByZero);
     }
 
     auto r = lhs.div_checked(rhs, cpp_type::default_max_scale_increase, rdf4cpp::util::RoundingMode::Trunc);
     if (r.has_value())
         return r.value();
     else
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::mul_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::mul_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     // https://www.w3.org/TR/xpath-functions/#op.numeric
     // decimal needs overflow protection
 
@@ -81,44 +81,44 @@ nonstd::expected<capabilities::Numeric<xsd_decimal>::mul_result_cpp_type, Dynami
     if (r.has_value())
         return r.value();
     else
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::neg(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::neg(cpp_type const &operand) noexcept {
     auto r = operand.unary_minus_checked();
     if (r.has_value())
         return r.value();
     else
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::abs(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::abs(cpp_type const &operand) noexcept {
     auto r = operand.abs_checked();
     if (r.has_value())
         return r.value();
     else
-        return nonstd::make_unexpected(DynamicError::OverOrUnderFlow);
+        return std::unexpected(DynamicError::OverOrUnderFlow);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::round(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::round(cpp_type const &operand) noexcept {
     return operand.round();
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::floor_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::floor(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::floor_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::floor(cpp_type const &operand) noexcept {
     return operand.floor();
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_decimal>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::ceil(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_decimal>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::ceil(cpp_type const &operand) noexcept {
     return operand.ceil();
 }
 
 template<>
-nonstd::expected<capabilities::Default<xsd_decimal>::cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::from_multiplicity(uint64_t multiplicity) noexcept {
+std::expected<capabilities::Default<xsd_decimal>::cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::from_multiplicity(uint64_t multiplicity) noexcept {
     return cpp_type{multiplicity}; // any 64bit integer is exactly representable in BigDecimal
 }
 
@@ -189,11 +189,11 @@ capabilities::Promotable<xsd_decimal>::promoted_cpp_type<0> capabilities::Promot
 // BigDecimal(double) throws std::overflow_error for too large and std::invalid_argument for NaN/inf values
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_decimal>::cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+std::expected<capabilities::Promotable<xsd_decimal>::cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
     try {
         return static_cast<cpp_type>(value);
     } catch (std::exception const &) {
-        return nonstd::unexpected{DynamicError::InvalidValueForCast};
+        return std::unexpected{DynamicError::InvalidValueForCast};
     }
 }
 
@@ -205,11 +205,11 @@ capabilities::Promotable<xsd_decimal>::promoted_cpp_type<1> capabilities::Promot
 
 template<>
 template<>
-nonstd::expected<capabilities::Promotable<xsd_decimal>::cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<1>(promoted_cpp_type<1> const &value) noexcept {
+std::expected<capabilities::Promotable<xsd_decimal>::cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<1>(promoted_cpp_type<1> const &value) noexcept {
     try {
         return static_cast<cpp_type>(value);
     } catch (std::exception const &) {
-        return nonstd::unexpected{DynamicError::InvalidValueForCast};
+        return std::unexpected{DynamicError::InvalidValueForCast};
     }
 }
 

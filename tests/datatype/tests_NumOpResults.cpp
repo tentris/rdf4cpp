@@ -18,7 +18,7 @@ TEST_SUITE("numeric op results") {
             Integer::cpp_type const zero{0};
             Integer::cpp_type const one{1};
 
-            CHECK(Integer::div(one, zero) == nonstd::make_unexpected(DynamicError::DivideByZero));
+            CHECK(Integer::div(one, zero) == std::unexpected(DynamicError::DivideByZero));
         }
 
         SUBCASE("decimal") {
@@ -42,10 +42,10 @@ TEST_SUITE("numeric op results") {
 
             // "For xs:decimal operations, overflow behavior must raise a dynamic error [err:FOAR0002]."
             if (max != 0) {  // if max == 0 -> unlimited
-                CHECK(Decimal::add(max, max) == nonstd::make_unexpected(DynamicError::OverOrUnderFlow));
-                CHECK(Decimal::sub(max, -max) == nonstd::make_unexpected(DynamicError::OverOrUnderFlow));
-                CHECK(Decimal::mul(max, big_number) == nonstd::make_unexpected(DynamicError::OverOrUnderFlow));
-                CHECK(Decimal::div(max, one / big_number) == nonstd::make_unexpected(DynamicError::OverOrUnderFlow));
+                CHECK(Decimal::add(max, max) == std::unexpected(DynamicError::OverOrUnderFlow));
+                CHECK(Decimal::sub(max, -max) == std::unexpected(DynamicError::OverOrUnderFlow));
+                CHECK(Decimal::mul(max, big_number) == std::unexpected(DynamicError::OverOrUnderFlow));
+                CHECK(Decimal::div(max, one / big_number) == std::unexpected(DynamicError::OverOrUnderFlow));
             }
 
             // "On underflow, 0.0 must be returned."
@@ -61,7 +61,7 @@ TEST_SUITE("numeric op results") {
 
             // https://www.w3.org/TR/xpath-functions/#func-numeric-divide
             // "A dynamic error is raised [err:FOAR0001] for xs:decimal and xs:integer operands, if the divisor is (positive or negative) zero."
-            CHECK(Decimal::div(one, zero) == nonstd::make_unexpected(DynamicError::DivideByZero));
+            CHECK(Decimal::div(one, zero) == std::unexpected(DynamicError::DivideByZero));
         }
     }
 
