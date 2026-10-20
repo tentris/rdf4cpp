@@ -424,6 +424,9 @@ namespace rdf4cpp::parser::json_ld {
                     {
                         to_check.push_back(&t);
                     }
+                    else {
+                        t.active_remote_contexts.clear();
+                    }
                     t.needs_context_check = false;
                 }
             }

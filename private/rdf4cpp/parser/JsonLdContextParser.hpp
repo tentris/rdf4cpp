@@ -111,8 +111,8 @@ namespace rdf4cpp::parser {
              */
             simdjson::error_code validate_json(simdjson::ondemand::object &obj);
             /**
-             * Checks that json is a single object, see the overloads above.
-             * Returns an error message starting with error_msg, if the check failed.
+             * Checks that `json` is a single object, see the overloads above.
+             * Returns an error message iff the check failed.
              */
             std::optional<std::string> validate_json(simdjson::padded_string_view json);
 

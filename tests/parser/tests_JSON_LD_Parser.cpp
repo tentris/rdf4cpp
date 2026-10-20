@@ -1439,14 +1439,15 @@ TEST_CASE("a remote context nested too deep is an error") {
 
 TEST_CASE("terms after a remote context in the same context array may use it as scoped context") {
     // `http://ex/R` is in the list of remote contexts when the terms are defined,
-    // so the check of their scoped contexts does not process it again
+    // the scoped contexts differ, because equal scoped contexts are checked only once.
+    // 101 checks that each process `http://ex/R` again would end with a context overflow
     static constexpr size_t terms = 101;
     std::map<std::string, std::string, std::less<>> const docs{
         {"http://ex/R", R"({"@context": {"a": "http://ex/a"}})"},
     };
     std::string ctx;
     for (size_t i = 0; i < terms; ++i) {
-        ctx += std::format(R"({}"t{}": {{"@id": "http://ex/t{}", "@context": "http://ex/R"}})", i == 0 ? "" : ", ", i, i);
+        ctx += std::format(R"({}"t{}": {{"@id": "http://ex/t{}", "@context": ["http://ex/R", {{"@vocab": "http://ex/v{}/"}}]}})", i == 0 ? "" : ", ", i, i, i);
     }
     auto const r = parse_with_remote_documents(std::format(R"({{"@context": ["http://ex/R", {{{}}}], "@id": "http://ex/s", "http://ex/p": "v"}})", ctx), "http://ex/doc", docs);
     CHECK(r.errors == "");
@@ -1560,7 +1561,7 @@ TEST_CASE("the parse continues on the stack of the thread that calls next") {
 
 TEST_CASE("a term defined through a chain of compact IRIs") {
     // t0 is "t1:", t1 is "t2:" and so on, so the definition of t0 needs the one of t1, which needs the one of t2, ...
-    static constexpr size_t chain = 20;
+    static constexpr size_t chain = 25;
     std::string ctx = "{";
     for (size_t i = 0; i < chain; ++i) {
         ctx += std::format(R"("t{}": "t{}:", )", i, i + 1);
