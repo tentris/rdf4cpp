@@ -1426,7 +1426,7 @@ TEST_CASE("a remote context nested too deep is an error") {
         auto const r = parse_with_remote_documents(std::move(doc), "http://ex/doc", docs);
         CAPTURE(r.errors);
         CHECK(std::ranges::count(r.errors, '\n') == 1);
-        CHECK(r.errors.starts_with("loading remote context failed"));
+        CHECK(r.errors.starts_with("stack limit"));
         CHECK(r.quad_count == 0);
     };
     SUBCASE("as remote context") {
@@ -1570,4 +1570,20 @@ TEST_CASE("a term defined through a chain of compact IRIs") {
     auto const r = parse_with_remote_documents(std::format(R"({{"@context": {}, "@id": "http://ex/s", "t0:p": "v"}})", ctx), "http://ex/doc", {});
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/p> \"v\" .\n");
+}
+
+TEST_CASE("a remote context document that is no map is an invalid remote context") {
+    // 5.2.5 and 5.6.6: the body is valid json, but there is no map at the top level
+    for (std::string const body : {R"([{"@context": {}}])", R"("x")", "1"}) {
+        for (bool const behind_import : {false, true}) {
+            CAPTURE(body);
+            CAPTURE(behind_import);
+            std::map<std::string, std::string, std::less<>> const docs{{"http://ex/ctx.jsonld", body}};
+            auto const r = parse_with_remote_documents(behind_import ? R"({"@context": {"@version": 1.1, "@import": "http://ex/ctx.jsonld"}, "@id": "http://ex/s", "http://ex/p": "v"})"
+                                                                     : R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})",
+                                                       "http://ex/doc", docs);
+            CHECK(r.quads == "");
+            CHECK(r.errors == "invalid remote context\n");
+        }
+    }
 }

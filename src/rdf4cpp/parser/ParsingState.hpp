@@ -98,6 +98,13 @@ struct ParsingState {
      * and with 0 one remote context is still processed. The default is 100.
      */
     size_t remote_context_size_limit = 100;
+
+    /**
+     * Limit the JSON-LD parser on stack space.
+     * Depending on how the thread running the parser is configured, different limits are required.
+     * Example: a std::thread on macOS has only 512KiB, so the limit should be lowered from the default.
+     */
+    size_t stack_space_limit = 1024 * 1024;
 };
 
 }  //namespace rdf4cpp::parser

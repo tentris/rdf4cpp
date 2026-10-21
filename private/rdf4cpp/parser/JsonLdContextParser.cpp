@@ -1157,14 +1157,27 @@ namespace rdf4cpp::parser::json_ld {
     std::optional<std::string> ContextParser::validate_json(simdjson::padded_string_view const json) {
         simdjson::ondemand::parser parser{};
         simdjson::ondemand::document doc;
+        if (parser.iterate(json).get(doc) != simdjson::SUCCESS) {
+            return std::string{"loading remote context failed"};
+        }
         simdjson::ondemand::object doc_obj;
-        if (parser.iterate(json).get(doc) != simdjson::SUCCESS
-            || doc.get_object().get(doc_obj) != simdjson::SUCCESS) {
+        if (auto const ec = doc.get_object().get(doc_obj); ec != simdjson::SUCCESS) {
+            // 5.2.5 and 5.6.6: a json value that is no map is an invalid remote context.
+            // a body that does not start like a json value (for example html) is no json
+            simdjson::ondemand::json_type type = simdjson::ondemand::json_type::unknown;
+            if (ec == simdjson::INCORRECT_TYPE && doc.type().get(type) == simdjson::SUCCESS && type != simdjson::ondemand::json_type::unknown) {
+                return std::string{"invalid remote context"};
+            }
             return std::string{"loading remote context failed"};
         }
         // the on-demand parser checks most of the json only when it reads it, and then throws
         // `simdjson_error`, which ends the whole document. So the whole document is checked here once.
-        if (auto const ec = validate_json(doc_obj); ec != simdjson::SUCCESS) {
+        auto const ec = validate_json(doc_obj);
+        if (ec == simdjson::DEPTH_ERROR) {
+            // only our stack limiter returns DEPTH_ERROR
+            return std::string{"stack limit"};
+        }
+        if (ec != simdjson::SUCCESS) {
             return std::format("loading remote context failed {}", simdjson::error_message(ec));
         }
         if (!doc.at_end()) {
