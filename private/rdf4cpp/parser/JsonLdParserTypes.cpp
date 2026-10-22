@@ -136,5 +136,20 @@ namespace rdf4cpp::parser {
                 std::move(msg),
             };
         }
+
+        StackSpaceLimiter::StackSpaceLimiter(std::uint64_t l)
+            : limit_(l),
+            begin_(static_cast<std::uint8_t*>(__builtin_frame_address(0))) {
+        }
+
+        bool StackSpaceLimiter::check() const {
+            auto const begin = reinterpret_cast<std::uintptr_t>(begin_);
+            auto const curr = reinterpret_cast<std::uintptr_t>(__builtin_frame_address(0));
+            return (begin > curr ? begin - curr : curr - begin) < limit_;
+        }
+
+        void StackSpaceLimiter::re_init(){
+            begin_ = static_cast<std::uint8_t*>(__builtin_frame_address(0));
+        }
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser
