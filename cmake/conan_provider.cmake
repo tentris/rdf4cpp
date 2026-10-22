@@ -25,3 +25,6 @@ if (NOT EXISTS "${cmake_conan_provider}")
 endif ()
 
 include("${cmake_conan_provider}")
+
+# Disable default Conan CMakeUserPresets.json write
+list(APPEND CONAN_INSTALL_ARGS -c tools.cmake.cmaketoolchain:user_presets=)
