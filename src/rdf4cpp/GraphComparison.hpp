@@ -3,6 +3,7 @@
 
 #include <rdf4cpp/Node.hpp>
 
+#include <limits>
 #include <map>
 #include <ranges>
 #include <vector>
@@ -103,10 +104,11 @@ namespace rdf4cpp {
                 }
             }
 
-            std::vector<size_t> found{};
+            // seen_by[j] == i marks quad j as already counted for quad i
+            std::vector<size_t> seen_by(v.size(), std::numeric_limits<size_t>::max());
             for (size_t i = 0; i < v.size(); ++i) {
                 Q const &q = *v[i].quad; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
-                found.clear();
+                size_t similar_count = 0;
                 for (size_t pa = 0; pa < arity; ++pa) {
                     if (q[pa].is_blank_node()) {
                         continue;
@@ -116,14 +118,18 @@ namespace rdf4cpp {
                             continue;
                         }
                         auto const matches = index.find(PairKey{pa, pb, q[pa], q[pb]});
-                        if (matches != index.end()) {
-                            found.insert(found.end(), matches->second.begin(), matches->second.end());
+                        if (matches == index.end()) {
+                            continue;
+                        }
+                        for (size_t const j : matches->second) {
+                            if (seen_by[j] != i) { // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                                seen_by[j] = i; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                                ++similar_count;
+                            }
                         }
                     }
                 }
-                std::ranges::sort(found);
-                auto const duplicates = std::ranges::unique(found);
-                v[i].similar_count = static_cast<size_t>(std::ranges::distance(found.begin(), duplicates.begin())); // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                v[i].similar_count = similar_count; // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
             }
         };
         static constexpr auto sort = [](std::vector<Quad> &v, size_t arity) {
