@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 project(rdf4cpp VERSION 0.3.4)
-set(POBR_VERSION 5)  # Persisted Object Binary Representation
+set(POBR_VERSION 6)  # Persisted Object Binary Representation
 
 include(cmake/boilerplate_init.cmake)
 boilerplate_init()
