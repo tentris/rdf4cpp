@@ -1,9 +1,9 @@
 #ifndef RDF4CPP_LITERALDATATYPE_HPP
 #define RDF4CPP_LITERALDATATYPE_HPP
 
+#include <expected>
 #include <optional>
 
-#include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/datatypes/registry/DatatypeID.hpp>
 #include <rdf4cpp/datatypes/registry/util/ConstexprString.hpp>
 #include <rdf4cpp/storage/identifier/LiteralID.hpp>
@@ -56,14 +56,14 @@ concept NumericImpl = requires(typename LiteralDatatypeImpl::cpp_type const &lhs
 
                           { LiteralDatatypeImpl::zero_value() } -> std::convertible_to<typename LiteralDatatypeImpl::cpp_type>;
                           { LiteralDatatypeImpl::one_value() } -> std::convertible_to<typename LiteralDatatypeImpl::cpp_type>;
-                          { LiteralDatatypeImpl::add(lhs, rhs) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::add_result_cpp_type, DynamicError>>;
-                          { LiteralDatatypeImpl::sub(lhs, rhs) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::sub_result_cpp_type, DynamicError>>;
-                          { LiteralDatatypeImpl::mul(lhs, rhs) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::mul_result_cpp_type, DynamicError>>;
-                          { LiteralDatatypeImpl::div(lhs, rhs) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::div_result_cpp_type, DynamicError>>;
-                          { LiteralDatatypeImpl::pos(lhs) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::pos_result_cpp_type, DynamicError>>;
-                          { LiteralDatatypeImpl::neg(lhs) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::neg_result_cpp_type, DynamicError>>;
+                          { LiteralDatatypeImpl::add(lhs, rhs) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::add_result_cpp_type, DynamicError>>;
+                          { LiteralDatatypeImpl::sub(lhs, rhs) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::sub_result_cpp_type, DynamicError>>;
+                          { LiteralDatatypeImpl::mul(lhs, rhs) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::mul_result_cpp_type, DynamicError>>;
+                          { LiteralDatatypeImpl::div(lhs, rhs) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::div_result_cpp_type, DynamicError>>;
+                          { LiteralDatatypeImpl::pos(lhs) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::pos_result_cpp_type, DynamicError>>;
+                          { LiteralDatatypeImpl::neg(lhs) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::neg_result_cpp_type, DynamicError>>;
                           { LiteralDatatypeImpl::is_inf(lhs) } -> std::convertible_to<bool>;
-                          { LiteralDatatypeImpl::from_multiplicity(mult) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+                          { LiteralDatatypeImpl::from_multiplicity(mult) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
                       };
 
 /**
@@ -108,11 +108,11 @@ concept Duration = requires (typename LiteralDatatypeImpl::cpp_type const &dur, 
     typename LiteralDatatypeImpl::duration_scalar_cpp_type;
     typename LiteralDatatypeImpl::duration_div_result_cpp_type;
 
-    { LiteralDatatypeImpl::duration_add(dur, dur) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
-    { LiteralDatatypeImpl::duration_sub(dur, dur) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
-    { LiteralDatatypeImpl::duration_div(dur, dur) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::duration_div_result_cpp_type, DynamicError>>;
-    { LiteralDatatypeImpl::duration_scalar_mul(dur, scalar) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
-    { LiteralDatatypeImpl::duration_scalar_div(dur, scalar) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+    { LiteralDatatypeImpl::duration_add(dur, dur) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+    { LiteralDatatypeImpl::duration_sub(dur, dur) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+    { LiteralDatatypeImpl::duration_div(dur, dur) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::duration_div_result_cpp_type, DynamicError>>;
+    { LiteralDatatypeImpl::duration_scalar_mul(dur, scalar) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+    { LiteralDatatypeImpl::duration_scalar_div(dur, scalar) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
 };
 
 template<typename LiteralDatatypeImpl>
@@ -132,9 +132,9 @@ concept Timepoint = requires (typename LiteralDatatypeImpl::cpp_type const &tp, 
                         typename LiteralDatatypeImpl::timepoint_sub_result_cpp_type;
                         typename LiteralDatatypeImpl::timepoint_duration_operand_cpp_type;
 
-                        { LiteralDatatypeImpl::timepoint_sub(tp, tp) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::timepoint_sub_result_cpp_type, DynamicError>>;
-                        { LiteralDatatypeImpl::timepoint_duration_add(tp, dur) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
-                        { LiteralDatatypeImpl::timepoint_duration_sub(tp, dur) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+                        { LiteralDatatypeImpl::timepoint_sub(tp, tp) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::timepoint_sub_result_cpp_type, DynamicError>>;
+                        { LiteralDatatypeImpl::timepoint_duration_add(tp, dur) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+                        { LiteralDatatypeImpl::timepoint_duration_sub(tp, dur) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
                     };
 
 template<typename LiteralDatatypeImpl>
@@ -159,7 +159,7 @@ concept PromotableLiteralDatatype = LiteralDatatype<LiteralDatatypeImpl> && requ
                                                                                 { LiteralDatatypeImpl::promotion_rank } -> std::convertible_to<size_t>;
                                                                                 { LiteralDatatypeImpl::max_promotion_specialization_ix } -> std::convertible_to<size_t>;
                                                                                 { LiteralDatatypeImpl::template promote<0>(value) } -> std::convertible_to<typename LiteralDatatypeImpl::template promoted_cpp_type<0>>;
-                                                                                { LiteralDatatypeImpl::template demote<0>(promoted_value) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+                                                                                { LiteralDatatypeImpl::template demote<0>(promoted_value) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
                                                                             };
 
 template<typename LiteralDatatypeImpl>
@@ -169,7 +169,7 @@ concept SubtypedLiteralDatatype = LiteralDatatype<LiteralDatatypeImpl> && requir
                                                                               { LiteralDatatypeImpl::subtype_rank } -> std::convertible_to<size_t>;
                                                                               { LiteralDatatypeImpl::max_supertype_specialization_ix } -> std::convertible_to<size_t>;
                                                                               { LiteralDatatypeImpl::template into_supertype<0>(value) } -> std::convertible_to<typename LiteralDatatypeImpl::template super_cpp_type<0>>;
-                                                                              { LiteralDatatypeImpl::template from_supertype<0>(super_value) } -> std::convertible_to<nonstd::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
+                                                                              { LiteralDatatypeImpl::template from_supertype<0>(super_value) } -> std::convertible_to<std::expected<typename LiteralDatatypeImpl::cpp_type, DynamicError>>;
                                                                           };
 
 /**

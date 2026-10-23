@@ -1,14 +1,13 @@
 #ifndef RDF4CPP_JSONLDPARSER_HPP
 #define RDF4CPP_JSONLDPARSER_HPP
 
-#include <rdf4cpp/Expected.hpp>
 #include <rdf4cpp/IRIFactory.hpp>
 #include <rdf4cpp/Quad.hpp>
-#include <rdf4cpp/parser/IStreamQuadIterator.hpp>
 
 #include <rdf4cpp/parser/JsonLdExpandParser.hpp>
 #include <rdf4cpp/parser/JsonLdParserTypes.hpp>
 
+#include <expected>
 #include <generator>
 #include <memory>
 
@@ -62,36 +61,45 @@ namespace rdf4cpp::parser {
         uint64_t blank_node_index_ = 0;
         json_ld::ExpandParser expand_parser_;
         ParsingFlags flags_;
+        /**
+         * Set by fail. An error ends the parse: the generators check this after each quad and each nested
+         * generator, and return if it is set. So nothing after the first error is parsed.
+         * It is declared before current_iter_, because the constructor already runs the parse up to the first result.
+         */
+        bool failed_ = false;
+
+        /**
+         * Sets failed_ and returns error as unexpected value.
+         * Every error that the generators yield is made with it, the errors of make_quad too.
+         */
+        std::expected<ok_type, error_type> fail(error_type error);
 
         json_ld::IRIMapping make_new_bn();
-        nonstd::expected<IRI, error_type> make_iri(std::string_view iri);
-        nonstd::expected<IRI, error_type> make_iri(json_ld::IRIMapping const &iri);
-        nonstd::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const &mapping);
-        nonstd::expected<json_ld::DirectionLiteralResult, error_type> make_literal(json_ld::StringLikeLiteralMapping const &lit, json_ld::IRIMapping const &graph);
-        nonstd::expected<Literal, error_type> make_literal(json_ld::TypedLiteralMapping const &lit);
-        nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object);
-        nonstd::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, Node object);
+        std::expected<IRI, error_type> make_iri(std::string_view iri);
+        std::expected<IRI, error_type> make_iri(json_ld::IRIMapping const &iri);
+        std::expected<Node, error_type> make_bn_or_iri(json_ld::IRIMapping const &mapping);
+        std::expected<json_ld::DirectionLiteralResult, error_type> make_literal(json_ld::StringLikeLiteralMapping const &lit, json_ld::IRIMapping const &graph);
+        std::expected<Literal, error_type> make_literal(json_ld::TypedLiteralMapping const &lit);
+        std::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, json_ld::IRIMapping const &object);
+        std::expected<ok_type, error_type> make_quad(json_ld::IRIMapping const &graph, json_ld::IRIMapping const &subject, json_ld::IRIMapping const &predicate, Node object);
 
-        using result_generator = std::generator<nonstd::expected<ok_type, error_type>>;
+        using result_generator = std::generator<std::expected<ok_type, error_type>>;
 
         /**
          * Yields the quads of a literal object: the quad for the literal itself, plus the extra quads
          * of the compound direction form. Writes the literal to obj_out, if that is not null.
          * Nothing is yielded for the quad itself if subject or predicate is not set.
-         * @param failed set to true if the literal could not be created, the error is yielded then
          */
         result_generator emit_literal(json_ld::IRIMapping const &graph,
                                      json_ld::IRIMapping const &subject,
                                      json_ld::IRIMapping const &predicate,
                                      json_ld::StringLikeLiteralMapping const &lit,
-                                     params::ListObjOut *obj_out,
-                                     bool &failed);
+                                     params::ListObjOut *obj_out);
         result_generator emit_literal(json_ld::IRIMapping const &graph,
                                      json_ld::IRIMapping const &subject,
                                      json_ld::IRIMapping const &predicate,
                                      json_ld::TypedLiteralMapping const &lit,
-                                     params::ListObjOut *obj_out,
-                                     bool &failed);
+                                     params::ListObjOut *obj_out);
 
         result_generator parse(params::ParseParams p);
         result_generator parse(params::ParseParams p, json_ld::ExpandedLevel &expanded);
@@ -118,7 +126,7 @@ namespace rdf4cpp::parser {
         static constexpr size_t StreamChunkSize = 64 * 1024;
 
     public:
-        [[nodiscard]] std::optional<nonstd::expected<ok_type, error_type>> next() override;
+        [[nodiscard]] std::optional<std::expected<ok_type, error_type>> next() override;
         [[nodiscard]] uint64_t current_line() const noexcept override;
         [[nodiscard]] uint64_t current_column() const noexcept override;
 

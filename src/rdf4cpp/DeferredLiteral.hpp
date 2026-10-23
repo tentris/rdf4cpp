@@ -44,7 +44,7 @@ requires std::is_nothrow_invocable_r_v<datatypes::registry::DatatypeRegistry::bi
                 return DeferredLiteral{};
             }
 
-            return DeferredLiteral{std::move(*op_res.result_value), IRI{op_res.result_type_id, node_storage}};
+            return DeferredLiteral{std::move(op_res.result_value->value), IRI{op_res.result_type_id, node_storage}};
         },
         DeferredLiteral{},
         lhs,

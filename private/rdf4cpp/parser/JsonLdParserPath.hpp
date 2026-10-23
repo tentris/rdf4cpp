@@ -92,6 +92,25 @@ namespace rdf4cpp::parser {
         error_code = val.get(result);
         return std::tuple(error_code, result);
     }
+    template<typename T>
+    // ReSharper disable once CppDFAUnreachableFunctionCall
+    static auto try_get_field(simdjson::ondemand::object obj, std::optional<simdjson::ondemand::object> merge_obj, std::string_view key) {
+        auto r = try_get_field<T>(obj, key);
+        if (std::get<0>(r) == simdjson::NO_SUCH_FIELD && merge_obj.has_value()) {
+            r = try_get_field<T>(*merge_obj, key);
+        }
+        return r;
+    }
+    template<typename T>
+    static std::tuple<simdjson::error_code, std::optional<T>> try_get_optional_field(simdjson::ondemand::object obj,
+                                                                                     std::optional<simdjson::ondemand::object> merge_obj,
+                                                                                     std::string_view key) {
+        auto r = try_get_optional_field<T>(obj, key);
+        if (std::get<0>(r) == simdjson::NO_SUCH_FIELD && merge_obj.has_value()) {
+            r = try_get_optional_field<T>(*merge_obj, key);
+        }
+        return r;
+    }
 }  // namespace rdf4cpp::parser
 
 #endif  //RDF4CPP_JSONLDPARSERPATH_HPP

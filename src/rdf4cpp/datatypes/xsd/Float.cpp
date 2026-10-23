@@ -27,30 +27,30 @@ bool capabilities::Logical<xsd_float>::effective_boolean_value(cpp_type const &v
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_float>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::abs(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_float>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::abs(cpp_type const &operand) noexcept {
     return std::abs(operand);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_float>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::round(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_float>::round_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::round(cpp_type const &operand) noexcept {
     return util::xsd_round(operand);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_float>::floor_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::floor(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_float>::floor_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::floor(cpp_type const &operand) noexcept {
     return std::floor(operand);
 }
 
 template<>
-nonstd::expected<capabilities::Numeric<xsd_float>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::ceil(cpp_type const &operand) noexcept {
+std::expected<capabilities::Numeric<xsd_float>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_float>::ceil(cpp_type const &operand) noexcept {
     return std::ceil(operand);
 }
 
 template<>
-nonstd::expected<capabilities::Default<xsd_float>::cpp_type, DynamicError> capabilities::Numeric<xsd_float>::from_multiplicity(uint64_t multiplicity) noexcept {
+std::expected<capabilities::Default<xsd_float>::cpp_type, DynamicError> capabilities::Numeric<xsd_float>::from_multiplicity(uint64_t multiplicity) noexcept {
     if (!util::fits_in_floating<cpp_type>(multiplicity)) [[unlikely]] {
         // doesn't fit
-        return nonstd::make_unexpected(DynamicError::InvalidValueForCast);
+        return std::unexpected(DynamicError::InvalidValueForCast);
     }
 
     return static_cast<cpp_type>(multiplicity);

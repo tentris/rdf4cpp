@@ -230,7 +230,7 @@ To implement custom conversion behaviour the functions of :struct:`rdf4cpp::data
 
     template<>
     template<>
-    inline nonstd::expected<cpp_type, DynamicError> capabilities::Promotable<your_type>::demote<IX>(promoted_cpp_type<IX> const &value) noexcept {
+    inline std::expected<cpp_type, DynamicError> capabilities::Promotable<your_type>::demote<IX>(promoted_cpp_type<IX> const &value) noexcept {
         // do some complex conversion or fail
     }
 
@@ -242,7 +242,7 @@ To implement custom conversion behaviour the functions of :struct:`rdf4cpp::data
 
     template<>
     template<>
-    inline nonstd::expected<cpp_type, DynamicError> capabilities::Subtype<your_type>::from_supertype<IX>(super_cpp_type<IX> const &value) noexcept {
+    inline std::expected<cpp_type, DynamicError> capabilities::Subtype<your_type>::from_supertype<IX>(super_cpp_type<IX> const &value) noexcept {
         // do some complex conversion or fail
     }
 
@@ -270,7 +270,7 @@ You can then manually specialize: ::
 
     template<>
     template<>
-    inline nonstd::expected<cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
+    inline std::expected<cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<0>(promoted_cpp_type<0> const &value) noexcept {
         // xsd:float -> xsd:decimal
     }
 
@@ -282,7 +282,7 @@ You can then manually specialize: ::
 
     template<>
     template<>
-    inline nonstd::expected<cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<1>(promoted_cpp_type<1> const &value) noexcept {
+    inline std::expected<cpp_type, DynamicError> capabilities::Promotable<xsd_decimal>::demote<1>(promoted_cpp_type<1> const &value) noexcept {
         // xsd:double -> xsd:decimal
     }
 

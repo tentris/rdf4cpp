@@ -29,19 +29,19 @@ template<>
 std::partial_ordering capabilities::Comparable<owl_real>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
-nonstd::expected<capabilities::Numeric<owl_real>::abs_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::abs(cpp_type const &operand) noexcept;
+std::expected<capabilities::Numeric<owl_real>::abs_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::abs(cpp_type const &operand) noexcept;
 
 template<>
-nonstd::expected<capabilities::Numeric<owl_real>::round_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::round(cpp_type const &operand) noexcept;
+std::expected<capabilities::Numeric<owl_real>::round_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::round(cpp_type const &operand) noexcept;
 
 template<>
-nonstd::expected<capabilities::Numeric<owl_real>::floor_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::floor(cpp_type const &operand) noexcept;
+std::expected<capabilities::Numeric<owl_real>::floor_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::floor(cpp_type const &operand) noexcept;
 
 template<>
-nonstd::expected<capabilities::Numeric<owl_real>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::ceil(cpp_type const &operand) noexcept;
+std::expected<capabilities::Numeric<owl_real>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<owl_real>::ceil(cpp_type const &operand) noexcept;
 
 template<>
-nonstd::expected<capabilities::Default<owl_real>::cpp_type, DynamicError> capabilities::Numeric<owl_real>::from_multiplicity(uint64_t multiplicity) noexcept;
+std::expected<capabilities::Default<owl_real>::cpp_type, DynamicError> capabilities::Numeric<owl_real>::from_multiplicity(uint64_t multiplicity) noexcept;
 
 #endif
 

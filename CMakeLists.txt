@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(rdf4cpp VERSION 0.3.3)
+project(rdf4cpp VERSION 0.3.4)
 set(POBR_VERSION 6)  # Persisted Object Binary Representation
 
 include(cmake/boilerplate_init.cmake)
@@ -26,7 +26,6 @@ if (PROJECT_IS_TOP_LEVEL)
 endif ()
 
 # find packages
-find_package(expected-lite REQUIRED)
 find_package(Boost REQUIRED COMPONENTS charconv)
 find_package(PCRE2 REQUIRED)
 find_package(botan REQUIRED)
@@ -188,7 +187,6 @@ target_include_directories(
 
 target_link_libraries(rdf4cpp
         PUBLIC
-        nonstd::expected-lite
         Boost::headers
         Boost::charconv
         dice-hash::dice-hash

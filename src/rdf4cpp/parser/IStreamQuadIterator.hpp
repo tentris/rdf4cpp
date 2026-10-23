@@ -1,10 +1,9 @@
 #ifndef RDF4CPP_PARSER_ISTREAMQUADITERATOR_HPP
 #define RDF4CPP_PARSER_ISTREAMQUADITERATOR_HPP
 
+#include <expected>
 #include <iterator>
 #include <memory>
-
-#include <rdf4cpp/Expected.hpp>
 
 #include <rdf4cpp/Quad.hpp>
 
@@ -78,7 +77,7 @@ struct IStreamQuadIterator {
     using ok_type = Quad;
     using error_type = ParsingError;
 
-    using value_type = nonstd::expected<ok_type, error_type>;
+    using value_type = std::expected<ok_type, error_type>;
     using reference = value_type const &;
     using pointer = value_type const *;
     using difference_type = std::ptrdiff_t;
@@ -98,7 +97,7 @@ private:
          *      expected Quad: if there was a next element and it could be parsed
          *      unexpected ParsingError: if there was a next element but it could not be parsed
          */
-        [[nodiscard]] virtual std::optional<nonstd::expected<ok_type, error_type>> next() = 0;
+        [[nodiscard]] virtual std::optional<std::expected<ok_type, error_type>> next() = 0;
         [[nodiscard]] virtual uint64_t current_line() const noexcept = 0;
         [[nodiscard]] virtual uint64_t current_column() const noexcept = 0;
 
@@ -114,7 +113,7 @@ private:
     struct ImplJsonLd;
 
     std::unique_ptr<Impl> impl;
-    std::optional<nonstd::expected<ok_type, error_type>> cur;
+    std::optional<std::expected<ok_type, error_type>> cur;
 
     static std::unique_ptr<Impl> make_impl(void *stream,
                                            ReadFunc read,
