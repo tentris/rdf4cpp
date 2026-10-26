@@ -61,7 +61,7 @@ TEST_SUITE("anonymizer") {
     }
 
     template<typename DS, typename Pat>
-    [[nodiscard]] query::Solution first_solution(DS const &ds, Pat const &pat) {
+    query::Solution first_solution(DS const &ds, Pat const &pat) {
         auto const solutions = ds.match(pat);
         CHECK_EQ(std::ranges::distance(solutions), 1);
 
