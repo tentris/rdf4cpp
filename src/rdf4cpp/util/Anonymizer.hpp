@@ -29,8 +29,10 @@ private:
     template<datatypes::registry::util::ConstexprString base>
     struct MkAnon {
     private:
+        static constexpr size_t random_len = 16;
+
         Anonymizer *parent_;
-        std::array<char, base.size() + 16> buf_;
+        std::array<char, base.size() + random_len> buf_;
 
     public:
         explicit MkAnon(Anonymizer &parent) noexcept;
