@@ -7,7 +7,11 @@
 #include <rdf4cpp/Literal.hpp>
 #include <rdf4cpp/query/Variable.hpp>
 #include <rdf4cpp/namespaces/FOAF.hpp>
+#include <rdf4cpp/datatypes/xsd.hpp>
+#include <rdf4cpp/datatypes/owl.hpp>
+#include <rdf4cpp/storage/reference_node_storage/UnsyncReferenceNodeStorage.hpp>
 
+#include <format>
 #include <unordered_set>
 #include <vector>
 
@@ -57,7 +61,7 @@ TEST_SUITE("anonymizer") {
     }
 
     template<typename DS, typename Pat>
-    [[nodiscard]] query::Solution first_solution(DS const &ds, Pat const &pat) {
+    query::Solution first_solution(DS const &ds, Pat const &pat) {
         auto const solutions = ds.match(pat);
         CHECK_EQ(std::ranges::distance(solutions), 1);
 
@@ -147,5 +151,183 @@ _:customer2 a foaf:Person ;
         auto const m2 = first_solution(anon, query::QuadPattern{query::Variable{"g"}, c2, foaf_mbox, query::Variable{"n"}})[1];
 
         CHECK(all_distinct(std::vector{c1, c2, n1, n2, m1, m2}));
+    }
+
+    TEST_CASE("graph names are anonymized consistently") {
+        std::string const data{R"(
+@prefix ex: <http://example.com/> .
+
+ex:G ex:p ex:o .
+ex:G { ex:s ex:p ex:G . }
+)"};
+
+        std::istringstream iss{data};
+
+        Dataset ds;
+        ds.load_rdf_data(iss);
+
+        util::Anonymizer anony{};
+        auto anon = ds.anonymize(anony);
+        CHECK_EQ(anon.size(), ds.size());
+
+        IRI const g{"http://example.com/G"};
+        auto const anon_g = anony.anonymize(g);
+        auto const anon_p = anony.anonymize(IRI{"http://example.com/p"});
+        CHECK_NE(anon_g, g);
+
+        // the same anonymized IRI must be used in graph, subject and object position
+        first_solution(anon, query::QuadPattern{IRI::default_graph(), anon_g, anon_p, query::Variable{"o"}});
+        first_solution(anon, query::QuadPattern{anon_g, query::Variable{"s"}, anon_p, anon_g});
+    }
+
+    TEST_CASE("node kinds are preserved") {
+        storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
+        util::Anonymizer anony{ns};
+
+        auto const check = [&](Node const &orig) {
+            auto const anon = anony.anonymize(orig);
+            CHECK_NE(anon, orig);
+            CHECK_EQ(anon.backend_handle().id().type(), orig.backend_handle().id().type());
+            CHECK_EQ(anon.backend_handle().storage(), anony.node_storage());
+            CHECK_EQ(anony.anonymize(orig), anon);
+            return anon;
+        };
+
+        auto const iri = check(IRI::make("http://example.com#x", ns));
+        auto const iri2 = check(IRI::make("http://example.com#y", ns));
+        auto const bn = check(BlankNode::make("bn", ns));
+        auto const bn2 = check(BlankNode::make("bn2", ns));
+        auto const named_var = check(query::Variable::make_named("v", ns));
+        auto const named_var2 = check(query::Variable::make_named("w", ns));
+        auto const anon_var = check(query::Variable::make_anonymous("v", ns));
+        auto const anon_var2 = check(query::Variable::make_anonymous("w", ns));
+        auto const lit = check(Literal::make_simple("Hello World", ns));
+        auto const lit2 = check(Literal::make_simple("Hello World 2", ns));
+
+        CHECK_FALSE(named_var.as_variable().is_anonymous());
+        CHECK(anon_var.as_variable().is_anonymous());
+        CHECK(all_distinct(std::vector<Node>{iri, iri2, bn, bn2, named_var, named_var2, anon_var, anon_var2, lit, lit2}));
+    }
+
+    TEST_CASE("same term from different node storages") {
+        storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
+        storage::reference_node_storage::UnsyncReferenceNodeStorage other_ns;
+        util::Anonymizer anony{ns};
+
+        for (bool const b_first : {false, true}) {
+            SUBCASE(std::format("{}", b_first).c_str()) {
+                // equal terms must map to the same anonymized node, regardless of their storage or which one is seen first
+                auto const check = [&](Node const &a, Node const &b) {
+                    CHECK_EQ(a, b);
+                    CHECK_NE(a.backend_handle().storage(), b.backend_handle().storage());
+                    auto const anon = anony.anonymize(b_first ? b : a);
+                    CHECK_EQ(anony.anonymize(b_first ? a : b), anon);
+                    CHECK_EQ(anon.backend_handle().storage(), anony.node_storage());
+                };
+
+                check(IRI::make("http://example.com#x", ns), IRI::make("http://example.com#x", other_ns));
+                check(BlankNode::make("bn", ns), BlankNode::make("bn", other_ns));
+                check(query::Variable::make_named("v", ns), query::Variable::make_named("v", other_ns));
+                check(Literal::make_simple("Hello World", ns), Literal::make_simple("Hello World", other_ns));
+                check(Literal::make_lang_tagged("Hello World", "en", ns), Literal::make_lang_tagged("Hello World", "en", other_ns));
+            }
+        }
+    }
+
+    TEST_CASE("datatype IRIs are kept") {
+        storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
+        util::Anonymizer anony{ns};
+
+        for (auto const &entry : datatypes::registry::DatatypeRegistry::registered_datatypes()) {
+            if (!entry.datatype_iri.empty()) {
+                IRI const iri = IRI::make(entry.datatype_iri, ns);
+                CHECK_EQ(anony.anonymize(iri), iri);
+            }
+        }
+
+        auto const rdf_type = IRI::rdf_type(ns);
+        CHECK_EQ(anony.anonymize(rdf_type), rdf_type);
+
+        auto const default_graph = IRI::default_graph(ns);
+        CHECK_EQ(anony.anonymize(default_graph), default_graph);
+    }
+
+    TEST_CASE("literals") {
+        using namespace datatypes;
+
+        storage::reference_node_storage::UnsyncReferenceNodeStorage ns;
+        util::Anonymizer anony{ns};
+        std::unordered_set<std::string> covered_datatypes;
+
+        // anonymized literal keeps datatype and language tag but gets a new lexical form
+        auto const check_anon = [&](Literal const &orig) {
+            covered_datatypes.emplace(orig.datatype().identifier());
+            auto const anon = anony.anonymize(orig).as_literal();
+            REQUIRE_FALSE(anon.null());
+            CHECK(anon.datatype_eq(orig));
+            CHECK_EQ(anon.language_tag(), orig.language_tag());
+            CHECK_NE(anon.lexical_form().view(), orig.lexical_form().view());
+            CHECK_EQ(anon.backend_handle().storage(), anony.node_storage());
+            CHECK_EQ(anony.anonymize(orig), anon);
+            return anon;
+        };
+
+        // literals without intrinsic meaning are kept as they are
+        auto const check_kept = [&](Literal const &orig) {
+            covered_datatypes.emplace(orig.datatype().identifier());
+            CHECK_EQ(anony.anonymize(orig), orig);
+            CHECK_EQ(anony.anonymize(orig), orig);
+        };
+
+        IRI const unknown_dt = IRI::make("http://example.com/dt", ns);
+
+        CHECK(all_distinct(std::vector<Node>{
+                check_anon(Literal::make_simple("Hello World", ns)),
+                check_anon(Literal::make_lang_tagged("Hello World", "en", ns)),
+                check_anon(Literal::make_lang_tagged("Hello World", "mylanguage", ns)),
+                check_anon(Literal::make_typed<xsd::HexBinary>("0A0B", ns)),
+                check_anon(Literal::make_typed<xsd::Base64Binary>("AAEC", ns)),
+                check_anon(Literal::make_typed<xsd::AnyURI>("http://example.com/uri", ns)),
+                check_anon(Literal::make_typed("Hello World", unknown_dt, ns)),
+        }));
+
+        check_kept(Literal::make_boolean(true, ns));
+        check_kept(Literal::make_typed<xsd::Float>("1.5", ns));
+        check_kept(Literal::make_typed<xsd::Double>("1.5", ns));
+        check_kept(Literal::make_typed<xsd::Decimal>("1.5", ns));
+        check_kept(Literal::make_typed<owl::Real>("1.5", ns));
+        check_kept(Literal::make_typed<owl::Rational>("1/2", ns));
+        check_kept(Literal::make_typed<xsd::Integer>("42", ns));
+        check_kept(Literal::make_typed<xsd::Long>("42", ns));
+        check_kept(Literal::make_typed<xsd::Int>("42", ns));
+        check_kept(Literal::make_typed<xsd::Short>("42", ns));
+        check_kept(Literal::make_typed<xsd::Byte>("42", ns));
+        check_kept(Literal::make_typed<xsd::NonNegativeInteger>("42", ns));
+        check_kept(Literal::make_typed<xsd::PositiveInteger>("42", ns));
+        check_kept(Literal::make_typed<xsd::UnsignedLong>("42", ns));
+        check_kept(Literal::make_typed<xsd::UnsignedInt>("42", ns));
+        check_kept(Literal::make_typed<xsd::UnsignedShort>("42", ns));
+        check_kept(Literal::make_typed<xsd::UnsignedByte>("42", ns));
+        check_kept(Literal::make_typed<xsd::NonPositiveInteger>("-42", ns));
+        check_kept(Literal::make_typed<xsd::NegativeInteger>("-42", ns));
+        check_kept(Literal::make_typed<xsd::GYear>("2020", ns));
+        check_kept(Literal::make_typed<xsd::GMonth>("--05", ns));
+        check_kept(Literal::make_typed<xsd::GDay>("---15", ns));
+        check_kept(Literal::make_typed<xsd::GYearMonth>("2020-05", ns));
+        check_kept(Literal::make_typed<xsd::GMonthDay>("--05-15", ns));
+        check_kept(Literal::make_typed<xsd::Date>("2020-05-15", ns));
+        check_kept(Literal::make_typed<xsd::Time>("12:00:00", ns));
+        check_kept(Literal::make_typed<xsd::DateTime>("2020-05-15T12:00:00", ns));
+        check_kept(Literal::make_typed<xsd::DateTimeStamp>("2020-05-15T12:00:00Z", ns));
+        check_kept(Literal::make_typed<xsd::Duration>("P1Y2M3DT4H", ns));
+        check_kept(Literal::make_typed<xsd::DayTimeDuration>("P1DT2H", ns));
+        check_kept(Literal::make_typed<xsd::YearMonthDuration>("P1Y2M", ns));
+
+        // every registered datatype must be covered above
+        for (auto const &entry : registry::DatatypeRegistry::registered_datatypes()) {
+            if (!entry.datatype_iri.empty()) {
+                CHECK_MESSAGE(covered_datatypes.contains(entry.datatype_iri), entry.datatype_iri);
+            }
+        }
     }
 }
