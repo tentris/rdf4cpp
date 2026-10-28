@@ -14,6 +14,13 @@ namespace doctest {
             return String{s.c_str(), static_cast<String::size_type>(s.size())};
         }
     };
+    // the standard operator<< for local time points can not handle the checked int128 duration of TimePoint
+    template<> struct StringMaker<rdf4cpp::TimePoint> {
+        static String convert(const rdf4cpp::TimePoint& value) {
+            auto s = std::format("{}", value);
+            return String{s.c_str(), static_cast<String::size_type>(s.size())};
+        }
+    };
 }
 
 template<typename Datatype>
@@ -143,18 +150,37 @@ TEST_CASE("date") {
                 std::chrono::year_month_day const base = std::chrono::year{y} / m / d;
                 auto base_sd = static_cast<std::chrono::sys_days>(base);
                 rdf4cpp::YearMonthDay date{base};
-                CHECK(date == rdf4cpp::YearMonthDay{rdf4cpp::Year(y), std::chrono::month(m), std::chrono::day(d)});
-                CHECK(date.to_time_point() == base_sd);
-                CHECK(date == rdf4cpp::YearMonthDay{base_sd});
-                CHECK(date.ok());
+                rdf4cpp::YearMonthDay const from_parts{rdf4cpp::Year(y), std::chrono::month(m), std::chrono::day(d)};
+                rdf4cpp::YearMonthDay const from_sys_days{base_sd};
+                if (!(date == from_parts && date.to_time_point() == base_sd && date == from_sys_days && date.ok())) [[unlikely]] {
+                    CAPTURE(y);
+                    CAPTURE(m);
+                    CAPTURE(d);
+                    CHECK(date == from_parts);
+                    CHECK(date.to_time_point() == base_sd);
+                    CHECK(date == from_sys_days);
+                    CHECK(date.ok());
+                }
             }
             std::chrono::year_month_day const base_last = std::chrono::year{y} / m / std::chrono::last;
-            CHECK(rdf4cpp::YearMonthDay{rdf4cpp::Year(y), std::chrono::month(m), std::chrono::last} == rdf4cpp::YearMonthDay{base_last});
-            CHECK(!rdf4cpp::YearMonthDay{rdf4cpp::Year(y), std::chrono::month(m), std::chrono::day{static_cast<unsigned int>(base_last.day()) + 1}}.ok());
-            CHECK(!rdf4cpp::YearMonthDay{rdf4cpp::Year(y), std::chrono::month(m), std::chrono::day{0}}.ok());
+            rdf4cpp::YearMonthDay const last{rdf4cpp::Year(y), std::chrono::month(m), std::chrono::last};
+            rdf4cpp::YearMonthDay const after_last{rdf4cpp::Year(y), std::chrono::month(m), std::chrono::day{static_cast<unsigned int>(base_last.day()) + 1}};
+            rdf4cpp::YearMonthDay const day_zero{rdf4cpp::Year(y), std::chrono::month(m), std::chrono::day{0}};
+            if (!(last == rdf4cpp::YearMonthDay{base_last} && !after_last.ok() && !day_zero.ok())) [[unlikely]] {
+                CAPTURE(y);
+                CAPTURE(m);
+                CHECK(last == rdf4cpp::YearMonthDay{base_last});
+                CHECK(!after_last.ok());
+                CHECK(!day_zero.ok());
+            }
         }
-        CHECK(!rdf4cpp::YearMonthDay{rdf4cpp::Year(y), std::chrono::month(0), std::chrono::day{1}}.ok());
-        CHECK(!rdf4cpp::YearMonthDay{rdf4cpp::Year(y), std::chrono::month(13), std::chrono::day{1}}.ok());
+        rdf4cpp::YearMonthDay const month_zero{rdf4cpp::Year(y), std::chrono::month(0), std::chrono::day{1}};
+        rdf4cpp::YearMonthDay const month_thirteen{rdf4cpp::Year(y), std::chrono::month(13), std::chrono::day{1}};
+        if (month_zero.ok() || month_thirteen.ok()) [[unlikely]] {
+            CAPTURE(y);
+            CHECK(!month_zero.ok());
+            CHECK(!month_thirteen.ok());
+        }
     }
 }
 

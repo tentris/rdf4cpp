@@ -143,7 +143,6 @@ jobs:
         run: |
           PRESET="ci-${{ fromJSON('["static", "shared"]')[inputs.build-shared-libs] }}${{ fromJSON('["", "-sanitizer"]')[inputs.with-sanitizer] }}${{ fromJSON('["", "-coverage"]')[inputs.with-coverage] }}"
           echo PRESET="${PRESET}" >> $GITHUB_ENV
-          echo CTEST_PARALLEL_LEVEL="$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)" >> $GITHUB_ENV
 
       - name: Set compiler env vars
         if: ${{ !contains(inputs.os, 'macos') }}
