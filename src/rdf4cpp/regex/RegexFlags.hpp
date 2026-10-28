@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <type_traits>
+#include <numeric>
 
 namespace rdf4cpp::regex {
 
@@ -54,6 +55,25 @@ public:
     constexpr RegexFlags operator|(RegexFlag const flag) const noexcept {
         auto cpy = *this;
         return (cpy |= flag);
+    }
+
+    static constexpr RegexFlags translate_flags(std::string_view const xpath_flags) {
+        return std::accumulate(xpath_flags.begin(), xpath_flags.end(), none(), [](auto facc, char c) {
+            switch (c) {
+                case 's':
+                    return facc | RegexFlag::DotAll;
+                case 'i':
+                    return facc | RegexFlag::CaseInsensitive;
+                case 'q':
+                    return facc | RegexFlag::Literal;
+                case 'm':
+                    return facc | RegexFlag::Multiline;
+                case 'x':
+                    return facc | RegexFlag::RemoveWhitespace;
+                default:
+                    throw std::runtime_error{std::string{"Encountered unsupported regex flag: "} + c};
+            }
+        });
     }
 };
 
