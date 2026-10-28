@@ -26,6 +26,24 @@ private:
 
     void gen_random_id(std::span<char> output);
 
+    template<datatypes::registry::util::ConstexprString base>
+    struct MkAnon {
+    private:
+        static constexpr size_t random_len = 16;
+
+        Anonymizer *parent_;
+        std::array<char, base.size() + random_len> buf_;
+
+    public:
+        explicit MkAnon(Anonymizer &parent) noexcept;
+        std::string_view operator()();
+    };
+
+    Literal anonymize_impl(Literal const &lit);
+    BlankNode anonymize_impl(BlankNode const &node);
+    IRI anonymize_impl(IRI const &node);
+    query::Variable anonymize_impl(query::Variable const &var);
+
 public:
     /**
      * Initialize the anonymizer
@@ -43,13 +61,17 @@ public:
      * Passing in the same node yield the same anonymized node as last time, this is to ensure that
      * the graph structure stays intact.
      *
-     * Any node passed in gets turned into an IRI matching the following regex: <http://example.com/[a-zA-Z]{16}>
-     *      except for the null node and the default graph IRI which both stay as they are.
+     * The anonymized node has the same kind as the input:
+     *      - IRIs become IRIs matching <http://example.org/[a-zA-Z]{16}>
+     *      - blank nodes and variables get a random name, variables keep their anonymity
+     *      - literals keep their datatype and language tag but get a random lexical form,
+     *        except numeric, duration, timepoint and boolean literals which are kept as they are
+     *      - the null node and the default graph IRI stay as they are
      *
      * @param non_anon non-anonymized node to anonymize
      * @return anonymized node
      */
-    [[nodiscard]] IRI anonymize(Node const &non_anon);
+    [[nodiscard]] Node anonymize(Node const &non_anon);
 
         /**
      * Anonymize a statement by anonymizing each component (subject, predicate and object)
