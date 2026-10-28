@@ -35,34 +35,35 @@ Build
 Requirements
 ____________
 
-Currently, rdf4cpp builds only on linux with a C++23 compatible compiler.
-CI builds and tests rdf4cpp with gcc-{13}, clang-{15,16} with libstdc++-13 on ubuntu 22.04.
+* Conan >= 2.28
+* CMake >= 3.28
+* Clang >= 21 or GCC >= 14
+* Ninja
+* `mold linker <https://github.com/rui314/mold>`_ (Linux only)
 
 Dependencies
 ____________
 
-It is recommended to include build dependencies via conan. Set up Conan as follows on Ubuntu 22.04+: ::
-
     sudo apt install python3-pip
-    pip3 install --user "conan<2"
-    conan user
-    conan profile new --detect default
-    conan profile update settings.compiler.libcxx=libstdc++13 default
+    pip3 install --user "conan"
+    conan profile detect
     conan remote add dice-group https://conan.dice-research.org/artifactory/api/conan/tentris
 
 
 Compile
 _______
 
-rdf4cpp uses CMake. To build it, run: ::
+rdf4cpp is built via the presets in :code:`CMakePresets.json`. To build and test it, run: ::
 
-    cmake -B build_dir # configure and generate
-    cmake --build build_dir # compile
+    cmake --preset dev
+    cmake --build --preset dev
+    ctest --preset dev
 
+To install it to your system, run: ::
 
-To install it to your system, run afterward: ::
-
-    sudo make install
+    cmake --preset release
+    cmake --build --preset release
+    sudo cmake --install build/release
 
 
 Additional CMake config options:
