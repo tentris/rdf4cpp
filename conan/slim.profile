@@ -75,3 +75,8 @@ libxml2/*:programs=False
 
 # simdjson: rdf4cpp parses single-threaded
 simdjson/*:threads=False
+
+[conf]
+# pcre2: its CMakeLists looks for BZip2 and ZLIB even when they are disabled above, and a broken system config
+# (e.g. Fedora's zlib-ng-compat-devel without -static) then fails the build
+pcre2/*:tools.cmake.cmaketoolchain:extra_variables={"CMAKE_DISABLE_FIND_PACKAGE_BZip2": True, "CMAKE_DISABLE_FIND_PACKAGE_ZLIB": True}
