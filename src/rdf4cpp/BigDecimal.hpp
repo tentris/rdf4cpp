@@ -235,28 +235,35 @@ namespace rdf4cpp {
                 if constexpr (!std::numeric_limits<UnscaledValue_t>::is_bounded) {
                     from_double_direct(value);
                 } else {
-                    if (std::isinf(value) || std::isnan(value))
-                        throw std::invalid_argument{"value is NaN or infinity"};
-                    // use the shortest representation that round-trips (<= 17 significant digits) instead of the exact one,
-                    // as the exact one would use up all available digits and make the result useless for further arithmetic
-                    std::array<char, 350> buf;  // fixed notation of the smallest denormal double needs 326 chars
-                    auto const res = boost::charconv::to_chars(buf.data(), buf.data() + buf.size(), value, boost::charconv::chars_format::fixed);
-                    RDF4CPP_ASSERT(res.ec == std::errc{});
-                    try {
-                        *this = BigDecimal{std::string_view{buf.data(), res.ptr}};
-                    } catch (InvalidNode const &) {
-                        throw std::overflow_error{"double -> decimal overflow"};
+                    // exact value, then the closest one that fits (XPath F&O 3.1 §19.1.2.3):
+                    // drop digits until the unscaled value fits, round half towards zero.
+                    // known deviation: if the kept digits are exactly max / 10, max at one more digit might be closer
+                    using Big = boost::multiprecision::checked_cpp_int;
+                    BigDecimal<Big, Exponent_t> const exact{static_cast<double>(value)};  // throws on NaN or infinity
+                    Big const &u = exact.get_unscaled_value();
+                    Exponent_t e = exact.get_exponent();
+                    Big div{1};
+                    while (detail::cast_checked<OverflowMode::Checked>(Big{u / div}, unscaled_value)) {
+                        if (e == 0)
+                            throw std::overflow_error{"double -> decimal overflow"};
+                        div *= 10;
+                        --e;
                     }
+                    // more than half an ulp dropped: round away from zero.
+                    // if that does not fit, the truncated value stays, it is closer than the next value that fits
+                    UnscaledValue_t rounded;
+                    if (abs(u % div) * 2 > div && !detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{u < 0 ? -1 : 1}, rounded))
+                        unscaled_value = rounded;
+                    exponent = e;
+                    normalize();
                 }
             }
 
         public:
             /**
-             * converts a float/double to a BigDecimal.
-             * this conversion might not be exact, due to the built in limitations of floating point numbers.
-             * if you have the possibility, use one of the other constructors.
+             * converts a float/double to the closest BigDecimal, ties towards zero.
              * @param value
-             * @throw std::overflow_error on exceeding the types numeric limits
+             * @throw std::overflow_error if the integer part exceeds the types numeric limits
              * @throw std::invalid_argument on NaN or infinity
              */
             explicit BigDecimal(float value) : unscaled_value(0), exponent(0) {
