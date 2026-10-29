@@ -246,6 +246,9 @@ TEST_CASE("decimal limits") {
         CHECK(Literal::make_typed_from_value<Double>(std::numeric_limits<double>::quiet_NaN()).cast<Decimal>().null());
         CHECK(Literal::make_typed_from_value<Double>(std::numeric_limits<double>::infinity()).cast<Decimal>().null());
         CHECK(Literal::make_typed_from_value<Float>(-std::numeric_limits<float>::infinity()).cast<Decimal>().null());
+        // the closest representable value, https://www.w3.org/TR/xpath-functions/#casting-to-decimal
+        CHECK(Literal::make_typed_from_value<Double>(0.1).cast<Decimal>() == Literal::make_typed<Decimal>("0.100000000000000005551115123125782702118"));
+        CHECK(Literal::make_typed_from_value<Float>(0.1f).cast<Decimal>() == Literal::make_typed<Decimal>("0.100000001490116119384765625"));
     }
     SUBCASE("unm") {
         CHECK((-Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal::cpp_type>::min())).null());

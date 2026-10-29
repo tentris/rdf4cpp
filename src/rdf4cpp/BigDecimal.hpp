@@ -252,7 +252,7 @@ namespace rdf4cpp {
                     // more than half an ulp dropped: round away from zero.
                     // if that does not fit, the truncated value stays, it is closer than the next value that fits
                     UnscaledValue_t rounded;
-                    if (abs(u % div) * 2 > div && !detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{u < 0 ? -1 : 1}, rounded))
+                    if (boost::multiprecision::abs(u % div) * 2 > div && !detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{u < 0 ? -1 : 1}, rounded))
                         unscaled_value = rounded;
                     exponent = e;
                     normalize();

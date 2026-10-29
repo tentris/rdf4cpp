@@ -471,14 +471,23 @@ TEST_CASE("conversion") {
         CHECK(Dec{5000000000000000000.0} == Dec{5000000000000000000, 0});
         CHECK(Dec{0.0009765625} == Dec{"0.0009765625"});
         CHECK(Dec{1.0} == Dec{1, 0});
-        CHECK(Dec{1.2} == Dec{12, 1});  // shortest round-tripping representation, not the exact value of the double
-        CHECK(Dec{0.1f} == Dec{1, 1});
-        CHECK(Dec{0.1}.add_checked(Dec{1, 0}) == Dec{11, 1});
-        CHECK(Dec{1e-300} == Dec{1, 300});
+        // the exact value of the double, rounded to the closest value that fits (ties towards zero)
+        CHECK(Dec{1.2} == Dec{"1.19999999999999995559107901499373838305"});
+        CHECK(Dec{-1.2} == -Dec{1.2});
+        CHECK(Dec{0.1f} == Dec{"0.100000001490116119384765625"});
+        CHECK(Dec{0.1} == Dec{"0.100000000000000005551115123125782702118"});
+        CHECK(Dec{1e-300} == Dec{"0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000250590918352087596857"});
+        CHECK(Dec{1.7e38} == Dec{"169999999999999998061923293023115935744"});
+        CHECK(Dec(std::numeric_limits<double>::denorm_min()) == Dec{"0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000049406564584124654417656879286822137237"});
+        CHECK(DecI{21474836.475} == DecI{2147483647, 2});  // 21474836.475000001... rounds up
+        CHECK(DecI{2147483.6475} == DecI{2147483647, 3});  // 2147483.6474999999... does not
+        CHECK(DecI{2147483646.5} == DecI{2147483646, 0});  // tie towards zero
+        CHECK(DecI{-2147483646.5} == DecI{-2147483646, 0});
+        CHECK(DecI{2147483647.6} == DecI{2147483647, 0});  // rounding up does not fit, the truncated value is closer than 214748365 * 10
         CHECK_EQ(static_cast<float>(Dec{1.0}), 1.0f);
         CHECK_THROWS_AS([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::max()), std::overflow_error);
+        CHECK_THROWS_AS([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::quiet_NaN()), std::invalid_argument);
         CHECK(Dec(std::numeric_limits<double>::min()) > Dec(0, 0));
-        CHECK(Dec(std::numeric_limits<double>::denorm_min()) > Dec(0, 0));
     }
     SUBCASE("to double") {
         CHECK_EQ(static_cast<double>(Dec{50, 0}), 50.0);
