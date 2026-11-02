@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.22)
-project(rdf4cpp VERSION 0.3.5)
+project(rdf4cpp VERSION 0.3.6)
 set(POBR_VERSION 6)  # Persisted Object Binary Representation
 
 include(cmake/boilerplate_init.cmake)
 boilerplate_init()
 
 if (PROJECT_IS_TOP_LEVEL)
-    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-o=boost/*:without_cobalt=True;-o=&:is_top_level=True")
+    # Strip the dependencies down to what rdf4cpp uses. This has to be a profile, see conan/slim.profile.
+    set(CONAN_INSTALL_ARGS "${CONAN_INSTALL_ARGS};-pr:h=${CMAKE_CURRENT_SOURCE_DIR}/conan/slim.profile")
 
     # b2 hands clang a made-up --target=arm64-pc-linux (tools/build/src/tools/clang.jam,
     # init-flags-cross). Clang has no aarch64 candidate triple with the pc vendor, so on
@@ -201,6 +202,12 @@ target_link_libraries(rdf4cpp
         simdjson::simdjson
         dragonbox::dragonbox
         )
+
+if (NOT MSVC)
+    # Highway's SIMD is extremely slow in Debug builds, so compile just that with optimizations.
+    set_source_files_properties(src/rdf4cpp/util/CharMatcher.cpp PROPERTIES
+            COMPILE_OPTIONS "$<$<CONFIG:Debug>:-O2>")
+endif ()
 
 set_target_properties(rdf4cpp PROPERTIES
         VERSION ${PROJECT_VERSION}

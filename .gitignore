@@ -52,6 +52,7 @@ docs/source/api/*
 
 # CMake
 cmake-build-*/
+/build/
 
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
@@ -123,4 +124,5 @@ environment_run.sh.env
 
 # End of https://www.toptal.com/developers/gitignore/api/c++,conan,ninja,cmake,clion+all
 /CMakeUserPresets.json
-/conan_provider.cmake
+
+.cache/

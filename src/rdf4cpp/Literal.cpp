@@ -1961,25 +1961,6 @@ Literal Literal::as_language_tag_matches_range(Literal const &lang_range, storag
     return Literal::make_boolean(res, select_node_storage(node_storage));
 }
 
-static regex::Regex::flag_type translate_regex_flags(std::string_view const xpath_flags) {
-    return std::accumulate(xpath_flags.begin(), xpath_flags.end(), regex::RegexFlags::none(), [](auto facc, char c) {
-        switch (c) {
-            case 's':
-                return facc | regex::RegexFlag::DotAll;
-            case 'i':
-                return facc | regex::RegexFlag::CaseInsensitive;
-            case 'q':
-                return facc | regex::RegexFlag::Literal;
-            case 'm':
-                return facc | regex::RegexFlag::Multiline;
-            case 'x':
-                return facc | regex::RegexFlag::RemoveWhitespace;
-            default:
-                throw std::runtime_error{std::string{"Encountered unsupported regex flag: "} + c};
-        }
-    });
-}
-
 TriBool Literal::regex_matches(regex::Regex const &pattern) const {
     if (!this->is_string_like()) {
         return TriBool::Err;
@@ -2026,7 +2007,7 @@ regex::Regex Literal::make_regex(Literal const &flags) const {
     if (flags.null() || !flags.datatype_eq<datatypes::xsd::String>()) {
         throw std::runtime_error{"Flags cannot be used for creating regex (null or not string-like)"};
     }
-    auto const regex_flags = translate_regex_flags(flags.lexical_form());
+    auto const regex_flags = regex::RegexFlags::translate_flags(flags.lexical_form());
     return regex::Regex{this->lexical_form(), regex_flags};
 }
 
