@@ -57,9 +57,20 @@ struct ParsingState {
      */
     std::function<void(Node const &)> inspect_node_func = []([[maybe_unused]] Node const &n) { /* noop */ };
 
+    /// The response contained json-ld
+    struct JsonLdData {
+        std::string data; ///< json-ld data
+    };
+
+    /// The response contained something other than json-ld
+    struct OtherData {
+        std::vector<std::string> link_headers; ///< contents of the HTTP link headers of the response
+    };
+
     /**
      * The result of a successful request_url call.
-     * data is the body of the requested document.
+     * data is the body of the requested document (JsonLdData). For a response that is no json-ld, it holds
+     * the HTTP Link headers instead (OtherData), the parser then follows a link with rel=alternate and type=application/ld+json.
      * final_url is the url of the document after the redirects (documentUrl in the JSON-LD API).
      * final_url is expected to be absolute (there might have been a in-between redirect which changed the hostname, which our parser would not know about).
      * For a remote context, relative context urls inside the document resolve against it.
@@ -68,9 +79,12 @@ struct ParsingState {
      * the same base url as the context that contains the `@import`.
      */
     struct RequestResult {
-        std::string data;
+        std::variant<JsonLdData, OtherData> data;
         std::string final_url;
     };
+
+    using RequestUrlResult = std::expected<RequestResult, std::string>;
+    using RequestUrlFunc = std::function<RequestUrlResult(std::string_view)>;
 
     /**
      * A function that is called for each URL requested by a parser (currently only JSON_LD remote context & import).
@@ -81,7 +95,7 @@ struct ParsingState {
      * Results are cached only per IStreamQuadIterator.
      * Default behavior is to always return an error.
      */
-    std::function<std::expected<RequestResult, std::string>(std::string_view)> request_url = [](std::string_view) {
+    RequestUrlFunc request_url = [](std::string_view) {
         return std::unexpected{"remote context not supported"};
     };
 
@@ -105,7 +119,7 @@ struct ParsingState {
      * Example: a std::thread on macOS has only 512KiB, so the limit should be lowered from the default.
      * A reached limit is reported as "stack limit" (ParsingError::Type::LimitExceeded).
      */
-    size_t stack_space_limit = 1024 * 1024;
+    size_t stack_space_limit = 1024uz * 1024uz;
 };
 
 }  //namespace rdf4cpp::parser

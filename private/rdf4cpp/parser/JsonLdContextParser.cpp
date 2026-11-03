@@ -1,6 +1,53 @@
 #include "JsonLdContextParser.hpp"
 
+#include <dice/template-library/overloaded.hpp>
+
+#include <boost/algorithm/string/predicate.hpp>
+
+#include <ranges>
+
 namespace rdf4cpp::parser::json_ld {
+    /**
+     * Returns the href of a single HTTP Link header (RFC 8288) iff its relation is `alternate` and its type
+     * `application/ld+json`, see https://www.w3.org/TR/json-ld11-api/#loaddocumentcallback step 3.
+     */
+    static std::optional<std::string_view> alternate_json_ld_link(std::string_view header) {
+        static constexpr auto npos = std::string_view::npos;
+        using boost::algorithm::iequals;
+
+        auto const trim = [](std::string_view s) {
+            auto const b = s.find_first_not_of(" \t\"");
+            return b == npos ? std::string_view{} : s.substr(b, s.find_last_not_of(" \t\"") - b + 1);
+        };
+
+        auto const open = header.find('<');
+        auto const close = header.find('>', open);
+        if (close == npos) {
+            return std::nullopt;
+        }
+        auto const href = header.substr(open + 1, close - open - 1);
+
+        bool alternate = false;
+        bool json_ld = false;
+        for (auto const param_range : std::views::split(header.substr(close + 1), ';')) {
+            std::string_view const param{param_range};
+            auto const eq = param.find('=');
+            auto const name = trim(param.substr(0, eq));
+            auto const value = eq == npos ? std::string_view{} : trim(param.substr(eq + 1));
+
+            if (iequals(name, "rel")) {
+                // rel holds a space separated list of relation types
+                for (auto const r : std::views::split(value, ' ')) {
+                    alternate |= iequals(std::string_view{r}, "alternate");
+                }
+            } else if (iequals(name, "type")) {
+                json_ld = iequals(value, "application/ld+json");
+            }
+        }
+
+        return alternate && json_ld ? std::optional{href} : std::nullopt;
+    }
+
     std::expected<RemoteContextCache::ResolveResult, ParsingError> RemoteContextCache::resolve(std::string_view url, ContextParser &parser) {
         auto it = contexts.find(url);
         if (it != contexts.end()) {
@@ -11,23 +58,67 @@ namespace rdf4cpp::parser::json_ld {
         };
         try {
             auto data = parser.parse_state->request_url(url);
+
             if (!data.has_value()) {
                 return load_failed(std::format("loading remote context failed {}", data.error()));
             }
-            if (auto err = parser.validate_json(simdjson::pad(data->data)); err.has_value()) {
-                return std::unexpected{std::move(*err)};
-            }
-            if (data->final_url != url && !data->final_url.empty()) {
-                auto [e, _] = contexts.emplace(std::piecewise_construct, std::tuple{data->final_url}, std::tuple{data->data, data->final_url});
-                simdjson::pad(e->second.data);
-            }
-            auto [e, _] = contexts.emplace(std::piecewise_construct, std::tuple{url}, std::tuple{std::move(data->data), std::move(data->final_url)});
-            return ResolveResult{simdjson::pad(e->second.data), e->second.final_url};
-        }
-        catch (std::exception const &e) {
+
+            return dice::template_library::match(
+                data->data,
+                [&](ParsingState::JsonLdData &json_ld) -> std::expected<ResolveResult, ParsingError> {
+                    if (auto err = parser.validate_json(simdjson::pad(json_ld.data)); err.has_value()) {
+                        return std::unexpected{std::move(*err)};
+                    }
+
+                    if (data->final_url != url && !data->final_url.empty()) {
+                        // redirected. Need to store context under both origin and redirected URL.
+                        auto [e, _] = contexts.emplace(
+                            std::piecewise_construct,
+                            std::forward_as_tuple(data->final_url),
+                            std::forward_as_tuple(json_ld.data, data->final_url)
+                        );
+                        simdjson::pad(e->second.data);
+                    }
+
+                    auto [e, _] = contexts.emplace(
+                        std::piecewise_construct,
+                        std::forward_as_tuple(url),
+                        std::forward_as_tuple(std::move(json_ld.data), std::move(data->final_url))
+                    );
+
+                    return ResolveResult{simdjson::pad(e->second.data), e->second.final_url};
+                },
+                [&](ParsingState::OtherData const &other_data) -> std::expected<ResolveResult, ParsingError> {
+                    // the document is not json-ld, the server may have provided an alternative through the link header
+                    // https://www.w3.org/TR/json-ld11-api/#loaddocumentcallback step 4
+                    std::optional<std::string_view> href;
+                    for (auto const &header : other_data.link_headers) {
+                        if (href = alternate_json_ld_link(header); href.has_value()) {
+                            break;
+                        }
+                    }
+                    if (!href.has_value()) {
+                        return load_failed("loading remote context failed: not json-ld");
+                    }
+                    // alternate links pointing at each other would loop forever
+                    if (!parser.stack_limiter.check()) {
+                        return std::unexpected{make_error(ParsingError::Type::LimitExceeded, "loading remote context failed: too many alternate links")};
+                    }
+                    parser.set_resolution_base(data->final_url.empty() ? url : data->final_url);
+                    std::string const redirected_url{parser.parse_state->iri_factory.from_maybe_relative_as_string(*href)};
+                    auto result = resolve(redirected_url, parser);
+                    if (result.has_value()) {
+                        // the document is cached only under redirected_url so far. Like for a redirect, a second
+                        // reference to url (for example in the next node object) must hit the cache and not the server.
+                        auto [e, _] = contexts.emplace(url, contexts.find(redirected_url)->second);
+                        simdjson::pad(e->second.data);
+                    }
+                    return result;
+                }
+            );
+        } catch (std::exception const &e) {
             return load_failed(std::format("loading remote context failed {}", e.what()));
-        }
-        catch (...) {
+        } catch (...) {
             return load_failed("loading remote context failed with unknown exception");
         }
     }

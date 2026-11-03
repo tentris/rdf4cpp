@@ -18,7 +18,7 @@ std::expected<ParsingState::RequestResult, std::string> resolve_test_url(std::st
     if (url.starts_with(pre)) {
         auto path = url;
         path.remove_prefix(pre.size());
-        return ParsingState::RequestResult{remote_test_file_to_str(path), std::string{url}};
+        return ParsingState::RequestResult{ParsingState::JsonLdData{remote_test_file_to_str(path)}, std::string{url}};
     }
     return std::unexpected{std::format("unexpected url {}", url)};
 }
@@ -863,7 +863,7 @@ ParseWithRemotesResult parse_with_remote_documents(std::string doc, std::string_
         if (it == docs.end()) {
             return std::unexpected{std::string{"not found"}};
         }
-        return ParsingState::RequestResult{it->second, std::string{url}};
+        return ParsingState::RequestResult{ParsingState::JsonLdData{it->second}, std::string{url}};
     });
 }
 
@@ -1083,7 +1083,7 @@ TEST_CASE("two node objects that import the same context request it only once") 
         if (!requested.ends_with("imp.jsonld")) {
             return std::unexpected{std::format("unexpected url {}", requested)};
         }
-        return ParsingState::RequestResult{R"({"@context": {"t": "http://ex/t"}})", requested};
+        return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"t": "http://ex/t"}})"}, requested};
     });
 
     CHECK(r.requested == "http://ex/dir/imp.jsonld\n");
@@ -1095,10 +1095,10 @@ TEST_CASE("an absolute @import url is loaded without a base url") {
     // the @import in it is absolute, so it is loaded anyway
     auto const loader = [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
         if (url == "http://ex/ctx.jsonld") {
-            return ParsingState::RequestResult{R"({"@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}})", "ctx.jsonld"};
+            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}})"}, "ctx.jsonld"};
         }
         if (url == "http://ex/imp.jsonld") {
-            return ParsingState::RequestResult{R"({"@context": {"t": "http://ex/t"}})", std::string{url}};
+            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"t": "http://ex/t"}})"}, std::string{url}};
         }
         return std::unexpected{std::format("unexpected url {}", url)};
     };
@@ -1230,13 +1230,13 @@ TEST_CASE("context load redirect applies base") {
                                     "http://ex/doc",
                                     [&](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
                                         if (url == "http://foo/bar.jsonld") {
-                                            return ParsingState::RequestResult{R"({"@context": "bar.jsonld"})", "http://bar/foo.jsonld"};
+                                            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": "bar.jsonld"})"}, "http://bar/foo.jsonld"};
                                         }
                                         if (url == "http://bar/bar.jsonld") {
-                                            return ParsingState::RequestResult{R"({"@context": "bar2.jsonld"})", ""};
+                                            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": "bar2.jsonld"})"}, ""};
                                         }
                                         if (url == "http://bar/bar2.jsonld") {
-                                            return ParsingState::RequestResult{R"({"@context": {"a": "http://bar/bar"}})", ""};
+                                            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"a": "http://bar/bar"}})"}, ""};
                                         }
                                         return std::unexpected{std::format("unexpected url {}", url)};
                                     });
@@ -1251,7 +1251,7 @@ TEST_CASE("a context loaded through a redirect is not requested again under its 
     // http://ex/ctx redirects to http://ex/ctx.jsonld, so the second array entry is already in the cache
     auto const loader = [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
         if (url == "http://ex/ctx" || url == "http://ex/ctx.jsonld") {
-            return ParsingState::RequestResult{R"({"@context": {"t": "http://ex/t"}})", "http://ex/ctx.jsonld"};
+            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"t": "http://ex/t"}})"}, "http://ex/ctx.jsonld"};
         }
         return std::unexpected{std::format("unexpected url {}", url)};
     };
@@ -1260,6 +1260,43 @@ TEST_CASE("a context loaded through a redirect is not requested again under its 
     CAPTURE(r.errors);
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/t> \"v\" .\n");
+}
+
+TEST_CASE("a response that is no json-ld is followed through its alternate link header") {
+    // schema.org answers https://schema.org/ with html and this link header, the context is behind the link
+    auto const loader = [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
+        if (url == "https://schema.org/") {
+            return ParsingState::RequestResult{ParsingState::OtherData{{R"(</docs/jsonldcontext.jsonld>; rel="alternate"; type="application/ld+json")"}}, std::string{url}};
+        }
+        if (url == "https://schema.org/docs/jsonldcontext.jsonld") {
+            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"schema": "https://schema.org/", "name": {"@id": "schema:name"}}})"}, std::string{url}};
+        }
+        if (url == "http://ex/html") {
+            return ParsingState::RequestResult{ParsingState::OtherData{{R"(</style.css>; rel="stylesheet")"}}, std::string{url}};
+        }
+        return std::unexpected{std::format("unexpected url {}", url)};
+    };
+    SUBCASE("the relative link resolves against the requested url, the second node object hits the cache") {
+        auto const r = parse_with_request_url(R"([{"@context": "https://schema.org/", "@id": "http://ex/s", "name": "v"},
+                                                  {"@context": "https://schema.org/", "@id": "http://ex/s2", "name": "w"}])", "http://ex/doc", loader);
+        CHECK(r.requested == "https://schema.org/\nhttps://schema.org/docs/jsonldcontext.jsonld\n");
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <https://schema.org/name> \"v\" .\n<http://ex/s2> <https://schema.org/name> \"w\" .\n");
+    }
+    SUBCASE("an alternate link that points at itself ends with an error") {
+        auto const r = parse_with_request_url(R"({"@context": "http://ex/loop", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
+            return ParsingState::RequestResult{ParsingState::OtherData{{"<loop>; rel=alternate; type=application/ld+json"}}, std::string{url}};
+        });
+        CHECK(r.errors.contains("too many alternate links"));
+        CHECK(r.quad_count == 0);
+    }
+    SUBCASE("without an alternate link the context fails to load") {
+        auto const r = parse_with_request_url(R"({"@context": "http://ex/html", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", loader);
+        CHECK(r.requested == "http://ex/html\n");
+        CHECK(r.errors.contains("not json-ld"));
+        CHECK(r.quad_count == 0);
+    }
 }
 
 TEST_CASE("a null context that propagates also applies to nested node objects") {
@@ -1553,7 +1590,7 @@ TEST_CASE("a remote context that includes itself ends with stack limit") {
     state.iri_factory.set_base("http://ex/doc");
     state.remote_context_size_limit = 100000;
     state.request_url = [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
-        return ParsingState::RequestResult{R"({"@context": "http://ex/self"})", std::string{url}};
+        return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": "http://ex/self"})"}, std::string{url}};
     };
     std::stringstream json{R"({"@context": "http://ex/self", "@id": "http://ex/s", "http://ex/p": "v"})"};
     size_t quad_count = 0;
