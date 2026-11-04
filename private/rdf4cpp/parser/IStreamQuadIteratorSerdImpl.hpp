@@ -35,6 +35,10 @@ private:
     std::unique_ptr<state_type> owned_state_;
     state_type *state;
 
+    // serd drops the status of a failed read, so the stream is checked here
+    void *stream_;
+    ErrorFunc error_func_;
+
     std::deque<Quad> quad_buffer;
     std::optional<ParsingError> last_error;
     bool last_error_requires_skip = false;
@@ -72,7 +76,7 @@ private:
 public:
     ImplSerd(void *stream,
          ReadFunc read,
-         ErrorFunc,
+         ErrorFunc error,
          flags_type flags,
          state_type *state) noexcept;
 

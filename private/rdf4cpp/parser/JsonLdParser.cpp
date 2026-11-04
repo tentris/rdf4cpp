@@ -791,17 +791,20 @@ namespace rdf4cpp::parser {
           active_generator_(parse()),
           current_iter_(active_generator_.begin()) {
     }
-    IStreamQuadIterator::ImplJsonLd::ImplJsonLd(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof, ParsingFlags flags, state_type *initial_state)
+    IStreamQuadIterator::ImplJsonLd::ImplJsonLd(void *stream, ReadFunc read, ErrorFunc error, EOFFunc, ParsingFlags flags, state_type *initial_state)
         : ImplJsonLd([&]() -> std::expected<std::string, error_type> {
+              // a read of 0 means nothing more to read, like fread: eof or error
               std::string buff{};
-              while (error(stream) == 0 && eof(stream) == 0) {
+              size_t n;
+              do {
                   auto i = buff.size();
                   buff.append(StreamChunkSize, '\0');
-                  auto n = read(&buff[i], 1, StreamChunkSize, stream);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                  n = read(&buff[i], 1, StreamChunkSize, stream);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
                   buff.resize(i + n);
-              }
+              } while (n != 0);
+            
               if (error(stream) != 0) {
-                  return std::unexpected{json_ld::make_error(ParsingError::Type::Internal, "reading the input failed")};
+                  return std::unexpected{json_ld::make_error(ParsingError::Type::Io, "reading the input failed")};
               }
               return buff;
           }(),

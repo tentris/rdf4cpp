@@ -4,6 +4,7 @@
 #include <rdf4cpp.hpp>
 #include "tests_DataDirConfig.hpp"
 
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -118,6 +119,38 @@ namespace rdf4cpp::parse_test_helpers {
 
         return buf;
     }
+
+    /**
+     * A stream for the ReadFunc/ErrorFunc/EOFFunc constructor of IStreamQuadIterator that hands out
+     * the first half of data and then sets its error flag, like a reader that stops at a size limit.
+     * With set_flags = false it sets neither the error nor the eof flag and only returns 0 from then on.
+     */
+    struct FailingReader {
+        std::string_view data;
+        bool set_flags = true;
+        bool failed = false;
+
+        static size_t read(void *buf, size_t, size_t n, void *r) {
+            auto &rd = *static_cast<FailingReader *>(r);
+            n = std::min(n, rd.data.size() / 2);
+            std::memcpy(buf, rd.data.data(), n);
+            rd.data.remove_prefix(n);
+            rd.failed = true;
+            return n;
+        }
+        static int error(void *r) {
+            auto const &rd = *static_cast<FailingReader const *>(r);
+            return rd.set_flags && rd.failed;
+        }
+        static int eof(void *r) {
+            auto const &rd = *static_cast<FailingReader const *>(r);
+            return rd.set_flags && rd.data.empty();
+        }
+
+        parser::IStreamQuadIterator iter(parser::ParsingFlags flags) {
+            return parser::IStreamQuadIterator{this, &read, &error, &eof, flags};
+        }
+    };
 }  // namespace rdf4cpp::parse_test_helpers
 
 #endif  //RDF4CPP_PARSER_TEST_HELPERS_HPP

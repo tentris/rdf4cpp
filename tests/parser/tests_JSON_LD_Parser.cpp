@@ -1005,32 +1005,25 @@ TEST_CASE("an exception from request_url becomes a parsing error") {
     CHECK(r.error_type == ParsingError::Type::RemoteContext);
 }
 
-TEST_CASE("a read error of the input stream is reported as internal error") {
-    // like a reader that stops at a size limit: part of the document is read, then the error flag is set
-    struct Reader {
-        std::string_view data = R"({"@id": "http://ex/s", "http://ex/p": "v"})";
-        bool failed = false;
-    } reader;
-    auto const read = [](void *buf, size_t, size_t n, void *r) -> size_t {
-        auto &rd = *static_cast<Reader *>(r);
-        n = std::min(n, rd.data.size() / 2);
-        std::memcpy(buf, rd.data.data(), n);
-        rd.data.remove_prefix(n);
-        rd.failed = true;
-        return n;
-    };
-    auto const error = [](void *r) -> int { return static_cast<Reader *>(r)->failed; };
-    auto const eof = [](void *r) -> int { return static_cast<Reader *>(r)->data.empty(); };
-
+TEST_CASE("a read error of the input stream is reported as io error") {
+    parse_test_helpers::FailingReader reader{R"({"@id": "http://ex/s", "http://ex/p": "v"})"};
     std::string errors;
-    std::optional<ParsingError::Type> error_type;
-    for (IStreamQuadIterator it{&reader, read, error, eof, ParsingFlag::JsonLd}; it != std::default_sentinel; ++it) {
+    for (auto it = reader.iter(ParsingFlag::JsonLd); it != std::default_sentinel; ++it) {
         REQUIRE_FALSE(it->has_value());
-        errors += std::format("{}\n", it->error().message);
-        error_type = it->error().error_type;
+        errors += std::format("{}\n", it->error());
     }
-    CHECK(errors == "reading the input failed\n");
-    CHECK(error_type == ParsingError::Type::Internal);
+    CHECK(errors == "0:0(io error): reading the input failed\n");
+}
+
+TEST_CASE("a reader that returns 0 without setting a flag ends the input") {
+    parse_test_helpers::FailingReader reader{R"({"@id": "http://ex/s", "http://ex/p": "v"})", false};
+    std::string errors;
+    for (auto it = reader.iter(ParsingFlag::JsonLd); it != std::default_sentinel; ++it) {
+        REQUIRE_FALSE(it->has_value());
+        errors += std::format("{}\n", it->error().error_type);
+    }
+    // the truncated document is a syntax error, not an io error
+    CHECK(errors == "bad syntax\n");
 }
 
 TEST_CASE("disabled remote context & import") {

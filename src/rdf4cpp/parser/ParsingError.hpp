@@ -20,6 +20,11 @@ struct ParsingError {
         BadLiteral,
         BadBlankNode,
         /**
+         * The error function of the input stream reported an error (see ErrorFunc).
+         * The parse ends, the input after the error is not parsed.
+         */
+        Io,
+        /**
          * JSON-LD: a remote context or `@import` could not be loaded (see ParsingState::request_url),
          * or the loaded document is no JSON-LD context.
          */
@@ -60,6 +65,8 @@ struct formatter<::rdf4cpp::parser::ParsingError::Type> : formatter<string_view>
                 return format_to(ctx.out(), "bad literal");
             case ParsingError::Type::BadBlankNode:
                 return format_to(ctx.out(), "bad blank node");
+            case ParsingError::Type::Io:
+                return format_to(ctx.out(), "io error");
             case ParsingError::Type::RemoteContext:
                 return format_to(ctx.out(), "remote context failed");
             case ParsingError::Type::LimitExceeded:

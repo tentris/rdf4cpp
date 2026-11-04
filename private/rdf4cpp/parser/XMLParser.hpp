@@ -42,6 +42,7 @@ namespace rdf4cpp::parser {
         ErrorFunc error_func_;
         EOFFunc eof_func_;
         XMLOutputQueue output_;
+        bool io_error_reported_ = false;
 
         using State = dice::template_library::inplace_polymorphic<xml_states::BaseState,
                                                                   xml_states::InitialState, xml_states::RDFState,

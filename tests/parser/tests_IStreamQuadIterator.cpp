@@ -4,6 +4,8 @@
 #include <rdf4cpp.hpp>
 #include <rdf4cpp/storage/reference_node_storage/SyncReferenceNodeStorage.hpp>
 
+#include "parser_test_helpers.hpp"
+
 #include <iostream>
 
 
@@ -411,6 +413,22 @@ TEST_SUITE("IStreamQuadIterator") {
             fclose(f);
             remove(path);
         }
+    }
+
+    TEST_CASE("a read error of the input stream is reported as io error") {
+        // the reader fails inside the second statement, the first one is still returned
+        parse_test_helpers::FailingReader reader{"<http://ex/s> <http://ex/p> <http://ex/o> .\n<http://ex/s> <http://ex/p> \"a long literal that is cut\" .\n"};
+        auto it = reader.iter(ParsingFlag::Turtle);
+        REQUIRE(it != std::default_sentinel);
+        REQUIRE(it->has_value());
+        CHECK(it->value().subject() == IRI::make("http://ex/s"));
+        ++it;
+        REQUIRE(it != std::default_sentinel);
+        REQUIRE_FALSE(it->has_value());
+        CHECK(it->error().error_type == ParsingError::Type::Io);
+        CHECK(it->error().message == "reading the input failed");
+        ++it;
+        CHECK(it == std::default_sentinel);
     }
 
     TEST_CASE("N-Triple") {
