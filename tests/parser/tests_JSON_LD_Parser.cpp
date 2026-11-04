@@ -1264,9 +1264,10 @@ TEST_CASE("a context loaded through a redirect is not requested again under its 
 
 TEST_CASE("a response that is no json-ld is followed through its alternate link header") {
     // schema.org answers https://schema.org/ with html and this link header, the context is behind the link
-    auto const loader = [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
+    std::string link = R"(</docs/jsonldcontext.jsonld>; rel="alternate"; type="application/ld+json")";
+    auto const loader = [&link](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
         if (url == "https://schema.org/") {
-            return ParsingState::RequestResult{ParsingState::OtherData{{R"(</docs/jsonldcontext.jsonld>; rel="alternate"; type="application/ld+json")"}}, std::string{url}};
+            return ParsingState::RequestResult{ParsingState::OtherData{{link}}, std::string{url}};
         }
         if (url == "https://schema.org/docs/jsonldcontext.jsonld") {
             return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"schema": "https://schema.org/", "name": {"@id": "schema:name"}}})"}, std::string{url}};
@@ -1283,6 +1284,20 @@ TEST_CASE("a response that is no json-ld is followed through its alternate link 
         CAPTURE(r.errors);
         CHECK(r.errors == "");
         CHECK(r.quads == "<http://ex/s> <https://schema.org/name> \"v\" .\n<http://ex/s2> <https://schema.org/name> \"w\" .\n");
+    }
+    SUBCASE("unknown link parameters are ignored") {
+        link = R"(</docs/jsonldcontext.jsonld>; foo="42"; rel="alternate"; type="application/ld+json")";
+        auto const r = parse_with_request_url(R"({"@context": "https://schema.org/", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", loader);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <https://schema.org/name> \"v\" .\n");
+    }
+    SUBCASE("link parameter values may be unquoted") {
+        link = R"(</docs/jsonldcontext.jsonld>; rel=alternate; type="application/ld+json")";
+        auto const r = parse_with_request_url(R"({"@context": "https://schema.org/", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", loader);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <https://schema.org/name> \"v\" .\n");
     }
     SUBCASE("an alternate link that points at itself ends with an error") {
         auto const r = parse_with_request_url(R"({"@context": "http://ex/loop", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {

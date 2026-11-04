@@ -22,7 +22,7 @@ namespace rdf4cpp::parser::json_ld {
 
         auto const open = header.find('<');
         auto const close = header.find('>', open);
-        if (close == npos) {
+        if (open == npos || close == npos) {
             return std::nullopt;
         }
         auto const href = header.substr(open + 1, close - open - 1);
@@ -32,8 +32,11 @@ namespace rdf4cpp::parser::json_ld {
         for (auto const param_range : std::views::split(header.substr(close + 1), ';')) {
             std::string_view const param{param_range};
             auto const eq = param.find('=');
+            if (eq == npos) {
+                continue;
+            }
             auto const name = trim(param.substr(0, eq));
-            auto const value = eq == npos ? std::string_view{} : trim(param.substr(eq + 1));
+            auto const value = trim(param.substr(eq + 1));
 
             if (iequals(name, "rel")) {
                 // rel holds a space separated list of relation types
