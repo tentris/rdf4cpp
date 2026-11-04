@@ -19,6 +19,15 @@ struct ParsingError {
         BadCurie,
         BadLiteral,
         BadBlankNode,
+        /**
+         * JSON-LD: a remote context or `@import` could not be loaded (see ParsingState::request_url),
+         * or the loaded document is no JSON-LD context.
+         */
+        RemoteContext,
+        /**
+         * JSON-LD: a limit of ParsingState was reached (stack_space_limit, remote_context_size_limit).
+         */
+        LimitExceeded,
     };
 
     Type error_type;
@@ -51,6 +60,10 @@ struct formatter<::rdf4cpp::parser::ParsingError::Type> : formatter<string_view>
                 return format_to(ctx.out(), "bad literal");
             case ParsingError::Type::BadBlankNode:
                 return format_to(ctx.out(), "bad blank node");
+            case ParsingError::Type::RemoteContext:
+                return format_to(ctx.out(), "remote context failed");
+            case ParsingError::Type::LimitExceeded:
+                return format_to(ctx.out(), "limit exceeded");
             default:
                 return format_to(ctx.out(), "unknown");
         }

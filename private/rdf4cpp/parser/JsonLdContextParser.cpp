@@ -1,15 +1,18 @@
 #include "JsonLdContextParser.hpp"
 
 namespace rdf4cpp::parser::json_ld {
-    std::expected<RemoteContextCache::ResolveResult, std::string> RemoteContextCache::resolve(std::string_view url, ContextParser &parser) {
+    std::expected<RemoteContextCache::ResolveResult, ParsingError> RemoteContextCache::resolve(std::string_view url, ContextParser &parser) {
         auto it = contexts.find(url);
         if (it != contexts.end()) {
             return ResolveResult{simdjson::padded_string_view{it->second.data}, it->second.final_url};
         }
+        auto load_failed = [](std::string msg) {
+            return std::unexpected{make_error(ParsingError::Type::RemoteContext, std::move(msg))};
+        };
         try {
             auto data = parser.parse_state->request_url(url);
             if (!data.has_value()) {
-                return std::unexpected{std::format("loading remote context failed {}", data.error())};
+                return load_failed(std::format("loading remote context failed {}", data.error()));
             }
             if (auto err = parser.validate_json(simdjson::pad(data->data)); err.has_value()) {
                 return std::unexpected{std::move(*err)};
@@ -22,10 +25,10 @@ namespace rdf4cpp::parser::json_ld {
             return ResolveResult{simdjson::pad(e->second.data), e->second.final_url};
         }
         catch (std::exception const &e) {
-            return std::unexpected{std::format("loading remote context failed {}", e.what())};
+            return load_failed(std::format("loading remote context failed {}", e.what()));
         }
         catch (...) {
-            return std::unexpected{"loading remote context failed with unknown exception"};
+            return load_failed("loading remote context failed with unknown exception");
         }
     }
 
@@ -44,7 +47,7 @@ namespace rdf4cpp::parser::json_ld {
         auto remote_ctx_empty = p.remote_contexts.empty();
 
         if (!stack_limiter.check()) {
-            result = std::unexpected{make_error(ParsingError::Type::Internal, "stack limit")};
+            result = std::unexpected{make_error(ParsingError::Type::LimitExceeded, "stack limit")};
             return result;
         }
 
@@ -92,19 +95,19 @@ namespace rdf4cpp::parser::json_ld {
                     // resolve already checked the json
                     auto resolved = remote_context_cache.resolve(url, *this);
                     if (!resolved.has_value()) {
-                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, std::move(resolved.error()))};
+                        result = std::unexpected{std::move(resolved.error())};
                         return true;
                     }
 
                     import_parser = simdjson::ondemand::parser{};
                     import_doc = simdjson::ondemand::document{};
                     if (import_parser->iterate(resolved->data).get(*import_doc) != simdjson::SUCCESS) {
-                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "loading remote context failed")};
+                        result = std::unexpected{make_error(ParsingError::Type::RemoteContext, "loading remote context failed")};
                         return true;
                     }
                     auto ctx = import_doc->find_field(keyword_context).get_object();
                     if (!ctx.has_value()) {
-                        result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid remote context")};
+                        result = std::unexpected{make_error(ParsingError::Type::RemoteContext, "invalid remote context")};
                         return true;
                     }
                     import_obj = *ctx;
@@ -313,7 +316,7 @@ namespace rdf4cpp::parser::json_ld {
 
             // 5.2.3
             if (p.remote_contexts.size() > parse_state->remote_context_size_limit || p.number_of_remote_contexts > parse_state->remote_context_size_limit) {
-                result = std::unexpected{make_error(ParsingError::Type::BadIri, "context overflow")};
+                result = std::unexpected{make_error(ParsingError::Type::LimitExceeded, "context overflow")};
                 return true;
             }
             p.remote_contexts.emplace_back(url);
@@ -322,7 +325,7 @@ namespace rdf4cpp::parser::json_ld {
             // 5.2.4 & 5.2.5
             auto resolved = remote_context_cache.resolve(url, *this);
             if (!resolved.has_value()) {
-                result = std::unexpected{make_error(ParsingError::Type::BadSyntax, std::move(resolved.error()))};
+                result = std::unexpected{std::move(resolved.error())};
                 return true;
             }
             if (!resolved->final_url.empty()) {
@@ -458,7 +461,7 @@ namespace rdf4cpp::parser::json_ld {
         std::optional<error_type> res;
 
         if (!stack_limiter.check()) {
-            res = make_error(ParsingError::Type::Internal, "stack limit");
+            res = make_error(ParsingError::Type::LimitExceeded, "stack limit");
             return res;
         }
 
@@ -1154,11 +1157,14 @@ namespace rdf4cpp::parser::json_ld {
         }
     }
 
-    std::optional<std::string> ContextParser::validate_json(simdjson::padded_string_view const json) {
+    std::optional<ParsingError> ContextParser::validate_json(simdjson::padded_string_view const json) {
+        auto load_failed = [](std::string msg) {
+            return make_error(ParsingError::Type::RemoteContext, std::move(msg));
+        };
         simdjson::ondemand::parser parser{};
         simdjson::ondemand::document doc;
         if (parser.iterate(json).get(doc) != simdjson::SUCCESS) {
-            return std::string{"loading remote context failed"};
+            return load_failed("loading remote context failed");
         }
         simdjson::ondemand::object doc_obj;
         if (auto const ec = doc.get_object().get(doc_obj); ec != simdjson::SUCCESS) {
@@ -1166,22 +1172,22 @@ namespace rdf4cpp::parser::json_ld {
             // a body that does not start like a json value (for example html) is no json
             simdjson::ondemand::json_type type = simdjson::ondemand::json_type::unknown;
             if (ec == simdjson::INCORRECT_TYPE && doc.type().get(type) == simdjson::SUCCESS && type != simdjson::ondemand::json_type::unknown) {
-                return std::string{"invalid remote context"};
+                return load_failed("invalid remote context");
             }
-            return std::string{"loading remote context failed"};
+            return load_failed("loading remote context failed");
         }
         // the on-demand parser checks most of the json only when it reads it, and then throws
         // `simdjson_error`, which ends the whole document. So the whole document is checked here once.
         auto const ec = validate_json(doc_obj);
         if (ec == simdjson::DEPTH_ERROR) {
             // only our stack limiter returns DEPTH_ERROR
-            return std::string{"stack limit"};
+            return make_error(ParsingError::Type::LimitExceeded, "stack limit");
         }
         if (ec != simdjson::SUCCESS) {
-            return std::format("loading remote context failed {}", simdjson::error_message(ec));
+            return load_failed(std::format("loading remote context failed {}", simdjson::error_message(ec)));
         }
         if (!doc.at_end()) {
-            return std::string{"loading remote context failed"};
+            return load_failed("loading remote context failed");
         }
         return std::nullopt;
     }
@@ -1190,13 +1196,13 @@ namespace rdf4cpp::parser::json_ld {
         simdjson::ondemand::parser parser{};
         simdjson::ondemand::document doc;
         if (parser.iterate(json).get(doc) != simdjson::SUCCESS) {
-            return std::unexpected{make_error(ParsingError::Type::BadSyntax, "loading remote context failed")};
+            return std::unexpected{make_error(ParsingError::Type::RemoteContext, "loading remote context failed")};
         }
         if (p.is_remote_context) {
             // remote contexts come from RemoteContextCache::resolve, which already checked the json
             auto ctx = doc.find_field(keyword_context);
             if (!ctx.has_value()) {
-                return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid remote context")};
+                return std::unexpected{make_error(ParsingError::Type::RemoteContext, "invalid remote context")};
             }
             return parse_context(*ctx, std::move(p));
         }

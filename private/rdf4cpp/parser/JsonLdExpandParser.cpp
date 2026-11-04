@@ -135,7 +135,7 @@ namespace rdf4cpp::parser::json_ld {
     }
     std::expected<ExpandedLevel, ExpandParser::error_type> ExpandParser::expand_level(params::ExpandParams p) {
         if (!context_parser.stack_limiter.check()) {
-            return std::unexpected(make_error(ParsingError::Type::Internal, "stack limit"));
+            return std::unexpected(make_error(ParsingError::Type::LimitExceeded, "stack limit"));
         }
 
         if (p.is_json_literal) {
@@ -491,7 +491,7 @@ namespace rdf4cpp::parser::json_ld {
         std::optional<ExpandParser::error_type> res = std::nullopt;
 
         if (!context_parser.stack_limiter.check()) {
-            res = make_error(ParsingError::Type::Internal, "stack limit");
+            res = make_error(ParsingError::Type::LimitExceeded, "stack limit");
             return res;
         }
 
