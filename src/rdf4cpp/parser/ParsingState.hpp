@@ -99,6 +99,9 @@ struct ParsingState {
         return std::unexpected{"remote context not supported"};
     };
 
+    /// default value for remote_context_size_limit
+    static constexpr size_t default_remote_context_size_limit = 100;
+
     /**
      * Limit of the JSON-LD parser on remote contexts.
      * The parser counts the remote contexts that it processes for one `@context` of the document,
@@ -111,7 +114,10 @@ struct ParsingState {
      * the parser reports "context overflow" (ParsingError::Type::LimitExceeded). So up to `remote_context_size_limit + 1` remote contexts are processed,
      * and with 0 one remote context is still processed. The default is 100.
      */
-    size_t remote_context_size_limit = 100;
+    size_t remote_context_size_limit = default_remote_context_size_limit;
+
+    /// default value for stack_space_limit
+    static constexpr size_t default_stack_space_limit = 1024uz * 1024uz;
 
     /**
      * Limit the JSON-LD parser on stack space.
@@ -119,7 +125,7 @@ struct ParsingState {
      * Example: a std::thread on macOS has only 512KiB, so the limit should be lowered from the default.
      * A reached limit is reported as "stack limit" (ParsingError::Type::LimitExceeded).
      */
-    size_t stack_space_limit = 1024uz * 1024uz;
+    size_t stack_space_limit = default_stack_space_limit;
 };
 
 }  //namespace rdf4cpp::parser
