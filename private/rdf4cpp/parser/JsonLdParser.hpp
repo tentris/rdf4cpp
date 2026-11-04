@@ -57,7 +57,8 @@ namespace rdf4cpp::parser {
         // holds the state only if it was not provided by the caller
         std::unique_ptr<state_type> owned_state_;
         state_type *state_;
-        std::string json_data_;
+        // the error of the stream constructor, if reading the input failed
+        std::expected<std::string, error_type> json_data_;
         uint64_t blank_node_index_ = 0;
         json_ld::ExpandParser expand_parser_;
         ParsingFlags flags_;
@@ -130,7 +131,7 @@ namespace rdf4cpp::parser {
         [[nodiscard]] uint64_t current_line() const noexcept override;
         [[nodiscard]] uint64_t current_column() const noexcept override;
 
-        explicit ImplJsonLd(std::string json, ParsingFlags flags, state_type *initial_state = nullptr);
+        explicit ImplJsonLd(std::expected<std::string, error_type> json, ParsingFlags flags, state_type *initial_state = nullptr);
         ImplJsonLd(void *stream,
                    ReadFunc read,
                    ErrorFunc error,

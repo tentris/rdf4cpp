@@ -64,7 +64,7 @@ namespace rdf4cpp::parser {
              * Loads url (or returns it from the cache) and checks that it is valid json with an object at the top level.
              * Only documents that passed the check are cached, so the check runs once per document.
              */
-            std::expected<ResolveResult, std::string> resolve(std::string_view url, ContextParser &parser);
+            std::expected<ResolveResult, ParsingError> resolve(std::string_view url, ContextParser &parser);
         };
 
         struct ContextParser {
@@ -112,9 +112,9 @@ namespace rdf4cpp::parser {
             simdjson::error_code validate_json(simdjson::ondemand::object &obj);
             /**
              * Checks that `json` is a single object, see the overloads above.
-             * Returns an error message iff the check failed.
+             * Returns an error iff the check failed.
              */
-            std::optional<std::string> validate_json(simdjson::padded_string_view json);
+            std::optional<ParsingError> validate_json(simdjson::padded_string_view json);
 
 
             std::expected<IRIMapping, error_type> iri_expansion(Context const &active_context,

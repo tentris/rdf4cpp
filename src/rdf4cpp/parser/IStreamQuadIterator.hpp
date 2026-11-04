@@ -35,6 +35,7 @@ using ReadFunc = size_t (*)(void *buffer, size_t elem_size, size_t count, void *
 
 /**
  * Identical semantics to ferror.
+ * A nonzero value ends the parse with ParsingError::Type::Io.
  *
  * @param stream pointer to any object
  * @return nonzero value if there is an error in stream, zero value otherwise

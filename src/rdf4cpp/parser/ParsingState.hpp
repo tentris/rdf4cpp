@@ -94,7 +94,7 @@ struct ParsingState {
      * A remote context counts each time it is processed, also when it comes from the cache and is not requested again.
      * `@import` does not count.
      * If the count is larger than `remote_context_size_limit` when the next remote context is processed,
-     * the parser reports "context overflow". So up to `remote_context_size_limit + 1` remote contexts are processed,
+     * the parser reports "context overflow" (ParsingError::Type::LimitExceeded). So up to `remote_context_size_limit + 1` remote contexts are processed,
      * and with 0 one remote context is still processed. The default is 100.
      */
     size_t remote_context_size_limit = 100;
@@ -103,6 +103,7 @@ struct ParsingState {
      * Limit the JSON-LD parser on stack space.
      * Depending on how the thread running the parser is configured, different limits are required.
      * Example: a std::thread on macOS has only 512KiB, so the limit should be lowered from the default.
+     * A reached limit is reported as "stack limit" (ParsingError::Type::LimitExceeded).
      */
     size_t stack_space_limit = 1024 * 1024;
 };

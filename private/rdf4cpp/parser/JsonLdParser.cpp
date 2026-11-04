@@ -731,14 +731,18 @@ namespace rdf4cpp::parser {
         // simdjson and the node implementation report by exception, the iterator reports by error quad.
         // an error ends the parse, because simdjson cannot resume after a broken token.
         std::optional<error_type> error;
+        if (!json_data_.has_value()) {
+            co_yield fail(json_data_.error());
+            co_return;
+        }
         try {
             simdjson::ondemand::parser parser{};
-            auto c = parser.allocate(json_data_.size() * BufferSizeMult);
+            auto c = parser.allocate(json_data_->size() * BufferSizeMult);
             if (c != simdjson::SUCCESS) {
                 co_yield fail(json_ld::make_error(ParsingError::Type::BadSyntax, "failed to allocate parser"));
                 co_return;
             }
-            simdjson::ondemand::document doc = parser.iterate(simdjson::pad(json_data_));
+            simdjson::ondemand::document doc = parser.iterate(simdjson::pad(*json_data_));
             if (doc.is_scalar()) {
                 co_yield fail(json_ld::make_error(ParsingError::Type::BadSyntax, "free floating scalar"));
                 co_return;
@@ -778,7 +782,7 @@ namespace rdf4cpp::parser {
     uint64_t IStreamQuadIterator::ImplJsonLd::current_column() const noexcept {
         return 0;
     }
-    IStreamQuadIterator::ImplJsonLd::ImplJsonLd(std::string json, ParsingFlags flags, state_type *initial_state)
+    IStreamQuadIterator::ImplJsonLd::ImplJsonLd(std::expected<std::string, error_type> json, ParsingFlags flags, state_type *initial_state)
         : owned_state_(initial_state == nullptr ? std::make_unique<state_type>() : nullptr),
           state_(initial_state == nullptr ? owned_state_.get() : initial_state),
           json_data_(std::move(json)),
@@ -787,14 +791,20 @@ namespace rdf4cpp::parser {
           active_generator_(parse()),
           current_iter_(active_generator_.begin()) {
     }
-    IStreamQuadIterator::ImplJsonLd::ImplJsonLd(void *stream, ReadFunc read, ErrorFunc error, EOFFunc eof, ParsingFlags flags, state_type *initial_state)
-        : ImplJsonLd([&]() {
+    IStreamQuadIterator::ImplJsonLd::ImplJsonLd(void *stream, ReadFunc read, ErrorFunc error, EOFFunc, ParsingFlags flags, state_type *initial_state)
+        : ImplJsonLd([&]() -> std::expected<std::string, error_type> {
+              // a read of 0 means nothing more to read, like fread: eof or error
               std::string buff{};
-              while (error(stream) == 0 && eof(stream) == 0) {
+              size_t n;
+              do {
                   auto i = buff.size();
                   buff.append(StreamChunkSize, '\0');
-                  auto n = read(&buff[i], 1, StreamChunkSize, stream);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+                  n = read(&buff[i], 1, StreamChunkSize, stream);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
                   buff.resize(i + n);
+              } while (n != 0);
+            
+              if (error(stream) != 0) {
+                  return std::unexpected{json_ld::make_error(ParsingError::Type::Io, "reading the input failed")};
               }
               return buff;
           }(),

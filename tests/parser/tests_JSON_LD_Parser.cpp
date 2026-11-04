@@ -824,6 +824,7 @@ struct ParseWithRemotesResult {
     std::string errors;     // the messages of the parsing errors
     std::string requested;  // the urls passed to request_url, in the order of the calls
     size_t quad_count = 0;
+    std::optional<ParsingError::Type> error_type;  // of the first error
 };
 
 /**
@@ -845,6 +846,9 @@ ParseWithRemotesResult parse_with_request_url(std::string doc, std::string_view 
             ++r.quad_count;
         } else {
             r.errors += std::format("{}\n", it->error().message);
+            if (!r.error_type.has_value()) {
+                r.error_type = it->error().error_type;
+            }
         }
     }
     return r;
@@ -901,6 +905,7 @@ TEST_CASE("remote contexts loaded by nested remote contexts add up to a context 
 
     auto const r = parse_with_remote_documents(R"({"@context": "http://ex/top", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.errors == "context overflow\n");
+    CHECK(r.error_type == ParsingError::Type::LimitExceeded);
 }
 
 TEST_CASE("relative urls in a remote context resolve against the url of that context") {
@@ -956,6 +961,7 @@ TEST_CASE("a remote context document without @context is an invalid remote conte
     auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.quads == "");
     CHECK(r.errors == "invalid remote context\n");
+    CHECK(r.error_type == ParsingError::Type::RemoteContext);
 }
 
 TEST_CASE("an imported context that is not a map is an invalid remote context") {
@@ -965,6 +971,7 @@ TEST_CASE("an imported context that is not a map is an invalid remote context") 
     auto const r = parse_with_remote_documents(R"({"@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}, "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.quads == "");
     CHECK(r.errors == "invalid remote context\n");
+    CHECK(r.error_type == ParsingError::Type::RemoteContext);
 }
 
 TEST_CASE("an invalid scoped context before a remote context is reported") {
@@ -995,6 +1002,28 @@ TEST_CASE("an exception from request_url becomes a parsing error") {
     });
     CHECK(r.quad_count == 0);
     CHECK(r.errors == "loading remote context failed timeout\n");
+    CHECK(r.error_type == ParsingError::Type::RemoteContext);
+}
+
+TEST_CASE("a read error of the input stream is reported as io error") {
+    parse_test_helpers::FailingReader reader{R"({"@id": "http://ex/s", "http://ex/p": "v"})"};
+    std::string errors;
+    for (auto it = reader.iter(ParsingFlag::JsonLd); it != std::default_sentinel; ++it) {
+        REQUIRE_FALSE(it->has_value());
+        errors += std::format("{}\n", it->error());
+    }
+    CHECK(errors == "0:0(io error): reading the input failed\n");
+}
+
+TEST_CASE("a reader that returns 0 without setting a flag ends the input") {
+    parse_test_helpers::FailingReader reader{R"({"@id": "http://ex/s", "http://ex/p": "v"})", false};
+    std::string errors;
+    for (auto it = reader.iter(ParsingFlag::JsonLd); it != std::default_sentinel; ++it) {
+        REQUIRE_FALSE(it->has_value());
+        errors += std::format("{}\n", it->error().error_type);
+    }
+    // the truncated document is a syntax error, not an io error
+    CHECK(errors == "bad syntax\n");
 }
 
 TEST_CASE("disabled remote context & import") {
@@ -1145,6 +1174,7 @@ TEST_CASE("a remote context that is no valid json stops the parsing") {
         CAPTURE(r.errors);
         CHECK(std::ranges::count(r.errors, '\n') == 1);
         CHECK(r.errors.starts_with("loading remote context failed"));
+        CHECK(r.error_type == ParsingError::Type::RemoteContext);
         CHECK(r.quads == expected_quads);
     }
     SUBCASE("a truncated body") {
@@ -1373,6 +1403,7 @@ TEST_CASE("the first error ends the parse") {
         CAPTURE(input);
         auto const r = parse_with_remote_documents(input, "http://ex/doc", docs);
         CHECK(r.errors == "loading remote context failed not found\n");
+        CHECK(r.error_type == ParsingError::Type::RemoteContext);
         CHECK(r.quads == "");
         CHECK(r.requested == "http://ex/dead.jsonld\n");
     }
@@ -1427,6 +1458,7 @@ TEST_CASE("a remote context nested too deep is an error") {
         CAPTURE(r.errors);
         CHECK(std::ranges::count(r.errors, '\n') == 1);
         CHECK(r.errors.starts_with("stack limit"));
+        CHECK(r.error_type == ParsingError::Type::LimitExceeded);
         CHECK(r.quad_count == 0);
     };
     SUBCASE("as remote context") {
@@ -1530,11 +1562,11 @@ TEST_CASE("a remote context that includes itself ends with stack limit") {
         if (it->has_value()) {
             ++quad_count;
         } else {
-            errors += std::format("{}\n", it->error().message);
+            errors += std::format("{}\n", it->error());
         }
     }
     CHECK(quad_count == 0);
-    CHECK(errors == "stack limit\n");
+    CHECK(errors == "0:0(limit exceeded): stack limit\n");
 }
 
 TEST_CASE("the parse continues on the stack of the thread that calls next") {
