@@ -107,13 +107,14 @@ namespace rdf4cpp::parser::json_ld {
                     parser.set_resolution_base(data->final_url.empty() ? url : data->final_url);
                     std::string const redirected_url{parser.parse_state->iri_factory.from_maybe_relative_as_string(*href)};
                     auto result = resolve(redirected_url, parser);
-                    if (result.has_value()) {
-                        // the document is cached only under redirected_url so far. Like for a redirect, a second
-                        // reference to url (for example in the next node object) must hit the cache and not the server.
-                        auto [e, _] = contexts.emplace(url, contexts.find(redirected_url)->second);
-                        simdjson::pad(e->second.data);
+                    if (!result.has_value()) {
+                        return std::unexpected{std::move(result.error())};
                     }
-                    return result;
+                    // the document is cached only under redirected_url so far. Like for a redirect, a second
+                    // reference to url (for example in the next node object) must hit the cache and not the server.
+                    auto [e, _] = contexts.emplace(url, contexts.find(redirected_url)->second);
+                    simdjson::pad(e->second.data);
+                    return *result;
                 }
             );
         } catch (std::exception const &e) {
