@@ -48,7 +48,7 @@ public:
     DynNodeScopeManagerPtr(std::nullptr_t) noexcept : instance_{nullptr}, vtable_{nullptr} {
     }
 
-    template<NodeScopeManager M>
+    template<NodeScopeManager M> requires (!std::is_same_v<M, DynNodeScopeManagerPtr>)
     DynNodeScopeManagerPtr(M &manager) noexcept : instance_{&manager}, vtable_{VTable::make<M>()} {
     }
 
@@ -59,6 +59,8 @@ public:
     [[nodiscard]] DynNodeScopePtr scope(std::string_view label) {
         return vtable_->scope(instance_, label);
     }
+
+    bool operator==(DynNodeScopeManagerPtr const &other) const noexcept = default;
 
     friend bool operator==(DynNodeScopeManagerPtr const &self, std::nullptr_t) noexcept {
         return self.instance_ == nullptr;

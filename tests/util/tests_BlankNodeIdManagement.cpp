@@ -171,4 +171,24 @@ TEST_SUITE("blank node id management") {
 
         CHECK_EQ(bns1, bns2);
     }
+
+    TEST_CASE("DynNodeScopePtr constructed from DynNodeScopePtr does not dangle") {
+        ReferenceNodeScope<> scope;
+
+        // intentionally not const (otherwise the bug would not trigger)
+        DynNodeScopePtr dyn1 = scope;
+        DynNodeScopePtr dyn2 = dyn1;
+
+        CHECK_EQ(dyn1, dyn2);
+    }
+
+    TEST_CASE("DynNodeScopeManagerPtr constructed from DynNodeScopeManagerPtr does not dangle") {
+        MergeNodeScopeManager<> mng;
+
+        // intentionally not const (otherwise the bug would not trigger)
+        DynNodeScopeManagerPtr dyn1 = mng;
+        DynNodeScopeManagerPtr dyn2 = dyn1;
+
+        CHECK_EQ(dyn1, dyn2);
+    }
 }
