@@ -3,9 +3,9 @@
 
 #include <rdf4cpp/bnode_mngt/NodeScope.hpp>
 #include <rdf4cpp/storage/identifier/NodeBackendHandle.hpp>
+#include <rdf4cpp/util/TransparentStringHash.hpp>
 
 #include <dice/sparse-map/sparse_map.hpp>
-#include <dice/hash.hpp>
 #include <dice/template-library/static_string.hpp>
 
 #include <rdf4cpp/bnode_mngt/reference_backends/generator/RandomIdGenerator.hpp>
@@ -21,7 +21,7 @@ private:
     std::shared_mutex mutable mutex_; // protects label_to_handle_ and handle_to_label_
     dice::sparse_map::sparse_map<dice::template_library::static_string,
                                  storage::identifier::NodeBackendHandle,
-                                 dice::hash::DiceHashwyhash<std::string_view>,
+                                 util::TransparentStringHash,
                                  std::equal_to<>>
             label_to_handle_;
 
