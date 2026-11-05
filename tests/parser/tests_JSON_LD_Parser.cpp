@@ -18,7 +18,7 @@ std::expected<ParsingState::RequestResult, std::string> resolve_test_url(std::st
     if (url.starts_with(pre)) {
         auto path = url;
         path.remove_prefix(pre.size());
-        return ParsingState::RequestResult{remote_test_file_to_str(path), std::string{url}};
+        return ParsingState::RequestResult{ParsingState::JsonLdData{remote_test_file_to_str(path)}, std::string{url}};
     }
     return std::unexpected{std::format("unexpected url {}", url)};
 }
@@ -824,6 +824,7 @@ struct ParseWithRemotesResult {
     std::string errors;     // the messages of the parsing errors
     std::string requested;  // the urls passed to request_url, in the order of the calls
     size_t quad_count = 0;
+    std::optional<ParsingError::Type> error_type;  // of the first error
 };
 
 /**
@@ -845,6 +846,9 @@ ParseWithRemotesResult parse_with_request_url(std::string doc, std::string_view 
             ++r.quad_count;
         } else {
             r.errors += std::format("{}\n", it->error().message);
+            if (!r.error_type.has_value()) {
+                r.error_type = it->error().error_type;
+            }
         }
     }
     return r;
@@ -859,7 +863,7 @@ ParseWithRemotesResult parse_with_remote_documents(std::string doc, std::string_
         if (it == docs.end()) {
             return std::unexpected{std::string{"not found"}};
         }
-        return ParsingState::RequestResult{it->second, std::string{url}};
+        return ParsingState::RequestResult{ParsingState::JsonLdData{it->second}, std::string{url}};
     });
 }
 
@@ -901,6 +905,7 @@ TEST_CASE("remote contexts loaded by nested remote contexts add up to a context 
 
     auto const r = parse_with_remote_documents(R"({"@context": "http://ex/top", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.errors == "context overflow\n");
+    CHECK(r.error_type == ParsingError::Type::LimitExceeded);
 }
 
 TEST_CASE("relative urls in a remote context resolve against the url of that context") {
@@ -956,6 +961,7 @@ TEST_CASE("a remote context document without @context is an invalid remote conte
     auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.quads == "");
     CHECK(r.errors == "invalid remote context\n");
+    CHECK(r.error_type == ParsingError::Type::RemoteContext);
 }
 
 TEST_CASE("an imported context that is not a map is an invalid remote context") {
@@ -965,6 +971,7 @@ TEST_CASE("an imported context that is not a map is an invalid remote context") 
     auto const r = parse_with_remote_documents(R"({"@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}, "@id": "http://ex/s", "http://ex/p": "v"})", "http://ex/doc", docs);
     CHECK(r.quads == "");
     CHECK(r.errors == "invalid remote context\n");
+    CHECK(r.error_type == ParsingError::Type::RemoteContext);
 }
 
 TEST_CASE("an invalid scoped context before a remote context is reported") {
@@ -995,6 +1002,28 @@ TEST_CASE("an exception from request_url becomes a parsing error") {
     });
     CHECK(r.quad_count == 0);
     CHECK(r.errors == "loading remote context failed timeout\n");
+    CHECK(r.error_type == ParsingError::Type::RemoteContext);
+}
+
+TEST_CASE("a read error of the input stream is reported as io error") {
+    parse_test_helpers::FailingReader reader{R"({"@id": "http://ex/s", "http://ex/p": "v"})"};
+    std::string errors;
+    for (auto it = reader.iter(ParsingFlag::JsonLd); it != std::default_sentinel; ++it) {
+        REQUIRE_FALSE(it->has_value());
+        errors += std::format("{}\n", it->error());
+    }
+    CHECK(errors == "0:0(io error): reading the input failed\n");
+}
+
+TEST_CASE("a reader that returns 0 without setting a flag ends the input") {
+    parse_test_helpers::FailingReader reader{R"({"@id": "http://ex/s", "http://ex/p": "v"})", false};
+    std::string errors;
+    for (auto it = reader.iter(ParsingFlag::JsonLd); it != std::default_sentinel; ++it) {
+        REQUIRE_FALSE(it->has_value());
+        errors += std::format("{}\n", it->error().error_type);
+    }
+    // the truncated document is a syntax error, not an io error
+    CHECK(errors == "bad syntax\n");
 }
 
 TEST_CASE("disabled remote context & import") {
@@ -1054,7 +1083,7 @@ TEST_CASE("two node objects that import the same context request it only once") 
         if (!requested.ends_with("imp.jsonld")) {
             return std::unexpected{std::format("unexpected url {}", requested)};
         }
-        return ParsingState::RequestResult{R"({"@context": {"t": "http://ex/t"}})", requested};
+        return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"t": "http://ex/t"}})"}, requested};
     });
 
     CHECK(r.requested == "http://ex/dir/imp.jsonld\n");
@@ -1066,10 +1095,10 @@ TEST_CASE("an absolute @import url is loaded without a base url") {
     // the @import in it is absolute, so it is loaded anyway
     auto const loader = [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
         if (url == "http://ex/ctx.jsonld") {
-            return ParsingState::RequestResult{R"({"@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}})", "ctx.jsonld"};
+            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"@version": 1.1, "@import": "http://ex/imp.jsonld"}})"}, "ctx.jsonld"};
         }
         if (url == "http://ex/imp.jsonld") {
-            return ParsingState::RequestResult{R"({"@context": {"t": "http://ex/t"}})", std::string{url}};
+            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"t": "http://ex/t"}})"}, std::string{url}};
         }
         return std::unexpected{std::format("unexpected url {}", url)};
     };
@@ -1145,6 +1174,7 @@ TEST_CASE("a remote context that is no valid json stops the parsing") {
         CAPTURE(r.errors);
         CHECK(std::ranges::count(r.errors, '\n') == 1);
         CHECK(r.errors.starts_with("loading remote context failed"));
+        CHECK(r.error_type == ParsingError::Type::RemoteContext);
         CHECK(r.quads == expected_quads);
     }
     SUBCASE("a truncated body") {
@@ -1200,13 +1230,13 @@ TEST_CASE("context load redirect applies base") {
                                     "http://ex/doc",
                                     [&](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
                                         if (url == "http://foo/bar.jsonld") {
-                                            return ParsingState::RequestResult{R"({"@context": "bar.jsonld"})", "http://bar/foo.jsonld"};
+                                            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": "bar.jsonld"})"}, "http://bar/foo.jsonld"};
                                         }
                                         if (url == "http://bar/bar.jsonld") {
-                                            return ParsingState::RequestResult{R"({"@context": "bar2.jsonld"})", ""};
+                                            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": "bar2.jsonld"})"}, ""};
                                         }
                                         if (url == "http://bar/bar2.jsonld") {
-                                            return ParsingState::RequestResult{R"({"@context": {"a": "http://bar/bar"}})", ""};
+                                            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"a": "http://bar/bar"}})"}, ""};
                                         }
                                         return std::unexpected{std::format("unexpected url {}", url)};
                                     });
@@ -1221,7 +1251,7 @@ TEST_CASE("a context loaded through a redirect is not requested again under its 
     // http://ex/ctx redirects to http://ex/ctx.jsonld, so the second array entry is already in the cache
     auto const loader = [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
         if (url == "http://ex/ctx" || url == "http://ex/ctx.jsonld") {
-            return ParsingState::RequestResult{R"({"@context": {"t": "http://ex/t"}})", "http://ex/ctx.jsonld"};
+            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"t": "http://ex/t"}})"}, "http://ex/ctx.jsonld"};
         }
         return std::unexpected{std::format("unexpected url {}", url)};
     };
@@ -1230,6 +1260,58 @@ TEST_CASE("a context loaded through a redirect is not requested again under its 
     CAPTURE(r.errors);
     CHECK(r.errors == "");
     CHECK(r.quads == "<http://ex/s> <http://ex/t> \"v\" .\n");
+}
+
+TEST_CASE("a response that is no json-ld is followed through its alternate link header") {
+    // schema.org answers https://schema.org/ with html and this link header, the context is behind the link
+    std::string link = R"(</docs/jsonldcontext.jsonld>; rel="alternate"; type="application/ld+json")";
+    auto const loader = [&link](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
+        if (url == "https://schema.org/") {
+            return ParsingState::RequestResult{ParsingState::OtherData{{link}}, std::string{url}};
+        }
+        if (url == "https://schema.org/docs/jsonldcontext.jsonld") {
+            return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": {"schema": "https://schema.org/", "name": {"@id": "schema:name"}}})"}, std::string{url}};
+        }
+        if (url == "http://ex/html") {
+            return ParsingState::RequestResult{ParsingState::OtherData{{R"(</style.css>; rel="stylesheet")"}}, std::string{url}};
+        }
+        return std::unexpected{std::format("unexpected url {}", url)};
+    };
+    SUBCASE("the relative link resolves against the requested url, the second node object hits the cache") {
+        auto const r = parse_with_request_url(R"([{"@context": "https://schema.org/", "@id": "http://ex/s", "name": "v"},
+                                                  {"@context": "https://schema.org/", "@id": "http://ex/s2", "name": "w"}])", "http://ex/doc", loader);
+        CHECK(r.requested == "https://schema.org/\nhttps://schema.org/docs/jsonldcontext.jsonld\n");
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <https://schema.org/name> \"v\" .\n<http://ex/s2> <https://schema.org/name> \"w\" .\n");
+    }
+    SUBCASE("unknown link parameters are ignored") {
+        link = R"(</docs/jsonldcontext.jsonld>; foo="42"; rel="alternate"; type="application/ld+json")";
+        auto const r = parse_with_request_url(R"({"@context": "https://schema.org/", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", loader);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <https://schema.org/name> \"v\" .\n");
+    }
+    SUBCASE("link parameter values may be unquoted") {
+        link = R"(</docs/jsonldcontext.jsonld>; rel=alternate; type="application/ld+json")";
+        auto const r = parse_with_request_url(R"({"@context": "https://schema.org/", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", loader);
+        CAPTURE(r.errors);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <https://schema.org/name> \"v\" .\n");
+    }
+    SUBCASE("an alternate link that points at itself ends with an error") {
+        auto const r = parse_with_request_url(R"({"@context": "http://ex/loop", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
+            return ParsingState::RequestResult{ParsingState::OtherData{{"<loop>; rel=alternate; type=application/ld+json"}}, std::string{url}};
+        });
+        CHECK(r.errors.contains("too many alternate links"));
+        CHECK(r.quad_count == 0);
+    }
+    SUBCASE("without an alternate link the context fails to load") {
+        auto const r = parse_with_request_url(R"({"@context": "http://ex/html", "@id": "http://ex/s", "name": "v"})", "http://ex/doc", loader);
+        CHECK(r.requested == "http://ex/html\n");
+        CHECK(r.errors.contains("not json-ld"));
+        CHECK(r.quad_count == 0);
+    }
 }
 
 TEST_CASE("a null context that propagates also applies to nested node objects") {
@@ -1373,6 +1455,7 @@ TEST_CASE("the first error ends the parse") {
         CAPTURE(input);
         auto const r = parse_with_remote_documents(input, "http://ex/doc", docs);
         CHECK(r.errors == "loading remote context failed not found\n");
+        CHECK(r.error_type == ParsingError::Type::RemoteContext);
         CHECK(r.quads == "");
         CHECK(r.requested == "http://ex/dead.jsonld\n");
     }
@@ -1427,6 +1510,7 @@ TEST_CASE("a remote context nested too deep is an error") {
         CAPTURE(r.errors);
         CHECK(std::ranges::count(r.errors, '\n') == 1);
         CHECK(r.errors.starts_with("stack limit"));
+        CHECK(r.error_type == ParsingError::Type::LimitExceeded);
         CHECK(r.quad_count == 0);
     };
     SUBCASE("as remote context") {
@@ -1521,7 +1605,7 @@ TEST_CASE("a remote context that includes itself ends with stack limit") {
     state.iri_factory.set_base("http://ex/doc");
     state.remote_context_size_limit = 100000;
     state.request_url = [](std::string_view url) -> std::expected<ParsingState::RequestResult, std::string> {
-        return ParsingState::RequestResult{R"({"@context": "http://ex/self"})", std::string{url}};
+        return ParsingState::RequestResult{ParsingState::JsonLdData{R"({"@context": "http://ex/self"})"}, std::string{url}};
     };
     std::stringstream json{R"({"@context": "http://ex/self", "@id": "http://ex/s", "http://ex/p": "v"})"};
     size_t quad_count = 0;
@@ -1530,11 +1614,11 @@ TEST_CASE("a remote context that includes itself ends with stack limit") {
         if (it->has_value()) {
             ++quad_count;
         } else {
-            errors += std::format("{}\n", it->error().message);
+            errors += std::format("{}\n", it->error());
         }
     }
     CHECK(quad_count == 0);
-    CHECK(errors == "stack limit\n");
+    CHECK(errors == "0:0(limit exceeded): stack limit\n");
 }
 
 TEST_CASE("the parse continues on the stack of the thread that calls next") {

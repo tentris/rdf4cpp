@@ -7,6 +7,36 @@
 using namespace rdf4cpp;
 using namespace rdf4cpp::parser;
 
+TEST_CASE("a read error of the input stream is reported as io error") {
+    parse_test_helpers::FailingReader reader{R"(<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:ex="https://www.example.com/">
+    <rdf:Description rdf:about="https://www.example.com"><ex:title>example</ex:title></rdf:Description>
+    <rdf:Description rdf:about="https://www.example.com"><ex:title>a long literal that is cut</ex:title></rdf:Description>
+</rdf:RDF>)"};
+    std::string errors;
+    for (auto it = reader.iter(ParsingFlag::RdfXml); it != std::default_sentinel; ++it) {
+        if (!it->has_value()) {
+            errors += std::format("{}: {}\n", it->error().error_type, it->error().message);
+        }
+    }
+    CHECK(errors == "io error: reading the input failed\n");
+}
+
+TEST_CASE("a reader that returns 0 without setting a flag ends the input") {
+    parse_test_helpers::FailingReader reader{R"(<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:ex="https://www.example.com/">
+    <rdf:Description rdf:about="https://www.example.com"><ex:title>example</ex:title></rdf:Description>
+    <rdf:Description rdf:about="https://www.example.com"><ex:title>a long literal that is cut</ex:title></rdf:Description>
+</rdf:RDF>)", false};
+    size_t errors = 0;
+    for (auto it = reader.iter(ParsingFlag::RdfXml); it != std::default_sentinel; ++it) {
+        if (!it->has_value()) {
+            CHECK(it->error().error_type == ParsingError::Type::BadSyntax);
+            ++errors;
+        }
+    }
+    // the truncated document is a syntax error, not an io error
+    CHECK(errors == 1);
+}
+
 TEST_CASE("sanity test") {
     std::stringstream str{R"(<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfdata="http://www.w3.org/1999/02/22-rdf-syntax-ns#data" xmlns:ex="https://www.example.com/">
     <rdf:Description rdf:about="https://www.example.com" rdf:type="https://www.example2.com/type">

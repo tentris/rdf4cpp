@@ -43,7 +43,7 @@ public:
     DynNodeScopePtr(std::nullptr_t) noexcept : instance_{nullptr}, vtable_{nullptr} {
     }
 
-    template<NodeScope S>
+    template<NodeScope S> requires (!std::is_same_v<S, DynNodeScopePtr>)
     DynNodeScopePtr(S &scope) noexcept : instance_{&scope}, vtable_{VTable::make<S>()} {
     }
 
@@ -54,6 +54,8 @@ public:
     [[nodiscard]] Node get_or_generate_node(std::string_view label, storage::DynNodeStoragePtr node_storage) const {
         return vtable_->get_or_generate_node(instance_, label, node_storage);
     }
+
+    bool operator==(DynNodeScopePtr const &other) const noexcept = default;
 
     friend bool operator==(DynNodeScopePtr const &self, std::nullptr_t) noexcept {
         return self.instance_ == nullptr;

@@ -432,6 +432,8 @@ IStreamQuadIterator::ImplSerd::ImplSerd(void *stream,
     : reader{serd_reader_new(extract_syntax_from_flags(flags), this, nullptr, &ImplSerd::on_base, &ImplSerd::on_prefix, &ImplSerd::on_stmt, nullptr)},
       owned_state_(initial_state == nullptr ? std::make_unique<state_type>() : nullptr),
       state(initial_state == nullptr ? owned_state_.get() : initial_state),
+      stream_{stream},
+      error_func_{error},
       flags{flags} {
     serd_reader_set_strict(this->reader.get(), !flags.contains(ParsingFlag::Lax));
     serd_reader_set_error_sink(this->reader.get(), &ImplSerd::on_error, this);
@@ -463,7 +465,15 @@ std::optional<std::expected<IStreamQuadIterator::ok_type, IStreamQuadIterator::e
             continue;
         }
 
-        if (!this->last_error.has_value()) {
+        if (this->error_func_(this->stream_) != 0) {
+            // the input is truncated, an error serd reported for it is only a consequence of that
+            this->last_error = ParsingError{.error_type = ParsingError::Type::Io,
+                                            .line = serd_reader_get_current_line(this->reader.get()),
+                                            .col = serd_reader_get_current_col(this->reader.get()),
+                                            .message = "reading the input failed"};
+            this->last_error_requires_skip = false;
+            this->end_flag = true;
+        } else if (!this->last_error.has_value()) {
             if (st == SERD_FAILURE) {
                 // no error and SERD_FAILURE means EOF
                 this->end_flag = true;

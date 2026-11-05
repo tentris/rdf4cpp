@@ -165,7 +165,15 @@ namespace rdf4cpp::parser {
         std::array<char, 8192> buffer;  // NOLINT(*-pro-type-member-init)
         while (output_.empty() && error_func_(reader_obj_) == 0 && eof_func_(reader_obj_) == 0) {
             auto const read = read_func_(buffer.data(), sizeof(char), buffer.size(), reader_obj_);
-            xmlParseChunk(context_.get(), buffer.data(), static_cast<int>(read), eof_func_(reader_obj_) != 0);
+            // a read of 0 means nothing more to read, like fread: eof or error
+            xmlParseChunk(context_.get(), buffer.data(), static_cast<int>(read), read == 0 || eof_func_(reader_obj_) != 0);
+            if (read == 0) {
+                break;
+            }
+        }
+        if (!io_error_reported_ && error_func_(reader_obj_) != 0) {
+            io_error_reported_ = true;
+            output_.add_error(ParsingError::Type::Io, "reading the input failed", make_info());
         }
         return output_.next();
     }
