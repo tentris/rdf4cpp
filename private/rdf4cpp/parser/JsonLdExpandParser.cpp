@@ -461,13 +461,27 @@ namespace rdf4cpp::parser::json_ld {
                     if (el.type() == simdjson::ondemand::json_type::array) {
                         return static_cast<simdjson::ondemand::array>(el);
                     }
-                    return expand_level({
+                    auto inner = expand_level({
                         .active_context = p.active_context,
                         .active_property = p.active_property,
                         .element = el,
                         .base_iri = p.base_iri,
                         .from_map = p.from_map,
                     });
+                    // expanding the @set value moved the iterator into it. parse converts the element containing @set
+                    // to an object again, which requires the iterator to be at the start of that object.
+                    elem_object.reset();
+                    // the paths of the inner entries are relative to the @set value, but parse looks them up
+                    // in the element containing @set, so they need the path to the @set value as prefix.
+                    // the paths inside next_level_pre_expanded are relative to the value their entry points to and stay as they are.
+                    if (inner.has_value() && std::holds_alternative<ExpandedMap>(*inner)) {
+                        for (auto &entry : std::get<ExpandedMap>(*inner).entries) {
+                            if (!entry.path.keys.empty()) {
+                                entry.path.keys.insert(entry.path.keys.begin(), set->path.keys.begin(), set->path.keys.end());
+                            }
+                        }
+                    }
+                    return inner;
                 }
             }
         }
@@ -485,6 +499,9 @@ namespace rdf4cpp::parser::json_ld {
             }
         }
         // 20
+        if (result.entries.empty()) {
+            result.expanded_from_no_map = true;
+        }
         return result;
     }
     std::optional<ExpandParser::error_type> ExpandParser::expand_level_nested_recursive(params::ExpandNestedParams p) {

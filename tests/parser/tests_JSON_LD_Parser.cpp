@@ -1671,3 +1671,188 @@ TEST_CASE("a remote context document that is no map is an invalid remote context
         }
     }
 }
+
+TEST_CASE("an empty node object as a value") {
+    // expand_level has already read an empty object. The iterator is then behind the } and one level up,
+    // so converting the element to an object again must not happen.
+    SUBCASE("as the value of a property") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {}})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as a list item") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@list": [{}]}})",
+                             "<http://ex/s> <http://ex/p> _:l0 .\n"
+                             "_:l0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b0 .\n"
+                             "_:l0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as an element of an array value") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": [{}, "v"]})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "<http://ex/s> <http://ex/p> \"v\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("at the end of a chain of nested node objects") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"http://ex/p": {"http://ex/p": {}}}})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "_:b0 <http://ex/p> _:b1 .\n"
+                             "_:b1 <http://ex/p> _:b2 .\n",
+                             "http://ex/doc");
+    }
+    // the following subcases have a property after the empty object, to check that parsing continues correctly
+    SUBCASE("wrapped in @set") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@set": {}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as the value of a property in @reverse") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "@reverse": {"http://ex/p": {}}, "http://ex/z": "z"})",
+                             "_:b0 <http://ex/p> <http://ex/s> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as the value of a reverse term") {
+        jsonld_test_positive(R"({"@context": {"p": {"@reverse": "http://ex/p"}}, "@id": "http://ex/s", "p": {}, "http://ex/z": "z"})",
+                             "_:b0 <http://ex/p> <http://ex/s> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in an id map") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": "@id"}}, "@id": "http://ex/s", "p": {"http://ex/o": {}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> <http://ex/o> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in a type map") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": "@type"}}, "@id": "http://ex/s", "p": {"http://ex/T": {}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "_:b0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/T> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in an index map") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": "@index"}}, "@id": "http://ex/s", "p": {"a": {}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in a property-valued index map") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": "@index", "@index": "http://ex/idx"}}, "@id": "http://ex/s", "p": {"a": {}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "_:b0 <http://ex/idx> \"a\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as the value of a list container term") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": "@list"}}, "@id": "http://ex/s", "p": {}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:l0 .\n"
+                             "_:l0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b0 .\n"
+                             "_:l0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as the value of a graph container term") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": "@graph"}}, "@id": "http://ex/s", "p": {}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:g0 .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in a graph index map") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": ["@graph", "@index"]}}, "@id": "http://ex/s", "p": {"a": {}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:g0 .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as a property value in @nest") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "@nest": {"http://ex/p": {}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as an element of a top level array") {
+        jsonld_test_positive(R"([{}, {"@id": "http://ex/s", "http://ex/p": "v"}])",
+                             "<http://ex/s> <http://ex/p> \"v\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as the value of @graph") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "@graph": {}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as the value of a @json term") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@type": "@json"}}, "@id": "http://ex/s", "p": {}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> \"{}\"^^<http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("a node object that only contains keys that are dropped") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"foo": "bar"}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("a node object that only contains @context") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@context": {}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+}
+
+TEST_CASE("a node object wrapped in @set") {
+    // expanding {"@set": x} results in the expansion of x, so the paths of its entries are relative to x, not to the map containing @set
+    SUBCASE("as the value of a property") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@set": {"http://ex/q": "v"}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "_:b0 <http://ex/q> \"v\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("with an @id") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@set": {"@id": "http://ex/o", "http://ex/q": "v"}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> <http://ex/o> .\n"
+                             "<http://ex/o> <http://ex/q> \"v\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("with an alias of @set") {
+        jsonld_test_positive(R"({"@context": {"set": "@set"}, "@id": "http://ex/s", "http://ex/p": {"set": {"http://ex/q": "v"}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "_:b0 <http://ex/q> \"v\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("nested in another @set") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@set": {"@set": {"http://ex/q": "v"}}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "_:b0 <http://ex/q> \"v\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as a list item") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@list": [{"@set": {"http://ex/q": "v"}}]}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:l0 .\n"
+                             "_:l0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> _:b0 .\n"
+                             "_:l0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> .\n"
+                             "_:b0 <http://ex/q> \"v\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in an id map") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": "@id"}}, "@id": "http://ex/s", "p": {"http://ex/o": {"@set": {"http://ex/q": "v"}}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> <http://ex/o> .\n"
+                             "<http://ex/o> <http://ex/q> \"v\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in a type map") {
+        jsonld_test_positive(R"({"@context": {"p": {"@id": "http://ex/p", "@container": "@type"}}, "@id": "http://ex/s", "p": {"http://ex/T": {"@set": {"http://ex/q": "v"}}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> _:b0 .\n"
+                             "_:b0 <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ex/T> .\n"
+                             "_:b0 <http://ex/q> \"v\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+}
