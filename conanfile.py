@@ -49,7 +49,7 @@ class Recipe(ConanFile):
                                               "build_pcre2grep": False,
                                               "with_zlib": False,
                                               "with_bzip2": False})
-        self.requires("botan/3.13.0", options={"enable_modules": ",".join(_BOTAN_MODULES)})
+        self.requires("botan/3.14.0", options={"enable_modules": ",".join(_BOTAN_MODULES)})
         self.requires("uni-algo/1.2.0")
         self.requires("highway/1.4.0")
         self.requires("dice-hash/0.5.0", transitive_headers=True)
