@@ -61,7 +61,7 @@ class Recipe(ConanFile):
 
         if self.options.with_test_deps:
             self.test_requires("doctest/2.5.3")
-            self.test_requires("nanobench/4.3.11")
+            self.test_requires("nanobench/4.6.0")
 
     def validate(self):
         # Conan feature resolution is not additive (e.g. Cargo, vcpkg) but depends on which package is declared as a dependency first and how that package sets them.
