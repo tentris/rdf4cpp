@@ -5,8 +5,7 @@
 #include <rdf4cpp/bnode_mngt/reference_backends/scope/ReferenceNodeScope.hpp>
 #include <dice/sparse-map/sparse_map.hpp>
 #include <rdf4cpp/Assert.hpp>
-
-#include <dice/hash.hpp>
+#include <rdf4cpp/util/TransparentStringHash.hpp>
 
 #include <functional>
 #include <memory>
@@ -19,7 +18,7 @@ struct MergeNodeScopeManager {
     using node_scope_storage_type = dice::sparse_map::sparse_map<
             std::string,
             std::unique_ptr<S>,
-            dice::hash::DiceHashwyhash<std::string_view>,
+            util::TransparentStringHash,
             std::equal_to<>>;
 
     static std::unique_ptr<S> default_make_scope([[maybe_unused]] std::string_view name) {
