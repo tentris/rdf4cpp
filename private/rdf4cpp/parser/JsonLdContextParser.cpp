@@ -260,12 +260,10 @@ namespace rdf4cpp::parser::json_ld {
                                 return key == v;
                             })) {
                             continue;
-                            }
-                        auto i = std::ranges::find_if(result->terms, [&](auto const &t) {
-                            return t.key == key;
-                        });
-                        if (i == result->terms.end()) {
-                            result->terms.emplace_back(key);
+                        }
+                        auto i = result->try_find_term_for_parse(key);
+                        if (i == nullptr) {
+                            result->emplace_term(key);
                         } else if (i->parse_state != ParseState::NotStarted) {
                             previous_terms.emplace_back(std::move(*i));
                             *i = TermDefinition{key};
@@ -552,6 +550,12 @@ namespace rdf4cpp::parser::json_ld {
         return result;
     }
 
+    void ContextParser::finish_object(simdjson::ondemand::object &ob) {
+        ob.reset();
+        for ([[maybe_unused]] auto e : ob) {
+        }
+    }
+
     std::optional<ContextParser::error_type> ContextParser::parse_context_term(params::ParseContextTermParams p) {
         std::optional<error_type> res;
 
@@ -824,6 +828,7 @@ namespace rdf4cpp::parser::json_ld {
                         // 13.4, a value with the form of a keyword leaves the term without a definition
                         p.term.ignored = true;
                         p.term.parse_state = ParseState::Done;
+                        finish_object(ob);
                         res = std::nullopt;
                         return res;
                     }
@@ -876,6 +881,7 @@ namespace rdf4cpp::parser::json_ld {
                     // does not apply to it
                     p.term.is_reverse_property = true;
                     p.term.parse_state = ParseState::Done;
+                    finish_object(ob);
                     res = std::nullopt;
                     return res;
                 }

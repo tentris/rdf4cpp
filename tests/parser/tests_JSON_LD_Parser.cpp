@@ -1856,3 +1856,82 @@ TEST_CASE("a node object wrapped in @set") {
                              "http://ex/doc");
     }
 }
+
+TEST_CASE("a reverse term that another term uses before its own definition") {
+    SUBCASE("reverse term defined after the term that uses it") {
+        jsonld_test_positive(R"({"@context": {"A": {"@id": "B"}, "B": {"@reverse": "http://ex/r"}}, "@id": "http://ex/s", "A": {"@id": "http://ex/o"}})",
+                             "<http://ex/s> <http://ex/r> <http://ex/o> .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("reverse term defined before the term that uses it") {
+        jsonld_test_positive(R"({"@context": {"B": {"@reverse": "http://ex/r"}, "A": {"@id": "B"}}, "@id": "http://ex/s", "A": {"@id": "http://ex/o"}})",
+                             "<http://ex/s> <http://ex/r> <http://ex/o> .\n",
+                             "http://ex/doc");
+    }
+}
+
+TEST_CASE("a term with a keyword-like @reverse that another term uses before its own definition") {
+    // B is ignored (13.4), so A's @id "B" expands with @vocab
+    jsonld_test_positive(R"({"@context": {"@vocab": "http://ex/v#", "A": {"@id": "B"}, "B": {"@reverse": "@ignoreMe"}}, "@id": "http://ex/s", "A": {"@id": "http://ex/o"}, "http://ex/z": "z"})",
+                         "<http://ex/s> <http://ex/v#B> <http://ex/o> .\n"
+                         "<http://ex/s> <http://ex/z> \"z\" .\n",
+                         "http://ex/doc");
+}
+
+TEST_CASE("a reverse term that is needed by another term before its own definition") {
+    // the definition of the reverse term has to be iterated to its end, the iterator is shared with the definition that needs it
+    SUBCASE("in @reverse") {
+        jsonld_test_positive(R"({"@context": {"A": {"@reverse": "B"}, "B": {"@reverse": "http://ex/r"}}, "@id": "http://ex/s", "A": {"@id": "http://ex/o"}, "http://ex/z": "z"})",
+                             "<http://ex/o> <http://ex/r> <http://ex/s> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in @type") {
+        jsonld_test_positive(R"({"@context": {"A": {"@id": "http://ex/a", "@type": "B"}, "B": {"@reverse": "http://ex/T"}}, "@id": "http://ex/s", "A": "v", "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/a> \"v\"^^<http://ex/T> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in @index") {
+        jsonld_test_positive(R"({"@context": {"A": {"@id": "http://ex/a", "@container": "@index", "@index": "B"}, "B": {"@reverse": "http://ex/i"}}, "@id": "http://ex/s", "A": {"x": {"@id": "http://ex/o"}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/a> <http://ex/o> .\n"
+                             "<http://ex/o> <http://ex/i> \"x\" .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as the prefix of a compact IRI term") {
+        jsonld_test_positive(R"({"@context": {"B:x": {"@type": "@id"}, "B": {"@reverse": "http://ex/r/"}}, "@id": "http://ex/s", "B:x": "http://ex/o", "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/r/x> <http://ex/o> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("as the prefix of a compact IRI in @id") {
+        // B is no prefix (no simple term), so B:x stays an absolute IRI
+        jsonld_test_positive(R"({"@context": {"A": {"@id": "B:x"}, "B": {"@reverse": "http://ex/r/"}}, "@id": "http://ex/s", "A": {"@id": "http://ex/o"}, "http://ex/z": "z"})",
+                             "<http://ex/s> <B:x> <http://ex/o> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("in @vocab") {
+        jsonld_test_positive(R"({"@context": {"@vocab": "B", "B": {"@reverse": "http://ex/v#"}, "C": {"@id": "http://ex/c"}}, "@id": "http://ex/s", "x": "y", "C": "c"})",
+                             "<http://ex/s> <http://ex/v#x> \"y\" .\n"
+                             "<http://ex/s> <http://ex/c> \"c\" .\n",
+                             "http://ex/doc");
+    }
+}
+
+TEST_CASE("a reverse term that is needed by another term before its own definition in a remote context") {
+    std::map<std::string, std::string, std::less<>> const docs{
+            {"http://ex/ctx.jsonld", R"({"@context": {"A": {"@id": "B"}, "B": {"@reverse": "http://ex/r"}, "C": {"@id": "http://ex/c"}}})"},
+    };
+    SUBCASE("as context") {
+        auto const r = parse_with_remote_documents(R"({"@context": "http://ex/ctx.jsonld", "@id": "http://ex/s", "A": {"@id": "http://ex/o"}, "C": "c"})", "http://ex/doc", docs);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/r> <http://ex/o> .\n<http://ex/s> <http://ex/c> \"c\" .\n");
+    }
+    SUBCASE("as @import") {
+        auto const r = parse_with_remote_documents(R"({"@context": {"@version": 1.1, "@import": "http://ex/ctx.jsonld", "D": {"@id": "http://ex/d"}}, "@id": "http://ex/s", "A": {"@id": "http://ex/o"}, "C": "c", "D": "d"})", "http://ex/doc", docs);
+        CHECK(r.errors == "");
+        CHECK(r.quads == "<http://ex/s> <http://ex/r> <http://ex/o> .\n<http://ex/s> <http://ex/c> \"c\" .\n<http://ex/s> <http://ex/d> \"d\" .\n");
+    }
+}
