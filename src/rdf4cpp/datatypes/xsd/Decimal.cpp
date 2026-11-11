@@ -27,10 +27,19 @@ template<>
 bool capabilities::Default<xsd_decimal>::serialize_simplified_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
     cpp_type v = value;
     v.normalize();
-    if (v.get_exponent() == 0) {
-        return util::to_chars_canonical(v.get_unscaled_value(), writer);
+    if (v.get_exponent() > 0) {
+        return v.serialize(writer);
     }
-    return v.serialize(writer);
+    // integer, a negative exponent is the number of trailing zeros
+    if (!util::to_chars_canonical(v.get_unscaled_value(), writer)) {
+        return false;
+    }
+    for (auto ex = v.get_exponent(); ex < 0; ++ex) {
+        if (!writer::write_str("0", writer)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 template<>
@@ -176,7 +185,7 @@ capabilities::Inlineable<xsd_decimal>::cpp_type capabilities::Inlineable<xsd_dec
     RDF4CPP_ASSERT(data.padding == 0);
 
     auto const unscaled_value = util::unpack_integral<int64_t, InlinedDecimal::unscaled_size>(data.unscaled_value);
-    auto const exponent = util::unpack_integral<uint32_t, InlinedDecimal::exponent_size>(data.exponent);
+    auto const exponent = util::unpack_integral<int32_t, InlinedDecimal::exponent_size>(data.exponent);
     return cpp_type{unscaled_value, exponent};
 }
 

@@ -45,7 +45,7 @@ TEST_SUITE("numeric op results") {
                 CHECK(Decimal::add(max, max) == std::unexpected(DynamicError::OverOrUnderFlow));
                 CHECK(Decimal::sub(max, -max) == std::unexpected(DynamicError::OverOrUnderFlow));
                 CHECK(Decimal::mul(max, big_number) == std::unexpected(DynamicError::OverOrUnderFlow));
-                CHECK(Decimal::div(max, one / big_number) == std::unexpected(DynamicError::OverOrUnderFlow));
+                CHECK(Decimal::div(max, one / big_number) == Decimal::cpp_type{max.get_unscaled_value(), -11});  // fits with a negative exponent
             }
 
             // "On underflow, 0.0 must be returned."

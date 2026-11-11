@@ -38,8 +38,8 @@ namespace rdf4cpp {
         template<typename T>
         concept BigDecimalBaseType = std::numeric_limits<T>::is_specialized && !std::floating_point<T>;
 
-        template<BigDecimalBaseType UnscaledValue_t = Int128, BigDecimalBaseType Exponent_t = uint32_t>
-        requires(!std::signed_integral<Exponent_t> && !std::unsigned_integral<UnscaledValue_t>)
+        template<BigDecimalBaseType UnscaledValue_t = Int128, BigDecimalBaseType Exponent_t = int32_t>
+        requires(!std::unsigned_integral<Exponent_t> && !std::unsigned_integral<UnscaledValue_t>)
         struct BigDecimal {
             // the entire class is loosely based on OpenJDKs BigDecimal: https://github.com/AdoptOpenJDK/openjdk-jdk11/blob/master/src/java.base/share/classes/java/math/BigDecimal.java
 
@@ -59,6 +59,14 @@ namespace rdf4cpp {
                 }
             }
 
+            // result = base^(hi - lo), requires hi >= lo
+            template<OverflowMode m>
+            static constexpr bool scale_factor(Exponent_t const &hi, Exponent_t const &lo, UnscaledValue_t &result) noexcept {
+                Exponent_t diff{0};
+                return detail::sub_checked<OverflowMode::Checked>(hi, lo, diff)
+                       || detail::pow_checked<m>(UnscaledValue_t{base}, static_cast<unsigned int>(diff), result);
+            }
+
         public:
             constexpr BigDecimal() noexcept : BigDecimal{0, 0} {
             }
@@ -67,7 +75,7 @@ namespace rdf4cpp {
              * creates a BigDecimal from its components.
              * it has the value of unscaled_value * pow(10, -exponent).
              * @param unscaled_value
-             * @param exponent
+             * @param exponent can be negative, e.g. {123, -2} is 12300
              */
             constexpr BigDecimal(UnscaledValue_t const &unscaled_value, Exponent_t exponent) noexcept
                 : unscaled_value(unscaled_value), exponent(exponent) {
@@ -76,7 +84,8 @@ namespace rdf4cpp {
             /**
              * parses a BigDecimal from a string_view.
              * may include a leading sign and one decimal point ., everything else needs to be numeric.
-             * fraction digits that exceed the precision of UnscaledValue_t are rounded.
+             * fraction digits that exceed the precision of UnscaledValue_t are rounded,
+             * trailing integer zeros that exceed it are moved into the exponent.
              * @param value
              * @throw rdf4cpp::InvalidNode if a invalid char is found, or on exceeding the types numeric limits
              */
@@ -121,6 +130,10 @@ namespace rdf4cpp {
                             round_up = n >= 5;
                             continue;
                         }
+                        // an integer zero is moved into the exponent, a later non-zero digit overflows again
+                        if (n == 0 && !detail::sub_checked<OverflowMode::Checked>(exponent, Exponent_t{1}, exponent)) {
+                            continue;
+                        }
                         throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
                     }
                     if (decimal) {
@@ -136,8 +149,12 @@ namespace rdf4cpp {
                     // xsd:decimal requires at least one digit, rejects "", "-", "."
                     throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: no digits found"};
                 }
-                if (round_up && detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{1}, unscaled_value)) {
+                // with exponent < 0 the unit digit is not stored, so a round up is not possible
+                if (round_up && (exponent < 0 || detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{1}, unscaled_value))) {
                     throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
+                }
+                if (exponent < 0) {
+                    normalize();  // gives room for arithmetic
                 }
                 if (unscaled_value == 0) {
                     neg = false;
@@ -285,7 +302,7 @@ namespace rdf4cpp {
                     exponent = 0;
                     return;
                 }
-                while (exponent > 0 && unscaled_value % base == 0) {
+                while (exponent > std::numeric_limits<Exponent_t>::min() && unscaled_value % base == 0) {
                     unscaled_value /= base;
                     --exponent;
                 }
@@ -310,17 +327,12 @@ namespace rdf4cpp {
                 UnscaledValue_t t = this->unscaled_value;
                 UnscaledValue_t o = other.unscaled_value;
                 Exponent_t new_exp = std::max(this->exponent, other.exponent);
+                UnscaledValue_t ex{0};
                 if (this->exponent < new_exp) {
-                    UnscaledValue_t ex{0};
-                    if (detail::pow_checked<m>(UnscaledValue_t{base}, new_exp - this->exponent, ex))
-                        return true;
-                    if (detail::mul_checked<m>(t, ex, t))
+                    if (scale_factor<m>(new_exp, this->exponent, ex) || detail::mul_checked<m>(t, ex, t))
                         return true;
                 } else if (other.exponent < new_exp) {
-                    UnscaledValue_t ex{0};
-                    if (detail::pow_checked<m>(UnscaledValue_t{base}, new_exp - other.exponent, ex))
-                        return true;
-                    if (detail::mul_checked<m>(o, ex, o))
+                    if (scale_factor<m>(new_exp, other.exponent, ex) || detail::mul_checked<m>(o, ex, o))
                         return true;
                 }
                 UnscaledValue_t res = 0;
@@ -374,14 +386,14 @@ namespace rdf4cpp {
                 UnscaledValue_t t = this->unscaled_value;
                 Exponent_t ex = this->exponent;
                 UnscaledValue_t div = other.unscaled_value;
-                if (ex >= other.exponent) {
-                    if (detail::sub_checked<m>(ex, other.exponent, ex))
-                        return true;
-                } else {
-                    UnscaledValue_t scale{0};
-                    if (detail::pow_checked<m>(UnscaledValue_t{base}, other.exponent - ex, scale) || detail::mul_checked<m>(t, scale, t))
-                        return true;
+                // scale the dividend so that the quotient has exponent 0, if that fits
+                if (UnscaledValue_t scaled{0}; ex < other.exponent
+                                               && !scale_factor<OverflowMode::Checked>(other.exponent, ex, scaled)
+                                               && !detail::mul_checked<OverflowMode::Checked>(t, scaled, scaled)) {
+                    t = scaled;
                     ex = 0;
+                } else if (detail::sub_checked<m>(ex, other.exponent, ex)) {
+                    return true;
                 }
                 if constexpr (m == OverflowMode::Checked) {
                     if (t == std::numeric_limits<UnscaledValue_t>::min() && div == -1) {
@@ -418,7 +430,7 @@ namespace rdf4cpp {
                     ++ex;
                     res = next_res;
                     rem = rem < 0 ? -r : r;
-                    --max_scale_increase;
+                    max_scale_increase -= ex > 0;  // integer digits do not count
                 }
                 return handle_rounding<m>(res, ex, rem, div, mode, result);
             }
@@ -668,6 +680,9 @@ namespace rdf4cpp {
              * @return
              */
             [[nodiscard]] constexpr BigDecimal round(RoundingMode mode = RoundingMode::Round) const noexcept {
+                if (exponent <= 0) {
+                    return *this;  // integer
+                }
                 BigDecimal res{0, 0};
                 UnscaledValue_t v{0};
                 if (detail::pow_checked<OverflowMode::Checked>(UnscaledValue_t{base}, exponent, v)) {
@@ -733,17 +748,12 @@ namespace rdf4cpp {
                 // scale both values to have the same exponent
                 // if one of the decimals is 0, skip and compare directly (0*base^e is 0 for all e)
                 if (t != 0 && o != 0) {
+                    UnscaledValue_t b{0};
                     if (this->exponent > other.exponent) {
-                        UnscaledValue_t b{base};
-                        if (detail::pow_checked<OverflowMode::Checked>(b, this->exponent - other.exponent, b))
-                            return this->positive() ? std::strong_ordering::less : std::strong_ordering::greater;  // t does fit into the same precision, while o does not
-                        if (detail::mul_checked<OverflowMode::Checked>(o, b, o))
+                        if (scale_factor<OverflowMode::Checked>(this->exponent, other.exponent, b) || detail::mul_checked<OverflowMode::Checked>(o, b, o))
                             return this->positive() ? std::strong_ordering::less : std::strong_ordering::greater;  // t does fit into the same precision, while o does not
                     } else if (this->exponent < other.exponent) {
-                        UnscaledValue_t b{base};
-                        if (detail::pow_checked<OverflowMode::Checked>(b, other.exponent - this->exponent, b))
-                            return this->positive() ? std::strong_ordering::greater : std::strong_ordering::less;  // o does fit into the same precision, while t does not
-                        if (detail::mul_checked<OverflowMode::Checked>(t, b, t))
+                        if (scale_factor<OverflowMode::Checked>(other.exponent, this->exponent, b) || detail::mul_checked<OverflowMode::Checked>(t, b, t))
                             return this->positive() ? std::strong_ordering::greater : std::strong_ordering::less;  // o does fit into the same precision, while t does not
                     }
                 }
@@ -821,9 +831,11 @@ namespace rdf4cpp {
              * @return
              */
             [[nodiscard]] constexpr explicit operator UnscaledValue_t() const noexcept {
-                if (exponent == 0)
-                    return unscaled_value;
-                return round(RoundingMode::Trunc).unscaled_value;
+                if (exponent > 0)
+                    return round(RoundingMode::Trunc).unscaled_value;
+                UnscaledValue_t factor{1};
+                scale_factor<OverflowMode::Checked>(0, exponent, factor);  // the result is not defined on overflow
+                return unscaled_value * factor;
             }
 
             /**
@@ -833,8 +845,9 @@ namespace rdf4cpp {
              */
             bool serialize(writer::BufWriterParts const writer) const noexcept requires (IntegralExt<UnscaledValue_t>) {
                 UnscaledValue_t v = unscaled_value;
-                Exponent_t frac = exponent;
-                normalize(v, frac);  // strips trailing fractional zeros, e.g. 5.100 -> 5.1, so frac is the exact number of fractional digits
+                Exponent_t ex = exponent;
+                normalize(v, ex);  // strips trailing zeros, e.g. 5.100 -> 5.1
+                auto const frac = static_cast<size_t>(ex > 0 ? ex : 0);  // exact number of fractional digits
 
                 // all digits of |v| as text, the point is inserted by writing two slices of this
                 std::array<char, std::numeric_limits<UnscaledValue_t>::digits10 + 2> buf;  // +1 digit, +1 sign
@@ -850,6 +863,12 @@ namespace rdf4cpp {
                 if (!writer::write_str(num_integral_digits > 0 ? digits.substr(0, num_integral_digits) : "0", writer)) {
                     return false;
                 }
+                for (; ex < 0; ++ex) {
+                    // trailing integer zeros, 5 * 10^3 -> 5000
+                    if (!writer::write_str("0", writer)) {
+                        return false;
+                    }
+                }
                 if (frac == 0) {
                     // integer, no fractional digits left after normalize
                     return writer::write_str(".0", writer);
@@ -858,7 +877,7 @@ namespace rdf4cpp {
                     return false;
                 }
                 // |value| < 0.1 has fewer digits than fractional places, pad with zeros: 5 * 10^-3 -> 0.005
-                for (Exponent_t zeros = 0; digits.size() + zeros < frac; ++zeros) {
+                for (size_t zeros = 0; digits.size() + zeros < frac; ++zeros) {
                     if (!writer::write_str("0", writer)) {
                         return false;
                     }
@@ -979,6 +998,7 @@ public:
     static constexpr int max_exponent10 = 0;
     static constexpr bool traps = false;
     static constexpr bool tinyness_before = false;
+    // max() and min() are the limits without a negative exponent
     static constexpr BigDecimal max() noexcept {
         return BigDecimal{numeric_limits<UnscaledValue_t>::max(), 0};
     }
