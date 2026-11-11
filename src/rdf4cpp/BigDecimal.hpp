@@ -76,6 +76,7 @@ namespace rdf4cpp {
             /**
              * parses a BigDecimal from a string_view.
              * may include a leading sign and one decimal point ., everything else needs to be numeric.
+             * fraction digits that exceed the precision of UnscaledValue_t are rounded.
              * @param value
              * @throw rdf4cpp::InvalidNode if a invalid char is found, or on exceeding the types numeric limits
              */
@@ -84,6 +85,7 @@ namespace rdf4cpp {
                 bool decimal = false;
                 bool neg = false;
                 bool overflow_decimal = false;
+                bool round_up = false;
                 bool digit_found = false;
                 for (char const c : value) {
                     if (begin) {
@@ -102,22 +104,21 @@ namespace rdf4cpp {
                         decimal = true;
                         continue;
                     }
-                    if (overflow_decimal) {
-                        if (c != '0') {
-                            throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
-                        }
-                        continue;
-                    }
                     if (c < '0' || c > '9') {
                         throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: non-numeric char found"};
+                    }
+                    if (overflow_decimal) {
+                        continue;  // digit is below the available precision
                     }
                     digit_found = true;
                     auto n = c - '0';
                     UnscaledValue_t next_unscaled;
                     if (detail::mul_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{base}, next_unscaled)
                         || detail::add_checked<OverflowMode::Checked>(next_unscaled, UnscaledValue_t{n}, next_unscaled)) {
-                        if (decimal && n == 0) {
+                        if (decimal) {
+                            // round half away from zero on the first dropped digit
                             overflow_decimal = true;
+                            round_up = n >= 5;
                             continue;
                         }
                         throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
@@ -134,6 +135,9 @@ namespace rdf4cpp {
                 if (!digit_found) {
                     // xsd:decimal requires at least one digit, rejects "", "-", "."
                     throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: no digits found"};
+                }
+                if (round_up && detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{1}, unscaled_value)) {
+                    throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
                 }
                 if (unscaled_value == 0) {
                     neg = false;

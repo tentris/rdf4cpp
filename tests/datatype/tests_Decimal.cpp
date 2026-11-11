@@ -264,8 +264,15 @@ TEST_CASE("decimal limits") {
     }
     SUBCASE("parse") {
         CHECK(Literal::make_typed<Decimal>("170141183460469231731687303715884105727.0") == Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal128>::max()));
+        // fraction digits that exceed the precision are rounded
+        CHECK(Literal::make_typed<Decimal>("170141183460469231731687303715884105727.01") == Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal128>::max()));
+        CHECK(Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567895") == Literal::make_typed<Decimal>("0.12345678901234567890123456789012345679"));
+        CHECK(Literal::make_typed<Decimal>("-0.1234567890123456789012345678901234567894") == Literal::make_typed<Decimal>("-0.123456789012345678901234567890123456789"));
+        CHECK(Literal::make_typed<Decimal>("-0.1234567890123456789012345678901234567895") ==Literal::make_typed<Decimal>("-0.12345678901234567890123456789012345679"));
         Literal l{};
-        CHECK_THROWS(l = Literal::make_typed<Decimal>("170141183460469231731687303715884105727.01"));
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("170141183460469231731687303715884105727.5"));
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567895x"));
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("1701411834604692317316873037158841057270.0"));  // integer part is never rounded
         CHECK(l.null());
     }
 }
