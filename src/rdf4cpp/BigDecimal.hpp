@@ -137,7 +137,18 @@ namespace rdf4cpp {
                     throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: no digits found"};
                 }
                 if (round_up && detail::add_checked<OverflowMode::Checked>(unscaled_value, UnscaledValue_t{1}, unscaled_value)) {
-                    throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
+                    using limits = std::numeric_limits<UnscaledValue_t>;
+                    if (neg) {
+                        // the minimum is one step further from zero than the maximum
+                        unscaled_value = limits::min();
+                        return;
+                    }
+                    if (exponent == 0) {
+                        throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal parsing error: unscaled_value overflow"};
+                    }
+                    // no room for the carry, round one digit earlier
+                    unscaled_value = limits::max() / base + (limits::max() % base >= base / 2);
+                    --exponent;
                 }
                 if (unscaled_value == 0) {
                     neg = false;
