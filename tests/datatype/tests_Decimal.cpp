@@ -268,7 +268,9 @@ TEST_CASE("decimal limits") {
         CHECK(Literal::make_typed<Decimal>("170141183460469231731687303715884105727.01") == Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal128>::max()));
         CHECK(Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567895") == Literal::make_typed<Decimal>("0.12345678901234567890123456789012345679"));
         CHECK(Literal::make_typed<Decimal>("-0.1234567890123456789012345678901234567894") == Literal::make_typed<Decimal>("-0.123456789012345678901234567890123456789"));
-        CHECK(Literal::make_typed<Decimal>("-0.1234567890123456789012345678901234567895") ==Literal::make_typed<Decimal>("-0.12345678901234567890123456789012345679"));
+        CHECK(Literal::make_typed<Decimal>("-0.1234567890123456789012345678901234567895") == Literal::make_typed<Decimal>("-0.12345678901234567890123456789012345679"));
+        CHECK(Literal::make_typed<Decimal>("0.123456789012345678901234567890123456789511") == Literal::make_typed<Decimal>("0.12345678901234567890123456789012345678951"));
+        CHECK(Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567894999") == Literal::make_typed<Decimal>("0.123456789012345678901234567890123456789"));
         Literal l{};
         CHECK_THROWS(l = Literal::make_typed<Decimal>("170141183460469231731687303715884105727.5"));
         CHECK_THROWS(l = Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567895x"));
