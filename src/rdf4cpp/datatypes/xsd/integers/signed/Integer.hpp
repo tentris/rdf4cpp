@@ -59,6 +59,10 @@ template<>
 std::partial_ordering capabilities::Comparable<xsd_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
+template<>
+std::expected<capabilities::Default<xsd_integer>::cpp_type, DynamicError> capabilities::Subtype<xsd_integer>::from_supertype<0>(super_cpp_type<0> const &value) noexcept;
+
+template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_integer>::try_into_inlined(cpp_type const &value) noexcept;
 
 template<>

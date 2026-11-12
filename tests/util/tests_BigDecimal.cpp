@@ -10,7 +10,7 @@
 #include <rdf4cpp/datatypes/registry/util/CharConvExt.hpp>
 
 using Dec = rdf4cpp::Decimal128;
-using DecI = rdf4cpp::util::BigDecimal<int32_t, uint32_t>;
+using DecI = rdf4cpp::util::BigDecimal<int32_t, int32_t>;
 using RoundingMode = rdf4cpp::util::RoundingMode;
 
 namespace doctest {
@@ -258,7 +258,7 @@ TEST_CASE("basics") {
         Dec d{500, 1};
         d.normalize();
         CHECK_EQ(d, Dec{50, 0});
-        CHECK_EQ(d.get_exponent(), 0);
+        CHECK_EQ(d.get_exponent(), -1);  // trailing integer zeros are removed too
         d = Dec{51, 1};
         d.normalize();
         CHECK_EQ(d, Dec{51, 1});
@@ -410,7 +410,7 @@ TEST_CASE("arithmetic") {
             CHECK(Dec{-6, 39}.round(RoundingMode::Round) == Dec{0, 0});
             CHECK(DecI{2000000000, 10}.round(RoundingMode::Round) == DecI{0, 0});  // 0.2, 10^10 does not fit int32
             CHECK(DecI{-2000000000, 10}.round(RoundingMode::Floor) == DecI{-1, 0});
-            CHECK(Dec{5, std::numeric_limits<uint32_t>::max()}.round(RoundingMode::Ceil) == Dec{1, 0});  // must not take forever
+            CHECK(Dec{5, std::numeric_limits<int32_t>::max()}.round(RoundingMode::Ceil) == Dec{1, 0});  // must not take forever
         }
 
         SUBCASE("trunc") {
@@ -476,7 +476,7 @@ TEST_CASE("conversion") {
         CHECK(Dec{0.1}.add_checked(Dec{1, 0}) == Dec{11, 1});
         CHECK(Dec{1e-300} == Dec{1, 300});
         CHECK_EQ(static_cast<float>(Dec{1.0}), 1.0f);
-        CHECK_THROWS_AS([[maybe_unused]] auto _ = Dec(std::numeric_limits<double>::max()), std::overflow_error);
+        CHECK(Dec(std::numeric_limits<double>::max()) == Dec{17976931348623157, -292});
         CHECK(Dec(std::numeric_limits<double>::min()) > Dec(0, 0));
         CHECK(Dec(std::numeric_limits<double>::denorm_min()) > Dec(0, 0));
     }
@@ -514,6 +514,30 @@ TEST_CASE("conversion") {
         CHECK_THROWS_AS(Dec{"-."}, rdf4cpp::InvalidNode);
         CHECK_THROWS_AS(Dec{"+-5"}, rdf4cpp::InvalidNode);
         // no e notation allowed by rdf (xml) standard
+    }
+    SUBCASE("negative exponent") {
+        std::string const zeros(50, '0');
+        Dec const big{"123" + zeros};
+        CHECK(big == Dec{123, -50});
+        CHECK(static_cast<std::string>(big) == "123" + zeros + ".0");
+        CHECK(std::hash<Dec>{}(big) == std::hash<Dec>{}(Dec{1230, -49}));
+        CHECK_THROWS_AS(Dec{"1" + zeros + "1"}, rdf4cpp::InvalidNode);
+        CHECK(Dec{"2" + zeros + ".4"} == Dec{2, -50});
+        CHECK_THROWS_AS(Dec{"2" + zeros + ".5"}, rdf4cpp::InvalidNode);
+
+        CHECK(big > Dec{122, -50});
+        CHECK(big > Dec{std::numeric_limits<rdf4cpp::Int128>::max(), 0});
+        CHECK(-big < Dec{std::numeric_limits<rdf4cpp::Int128>::min(), 0});
+        CHECK(big.get_exponent() == -50);
+        CHECK(big.add_checked(Dec{1, -48}) == Dec{12301, -48});
+        CHECK(!big.add_checked(Dec{1, 0}).has_value());  // needs 53 digits
+        CHECK(big.mul_checked(Dec{5, 60}) == Dec{615, 10});
+        CHECK(big.div_checked(Dec{1, 60}, Dec::default_max_scale_increase) == Dec{123, -110});
+        CHECK(big.div_checked(Dec{123, -50}, Dec::default_max_scale_increase) == Dec{1, 0});
+        CHECK(Dec{1, -3}.div_checked(Dec{3, 0}, 2) == Dec{33333, 2});
+        CHECK(big.round() == big);
+        CHECK(big.floor() == big);
+        CHECK(static_cast<rdf4cpp::Int128>(Dec{12, -3}) == rdf4cpp::Int128{12000});
     }
     SUBCASE("from Int128") {
         CHECK(Dec{rdf4cpp::Int128{5}} == Dec{5, 0});

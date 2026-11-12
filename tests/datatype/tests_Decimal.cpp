@@ -241,8 +241,12 @@ TEST_CASE("decimal limits") {
         CHECK((Literal::make_typed_from_value<Integer>(std::numeric_limits<Integer::cpp_type>::min()) / Literal::make_typed<Integer>("-1")).null());
     }
     SUBCASE("cast") {
-        CHECK(Literal::make_typed_from_value<Double>(1.8e38).cast<Decimal>().null());
-        CHECK(Literal::make_typed_from_value<Float>(1.8e38f).cast<Decimal>().null());
+        // larger than the unscaled value, the trailing zeros are in the exponent
+        CHECK(Literal::make_typed_from_value<Double>(1.8e38).cast<Decimal>() == Literal::make_typed_from_value<Decimal>(Decimal128{18, -37}));
+        CHECK(Literal::make_typed_from_value<Float>(1.8e38f).cast<Decimal>() == Literal::make_typed_from_value<Decimal>(Decimal128{18, -37}));
+        CHECK(Literal::make_typed_from_value<Decimal>(Decimal128{18, -37}).cast<Double>() == Literal::make_typed_from_value<Double>(1.8e38));
+        CHECK(Literal::make_typed_from_value<Decimal>(Decimal128{18, -37}).cast<Integer>().null());
+        CHECK(Literal::make_typed_from_value<Decimal>(Decimal128{18, -36}).cast<Integer>() == Literal::make_typed<Integer>("18000000000000000000000000000000000000"));
         CHECK(Literal::make_typed_from_value<Double>(std::numeric_limits<double>::quiet_NaN()).cast<Decimal>().null());
         CHECK(Literal::make_typed_from_value<Double>(std::numeric_limits<double>::infinity()).cast<Decimal>().null());
         CHECK(Literal::make_typed_from_value<Float>(-std::numeric_limits<float>::infinity()).cast<Decimal>().null());
@@ -274,8 +278,18 @@ TEST_CASE("decimal limits") {
         Literal l{};
         CHECK_THROWS(l = Literal::make_typed<Decimal>("170141183460469231731687303715884105727.5"));
         CHECK_THROWS(l = Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567895x"));
-        CHECK_THROWS(l = Literal::make_typed<Decimal>("1701411834604692317316873037158841057270.0"));  // integer part is never rounded
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("1701411834604692317316873037158841057271.0"));  // integer part is never rounded
         CHECK(l.null());
+        // trailing integer zeros that exceed the precision are moved into the exponent
+        std::string const zeros(50, '0');
+        auto const big = Literal::make_typed<Decimal>("123" + zeros + ".0");
+        CHECK(big == Literal::make_typed_from_value<Decimal>(Decimal128{123, -50}));
+        CHECK(big.is_inlined());
+        CHECK(big.lexical_form() == "123" + zeros + ".0");
+        CHECK(big.simplified_lexical_form() == "123" + zeros);
+        CHECK(Literal::make_typed<Decimal>("-2" + zeros + ".4") == Literal::make_typed_from_value<Decimal>(Decimal128{-2, -50}));
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("2" + zeros + ".5"));  // round up is not possible
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("1" + zeros + "1"));
     }
 }
 
@@ -285,7 +299,7 @@ TEST_CASE("decimal possible bug") {
     auto const lit2 = Literal::make_typed_from_value<datatypes::xsd::Double>(std::numeric_limits<double>::min()).cast<rdf4cpp::datatypes::xsd::Decimal>();
 
     auto const div_res = lit1 / lit2; // program crashes here if the bug is present
-    CHECK(div_res.null());
+    CHECK(div_res > Literal::make_typed_from_value<datatypes::xsd::Decimal>(Decimal128{2, -308}));  // approx. 2.247e308
 }
 
 TEST_CASE("decimal to float underflow") {
@@ -296,4 +310,29 @@ TEST_CASE("decimal to float underflow") {
     CHECK_EQ(y, Literal::make_typed_from_value<datatypes::xsd::Float>(0.0f));
     CHECK_FALSE(std::signbit(y.value<datatypes::xsd::Float>()));
     CHECK_EQ(y.lexical_form(), "0.0E0");
+}
+
+TEST_CASE("huge val") {
+    auto x = Literal::make_typed<datatypes::xsd::Decimal>("133177400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0");
+    CHECK_EQ(x.template value<datatypes::xsd::Decimal>().get_exponent(), -89);
+}
+
+TEST_CASE("wikidata decimals" * doctest::skip(true)) {
+    std::ifstream ifs{"/home/liss/Dokumente/RDF/wikidata-decimals.txt"};
+    std::string buf;
+
+    size_t count = 0;
+    size_t invalid_count = 0;
+    while (std::getline(ifs, buf)) {
+        try {
+            auto x = Literal::make_typed<datatypes::xsd::Decimal>(buf);
+        } catch (InvalidNode const &e) {
+            std::cerr << e.what() << " " << buf << std::endl;
+            ++invalid_count;
+        }
+
+        ++count;
+    }
+
+    std::cout << "Invalid: " << invalid_count << "/" << count << " (" << std::fixed << (static_cast<double>(invalid_count) / static_cast<double>(count) * 100) << "%)" << std::endl;
 }

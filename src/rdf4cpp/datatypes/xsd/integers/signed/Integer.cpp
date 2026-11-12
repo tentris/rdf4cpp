@@ -69,6 +69,17 @@ std::expected<capabilities::Default<xsd_integer>::cpp_type, DynamicError> capabi
 }
 
 template<>
+template<>
+std::expected<capabilities::Default<xsd_integer>::cpp_type, DynamicError> capabilities::Subtype<xsd_integer>::from_supertype<0>(super_cpp_type<0> const &value) noexcept {
+    // a decimal with a negative exponent can exceed the integer range
+    if (value > super_cpp_type<0>{std::numeric_limits<cpp_type>::max()} || value < super_cpp_type<0>{std::numeric_limits<cpp_type>::min()}) {
+        return std::unexpected(DynamicError::InvalidValueForCast);
+    }
+
+    return static_cast<cpp_type>(value);
+}
+
+template<>
 std::partial_ordering capabilities::Comparable<xsd_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     if (lhs < rhs) {
         return std::partial_ordering::less;
