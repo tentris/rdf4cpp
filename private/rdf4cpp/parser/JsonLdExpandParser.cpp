@@ -28,7 +28,9 @@ namespace rdf4cpp::parser::json_ld {
         }
         // 4
         if (active_term != nullptr && active_term->type_mapping.has_value() && *active_term->type_mapping == keyword_json) {
-            return to_json_literal(value);
+            return to_json_literal(value).transform([](TypedLiteralMapping &&m) -> ExpandedValue {
+                return std::move(m);
+            });
         }
         // the string_view overload covers the remaining steps for a string
         if (value.is_string()) {
@@ -42,15 +44,16 @@ namespace rdf4cpp::parser::json_ld {
             if (t != simdjson::ondemand::json_type::number && t != simdjson::ondemand::json_type::boolean) {
                 return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid type for literal")};
             }
-            return TypedLiteralMapping{stringify(value, true, std::string_view(*active_term->type_mapping) == datatypes::registry::xsd_double).value, *active_term->type_mapping};
+            return stringify(value, true, std::string_view(*active_term->type_mapping) == datatypes::registry::xsd_double).transform([&](StringifyResult &&r) -> ExpandedValue {
+                return TypedLiteralMapping{std::move(r.value), *active_term->type_mapping};
+            });
         }
         // https://www.w3.org/TR/json-ld11-api/#object-to-rdf-conversion
         // 9
         if (value.type() == simdjson::ondemand::json_type::boolean || value.type() == simdjson::ondemand::json_type::number) {
-            auto [v, t] = stringify(value, true);
-            return TypedLiteralMapping{
-                std::move(v),
-                std::string(t)};
+            return stringify(value, true).transform([](StringifyResult &&r) -> ExpandedValue {
+                return TypedLiteralMapping{std::move(r.value), std::string(r.datatype)};
+            });
         }
         return value;
     }
@@ -83,55 +86,75 @@ namespace rdf4cpp::parser::json_ld {
             active_term != nullptr && active_term->direction_mapping != BaseDirection::None ? active_term->direction_mapping : active_conext.base_direction,
         };
     }
-    StringifyResult ExpandParser::stringify(simdjson::ondemand::value v, bool normalize, bool force_double, bool escape_string) {
-        auto t = *v.type();
+    std::expected<StringifyResult, ExpandParser::error_type> ExpandParser::stringify(simdjson::ondemand::value v, bool normalize, bool force_double, bool escape_string) {
+        simdjson::ondemand::json_type t{};
+        if (v.type().get(t) != simdjson::SUCCESS) {
+            return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid json value")};
+        }
         if (t == simdjson::ondemand::json_type::boolean) {
-            return {std::string{v.get_bool() ? "true" : "false"}, datatypes::registry::xsd_boolean};
+            bool b = false;
+            if (v.get_bool().get(b) != simdjson::SUCCESS) {
+                return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid boolean (broken atom)")};
+            }
+            return StringifyResult{std::string{b ? "true" : "false"}, datatypes::registry::xsd_boolean};
         }
         if (t == simdjson::ondemand::json_type::number) {
             auto str = trim_raw_token(v.raw_json_token());
             auto d = datatypes::registry::util::from_chars<double, "">(str);
             if (std::isinf(d)) {
                 // JSON has no infinity, from_chars maps overflow to it (xsd semantics)
-                throw InvalidNode{"JSON-LD parsing error: number does not fit in a double"};
+                return std::unexpected{make_error(ParsingError::Type::BadLiteral, "number does not fit in a double")};
             }
             if (!normalize && d == 0.0) {
-                return {"0", datatypes::registry::xsd_integer};
+                return StringifyResult{"0", datatypes::registry::xsd_integer};
             }
             if (std::floor(d) != d || std::abs(d) >= 1.0e21 || force_double) {
                 if (normalize) {
-                    return {writer::StringWriter::oneshot([&](writer::StringWriter &w) {
+                    return StringifyResult{writer::StringWriter::oneshot([&](writer::StringWriter &w) {
                                 return datatypes::registry::util::to_chars_canonical(d, w);
                             }),
                             datatypes::registry::xsd_double};
                 }
-                return {std::string(str), datatypes::registry::xsd_double};
+                return StringifyResult{std::string(str), datatypes::registry::xsd_double};
             }
             if (normalize) {
                 // 2^63, the first double that int64_t cannot represent
                 static constexpr double int64_limit = 9223372036854775808.0;
                 if (std::abs(d) < int64_limit) {
-                    return {writer::StringWriter::oneshot([&](writer::StringWriter &w) {
+                    return StringifyResult{writer::StringWriter::oneshot([&](writer::StringWriter &w) {
                                 return datatypes::registry::util::to_chars_canonical(static_cast<int64_t>(d), w);
                             }),
                             datatypes::registry::xsd_integer};
                 }
                 // d is integral and below 1e21, so this is the canonical form of an integer
-                return {std::format("{:.0f}", d), datatypes::registry::xsd_integer};
+                return StringifyResult{std::format("{:.0f}", d), datatypes::registry::xsd_integer};
             }
-            return {std::string(str), datatypes::registry::xsd_integer};
+            return StringifyResult{std::string(str), datatypes::registry::xsd_integer};
         }
         if (t == simdjson::ondemand::json_type::string) {
-            auto s = *v.get_string();
-            return {escape_string ? std::format("\"{}\"", s) : std::string{s}, datatypes::registry::xsd_string};
+            std::string_view s;
+            if (v.get_string().get(s) != simdjson::SUCCESS) {
+                return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid string")};
+            }
+            return StringifyResult{escape_string ? std::format("\"{}\"", s) : std::string{s}, datatypes::registry::xsd_string};
         }
-        if (v.is_null()) {
-            return {std::string{"null"}, ""};
+        bool null = false;
+        if (v.is_null().get(null) != simdjson::SUCCESS) {
+            return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid null (broken atom)")};
         }
-        return {std::string{trim_raw_token(*v.raw_json())}, ""};
+        if (null) {
+            return StringifyResult{std::string{"null"}, ""};
+        }
+        std::string_view raw;
+        if (v.raw_json().get(raw) != simdjson::SUCCESS) {
+            return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid json value")};
+        }
+        return StringifyResult{std::string{trim_raw_token(raw)}, ""};
     }
-    TypedLiteralMapping ExpandParser::to_json_literal(simdjson::ondemand::value v) {
-        return TypedLiteralMapping{stringify(v, false, false, true).value, std::string{rdf_json_datatype}};
+    std::expected<TypedLiteralMapping, ExpandParser::error_type> ExpandParser::to_json_literal(simdjson::ondemand::value v) {
+        return stringify(v, false, false, true).transform([](StringifyResult &&r) {
+            return TypedLiteralMapping{std::move(r.value), std::string{rdf_json_datatype}};
+        });
     }
     std::expected<ExpandedLevel, ExpandParser::error_type> ExpandParser::expand_level(params::ExpandParams p) {
         std::expected<ExpandedLevel, error_type> result{};
@@ -141,15 +164,24 @@ namespace rdf4cpp::parser::json_ld {
         }
 
         if (p.is_json_literal) {
-            result = to_json_literal(p.element);
+            result = to_json_literal(p.element).transform([](TypedLiteralMapping &&m) -> ExpandedLevel {
+                return std::move(m);
+            });
             return result;
         }
 
         // https://www.w3.org/TR/json-ld11-api/#expansion-algorithm
         // 1
-        if (!p.assume_no_scalar && !p.element_obj.has_value() && p.element.is_null()) {
-            result = Null{};
-            return result;
+        if (!p.assume_no_scalar && !p.element_obj.has_value()) {
+            auto null = p.element.is_null();
+            if (!null.has_value()) {
+                result = std::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid expand (broken null)"));
+                return result;
+            }
+            if (*null) {
+                result = Null{};
+                return result;
+            }
         }
         // 2
         // frame_expansion is unused
@@ -400,10 +432,17 @@ namespace rdf4cpp::parser::json_ld {
                     return result;
                 }
                 if (type != nullptr && (type->is_json_literal || type->has_keyword_value(keyword_json))) {
-                    result = to_json_literal(val_obj);
+                    result = to_json_literal(val_obj).transform([](TypedLiteralMapping &&m) -> ExpandedLevel {
+                        return std::move(m);
+                    });
                     return result;
                 }
-                if (val_obj.is_null()) {
+                auto val_obj_null = val_obj.is_null();
+                if (!val_obj_null.has_value()) {
+                    result = std::unexpected(make_error(ParsingError::Type::BadSyntax, "invalid value object (broken atom)"));
+                    return result;
+                }
+                if (*val_obj_null) {
                     result = Null{};
                     return result;
                 }
@@ -446,7 +485,12 @@ namespace rdf4cpp::parser::json_ld {
                         fd = true;
                     }
                 }
-                auto [s, t] = stringify(val_obj, true, fd, false);
+                auto str = stringify(val_obj, true, fd, false);
+                if (!str.has_value()) {
+                    result = std::unexpected{std::move(str.error())};
+                    return result;
+                }
+                auto &[s, t] = *str;
                 if (type != nullptr) {
                     result = TypedLiteralMapping{
                         std::move(s),
@@ -929,7 +973,11 @@ namespace rdf4cpp::parser::json_ld {
                 continue;
             }
             // 13.10
-            else if (v.is_null()) {
+            else if (v.type() == simdjson::ondemand::json_type::null) {
+                if (!v.is_null().has_value()) {
+                    res = make_error(ParsingError::Type::BadSyntax, "failed to expand (broken null)");
+                    return res;
+                }
                 continue;
             }
             // 13.9

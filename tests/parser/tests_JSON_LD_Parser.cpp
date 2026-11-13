@@ -1817,6 +1817,19 @@ TEST_CASE("a node object wrapped in @set") {
                              "<http://ex/s> <http://ex/z> \"z\" .\n",
                              "http://ex/doc");
     }
+    SUBCASE("with an @id and a nested node object") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@set": {"@id": "http://ex/o", "http://ex/q": {"@id": "http://ex/x"}}}})",
+                             "<http://ex/s> <http://ex/p> <http://ex/o> .\n"
+                             "<http://ex/o> <http://ex/q> <http://ex/x> .\n",
+                             "http://ex/doc");
+    }
+    SUBCASE("with an @id and a nested node object, followed by another property") {
+        jsonld_test_positive(R"({"@id": "http://ex/s", "http://ex/p": {"@set": {"@id": "http://ex/o", "http://ex/q": {"@id": "http://ex/x"}}}, "http://ex/z": "z"})",
+                             "<http://ex/s> <http://ex/p> <http://ex/o> .\n"
+                             "<http://ex/o> <http://ex/q> <http://ex/x> .\n"
+                             "<http://ex/s> <http://ex/z> \"z\" .\n",
+                             "http://ex/doc");
+    }
     SUBCASE("with an alias of @set") {
         jsonld_test_positive(R"({"@context": {"set": "@set"}, "@id": "http://ex/s", "http://ex/p": {"set": {"http://ex/q": "v"}}, "http://ex/z": "z"})",
                              "<http://ex/s> <http://ex/p> _:b0 .\n"
@@ -1933,5 +1946,59 @@ TEST_CASE("a reverse term that is needed by another term before its own definiti
         auto const r = parse_with_remote_documents(R"({"@context": {"@version": 1.1, "@import": "http://ex/ctx.jsonld", "D": {"@id": "http://ex/d"}}, "@id": "http://ex/s", "A": {"@id": "http://ex/o"}, "C": "c", "D": "d"})", "http://ex/doc", docs);
         CHECK(r.errors == "");
         CHECK(r.quads == "<http://ex/s> <http://ex/r> <http://ex/o> .\n<http://ex/s> <http://ex/c> \"c\" .\n<http://ex/s> <http://ex/d> \"d\" .\n");
+    }
+}
+
+TEST_CASE("a broken json atom is reported as broken json, not as a bare simdjson type error") {
+    // simdjson on-demand only validates an atom (true, false, null) when it is read.
+    // reading it with a type check gives INCORRECT_TYPE, which does not tell the user that the json is malformed.
+    auto const check = [](std::string doc) {
+        auto const r = parse_with_request_url(std::move(doc), "http://ex/doc", [](std::string_view) -> std::expected<ParsingState::RequestResult, std::string> {
+            return std::unexpected{std::string{"not found"}};
+        });
+        CAPTURE(r.errors);
+        CHECK(r.quad_count == 0);
+        CHECK(r.error_type == ParsingError::Type::BadSyntax);
+        CHECK_FALSE(r.errors.contains("INCORRECT_TYPE"));
+        CHECK(r.errors != "");
+    };
+    SUBCASE("in @vocab") {
+        check(R"({"@context": {"@vocab": nul}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("in @base") {
+        check(R"({"@context": {"@base": nul}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("as term definition") {
+        check(R"({"@context": {"p": nul}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("as @context") {
+        check(R"({"@context": nul, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("in a @context array") {
+        check(R"({"@context": [nul], "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("in a @context array after a context") {
+        check(R"({"@context": [{"@vocab": "http://ex/"}, nul], "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("as @id") {
+        check(R"({"@id": nul, "http://ex/p": "v"})");
+    }
+    SUBCASE("as value") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": tru})");
+    }
+    SUBCASE("as @container of a reverse term") {
+        check(R"({"@context": {"r": {"@reverse": "http://ex/r", "@container": nul}}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("as json literal") {
+        check(R"({"@context": {"j": {"@id": "http://ex/j", "@type": "@json"}}, "@id": "http://ex/s", "j": nul})");
+    }
+    SUBCASE("as array element") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": [nul]})");
+    }
+    SUBCASE("as @value") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": {"@value": nul}})");
+    }
+    SUBCASE("as null value") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": nul})");
     }
 }

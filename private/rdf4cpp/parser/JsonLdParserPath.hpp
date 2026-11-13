@@ -85,7 +85,11 @@ namespace rdf4cpp::parser {
         if (error_code != simdjson::SUCCESS) {
             return std::tuple(error_code, std::nullopt);
         }
-        if (val.is_null()) {
+        auto is_null = val.is_null();
+        if (!is_null.has_value()) {
+            return std::tuple(simdjson::N_ATOM_ERROR, std::nullopt);
+        }
+        if (*is_null) {
             return std::tuple(error_code, std::nullopt);
         }
         T result{};
