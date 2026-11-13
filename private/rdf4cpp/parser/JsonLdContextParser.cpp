@@ -260,12 +260,10 @@ namespace rdf4cpp::parser::json_ld {
                                 return key == v;
                             })) {
                             continue;
-                            }
-                        auto i = std::ranges::find_if(result->terms, [&](auto const &t) {
-                            return t.key == key;
-                        });
-                        if (i == result->terms.end()) {
-                            result->terms.emplace_back(key);
+                        }
+                        auto i = result->try_find_term_for_parse(key);
+                        if (i == nullptr) {
+                            result->emplace_term(key);
                         } else if (i->parse_state != ParseState::NotStarted) {
                             previous_terms.emplace_back(std::move(*i));
                             *i = TermDefinition{key};
@@ -289,6 +287,8 @@ namespace rdf4cpp::parser::json_ld {
                     if (!v.has_value()) {
                         result->vocab = std::nullopt;
                     } else {
+                        // according to the spec, iri_expansion is not supposed to access locally defined terms, but https://json-ld.org/playground/ does.
+                        // we match it here.
                         params::ParseContextIRIExpansionParams p_ctx{
                             .active_context = *result,
                             .local_context = o,
@@ -462,7 +462,11 @@ namespace rdf4cpp::parser::json_ld {
             // an invalid @propagate value is reported by handle_ctx below
 
             handle_ctx(o);  // 4
-        } else if (local_context.is_scalar() && local_context.is_null()) { // 5.1
+        } else if (local_context.is_scalar() && local_context.type() == simdjson::ondemand::json_type::null) { // 5.1
+            if (!local_context.is_null().has_value()) {
+                result = std::unexpected{make_error(ParsingError::Type::BadSyntax,"invalid context (broken atom)")};
+                return result;
+            }
             result = handle_null();
             return result;
         } else if (local_context.type() == simdjson::ondemand::json_type::string) {  // 5.2
@@ -481,7 +485,10 @@ namespace rdf4cpp::parser::json_ld {
                 switch (v.type()) {
                     case simdjson::ondemand::json_type::null:  // 5.1
                     {
-                        v.is_null();
+                        if (!v.is_null().has_value()) {
+                            result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification (broken null)")};
+                            return result;
+                        }
                         result = handle_null();
                         if (!result.has_value()) {
                             return result;
@@ -550,6 +557,12 @@ namespace rdf4cpp::parser::json_ld {
         }
 
         return result;
+    }
+
+    void ContextParser::finish_object(simdjson::ondemand::object &ob) {
+        ob.reset();
+        for ([[maybe_unused]] auto e : ob) {
+        }
     }
 
     std::optional<ContextParser::error_type> ContextParser::parse_context_term(params::ParseContextTermParams p) {
@@ -720,7 +733,12 @@ namespace rdf4cpp::parser::json_ld {
 
         bool skip_object = false;
         // 7
-        if (value.is_null()) {
+        auto val_null = value.is_null();
+        if (!val_null.has_value()) {
+            res = make_error(ParsingError::Type::BadSyntax, "invalid term definition (broken atom)");
+            return res;
+        }
+        if (*val_null) {
             p.term.is_protected = p.is_protected;
             res = handle_id(std::nullopt);
             if (res.has_value()) {
@@ -824,6 +842,7 @@ namespace rdf4cpp::parser::json_ld {
                         // 13.4, a value with the form of a keyword leaves the term without a definition
                         p.term.ignored = true;
                         p.term.parse_state = ParseState::Done;
+                        finish_object(ob);
                         res = std::nullopt;
                         return res;
                     }
@@ -856,7 +875,12 @@ namespace rdf4cpp::parser::json_ld {
                             res = make_error(ParsingError::Type::BadSyntax, "invalid reverse property");
                             return res;
                         }
-                        if (v_cont.is_null()) {
+                        auto v_cont_null = v_cont.is_null();
+                        if (!v_cont_null.has_value()) {
+                            res = make_error(ParsingError::Type::BadSyntax, "invalid reverse property (broken atom)");
+                            return res;
+                        }
+                        if (*v_cont_null) {
                             p.term.container_mapping = ContainerMapping::None;
                         } else {
                             std::string_view cont;
@@ -876,6 +900,7 @@ namespace rdf4cpp::parser::json_ld {
                     // does not apply to it
                     p.term.is_reverse_property = true;
                     p.term.parse_state = ParseState::Done;
+                    finish_object(ob);
                     res = std::nullopt;
                     return res;
                 }

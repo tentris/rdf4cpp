@@ -123,6 +123,13 @@ namespace rdf4cpp::parser {
                                                                    bool vocab,
                                                                    TermDefinition const *ignore_local = nullptr,
                                                                    params::ParseContextIRIExpansionParams *parse_ctx = nullptr);
+
+        private:
+            /**
+             * Iterates `ob` to its end. The iterator is shared with a term definition that is currently processed
+             * and needs the one in `ob`, so leaving a term definition early must still do this.
+             */
+            static void finish_object(simdjson::ondemand::object &ob);
         };
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser
