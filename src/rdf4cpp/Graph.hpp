@@ -27,6 +27,8 @@ private:
     using triple = std::array<storage::identifier::NodeBackendID, 3>;
 
     struct triple_hash {
+        using is_avalanching = void;
+
         size_t operator()(triple const &trip) const noexcept {
             return dice::hash::dice_hash_templates<dice::hash::Policies::wyhash>::dice_hash(trip);
         }

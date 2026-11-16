@@ -2,8 +2,8 @@
 #define RDF4CPP_NAMESPACE_HPP
 
 #include <rdf4cpp/IRI.hpp>
+#include <rdf4cpp/util/TransparentStringHash.hpp>
 
-#include <dice/hash.hpp>
 #include <dice/sparse-map/sparse_map.hpp>
 
 #include <string>
@@ -36,7 +36,7 @@ protected:
      * Cache storing the <div>NodeBackendHandle</div> for prefixes. This saves roundtrips to NodeStorage.
      */
     mutable dice::sparse_map::sparse_map<std::string, storage::identifier::NodeBackendID,
-                                         dice::hash::DiceHashwyhash<std::string_view>, std::equal_to<>> cache_;
+                                         util::TransparentStringHash, std::equal_to<>> cache_;
 
 public:
     /**

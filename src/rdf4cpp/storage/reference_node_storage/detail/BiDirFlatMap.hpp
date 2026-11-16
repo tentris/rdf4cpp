@@ -19,7 +19,7 @@ using DefaultUnorderedSet = ::dice::sparse_map::sparse_set<Key, Hash, Eq, Alloca
  * @tparam Id id type (e.g. NodeID)
  * @tparam Backend stored value type (e.g. IRIBackend)
  * @tparam View view of Backend (e.g. IRIBackendView)
- * @tparam Hash hasher for View
+ * @tparam Hash hasher for View, must be avalanching
  * @tparam Equal equality for View and Backend
  * @tparam Allocator allocator
  * @tparam ForwardVector the container type for the forward mapping, this should be a vector-like type
@@ -95,6 +95,7 @@ private:
 
     struct backward_hasher {
         using is_transparent = void;
+        using is_avalanching = void;
 
         [[no_unique_address]] Hash hash; //< hasher for views
 
