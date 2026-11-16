@@ -264,9 +264,32 @@ TEST_CASE("decimal limits") {
     }
     SUBCASE("parse") {
         CHECK(Literal::make_typed<Decimal>("170141183460469231731687303715884105727.0") == Literal::make_typed_from_value<Decimal>(std::numeric_limits<Decimal128>::max()));
+        // fraction digits that exceed the precision are rounded
+        CHECK(Literal::make_typed<Decimal>("170141183460469231731687303715884105727.01").lexical_form() == "170141183460469231731687303715884105727.0");
+        CHECK(Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567895").lexical_form() == "0.12345678901234567890123456789012345679");
+        CHECK(Literal::make_typed<Decimal>("-0.1234567890123456789012345678901234567894").lexical_form() == "-0.123456789012345678901234567890123456789");
+        CHECK(Literal::make_typed<Decimal>("-0.1234567890123456789012345678901234567895").lexical_form() == "-0.12345678901234567890123456789012345679");
+        CHECK(Literal::make_typed<Decimal>("0.123456789012345678901234567890123456789511").lexical_form() == "0.12345678901234567890123456789012345679");
+        CHECK(Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567894999").lexical_form() == "0.123456789012345678901234567890123456789");
         Literal l{};
-        CHECK_THROWS(l = Literal::make_typed<Decimal>("170141183460469231731687303715884105727.01"));
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("170141183460469231731687303715884105727.5"));
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("0.1234567890123456789012345678901234567895x"));
+        CHECK_THROWS(l = Literal::make_typed<Decimal>("1701411834604692317316873037158841057270.0"));  // integer part is never rounded
         CHECK(l.null());
+    }
+    SUBCASE("parse rounding carry overflows") {
+        // the first 39 digits are Int128 max, thus the carry has no room and the parser rounds at 38 digits
+        auto const expected = Literal::make_typed<Decimal>("0.17014118346046923173168730371588410573");
+        CHECK(Literal::make_typed<Decimal>("0.1701411834604692317316873037158841057280") == expected);
+        CHECK(Literal::make_typed<Decimal>("0.1701411834604692317316873037158841057279") == expected);
+        CHECK(Literal::make_typed<Decimal>("0.1701411834604692317316873037158841057275") == expected);
+        CHECK(Literal::make_typed<Decimal>("17.01411834604692317316873037158841057275") == Literal::make_typed<Decimal>("17.014118346046923173168730371588410573"));
+    }
+    SUBCASE("parse rounding to Int128 min") {
+        // Int128 min is one step further from zero than Int128 max
+        auto const min = std::numeric_limits<Int128>::min();
+        CHECK(Literal::make_typed<Decimal>("-0.1701411834604692317316873037158841057275") == Literal::make_typed_from_value<Decimal>(Decimal128{min, 39}));
+        CHECK(Literal::make_typed<Decimal>("-170141183460469231731687303715884105727.5") == Literal::make_typed_from_value<Decimal>(Decimal128{min, 0}));
     }
 }
 
