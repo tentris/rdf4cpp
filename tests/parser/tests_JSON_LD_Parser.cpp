@@ -6,6 +6,8 @@
 
 #include <thread>
 
+#include <simdjson.h>
+
 using namespace rdf4cpp;
 using namespace rdf4cpp::parser;
 
@@ -558,6 +560,10 @@ _:b0 <http://example.com/integer> "9"^^<http://www.w3.org/2001/XMLSchema#integer
     jsonld_test_negative(remote_test_file_to_str("so13-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/tso13");
     // @type: @none is only invalid in json-ld 1.0
     // jsonld_test_negative(remote_test_file_to_str("tn01-in.jsonld"), "https://w3c.github.io/json-ld-streaming/tests/ttn01");
+
+    // needs to have parsed something before calling get_active_implementation
+    std::cout << simdjson::get_active_implementation()->name() << " (" << simdjson::get_active_implementation()->description() << ")\n";
+    CHECK(simdjson::get_active_implementation()->name() != "fallback");
 }
 
 TEST_CASE("malformed json becomes a parsing error") {
@@ -2000,5 +2006,73 @@ TEST_CASE("a broken json atom is reported as broken json, not as a bare simdjson
     }
     SUBCASE("as null value") {
         check(R"({"@id": "http://ex/s", "http://ex/p": nul})");
+    }
+}
+
+TEST_CASE("a token that starts no json value is broken json, even in an entry the parser does not read") {
+    // simdjson on-demand skips an unread value without validating it, so `"x": @` is not noticed.
+    auto const check = [](std::string doc) {
+        auto const r = parse_with_request_url(std::move(doc), "http://ex/doc", [](std::string_view) -> std::expected<ParsingState::RequestResult, std::string> {
+            return std::unexpected{std::string{"not found"}};
+        });
+        CAPTURE(r.quads);
+        CAPTURE(r.errors);
+        CHECK(r.error_type == ParsingError::Type::BadSyntax);
+        CHECK(r.errors != "");
+    };
+    SUBCASE("a term that is dropped, before the used entries") {
+        check(R"({"x": @, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("a term that is dropped, between the used entries") {
+        check(R"({"@id": "http://ex/s", "x": @, "http://ex/p": "v"})");
+    }
+    SUBCASE("a term that is dropped, after the used entries") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": "v", "x": @})");
+    }
+    SUBCASE("a term that is mapped to null") {
+        check(R"({"@context": {"x": null}, "@id": "http://ex/s", "http://ex/p": "v", "x": @})");
+    }
+    SUBCASE("a keyword-like key") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": "v", "@x": @})");
+    }
+    SUBCASE("in a nested node object") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": {"@id": "http://ex/o", "x": @}})");
+    }
+    SUBCASE("in an array of a dropped term") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": "v", "x": [@]})");
+    }
+    SUBCASE("in an object of a dropped term") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": "v", "x": {"y": @}})");
+    }
+    SUBCASE("in a @list without an active property") {
+        check(R"([{"@id": "http://ex/s", "http://ex/p": "v"}, {"@list": [@]}])");
+    }
+    SUBCASE("a keyword that is not used in a node object") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": "v", "@version": @})");
+    }
+    SUBCASE("in a node object with an @id that expands to nothing") {
+        check(R"([{"@id": "http://ex/s", "http://ex/p": "v"}, {"@id": "@x", "http://ex/p": @}])");
+    }
+    SUBCASE("in a json literal") {
+        check(R"({"@context": {"j": {"@id": "http://ex/j", "@type": "@json"}}, "@id": "http://ex/s", "http://ex/p": "v", "j": {"a": @}})");
+    }
+    // TODO undefined behavior according to json spec
+    //SUBCASE("a duplicate key in a node object") {
+    //    check(R"({"@id": "http://ex/s", "http://ex/p": "v", "http://ex/p": @})");
+    //}
+    //SUBCASE("a duplicate key in a context") {
+    //    check(R"({"@context": {"p": "http://ex/p", "p": @}, "@id": "http://ex/s", "p": "v"})");
+    //}
+    SUBCASE("in a reverse term definition") {
+        check(R"({"@context": {"r": {"@reverse": "http://ex/r", "@language": @}}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("in a reverse term definition with a keyword-like @reverse") {
+        check(R"({"@context": {"r": {"@reverse": "@x", "@container": @}}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("in a scoped context of an unused term") {
+        check(R"({"@context": {"t": {"@id": "http://ex/t", "@context": [{"@vocab": "http://ex/"}, @]}}, "@id": "http://ex/s", "http://ex/p": "v"})");
+    }
+    SUBCASE("after the document") {
+        check(R"({"@id": "http://ex/s", "http://ex/p": "v"} @)");
     }
 }

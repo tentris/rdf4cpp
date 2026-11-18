@@ -432,6 +432,7 @@ add_executable(tests_JSON_LD_Parser parser/tests_JSON_LD_Parser.cpp)
 target_link_libraries(tests_JSON_LD_Parser
         doctest::doctest
         rdf4cpp
+        simdjson::simdjson
 )
 add_test(NAME tests_JSON_LD_Parser COMMAND tests_JSON_LD_Parser)
 

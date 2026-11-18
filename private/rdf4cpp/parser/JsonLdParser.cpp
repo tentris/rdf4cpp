@@ -407,6 +407,24 @@ namespace rdf4cpp::parser {
                 if (id_entry != nullptr && !id_entry->keyword_values.empty()) {
                     id = std::move(id_entry->keyword_values[0]);  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
                     if (id.type == json_ld::IRIMappingType::None) {
+                        // the node object is dropped, so its entries are never read and simdjson on-demand never checks them
+                        if (!map.expanded_from_no_map) {
+                            for (auto const &entry : map.entries) {
+                                // an entry without a path holds values that expand_level already read
+                                if (entry.path.keys.empty()) {
+                                    continue;
+                                }
+                                auto [ec, v] = try_get_field<simdjson::ondemand::value>(obj, entry.path);
+                                if (ec == simdjson::SUCCESS) {
+                                    ec = expand_parser_.context_parser.validate_json(v);
+                                }
+                                auto err = json_ld::ContextParser::json_validation_result_to_error(ec, ParsingError::Type::BadSyntax, "invalid node object (broken json):");
+                                if (err.has_value()) {
+                                    co_yield fail(std::move(*err));
+                                    co_return;
+                                }
+                            }
+                        }
                         co_return;
                     }
                 }

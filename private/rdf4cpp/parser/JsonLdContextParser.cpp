@@ -559,10 +559,20 @@ namespace rdf4cpp::parser::json_ld {
         return result;
     }
 
-    void ContextParser::finish_object(simdjson::ondemand::object &ob) {
-        ob.reset();
-        for ([[maybe_unused]] auto e : ob) {
+    std::optional<ContextParser::error_type> ContextParser::json_validation_result_to_error(simdjson::error_code const ec, ParsingError::Type const type, std::string_view const message) {
+        if (ec == simdjson::SUCCESS) {
+            return std::nullopt;
         }
+        if (ec == simdjson::DEPTH_ERROR) {
+            // only our stack limiter returns DEPTH_ERROR
+            return make_error(ParsingError::Type::LimitExceeded, "stack limit");
+        }
+        return make_error(type, std::format("{} {}", message, simdjson::error_message(ec)));
+    }
+
+    std::optional<ContextParser::error_type> ContextParser::finish_object(simdjson::ondemand::object &ob) {
+        ob.reset();
+        return json_validation_result_to_error(validate_json(ob));
     }
 
     std::optional<ContextParser::error_type> ContextParser::parse_context_term(params::ParseContextTermParams p) {
@@ -842,8 +852,7 @@ namespace rdf4cpp::parser::json_ld {
                         // 13.4, a value with the form of a keyword leaves the term without a definition
                         p.term.ignored = true;
                         p.term.parse_state = ParseState::Done;
-                        finish_object(ob);
-                        res = std::nullopt;
+                        res = finish_object(ob);
                         return res;
                     }
 
@@ -900,8 +909,7 @@ namespace rdf4cpp::parser::json_ld {
                     // does not apply to it
                     p.term.is_reverse_property = true;
                     p.term.parse_state = ParseState::Done;
-                    finish_object(ob);
-                    res = std::nullopt;
+                    res = finish_object(ob);
                     return res;
                 }
             }
@@ -1220,6 +1228,19 @@ namespace rdf4cpp::parser::json_ld {
         return simdjson::SUCCESS;
     }
 
+    simdjson::error_code ContextParser::validate_json(simdjson::ondemand::array &arr) {
+        for (auto element : arr) {
+            simdjson::ondemand::value v;
+            if (auto const ec = element.get(v); ec != simdjson::SUCCESS) {
+                return ec;
+            }
+            if (auto const ec = validate_json(v); ec != simdjson::SUCCESS) {
+                return ec;
+            }
+        }
+        return simdjson::SUCCESS;
+    }
+
     simdjson::error_code ContextParser::validate_json(simdjson::ondemand::value value) {
         // the recursion needs one stack frame per nesting level, so the depth is limited
         if (!stack_limiter.check()) {
@@ -1245,16 +1266,7 @@ namespace rdf4cpp::parser::json_ld {
                 if (auto const ec = value.get_array().get(arr); ec != simdjson::SUCCESS) {
                     return ec;
                 }
-                for (auto element : arr) {
-                    simdjson::ondemand::value v;
-                    if (auto const ec = element.get(v); ec != simdjson::SUCCESS) {
-                        return ec;
-                    }
-                    if (auto const ec = validate_json(v); ec != simdjson::SUCCESS) {
-                        return ec;
-                    }
-                }
-                return simdjson::SUCCESS;
+                return validate_json(arr);
             }
             case simdjson::ondemand::json_type::string: {
                 std::string_view str;
@@ -1298,13 +1310,8 @@ namespace rdf4cpp::parser::json_ld {
         }
         // the on-demand parser checks most of the json only when it reads it, and then throws
         // `simdjson_error`, which ends the whole document. So the whole document is checked here once.
-        auto const ec = validate_json(doc_obj);
-        if (ec == simdjson::DEPTH_ERROR) {
-            // only our stack limiter returns DEPTH_ERROR
-            return make_error(ParsingError::Type::LimitExceeded, "stack limit");
-        }
-        if (ec != simdjson::SUCCESS) {
-            return load_failed(std::format("loading remote context failed {}", simdjson::error_message(ec)));
+        if (auto err = json_validation_result_to_error(validate_json(doc_obj), ParsingError::Type::RemoteContext, "loading remote context failed"); err.has_value()) {
+            return err;
         }
         if (!doc.at_end()) {
             return load_failed("loading remote context failed");

@@ -145,11 +145,33 @@ namespace rdf4cpp::parser::json_ld {
         if (null) {
             return StringifyResult{std::string{"null"}, ""};
         }
-        std::string_view raw;
-        if (v.raw_json().get(raw) != simdjson::SUCCESS) {
-            return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid json value")};
+        const auto from_raw = [&](auto v2) -> std::expected<StringifyResult, error_type> {
+            std::string_view raw;
+            auto val = ContextParser::json_validation_result_to_error(context_parser.validate_json(v2));
+            if (val.has_value()) {
+                return std::unexpected(*val);
+            }
+            v2.reset();
+            if (v2.raw_json().get(raw) != simdjson::SUCCESS) {
+                return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid json value")};
+            }
+            return StringifyResult{std::string{trim_raw_token(raw)}, ""};
+        };
+        if (t == simdjson::ondemand::json_type::object) {
+            simdjson::ondemand::object obj;
+            if (auto const ec = v.get_object().get(obj); ec != simdjson::SUCCESS) {
+                return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid json value")};
+            }
+            return from_raw(obj);
         }
-        return StringifyResult{std::string{trim_raw_token(raw)}, ""};
+        if (t == simdjson::ondemand::json_type::array) {
+            simdjson::ondemand::array arr;
+            if (auto const ec = v.get_array().get(arr); ec != simdjson::SUCCESS) {
+                return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid json value")};
+            }
+            return from_raw(arr);
+        }
+        return std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid json value")};
     }
     std::expected<TypedLiteralMapping, ExpandParser::error_type> ExpandParser::to_json_literal(simdjson::ondemand::value v) {
         return stringify(v, false, false, true).transform([](StringifyResult &&r) {
@@ -607,6 +629,10 @@ namespace rdf4cpp::parser::json_ld {
             if (expanded_property->type == IRIMappingType::None
                 || !(expanded_property->type == IRIMappingType::Keyword
                      || expanded_property->data.find(':') != std::string::npos)) {
+                res = ContextParser::json_validation_result_to_error(context_parser.validate_json(v));
+                if (res.has_value()) {
+                    return res;
+                }
                 continue;
             }
             // 13.4
@@ -722,6 +748,10 @@ namespace rdf4cpp::parser::json_ld {
                 // 13.4.11
                 else if (expanded_property->data == keyword_list) {
                     if (p.active_property.type == IRIMappingType::None || p.active_property.is_keyword(keyword_graph)) {
+                        res = ContextParser::json_validation_result_to_error(context_parser.validate_json(v));
+                        if (res.has_value()) {
+                            return res;
+                        }
                         continue;
                     }
                     expanded_value.path = p.active_path;
@@ -785,6 +815,12 @@ namespace rdf4cpp::parser::json_ld {
                             return res;
                         }
                         res = std::nullopt;
+                    }
+                }
+                else {
+                    res = ContextParser::json_validation_result_to_error(context_parser.validate_json(v));
+                    if (res.has_value()) {
+                        return res;
                     }
                 }
                 // 13.4.16
