@@ -1310,8 +1310,8 @@ namespace rdf4cpp::parser::json_ld {
         }
         // the on-demand parser checks most of the json only when it reads it, and then throws
         // `simdjson_error`, which ends the whole document. So the whole document is checked here once.
-        if (auto err = json_validation_result_to_error(validate_json(doc_obj), ParsingError::Type::RemoteContext, "loading remote context failed"); err.has_value()) {
-            return err;
+        if (auto const ec = validate_json(doc_obj); ec != simdjson::SUCCESS) {
+            return json_validation_result_to_error(ec, ParsingError::Type::RemoteContext, "loading remote context failed");
         }
         if (!doc.at_end()) {
             return load_failed("loading remote context failed");
