@@ -2056,13 +2056,6 @@ TEST_CASE("a token that starts no json value is broken json, even in an entry th
     SUBCASE("in a json literal") {
         check(R"({"@context": {"j": {"@id": "http://ex/j", "@type": "@json"}}, "@id": "http://ex/s", "http://ex/p": "v", "j": {"a": @}})");
     }
-    // TODO undefined behavior according to json spec
-    //SUBCASE("a duplicate key in a node object") {
-    //    check(R"({"@id": "http://ex/s", "http://ex/p": "v", "http://ex/p": @})");
-    //}
-    //SUBCASE("a duplicate key in a context") {
-    //    check(R"({"@context": {"p": "http://ex/p", "p": @}, "@id": "http://ex/s", "p": "v"})");
-    //}
     SUBCASE("in a reverse term definition") {
         check(R"({"@context": {"r": {"@reverse": "http://ex/r", "@language": @}}, "@id": "http://ex/s", "http://ex/p": "v"})");
     }
