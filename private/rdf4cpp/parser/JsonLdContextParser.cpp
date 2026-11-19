@@ -260,12 +260,10 @@ namespace rdf4cpp::parser::json_ld {
                                 return key == v;
                             })) {
                             continue;
-                            }
-                        auto i = std::ranges::find_if(result->terms, [&](auto const &t) {
-                            return t.key == key;
-                        });
-                        if (i == result->terms.end()) {
-                            result->terms.emplace_back(key);
+                        }
+                        auto i = result->try_find_term_for_parse(key);
+                        if (i == nullptr) {
+                            result->emplace_term(key);
                         } else if (i->parse_state != ParseState::NotStarted) {
                             previous_terms.emplace_back(std::move(*i));
                             *i = TermDefinition{key};
@@ -289,6 +287,8 @@ namespace rdf4cpp::parser::json_ld {
                     if (!v.has_value()) {
                         result->vocab = std::nullopt;
                     } else {
+                        // according to the spec, iri_expansion is not supposed to access locally defined terms, but https://json-ld.org/playground/ does.
+                        // we match it here.
                         params::ParseContextIRIExpansionParams p_ctx{
                             .active_context = *result,
                             .local_context = o,
@@ -462,7 +462,11 @@ namespace rdf4cpp::parser::json_ld {
             // an invalid @propagate value is reported by handle_ctx below
 
             handle_ctx(o);  // 4
-        } else if (local_context.is_scalar() && local_context.is_null()) { // 5.1
+        } else if (local_context.is_scalar() && local_context.type() == simdjson::ondemand::json_type::null) { // 5.1
+            if (!local_context.is_null().has_value()) {
+                result = std::unexpected{make_error(ParsingError::Type::BadSyntax,"invalid context (broken atom)")};
+                return result;
+            }
             result = handle_null();
             return result;
         } else if (local_context.type() == simdjson::ondemand::json_type::string) {  // 5.2
@@ -481,7 +485,10 @@ namespace rdf4cpp::parser::json_ld {
                 switch (v.type()) {
                     case simdjson::ondemand::json_type::null:  // 5.1
                     {
-                        v.is_null();
+                        if (!v.is_null().has_value()) {
+                            result = std::unexpected{make_error(ParsingError::Type::BadSyntax, "invalid context nullification (broken null)")};
+                            return result;
+                        }
                         result = handle_null();
                         if (!result.has_value()) {
                             return result;
@@ -550,6 +557,22 @@ namespace rdf4cpp::parser::json_ld {
         }
 
         return result;
+    }
+
+    std::optional<ContextParser::error_type> ContextParser::json_validation_result_to_error(simdjson::error_code const ec, ParsingError::Type const type, std::string_view const message) {
+        if (ec == simdjson::SUCCESS) {
+            return std::nullopt;
+        }
+        if (ec == simdjson::DEPTH_ERROR) {
+            // only our stack limiter returns DEPTH_ERROR
+            return make_error(ParsingError::Type::LimitExceeded, "stack limit");
+        }
+        return make_error(type, std::format("{} {}", message, simdjson::error_message(ec)));
+    }
+
+    std::optional<ContextParser::error_type> ContextParser::finish_object(simdjson::ondemand::object &ob) {
+        ob.reset();
+        return json_validation_result_to_error(validate_json(ob));
     }
 
     std::optional<ContextParser::error_type> ContextParser::parse_context_term(params::ParseContextTermParams p) {
@@ -720,7 +743,12 @@ namespace rdf4cpp::parser::json_ld {
 
         bool skip_object = false;
         // 7
-        if (value.is_null()) {
+        auto val_null = value.is_null();
+        if (!val_null.has_value()) {
+            res = make_error(ParsingError::Type::BadSyntax, "invalid term definition (broken atom)");
+            return res;
+        }
+        if (*val_null) {
             p.term.is_protected = p.is_protected;
             res = handle_id(std::nullopt);
             if (res.has_value()) {
@@ -824,7 +852,7 @@ namespace rdf4cpp::parser::json_ld {
                         // 13.4, a value with the form of a keyword leaves the term without a definition
                         p.term.ignored = true;
                         p.term.parse_state = ParseState::Done;
-                        res = std::nullopt;
+                        res = finish_object(ob);
                         return res;
                     }
 
@@ -856,7 +884,12 @@ namespace rdf4cpp::parser::json_ld {
                             res = make_error(ParsingError::Type::BadSyntax, "invalid reverse property");
                             return res;
                         }
-                        if (v_cont.is_null()) {
+                        auto v_cont_null = v_cont.is_null();
+                        if (!v_cont_null.has_value()) {
+                            res = make_error(ParsingError::Type::BadSyntax, "invalid reverse property (broken atom)");
+                            return res;
+                        }
+                        if (*v_cont_null) {
                             p.term.container_mapping = ContainerMapping::None;
                         } else {
                             std::string_view cont;
@@ -876,7 +909,7 @@ namespace rdf4cpp::parser::json_ld {
                     // does not apply to it
                     p.term.is_reverse_property = true;
                     p.term.parse_state = ParseState::Done;
-                    res = std::nullopt;
+                    res = finish_object(ob);
                     return res;
                 }
             }
@@ -1195,6 +1228,19 @@ namespace rdf4cpp::parser::json_ld {
         return simdjson::SUCCESS;
     }
 
+    simdjson::error_code ContextParser::validate_json(simdjson::ondemand::array &arr) {
+        for (auto element : arr) {
+            simdjson::ondemand::value v;
+            if (auto const ec = element.get(v); ec != simdjson::SUCCESS) {
+                return ec;
+            }
+            if (auto const ec = validate_json(v); ec != simdjson::SUCCESS) {
+                return ec;
+            }
+        }
+        return simdjson::SUCCESS;
+    }
+
     simdjson::error_code ContextParser::validate_json(simdjson::ondemand::value value) {
         // the recursion needs one stack frame per nesting level, so the depth is limited
         if (!stack_limiter.check()) {
@@ -1220,16 +1266,7 @@ namespace rdf4cpp::parser::json_ld {
                 if (auto const ec = value.get_array().get(arr); ec != simdjson::SUCCESS) {
                     return ec;
                 }
-                for (auto element : arr) {
-                    simdjson::ondemand::value v;
-                    if (auto const ec = element.get(v); ec != simdjson::SUCCESS) {
-                        return ec;
-                    }
-                    if (auto const ec = validate_json(v); ec != simdjson::SUCCESS) {
-                        return ec;
-                    }
-                }
-                return simdjson::SUCCESS;
+                return validate_json(arr);
             }
             case simdjson::ondemand::json_type::string: {
                 std::string_view str;
@@ -1273,13 +1310,8 @@ namespace rdf4cpp::parser::json_ld {
         }
         // the on-demand parser checks most of the json only when it reads it, and then throws
         // `simdjson_error`, which ends the whole document. So the whole document is checked here once.
-        auto const ec = validate_json(doc_obj);
-        if (ec == simdjson::DEPTH_ERROR) {
-            // only our stack limiter returns DEPTH_ERROR
-            return make_error(ParsingError::Type::LimitExceeded, "stack limit");
-        }
-        if (ec != simdjson::SUCCESS) {
-            return load_failed(std::format("loading remote context failed {}", simdjson::error_message(ec)));
+        if (auto const ec = validate_json(doc_obj); ec != simdjson::SUCCESS) {
+            return json_validation_result_to_error(ec, ParsingError::Type::RemoteContext, "loading remote context failed");
         }
         if (!doc.at_end()) {
             return load_failed("loading remote context failed");

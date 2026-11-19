@@ -111,6 +111,10 @@ namespace rdf4cpp::parser {
              */
             simdjson::error_code validate_json(simdjson::ondemand::object &obj);
             /**
+             * Iterates over all entries of `arr`, see the overload above. The document of `arr` has to be rewound before reading it again.
+             */
+            simdjson::error_code validate_json(simdjson::ondemand::array &arr);
+            /**
              * Checks that `json` is a single object, see the overloads above.
              * Returns an error iff the check failed.
              */
@@ -123,6 +127,22 @@ namespace rdf4cpp::parser {
                                                                    bool vocab,
                                                                    TermDefinition const *ignore_local = nullptr,
                                                                    params::ParseContextIRIExpansionParams *parse_ctx = nullptr);
+
+            /**
+             * Converts the result `ec` of validate_json to an error.
+             * DEPTH_ERROR becomes a stack limit error, any other failure an error of `type` with `message`, followed by the simdjson error message.
+             * Returns std::nullopt iff `ec` is SUCCESS.
+             */
+            static std::optional<error_type> json_validation_result_to_error(simdjson::error_code ec, ParsingError::Type type = ParsingError::Type::BadSyntax, std::string_view message = "invalid term definition (broken json):");
+
+        private:
+            /**
+             * Iterates `ob` to its end and checks the json of all of its values with validate_json.
+             * The iterator is shared with a term definition that is currently processed
+             * and needs the one in `ob`, so leaving a term definition early must still do this.
+             * Returns an error iff the check failed.
+             */
+            std::optional<error_type> finish_object(simdjson::ondemand::object &ob);
         };
     }  // namespace json_ld
 }  // namespace rdf4cpp::parser
