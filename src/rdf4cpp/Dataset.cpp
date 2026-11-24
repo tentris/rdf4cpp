@@ -25,7 +25,7 @@ void Dataset::add(Quad const &quad) {
         it = graphs_.emplace(to_node_id(g), node_storage_).first;
     }
 
-    it.value().add(quad.without_graph());
+    it->second.add(quad.without_graph());
 }
 
 bool Dataset::contains(Quad const &quad) const {
@@ -68,7 +68,7 @@ Graph *Dataset::find_graph(Node const &graph_) {
         return nullptr;
     }
 
-    return &it.value();
+    return &it->second;
 }
 
 Graph *Dataset::find_graph() {
@@ -83,7 +83,7 @@ Graph const *Dataset::find_graph(Node const &graph_) const {
         return nullptr;
     }
 
-    return &it.value();
+    return &it->second;
 }
 
 Graph const *Dataset::find_graph() const {
@@ -98,7 +98,7 @@ Graph &Dataset::graph(Node const &graph_) {
         it = graphs_.emplace(to_node_id(graph), Graph{node_storage_}).first;
     }
 
-    return it.value();
+    return it->second;
 }
 
 Graph &Dataset::graph() {

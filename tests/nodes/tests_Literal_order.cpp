@@ -226,7 +226,6 @@ TEST_SUITE("literal ordering") {
         check_equal_nodes_hash_equal("dice_hash wyhash", dice::hash::DiceHashwyhash<Node>{});
         check_equal_nodes_hash_equal("dice_hash xxh3", dice::hash::DiceHashxxh3<Node>{});
         check_equal_nodes_hash_equal("dice_hash rapidhash", dice::hash::DiceHashrapidhash<Node>{});
-        check_equal_nodes_hash_equal("dice_hash Martinus", dice::hash::DiceHashMartinus<Node>{});
     }
 
     TEST_CASE("value-equivalent distinct terms stay distinct in hash and tree containers") {
