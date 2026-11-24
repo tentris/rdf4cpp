@@ -79,6 +79,7 @@ The following parts are missing:
  * Literals of the datatype rdf:JSON keep the JSON of the document. They are not canonicalized as `<https://www.rfc-editor.org/rfc/rfc8785>`_ describes.
  * Parsing errors carry no line and no column, both are reported as 0.
  * The scoped context of a term is not checked when a later entry of the same ``@context`` array defines the term again or removes it, for example with ``null``. A document with an invalid scoped context in such a term is parsed, not reported.
+ * Duplicate keys should not be used. If they are used anyway, our parser takes the first occurrence (other parsers usually take the last).
 
 The parser reads the whole document before it expands it. The key order rules of the streaming
 profile therefore do not apply to it: a document that names ``@context`` after a property is parsed.

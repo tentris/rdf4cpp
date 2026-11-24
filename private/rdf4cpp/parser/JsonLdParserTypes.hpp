@@ -344,9 +344,15 @@ namespace rdf4cpp::parser {
 
             TermDefinition *try_find_term(std::string_view key);
             [[nodiscard]] TermDefinition const *try_find_term(std::string_view key) const;
+            /**
+             * same as try_find_term, but does not check ignored
+             */
+            TermDefinition *try_find_term_for_parse(std::string_view key);
+            void emplace_term(std::string_view key);
 
         private:
             [[nodiscard]] size_t find_term_position(std::string_view key) const;
+            [[nodiscard]] bool index_enabled() const;
         };
 
 

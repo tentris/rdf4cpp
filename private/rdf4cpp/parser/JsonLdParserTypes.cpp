@@ -14,9 +14,9 @@ namespace rdf4cpp::parser {
     }
 
     size_t json_ld::Context::find_term_position(std::string_view key) const {
-        if (terms.size() < TermIndex::min_terms) {
+        if (!index_enabled()) {
             auto i = std::ranges::find_if(terms, [&](auto const &t) {
-                return t.key == key && !t.ignored;
+                return t.key == key;
             });
             return i == terms.end() ? TermIndex::not_found : static_cast<size_t>(i - terms.begin());
         }
@@ -29,10 +29,13 @@ namespace rdf4cpp::parser {
             term_index.indexed_terms = terms.size();
         }
         auto i = term_index.positions.find(key);
-        if (i == term_index.positions.end() || terms[i->second].ignored) {  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        if (i == term_index.positions.end()) {  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
             return TermIndex::not_found;
         }
         return i->second;
+    }
+    bool json_ld::Context::index_enabled() const {
+        return terms.size() >= TermIndex::min_terms;
     }
 
     json_ld::TermDefinition *json_ld::Context::try_find_term(std::string_view key) {
@@ -40,7 +43,11 @@ namespace rdf4cpp::parser {
         if (i == TermIndex::not_found) {
             return nullptr;
         }
-        return &terms[i];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        auto* t = &terms[i];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        if (t->ignored) {
+            return nullptr;
+        }
+        return t;
     }
 
     json_ld::TermDefinition const *json_ld::Context::try_find_term(std::string_view key) const {
@@ -48,7 +55,32 @@ namespace rdf4cpp::parser {
         if (i == TermIndex::not_found) {
             return nullptr;
         }
+        auto* t = &terms[i];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+        if (t->ignored) {
+            return nullptr;
+        }
+        return t;
+    }
+
+    json_ld::TermDefinition *json_ld::Context::try_find_term_for_parse(std::string_view key) {
+        auto i = find_term_position(key);
+        if (i == TermIndex::not_found) {
+            return nullptr;
+        }
         return &terms[i];  // NOLINT(*-pro-bounds-avoid-unchecked-container-access)
+    }
+
+    void json_ld::Context::emplace_term(std::string_view key) {
+        auto valid = index_enabled() && term_index.indexed_terms == terms.size();
+        if (!valid && index_enabled()) {
+            term_index.positions.clear();
+            term_index.indexed_terms = TermIndex::not_found;
+        }
+        terms.emplace_back(key);
+        if (valid) {
+            term_index.indexed_terms = terms.size();
+            term_index.positions.emplace(key, terms.size() - 1);
+        }
     }
 
     bool looks_like_keyword(std::string_view v) {
