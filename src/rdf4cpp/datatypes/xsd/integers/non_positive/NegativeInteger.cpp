@@ -10,7 +10,7 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_negative_integer>::cpp_type capabilities::Default<xsd_negative_integer>::from_string(std::string_view s) {
-    cpp_type ret = util::from_chars<cpp_type, identifier>(s);
+    cpp_type ret = Default<xsd_integer>::from_string(s);
 
     if (ret > -1) {
         throw InvalidNode{std::format("{} parsing error: found non-negative value", identifier)};
@@ -21,7 +21,7 @@ capabilities::Default<xsd_negative_integer>::cpp_type capabilities::Default<xsd_
 
 template<>
 bool capabilities::Default<xsd_negative_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
-    return util::to_chars_canonical(value, writer);
+    return Default<xsd_integer>::serialize_canonical_string(value, writer);
 }
 
 template<>
@@ -31,13 +31,7 @@ bool capabilities::Logical<xsd_negative_integer>::effective_boolean_value(cpp_ty
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_negative_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    if (lhs < rhs) {
-        return std::partial_ordering::less;
-    } else if (rhs < lhs) {
-        return std::partial_ordering::greater;
-    } else {
-        return std::partial_ordering::equivalent;
-    }
+    return lhs <=> rhs;
 }
 
 template<>
@@ -52,16 +46,20 @@ std::expected<capabilities::Default<xsd_negative_integer>::cpp_type, DynamicErro
 
 template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_negative_integer>::try_into_inlined(cpp_type const &value) noexcept {
-    if (value < -(cpp_type{1} << storage::identifier::LiteralID::width)) {  // check before negating, -min would overflow
+    if (dice::template_library::holds_alternative<cpp_type::big_type>(value)) {
+        return std::nullopt;
+    }
+    auto const v = dice::template_library::get<cpp_type::small_type>(value);
+    if (v < -(cpp_type::small_type{1} << storage::identifier::LiteralID::width)) {  // check before negating, -min would overflow
         return std::nullopt;
     }
 
-    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<uint64_t>(-value - 1));
+    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<uint64_t>(-v - 1));
 }
 
 template<>
 capabilities::Inlineable<xsd_negative_integer>::cpp_type capabilities::Inlineable<xsd_negative_integer>::from_inlined(storage::identifier::LiteralID inlined) noexcept {
-    return -cpp_type{util::unpack_integral<uint64_t>(inlined) + 1};
+    return cpp_type{-cpp_type::small_type{util::unpack_integral<uint64_t>(inlined) + 1}};
 }
 #endif
 

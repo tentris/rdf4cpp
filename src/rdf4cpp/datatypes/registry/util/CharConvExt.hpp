@@ -19,6 +19,7 @@
 #include <rdf4cpp/writer/BufWriter.hpp>
 #include <rdf4cpp/datatypes/registry/util/ConstexprString.hpp>
 #include <rdf4cpp/datatypes/registry/util/NumericUtil.hpp>
+#include <rdf4cpp/util/boost_int.hpp>
 
 namespace rdf4cpp::datatypes::registry::util {
 /**
@@ -55,6 +56,11 @@ bool to_chars_canonical(I const value, writer::BufWriterParts const writer) noex
 
     std::string_view const s{buf.data(), static_cast<std::string::size_type>(res.ptr - buf.data())};
     return writer::write_str(s, writer);
+}
+
+template<rdf4cpp::util::detail::BoostNumber I>
+bool to_chars_canonical(I const value, writer::BufWriterParts const writer) noexcept {
+    return writer::write_str(value.str(), writer);
 }
 
 /**
@@ -107,6 +113,23 @@ F from_chars(std::string_view s) {
     }
 
     return value;
+}
+
+template<rdf4cpp::util::detail::BoostNumber F, ConstexprString datatype>
+F from_chars(std::string_view s) {
+    if (s.starts_with('+')) {
+        s.remove_prefix(1);
+    }
+
+    if (auto const pos = s.find_first_not_of('0'); pos != std::string::npos) {
+        s.remove_prefix(pos);
+    }
+
+    try {
+        return F{s};
+    } catch (std::runtime_error const &e) {
+        throw InvalidNode{std::format("{} parsing error: {}", datatype, e.what())};
+    }
 }
 
 namespace detail  {

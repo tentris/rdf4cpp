@@ -8,7 +8,7 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_positive_integer>::cpp_type capabilities::Default<xsd_positive_integer>::from_string(std::string_view s) {
-    cpp_type ret = util::from_chars<cpp_type, identifier>(s);
+    cpp_type ret = Default<xsd_integer>::from_string(s);
 
     if (ret < 1) {
         throw InvalidNode{std::format("{} parsing error: found non-positive value", identifier)};
@@ -19,7 +19,7 @@ capabilities::Default<xsd_positive_integer>::cpp_type capabilities::Default<xsd_
 
 template<>
 bool capabilities::Default<xsd_positive_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
-    return util::to_chars_canonical(value, writer);
+    return Default<xsd_integer>::serialize_canonical_string(value, writer);
 }
 
 template<>
@@ -29,13 +29,7 @@ bool capabilities::Logical<xsd_positive_integer>::effective_boolean_value(cpp_ty
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_positive_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    if (lhs < rhs) {
-        return std::partial_ordering::less;
-    } else if (rhs < lhs) {
-        return std::partial_ordering::greater;
-    } else {
-        return std::partial_ordering::equivalent;
-    }
+    return lhs <=> rhs;
 }
 
 template<>
@@ -50,7 +44,11 @@ std::expected<capabilities::Default<xsd_positive_integer>::cpp_type, DynamicErro
 
 template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_positive_integer>::try_into_inlined(cpp_type const &value) noexcept {
-    auto const to_pack_value = value - 1;
+    if (dice::template_library::holds_alternative<cpp_type::big_type>(value)) {
+        return std::nullopt;
+    }
+    auto const v = dice::template_library::get<cpp_type::small_type>(value);
+    auto const to_pack_value = v - 1;
     if (to_pack_value >= (uint64_t{1} << storage::identifier::LiteralID::width)) {
         return std::nullopt;
     }
@@ -60,7 +58,7 @@ std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_posit
 
 template<>
 capabilities::Inlineable<xsd_positive_integer>::cpp_type capabilities::Inlineable<xsd_positive_integer>::from_inlined(storage::identifier::LiteralID inlined) noexcept {
-    return cpp_type{util::unpack_integral<uint64_t>(inlined)} + 1;
+    return cpp_type{cpp_type::small_type{util::unpack_integral<uint64_t>(inlined)} + 1};
 }
 #endif
 
