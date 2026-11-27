@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <concepts>
 
+#include <dice/template-library/variant2.hpp>
+
 namespace rdf4cpp::datatypes::registry::util {
 
 /**

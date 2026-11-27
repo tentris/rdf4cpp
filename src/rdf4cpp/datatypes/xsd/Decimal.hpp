@@ -6,6 +6,7 @@
 #include <rdf4cpp/datatypes/registry/LiteralDatatypeImpl.hpp>
 #include <rdf4cpp/datatypes/xsd/Float.hpp>
 #include <rdf4cpp/BigDecimal.hpp>
+#include <rdf4cpp/util/PrecisionVariant.hpp>
 
 #include <dice/hash.hpp>
 
@@ -18,7 +19,7 @@ template<>
 struct DatatypeMapping<xsd_decimal> {
     // needs at least 18 decimal digits of precision
     // see: https://www.w3.org/TR/2004/REC-xmlschema-2-20041028/#dt-decimal
-    using cpp_datatype = rdf4cpp::Decimal128;
+    using cpp_datatype = rdf4cpp::util::PrecisionVariant<Decimal128, BigDecimal>;
 };
 
 template<>
@@ -53,6 +54,9 @@ template<>
 std::expected<capabilities::Numeric<xsd_decimal>::mul_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::mul(cpp_type const &lhs, cpp_type const &rhs) noexcept;
 
 template<>
+std::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::pos(cpp_type const &operand) noexcept;
+
+template<>
 std::expected<capabilities::Numeric<xsd_decimal>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::neg(cpp_type const &operand) noexcept;
 
 template<>
@@ -66,6 +70,12 @@ std::expected<capabilities::Numeric<xsd_decimal>::floor_result_cpp_type, Dynamic
 
 template<>
 std::expected<capabilities::Numeric<xsd_decimal>::ceil_result_cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::ceil(cpp_type const &operand) noexcept;
+
+template<>
+capabilities::Default<xsd_decimal>::cpp_type capabilities::Numeric<xsd_decimal>::zero_value() noexcept;
+
+template<>
+capabilities::Default<xsd_decimal>::cpp_type capabilities::Numeric<xsd_decimal>::one_value() noexcept;
 
 template<>
 std::expected<capabilities::Default<xsd_decimal>::cpp_type, DynamicError> capabilities::Numeric<xsd_decimal>::from_multiplicity(uint64_t multiplicity) noexcept;

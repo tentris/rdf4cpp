@@ -6,13 +6,14 @@
 #include <rdf4cpp/datatypes/registry/FixedIdMappings.hpp>
 #include <rdf4cpp/datatypes/registry/LiteralDatatypeImpl.hpp>
 #include <rdf4cpp/datatypes/xsd/Decimal.hpp>
+#include <rdf4cpp/util/PrecisionVariant.hpp>
 
 namespace rdf4cpp::datatypes::registry {
 
 #ifndef DOXYGEN_PARSER
 template<>
 struct DatatypeMapping<xsd_integer> {
-    using cpp_datatype = rdf4cpp::Int128;
+    using cpp_datatype = rdf4cpp::util::PrecisionVariant<Int128, BigInt>;
 };
 
 template<>
@@ -35,7 +36,19 @@ template<>
 bool capabilities::Logical<xsd_integer>::effective_boolean_value(cpp_type const &value) noexcept;
 
 template<>
+std::expected<capabilities::Numeric<xsd_integer>::add_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::add(cpp_type const &lhs, cpp_type const &rhs) noexcept;
+
+template<>
+std::expected<capabilities::Numeric<xsd_integer>::sub_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::sub(cpp_type const &lhs, cpp_type const &rhs) noexcept;
+
+template<>
 std::expected<capabilities::Numeric<xsd_integer>::div_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::div(cpp_type const &lhs, cpp_type const &rhs) noexcept;
+
+template<>
+std::expected<capabilities::Numeric<xsd_integer>::mul_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::mul(cpp_type const &lhs, cpp_type const &rhs) noexcept;
+
+template<>
+std::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::pos(cpp_type const &operand) noexcept;
 
 template<>
 std::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::neg(cpp_type const &operand) noexcept;
@@ -54,6 +67,14 @@ std::expected<capabilities::Numeric<xsd_integer>::ceil_result_cpp_type, DynamicE
 
 template<>
 std::expected<capabilities::Default<xsd_integer>::cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::from_multiplicity(uint64_t multiplicity) noexcept;
+
+template<>
+template<>
+capabilities::Subtype<xsd_integer>::super_cpp_type<0> capabilities::Subtype<xsd_integer>::into_supertype(cpp_type const &value) noexcept;
+
+template<>
+template<>
+std::expected<capabilities::Subtype<xsd_integer>::cpp_type, DynamicError> capabilities::Subtype<xsd_integer>::from_supertype(super_cpp_type<0> const &value) noexcept;
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept;

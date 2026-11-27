@@ -175,7 +175,7 @@ capabilities::Duration<xsd_dayTimeDuration>::duration_div(cpp_type const &lhs, c
         return std::unexpected(DynamicError::DivideByZero);
     }
 
-    return *r;
+    return duration_div_result_cpp_type{*r};
 }
 
 template<>

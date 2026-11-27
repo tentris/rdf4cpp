@@ -7,6 +7,7 @@
 
 #include <rdf4cpp/Int128.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <dice/hash.hpp>
 
 
 namespace rdf4cpp::util::detail {
@@ -144,5 +145,21 @@ struct dice::hash::dice_hash_overload<Policy, boost::multiprecision::number<N, e
         return dice::hash::dice_hash_templates<Policy>::dice_hash(::boost::multiprecision::hash_value(x));
     }
 };
+
+namespace rdf4cpp {
+    using BigInt = boost::multiprecision::checked_cpp_int;
+}
+
+template<rdf4cpp::util::detail::BoostNumber T>
+std::strong_ordering operator<=>(const T &lhs, const T &rhs) noexcept {
+    int cmp = lhs.compare(rhs);
+    if (cmp < 0) {
+        return std::strong_ordering::less;
+    }
+    if (cmp > 0) {
+        return std::strong_ordering::greater;
+    }
+    return std::strong_ordering::equal;
+}
 
 #endif  //RDF4CPP_BOOST_INT_HPP

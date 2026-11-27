@@ -135,7 +135,7 @@ capabilities::Duration<xsd_yearMonthDuration>::duration_div(cpp_type const &lhs,
         return std::unexpected(DynamicError::DivideByZero);
     }
 
-    return *r;
+    return duration_div_result_cpp_type{*r};
 }
 
 template<>

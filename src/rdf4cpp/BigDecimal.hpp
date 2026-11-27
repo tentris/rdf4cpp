@@ -43,6 +43,7 @@ namespace rdf4cpp {
         struct BigDecimal {
             // the entire class is loosely based on OpenJDKs BigDecimal: https://github.com/AdoptOpenJDK/openjdk-jdk11/blob/master/src/java.base/share/classes/java/math/BigDecimal.java
 
+            using UnscaledValue_type = UnscaledValue_t;
         private:
             UnscaledValue_t unscaled_value;
             Exponent_t exponent;
@@ -71,6 +72,14 @@ namespace rdf4cpp {
              */
             constexpr BigDecimal(UnscaledValue_t const &unscaled_value, Exponent_t exponent) noexcept
                 : unscaled_value(unscaled_value), exponent(exponent) {
+            }
+
+            template<typename U, typename E>
+            explicit BigDecimal(BigDecimal<U, E> const & v) : unscaled_value(0), exponent(0) {
+                if (detail::cast_checked<OverflowMode::Checked>(v.get_unscaled_value(), unscaled_value) ||
+                    detail::cast_checked<OverflowMode::Checked>(v.get_exponent(), exponent)) {
+                    throw InvalidNode{"http://www.w3.org/2001/XMLSchema#decimal cast error: not representable"};
+                }
             }
 
             /**
@@ -395,7 +404,7 @@ namespace rdf4cpp {
                     // next digit (|rem| * base) / |div| and remainder (|rem| * base) % |div| of the long division,
                     // computed by repeated addition, because |rem| * base (or even |div|) might not fit
                     UnscaledValue_t const r0 = abs(rem);
-                    UnscaledValue_t const step = abs(div < 0 ? div + r0 : div - r0);  // |div| - |rem|
+                    UnscaledValue_t const step = abs(div < 0 ? UnscaledValue_t{div + r0} : UnscaledValue_t{div - r0});  // |div| - |rem|
                     UnscaledValue_t r = r0;
                     UnscaledValue_t digit = 0;
                     for (uint32_t i = 1; i < base; ++i) {
@@ -865,11 +874,54 @@ namespace rdf4cpp {
             }
 
             /**
+             * writes the string representation into writer: [-]int.frac, without trailing zeros in frac
+             * and with at least one digit on each side of the point (5.0, 0.5).
+             * @return false if the writer ran out of space
+             */
+            bool serialize(writer::BufWriterParts const writer) const noexcept requires (detail::BoostNumber<UnscaledValue_t>) {
+                UnscaledValue_t v = unscaled_value;
+                Exponent_t frac = exponent;
+                normalize(v, frac);  // strips trailing fractional zeros, e.g. 5.100 -> 5.1, so frac is the exact number of fractional digits
+
+                // all digits of |v| as text, the point is inserted by writing two slices of this
+                std::string buf = v.str();
+                std::string_view digits = buf;
+                if (v < 0) {  // skip the sign, it is written separately
+                    digits = digits.substr(1);
+                }
+
+                size_t const num_integral_digits = digits.size() > frac ? digits.size() - frac : 0;  // digits left of the point, 0 if |value| < 1
+
+                if (unscaled_value < 0 && !writer::write_str("-", writer)) {
+                    return false;
+                }
+                if (!writer::write_str(num_integral_digits > 0 ? digits.substr(0, num_integral_digits) : "0", writer)) {
+                    return false;
+                }
+                if (frac == 0) {
+                    // integer, no fractional digits left after normalize
+                    return writer::write_str(".0", writer);
+                }
+                if (!writer::write_str(".", writer)) {
+                    return false;
+                }
+                // |value| < 0.1 has fewer digits than fractional places, pad with zeros: 5 * 10^-3 -> 0.005
+                for (Exponent_t zeros = 0; digits.size() + zeros < frac; ++zeros) {
+                    if (!writer::write_str("0", writer)) {
+                        return false;
+                    }
+                }
+
+                // write fraction
+                return writer::write_str(digits.substr(num_integral_digits), writer);
+            }
+
+            /**
              * conversion to a string
              * @return
              */
-            [[nodiscard]] explicit operator std::string() const noexcept requires (IntegralExt<UnscaledValue_t>) {
-                return writer::StringWriter::oneshot([this](auto &w) noexcept { return serialize(w); });
+            [[nodiscard]] explicit operator std::string() const noexcept {
+                return writer::StringWriter::oneshot([this](auto &w) noexcept { return this->serialize(w); });
             }
 
             /**
@@ -929,6 +981,7 @@ namespace rdf4cpp {
     }  // namespace util
 
     using Decimal128 = util::BigDecimal<>;
+    using BigDecimal = util::BigDecimal<BigInt>;
 }  // namespace rdf4cpp
 
 #ifndef DOXYGEN_PARSER

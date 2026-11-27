@@ -10,12 +10,16 @@ namespace rdf4cpp::datatypes::registry {
 #ifndef DOXYGEN_PARSER
 template<>
 capabilities::Default<xsd_integer>::cpp_type capabilities::Default<xsd_integer>::from_string(std::string_view s) {
-    return util::from_chars<cpp_type, identifier>(s);
+    return cpp_type::parse(s, []<typename T>(std::string_view s) {
+        return util::from_chars<T, identifier>(s);
+    });
 }
 
 template<>
 bool capabilities::Default<xsd_integer>::serialize_canonical_string(cpp_type const &value, writer::BufWriterParts writer) noexcept {
-    return util::to_chars_canonical(value, writer);
+    return dice::template_library::visit([&](auto const& r) {
+        return util::to_chars_canonical(r, writer);
+    }, value);
 }
 
 template<>
@@ -24,19 +28,53 @@ bool capabilities::Logical<xsd_integer>::effective_boolean_value(cpp_type const 
 }
 
 template<>
+std::expected<capabilities::Numeric<xsd_integer>::add_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::add(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    return lhs.apply_op(rhs, []<typename T>(const T& lhs, const T& rhs, T& r) {
+        return rdf4cpp::util::detail::add_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r);
+    });
+}
+
+template<>
+std::expected<capabilities::Numeric<xsd_integer>::sub_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::sub(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    return lhs.apply_op(rhs, []<typename T>(const T& lhs, const T& rhs, T& r) {
+        return rdf4cpp::util::detail::sub_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r);
+    });
+}
+
+static auto to_decimal(capabilities::Numeric<xsd_integer>::cpp_type const &value) {
+    return dice::template_library::visit([]<typename T>(const T& c) {
+        return capabilities::Numeric<xsd_integer>::div_result_cpp_type{rdf4cpp::util::BigDecimal<T>{c}};
+    }, value);
+}
+
+static auto from_decimal(capabilities::Numeric<xsd_integer>::div_result_cpp_type const &value) {
+    return dice::template_library::visit([]<typename T>(const T& c) {
+        return capabilities::Numeric<xsd_integer>::cpp_type{static_cast<T::UnscaledValue_type>(c)};
+    }, value);
+}
+
+template<>
 std::expected<capabilities::Numeric<xsd_integer>::div_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::div(cpp_type const &lhs, cpp_type const &rhs) noexcept {
     // https://www.w3.org/TR/xpath-functions/#func-numeric-divide
     // integer needs to return decimal on division, decimal handles division by zero and overflow
-    return capabilities::Numeric<xsd_decimal>::div(div_result_cpp_type{lhs}, div_result_cpp_type{rhs});
+    return capabilities::Numeric<xsd_decimal>::div(to_decimal(lhs), to_decimal(rhs));
+}
+
+template<>
+std::expected<capabilities::Numeric<xsd_integer>::mul_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::mul(cpp_type const &lhs, cpp_type const &rhs) noexcept {
+    return lhs.apply_op(rhs, []<typename T>(const T& lhs, const T& rhs, T& r) {
+        return rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(lhs, rhs, r);
+    });
+}
+
+template<>
+std::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::pos(cpp_type const &operand) noexcept {
+    return operand;
 }
 
 template<>
 std::expected<capabilities::Numeric<xsd_integer>::abs_result_cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::neg(cpp_type const &operand) noexcept {
-    cpp_type r;
-    if (rdf4cpp::util::detail::mul_checked<rdf4cpp::util::detail::OverflowMode::Checked>(operand, cpp_type{-1}, r)) {
-        return std::unexpected(DynamicError::OverOrUnderFlow);
-    }
-    return r;
+    return mul(operand, cpp_type{cpp_type::first_type{-1}});
 }
 
 template<>
@@ -65,27 +103,37 @@ std::expected<capabilities::Numeric<xsd_integer>::ceil_result_cpp_type, DynamicE
 
 template<>
 std::expected<capabilities::Default<xsd_integer>::cpp_type, DynamicError> capabilities::Numeric<xsd_integer>::from_multiplicity(uint64_t multiplicity) noexcept {
-    return multiplicity; // any 64bit integer is exactly representable in boost::multiprecision::cpp_int
+    return cpp_type{cpp_type::first_type{multiplicity}}; // any 64bit integer is exactly representable in Int128
+}
+
+template<>
+template<>
+capabilities::Subtype<xsd_integer>::super_cpp_type<0> capabilities::Subtype<xsd_integer>::into_supertype(cpp_type const &value) noexcept {
+    return to_decimal(value);
+}
+
+template<>
+template<>
+std::expected<capabilities::Subtype<xsd_integer>::cpp_type, DynamicError> capabilities::Subtype<xsd_integer>::from_supertype(super_cpp_type<0> const &value) noexcept {
+    return from_decimal(value);
 }
 
 template<>
 std::partial_ordering capabilities::Comparable<xsd_integer>::compare(cpp_type const &lhs, cpp_type const &rhs) noexcept {
-    if (lhs < rhs) {
-        return std::partial_ordering::less;
-    } else if (rhs < lhs) {
-        return std::partial_ordering::greater;
-    } else {
-        return std::partial_ordering::equivalent;
-    }
+    return lhs <=> rhs;
 }
 
 template<>
 std::optional<storage::identifier::LiteralID> capabilities::Inlineable<xsd_integer>::try_into_inlined(cpp_type const &value) noexcept {
-    if (auto const boundary = 1l << (storage::identifier::LiteralID::width - 1); value >= boundary || value < -boundary) [[unlikely]] {
+    if (dice::template_library::holds_alternative<cpp_type::big_type>(value)) {
+        return std::nullopt;
+    }
+    auto const v = dice::template_library::get<cpp_type::small_type>(value);
+    if (constexpr auto boundary = 1L << (storage::identifier::LiteralID::width - 1); v >= boundary || v < -boundary) [[unlikely]] {
         return std::nullopt;
     }
 
-    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<int64_t>(value));
+    return util::try_pack_integral<storage::identifier::LiteralID>(static_cast<int64_t>(v));
 }
 
 template<>

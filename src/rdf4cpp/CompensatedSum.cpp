@@ -116,7 +116,7 @@ bool CompensatedSum::poisoned() const noexcept {
 }
 
 Literal CompensatedSum::nullary_sum(storage::DynNodeStoragePtr node_storage) {
-    return Literal::make_typed_from_value<datatypes::xsd::Integer>(0, node_storage);
+    return Literal::make_typed_from_value<datatypes::xsd::Integer>(datatypes::xsd::Integer::cpp_type{0}, node_storage);
 }
 
 }  // namespace rdf4cpp
